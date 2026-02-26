@@ -485,7 +485,7 @@ class KalshiClient:
     async def get_balance(self) -> Balance:
         data = await self._get("/portfolio/balance")
         return Balance(
-            available_balance=data.get("available_balance", 0),
+            available_balance=data.get("balance", data.get("available_balance", 0)),
             portfolio_value=data.get("portfolio_value", 0),
         )
 
@@ -493,13 +493,16 @@ class KalshiClient:
 
     @staticmethod
     def _parse_market(m: Dict) -> Market:
+        # API returns yes_bid/no_bid (new) or yes_price/no_price (old) — accept both
+        yes_price = m.get("yes_bid") or m.get("yes_price", 0)
+        no_price = m.get("no_bid") or m.get("no_price", 0)
         return Market(
             ticker=m.get("ticker", ""),
             title=m.get("title", ""),
             event_ticker=m.get("event_ticker", ""),
             status=m.get("status", ""),
-            yes_price=m.get("yes_price", 0),
-            no_price=m.get("no_price", 0),
+            yes_price=int(yes_price),
+            no_price=int(no_price),
             volume=m.get("volume", 0),
             close_time=m.get("close_time", ""),
             open_time=m.get("open_time", ""),
