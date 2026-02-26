@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "defaultMode": "acceptAll",
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(sudo *)",
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(ssh *)",
+      "Bash(kill *)",
+      "Bash(pkill *)",
+      "Bash(launchctl *)",
+      "Bash(defaults write *)"
+    ]
+  }
+}
