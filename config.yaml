@@ -5,10 +5,10 @@
 # ── Kalshi platform ────────────────────────────────────────────
 kalshi:
   mode: demo                            # Start here. Change to "live" manually (never by code).
-  demo_url: https://demo-api.kalshi.co/trade-api/v2
-  live_url: https://trading-api.kalshi.com/trade-api/v2
-  demo_ws_url: wss://demo-api.kalshi.co
-  live_ws_url: wss://trading-api.kalshi.com
+  demo_url: https://api.elections.kalshi.com/trade-api/v2
+  live_url: https://api.elections.kalshi.com/trade-api/v2
+  demo_ws_url: wss://api.elections.kalshi.com
+  live_ws_url: wss://api.elections.kalshi.com
   read_rate_limit: 10                   # requests/second (Kalshi limit)
   write_rate_limit: 5                   # requests/second (Kalshi limit)
   request_timeout: 10                   # seconds

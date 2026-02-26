@@ -105,9 +105,9 @@ def check_auth_headers():
 
 async def check_kalshi_demo():
     """Hit Kalshi demo API — GET /exchange/status (no auth required)."""
-    print("\n[4] Kalshi demo API connectivity")
+    print("\n[4] Kalshi API connectivity")
     import aiohttp
-    url = "https://demo-api.kalshi.co/trade-api/v2/exchange/status"
+    url = "https://api.elections.kalshi.com/trade-api/v2/exchange/status"
     try:
         timeout = aiohttp.ClientTimeout(total=10)
         async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -115,16 +115,16 @@ async def check_kalshi_demo():
                 if resp.status == 200:
                     body = await resp.json()
                     status = body.get("exchange_active", "unknown")
-                    record("Kalshi demo reachable", True, f"Exchange active: {status}")
+                    record("Kalshi API reachable", True, f"Exchange active: {status}")
                 else:
-                    record("Kalshi demo reachable", False, f"HTTP {resp.status}")
+                    record("Kalshi API reachable", False, f"HTTP {resp.status}")
     except Exception as e:
-        record("Kalshi demo reachable", False, str(e))
+        record("Kalshi API reachable", False, str(e))
 
 
 async def check_kalshi_auth_live():
     """Test authenticated request to Kalshi demo — GET /portfolio/balance."""
-    print("\n[5] Kalshi demo authenticated request")
+    print("\n[5] Kalshi authenticated request")
     import aiohttp
     try:
         from src.auth.kalshi_auth import load_from_env
@@ -133,7 +133,7 @@ async def check_kalshi_auth_live():
         record("Kalshi auth request", False, f"Auth setup failed: {e}")
         return
 
-    url = "https://demo-api.kalshi.co/trade-api/v2/portfolio/balance"
+    url = "https://api.elections.kalshi.com/trade-api/v2/portfolio/balance"
     path = "/trade-api/v2/portfolio/balance"
     headers = auth.headers("GET", path)
 
@@ -143,9 +143,9 @@ async def check_kalshi_auth_live():
             async with session.get(url, headers=headers) as resp:
                 if resp.status == 200:
                     body = await resp.json()
-                    balance_cents = body.get("available_balance", 0)
+                    balance_cents = body.get("balance", 0)
                     record("Authenticated request", True,
-                           f"Balance: ${balance_cents / 100:.2f} (demo)")
+                           f"Balance: ${balance_cents / 100:.2f}")
                 elif resp.status == 401:
                     record("Authenticated request", False,
                            "401 Unauthorized — check API key ID and PEM file match")
