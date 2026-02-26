@@ -23,7 +23,7 @@ polymarket:
 
 # ── Data feeds ──────────────────────────────────────────────────
 feeds:
-  binance_ws_url: wss://stream.binance.com:9443/ws/btcusdt@trade
+  binance_ws_url: wss://stream.binance.us:9443/ws/btcusdt@trade
   btc_window_seconds: 60               # Rolling window for move detection
   reconnect_delay: 5                   # Seconds before reconnecting on disconnect
 
@@ -99,6 +99,10 @@ dashboard:
   tip_rotation_seconds: 60
   max_open_positions_shown: 5
   max_recent_trades_shown: 10
+
+# ── Storage ──────────────────────────────────────────────────────
+storage:
+  db_path: data/polybot.db
 
 # ── Logging ──────────────────────────────────────────────────────
 logging:

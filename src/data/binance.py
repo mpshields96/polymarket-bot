@@ -7,7 +7,7 @@ JOB:    BTC spot price via Binance public WebSocket trade stream.
 
 DOES NOT: Strategy logic, know about Kalshi, place orders.
 
-URL (only allowed): wss://stream.binance.com:9443/ws/btcusdt@trade
+URL (only allowed): wss://stream.binance.us:9443/ws/btcusdt@trade
 
 Adapted from: https://github.com/Bh-Ayush/Kalshi-CryptoBot (price_feed.py — BinanceFeed class)
 """
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
-_BINANCE_WS_URL = "wss://stream.binance.com:9443/ws/btcusdt@trade"
+_BINANCE_WS_URL = "wss://stream.binance.us:9443/ws/btcusdt@trade"
 _STALE_THRESHOLD_SEC = 10.0     # price older than this = stale feed
 _WINDOW_SEC = 60                 # default rolling window for move detection
 _RECONNECT_DELAY_SEC = 5         # wait before reconnecting on disconnect
