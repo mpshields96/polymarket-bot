@@ -7,31 +7,27 @@
 ═══════════════════════════════════════════════════
 
 BUILD COMPLETE: All 3 phases done. 107/107 tests passing.
-BLOCKER: Kalshi API auth failing (401). One action needed from Matthew.
+verify.py: 18/18 ✅. Bot starts and connects to live Kalshi API.
 
-verify.py score: 17/18
-  ✅ env file, key IDs, PEM file, PEM valid RSA
-  ✅ Auth headers generated (KEY/SIG/TS)
-  ✅ Kalshi demo API reachable
-  ❌ Authenticated request → 401 (Key ID / PEM mismatch — see BLOCKER below)
-  ✅ Binance.US WebSocket (BTC price feed live)
-  ✅ Kill switch clear
-  ✅ config.yaml valid (all sections present)
-  ✅ DB write/read
-  ✅ BTCLagStrategy loads + sizing works
+WHAT WORKS:
+  ✅ Kalshi auth (api.elections.kalshi.com — old URLs deprecated)
+  ✅ Balance reads $75.00 from API
+  ✅ BTC feed live (Binance.US — binance.com is geo-blocked in US)
+  ✅ One active KXBTC15M market found and parsed correctly
+  ✅ Kill switch clear, DB running, strategy loads
 
-OPEN BLOCKER: Kalshi 401 Unauthorized
-  The Key ID in .env (KALSHI_API_KEY_ID) does not match the kalshi_private_key.pem.
-  Fix: Go to kalshi.com → Settings → API.
-       The Key ID shown next to the key whose .pem you have must match
-       KALSHI_API_KEY_ID in .env.
-       If you have multiple keys, delete old ones and re-download the .pem for the
-       matching key. Re-run: python main.py --verify
+OPEN INVESTIGATION:
+  Trading loop runs but no INFO-level output observed.
+  Likely benign: BTC feed needs 60s warm-up + market had <5 min remaining.
+  First task tomorrow: confirm trading loop evaluates markets and logs output.
 
-WHEN VERIFY PASSES:
-  Run paper mode: python main.py
-  Watch dashboard: streamlit run src/dashboard.py  (localhost:8501)
-  Target: 7+ days paper with positive P&L before going live.
+NEXT ACTION:
+  python main.py   (watch for "[btc_lag]" log lines at INFO level)
+  If silent after 60s: add DEBUG logging to diagnose.
+
+DO NOT enable live trading until:
+  ✓ Signal fires and is logged in paper mode
+  ✓ 7+ days paper with positive P&L
 
 ═══════════════════════════════════════════════════
 ## STEP 0: ASK MATTHEW THESE QUESTIONS FIRST
@@ -112,8 +108,17 @@ TESTS
   Total: 107/107 passing.
 
 ═══════════════════════════════════════════════════
-## KNOWN GOTCHAS — Learned through building
+## KNOWN GOTCHAS — Learned through building (read before touching API code)
 ═══════════════════════════════════════════════════
+
+0. KALSHI API MIGRATION: Old URLs are dead. Only valid URL is:
+   https://api.elections.kalshi.com/trade-api/v2
+   (trading-api.kalshi.com and demo-api.kalshi.co both 401/redirect)
+   There is no separate demo environment. Paper mode = PaperExecutor, not a demo URL.
+   Balance field = 'balance' (not 'available_balance'). In cents. /100 for USD.
+   Market price fields = 'yes_bid'/'no_bid' (not 'yes_price'/'no_price').
+   Valid status filter = 'open' (returns markets with status='active').
+   'active', 'initialized' are NOT valid filter values (400 bad_request).
 
 1. BINANCE GEO-BLOCK: wss://stream.binance.com returns HTTP 451 in the US.
    Always use wss://stream.binance.us:9443/ws/btcusdt@trade
@@ -382,11 +387,18 @@ Completed:
 - setup/verify.py: 3 new checks (config, DB write, strategy).
 Result: CHECKPOINT_3 committed and pushed.
 
-### 2026-02-26 — Session 4 (verify fixes)
+### 2026-02-26 — Session 4 (API fixes + first bot run)
 Completed:
-- Matthew created .env with Kalshi Key ID + .pem in project root.
-- Diagnose verify failures: kill switch (reset), config storage section (added),
-  Binance.com geo-block (HTTP 451) → switched to Binance.US everywhere.
-- Verify score: 17/18. One blocker remains: Kalshi 401 (Key ID / PEM mismatch).
-Next: Matthew fixes Key ID in .env to match .pem → re-run python main.py --verify
-      → run python main.py (paper mode) → confirm trades log → CHECKPOINT_4.
+- .env created with correct Key ID + .pem in project root.
+- verify.py: 18/18 all checks passing.
+- Kalshi API URL changed: trading-api.kalshi.com → api.elections.kalshi.com
+- Balance field: available_balance → balance (API renamed it)
+- Market price fields: yes_price/no_price → yes_bid/no_bid (API renamed)
+- data/ directory created (DB lives at data/polybot.db)
+- Bot starts and runs in paper mode. Balance $75 confirmed from API.
+- One active KXBTC15M market found with real prices (yes_bid=87¢, no_bid=10¢).
+- Trading loop confirmed running but no signal output observed yet.
+  (Hypothesis: 60s warm-up + market had <5 min remaining when tested)
+Next: Run python main.py, confirm "[btc_lag]" INFO log lines appear.
+      If signal fires: CHECKPOINT_4 complete. Begin 7-day paper period.
+      Also investigate: other Kalshi market categories (ETH next, then macro).
