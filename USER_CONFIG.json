@@ -1,0 +1,42 @@
+{
+  "startup_date": "2026-02-25",
+  "bankroll": {
+    "starting_usd": 50.00,
+    "currency": "USD"
+  },
+  "platforms": {
+    "kalshi": {
+      "account_ready": true,
+      "deposit_accepted": true,
+      "api_key_configured": true,
+      "pem_file": "kalshi_private_key.pem",
+      "mode": "demo"
+    },
+    "polymarket": {
+      "account_ready": false,
+      "on_waitlist": true,
+      "infrastructure": "build_now_activate_later"
+    }
+  },
+  "exclusions": [],
+  "risk_overrides": {
+    "max_single_trade_usd": 5.00,
+    "max_single_trade_pct": 0.05,
+    "hard_stop_loss_pct": 0.30,
+    "daily_loss_limit_pct": 0.15,
+    "min_bankroll_usd": 20.00,
+    "consecutive_loss_pause": 5,
+    "max_hourly_trades": 15
+  },
+  "stage_system": {
+    "enabled": true,
+    "stages": {
+      "1": {"range_usd": [0, 100], "max_bet_usd": 5.00, "max_pct": 0.05},
+      "2": {"range_usd": [100, 250], "max_bet_usd": 10.00, "max_pct": 0.05},
+      "3": {"range_usd": [250, 9999], "max_bet_usd": 15.00, "max_pct": 0.04}
+    },
+    "upgrade_requires_profitable_stage": true,
+    "upgrade_requires_min_live_trades": 30
+  },
+  "notes": "Polymarket infrastructure built now, activated when off waitlist. Stage system enabled, currently Stage 1."
+}
