@@ -1,48 +1,23 @@
 # BLOCKERS — Items needing Matthew
-# Updated in real time. Surface at every checkpoint.
+# Updated in real time by kill_switch.py. Surface at every checkpoint.
+# Note: "Auth failure halt" entries are written automatically when auth fails.
+# They are expected if .env / kalshi_private_key.pem are not yet set up.
+# All auth failure entries below consolidate to the single blocker at the top.
 ═══════════════════════════════════════════════════
-# No blockers at session start.
-# This file will be updated if auth fails, API is unreachable,
-# or any action requires Matthew's input.
 
-## BLOCKER: Auth failure halt — 2026-02-26T04:09:58.343068+00:00
+## BLOCKER: Kalshi auth not yet verified
 Severity: CRITICAL
-Need: Kalshi auth failing — 3 consecutive auth failures
-Check: Is kalshi_private_key.pem correct? Is KALSHI_API_KEY_ID correct?
-Fix: Verify keys match in Kalshi dashboard, re-download .pem if needed.
-Status: OPEN
+Need: Bot has not been run against the live demo API yet.
+      Kalshi auth will fail until keys are set up.
+Check:
+  1. Do you have a .env file with KALSHI_API_KEY_ID set?
+  2. Is kalshi_private_key.pem in the project root?
+  3. Run: python main.py --verify
+Fix: If auth fails, re-download the .pem from Kalshi dashboard,
+     confirm KALSHI_API_KEY_ID matches the key shown in Kalshi Settings → API.
+     See setup instructions in POLYBOT_INIT.md → KALSHI AUTH section.
+Status: OPEN — needs Matthew to set up .env + .pem then run --verify
 
-## BLOCKER: Auth failure halt — 2026-02-26T04:09:58.343757+00:00
-Severity: CRITICAL
-Need: Kalshi auth failing — 3 consecutive auth failures
-Check: Is kalshi_private_key.pem correct? Is KALSHI_API_KEY_ID correct?
-Fix: Verify keys match in Kalshi dashboard, re-download .pem if needed.
-Status: OPEN
-
-## BLOCKER: Auth failure halt — 2026-02-26T04:09:58.344519+00:00
-Severity: CRITICAL
-Need: Kalshi auth failing — 3 consecutive auth failures
-Check: Is kalshi_private_key.pem correct? Is KALSHI_API_KEY_ID correct?
-Fix: Verify keys match in Kalshi dashboard, re-download .pem if needed.
-Status: OPEN
-
-## BLOCKER: Auth failure halt — 2026-02-26T04:14:10.462504+00:00
-Severity: CRITICAL
-Need: Kalshi auth failing — 3 consecutive auth failures
-Check: Is kalshi_private_key.pem correct? Is KALSHI_API_KEY_ID correct?
-Fix: Verify keys match in Kalshi dashboard, re-download .pem if needed.
-Status: OPEN
-
-## BLOCKER: Auth failure halt — 2026-02-26T04:14:10.463135+00:00
-Severity: CRITICAL
-Need: Kalshi auth failing — 3 consecutive auth failures
-Check: Is kalshi_private_key.pem correct? Is KALSHI_API_KEY_ID correct?
-Fix: Verify keys match in Kalshi dashboard, re-download .pem if needed.
-Status: OPEN
-
-## BLOCKER: Auth failure halt — 2026-02-26T04:14:10.463949+00:00
-Severity: CRITICAL
-Need: Kalshi auth failing — 3 consecutive auth failures
-Check: Is kalshi_private_key.pem correct? Is KALSHI_API_KEY_ID correct?
-Fix: Verify keys match in Kalshi dashboard, re-download .pem if needed.
-Status: OPEN
+═══════════════════════════════════════════════════
+# Resolved blockers are moved below this line:
+# (none yet)

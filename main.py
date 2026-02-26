@@ -49,6 +49,7 @@ logger = logging.getLogger("main")
 
 POLL_INTERVAL_SEC = 30      # How often to check markets and generate signals
 BANKROLL_SNAPSHOT_SEC = 300  # How often to record bankroll to DB (5 min)
+SETTLEMENT_POLL_SEC = 60    # How often to check for settled markets
 
 
 async def trading_loop(
@@ -195,6 +196,66 @@ async def trading_loop(
         await asyncio.sleep(POLL_INTERVAL_SEC)
 
 
+# ── Settlement polling loop ────────────────────────────────────────────
+
+async def settlement_loop(kalshi, db):
+    """
+    Background loop: detect settled markets and record outcomes in DB.
+
+    Polls every SETTLEMENT_POLL_SEC seconds. For each open trade, fetches the
+    market from Kalshi. When a market status is 'finalized', settles the trade
+    and records P&L (same formula for paper + live: win/loss based on result).
+    """
+    from src.execution.paper import PaperExecutor
+    paper_exec = PaperExecutor(db)
+
+    while True:
+        try:
+            await asyncio.sleep(SETTLEMENT_POLL_SEC)
+
+            open_trades = db.get_open_trades()
+            if not open_trades:
+                continue
+
+            # Deduplicate tickers to minimise API calls
+            tickers = list({t["ticker"] for t in open_trades})
+
+            for ticker in tickers:
+                try:
+                    market = await kalshi.get_market(ticker)
+                except Exception as e:
+                    logger.warning("[settle] Failed to fetch market %s: %s", ticker, e)
+                    continue
+
+                # Kalshi marks settled markets as "finalized"
+                if market.status not in ("finalized", "settled") or not market.result:
+                    continue
+
+                result = market.result  # "yes" | "no"
+                ticker_trades = [t for t in open_trades if t["ticker"] == ticker]
+
+                for trade in ticker_trades:
+                    pnl_cents = paper_exec.settle(
+                        trade_id=trade["id"],
+                        result=result,
+                        fill_price_cents=trade["price_cents"],
+                        side=trade["side"],
+                        count=trade["count"],
+                    )
+                    mode = "PAPER" if trade["is_paper"] else "LIVE"
+                    logger.info(
+                        "[settle] %s trade %d (%s %s @ %d¢ ×%d): result=%s P&L=$%.2f",
+                        mode, trade["id"], trade["side"].upper(), ticker,
+                        trade["price_cents"], trade["count"],
+                        result.upper(), pnl_cents / 100.0,
+                    )
+
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error("Unexpected error in settlement loop: %s", e, exc_info=True)
+
+
 # ── Startup banner ─────────────────────────────────────────────────────
 
 def print_banner(mode: str, bankroll: float, stage: int, kill_switch_active: bool):
@@ -333,22 +394,34 @@ async def main():
     logger.info("Strategy loaded: %s", strategy.name)
 
     # ── Run ───────────────────────────────────────────────────────────
-    try:
-        await trading_loop(
+    trade_task = asyncio.create_task(
+        trading_loop(
             kalshi=kalshi,
             btc_feed=btc_feed,
             strategy=strategy,
             kill_switch=kill_switch,
-            sizing=None,  # imported inline in loop
+            sizing=None,
             db=db,
-            paper_executor=None,  # created inline in loop
+            paper_executor=None,
             live_executor_enabled=live_mode,
-            live_confirmed=False,   # set to True after live warning prompt
+            live_confirmed=False,
             btc_series_ticker=config.get("strategy", {}).get("markets", ["KXBTC15M"])[0],
-        )
+        ),
+        name="trading_loop",
+    )
+    settle_task = asyncio.create_task(
+        settlement_loop(kalshi=kalshi, db=db),
+        name="settlement_loop",
+    )
+
+    try:
+        await asyncio.gather(trade_task, settle_task)
     except KeyboardInterrupt:
         logger.info("Keyboard interrupt — shutting down")
     finally:
+        trade_task.cancel()
+        settle_task.cancel()
+        await asyncio.gather(trade_task, settle_task, return_exceptions=True)
         logger.info("Stopping feeds and connections...")
         await btc_feed.stop()
         await kalshi.close()
