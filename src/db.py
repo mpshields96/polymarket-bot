@@ -290,7 +290,7 @@ class DB:
 
     def win_rate(self, is_paper: Optional[bool] = None, limit: int = 100) -> Optional[float]:
         """Return win rate (0.0–1.0) over last `limit` settled trades, or None."""
-        query = "SELECT result FROM trades WHERE result IS NOT NULL"
+        query = "SELECT result, side FROM trades WHERE result IS NOT NULL"
         params: list = []
         if is_paper is not None:
             query += " AND is_paper = ?"
@@ -300,7 +300,7 @@ class DB:
         rows = self._conn.execute(query, params).fetchall()
         if not rows:
             return None
-        wins = sum(1 for r in rows if dict(r)["result"] == "yes")
+        wins = sum(1 for r in rows if dict(r)["result"] == dict(r)["side"])
         return wins / len(rows)
 
     def total_realized_pnl_usd(self, is_paper: Optional[bool] = None) -> float:

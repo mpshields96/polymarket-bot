@@ -13,7 +13,8 @@ LOGIC (all 4 must be true to generate a signal):
 EDGE CALCULATION:
     implied_lag_cents = abs(btc_move_pct) * LAG_SENSITIVITY
     edge_pct          = (implied_lag_cents / 100) - kalshi_fee(price)
-    win_prob          = min(0.85, current_price_pct + implied_lag_cents / 100)
+    win_prob          = min(0.85, current_price_pct + (implied_lag_cents / 100) * 0.8)
+    # 0.8 multiplier: conservative — assume we capture only 80% of the implied lag
 
 DOES NOT: Know about sizing, risk, order placement.
 """
@@ -216,4 +217,5 @@ def load_from_config() -> BTCLagStrategy:
         min_kalshi_lag_cents=s.get("min_kalshi_lag_cents", _DEFAULT_MIN_LAG_CENTS),
         min_minutes_remaining=s.get("min_minutes_remaining", _DEFAULT_MIN_MINUTES_REMAINING),
         min_edge_pct=s.get("min_edge_pct", _DEFAULT_MIN_EDGE_PCT),
+        lag_sensitivity=s.get("lag_sensitivity", _DEFAULT_LAG_SENSITIVITY),
     )
