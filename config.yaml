@@ -1,0 +1,108 @@
+# polymarket-bot configuration
+# All tunable params live here. Hard safety floors are enforced in code — config cannot override them.
+# ═══════════════════════════════════════════════════════════════
+
+# ── Kalshi platform ────────────────────────────────────────────
+kalshi:
+  mode: demo                            # Start here. Change to "live" manually (never by code).
+  demo_url: https://demo-api.kalshi.co/trade-api/v2
+  live_url: https://trading-api.kalshi.com/trade-api/v2
+  demo_ws_url: wss://demo-api.kalshi.co
+  live_ws_url: wss://trading-api.kalshi.com
+  read_rate_limit: 10                   # requests/second (Kalshi limit)
+  write_rate_limit: 5                   # requests/second (Kalshi limit)
+  request_timeout: 10                   # seconds
+  max_retries: 3
+
+# ── Polymarket platform ─────────────────────────────────────────
+polymarket:
+  enabled: false                        # Enable when off waitlist. Never change automatically.
+  clob_url: https://clob.polymarket.com
+  gamma_url: https://gamma-api.polymarket.com
+  chain_id: 137                         # Polygon mainnet
+
+# ── Data feeds ──────────────────────────────────────────────────
+feeds:
+  binance_ws_url: wss://stream.binance.com:9443/ws/btcusdt@trade
+  btc_window_seconds: 60               # Rolling window for move detection
+  reconnect_delay: 5                   # Seconds before reconnecting on disconnect
+
+# ── Strategy ────────────────────────────────────────────────────
+strategy:
+  active: btc_lag                      # Only this. Expand after proven.
+  markets:
+    - btc_15min                        # Kalshi BTC 15-min window markets
+
+  btc_lag:
+    min_btc_move_pct: 0.4              # BTC must move this % in btc_window_seconds
+    min_kalshi_lag_cents: 5            # Kalshi price must lag spot by this many cents
+    min_minutes_remaining: 5           # Don't enter with < 5 min left in window
+    min_edge_pct: 0.08                 # Only trade if edge > 8% (after fees)
+
+  whale_copy:                          # Polymarket only — inactive until off waitlist
+    enabled: false
+    min_win_rate: 0.62                 # Only copy whales with 62%+ win rate
+    min_trades: 50                     # Must have 50+ trades to qualify
+    copy_ratio: 0.02                   # Bet 2% of what they bet
+    max_bet_usd: 5.00                  # Never exceed this regardless of copy_ratio
+
+# ── Risk — hard floors enforced in code, config cannot override ──
+risk:
+  # Populated at runtime from USER_CONFIG.json
+  starting_bankroll_usd: 50.00         # Matthew's starting bankroll
+
+  # Per-trade caps (LOWER of usd and pct always applies)
+  max_single_trade_usd: 5.00           # Hard cap: $5 per bet (Stage 1)
+  max_single_trade_pct: 0.05           # Hard cap: 5% of bankroll
+
+  # Daily limits
+  daily_loss_limit_pct: 0.15           # Stop if down 15% of starting bankroll today
+  daily_loss_resets_midnight: true     # Soft kill auto-resets at midnight
+
+  # Consecutive loss protection
+  consecutive_loss_pause: 5            # N losses in a row → pause
+  consecutive_loss_cooldown_hours: 2   # Resume after this long
+
+  # Rate limiting
+  max_hourly_trades: 15                # Trades per hour before rate pause
+
+  # Hard stops (require manual --reset-killswitch)
+  hard_stop_loss_pct: 0.30             # Lose 30% total → HARD STOP
+  min_bankroll_usd: 20.00             # Below $20 → HARD STOP
+
+  # Auth failure protection
+  max_auth_failures: 3                 # Consecutive auth failures → halt
+
+# ── Stage-based sizing ───────────────────────────────────────────
+stages:
+  "1":
+    range: [0, 100]
+    max_bet_usd: 5.00
+    max_pct: 0.05
+  "2":
+    range: [100, 250]
+    max_bet_usd: 10.00
+    max_pct: 0.05
+  "3":
+    range: [250, 9999]
+    max_bet_usd: 15.00
+    max_pct: 0.04
+  upgrade_requires_profitable_stage: true
+  upgrade_requires_min_live_trades: 30
+  kelly_fraction: 0.25                 # Conservative 1/4 Kelly
+
+# ── Dashboard ────────────────────────────────────────────────────
+dashboard:
+  port: 8501
+  host: "127.0.0.1"                   # Localhost ONLY. Never 0.0.0.0.
+  refresh_seconds: 30
+  tip_rotation_seconds: 60
+  max_open_positions_shown: 5
+  max_recent_trades_shown: 10
+
+# ── Logging ──────────────────────────────────────────────────────
+logging:
+  level: INFO
+  trades_dir: logs/trades
+  errors_dir: logs/errors
+  rotate_daily: true

@@ -1,0 +1,219 @@
+"""
+Connection verification script.
+Tests all external connections before the bot runs.
+
+Usage:
+    python setup/verify.py
+    python main.py --verify  (same thing, via main.py)
+
+Exits 0 if all critical checks pass, 1 if any critical check fails.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+import sys
+import time
+from pathlib import Path
+
+# Ensure project root is on path
+PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from dotenv import load_dotenv
+load_dotenv(PROJECT_ROOT / ".env")
+
+
+# ── Check results tracking ────────────────────────────────────────
+
+CHECKS: list[dict] = []
+
+def record(name: str, passed: bool, detail: str = "", critical: bool = True):
+    status = "✅ PASS" if passed else ("❌ FAIL" if critical else "⚠️  WARN")
+    CHECKS.append({"name": name, "passed": passed, "detail": detail, "critical": critical})
+    print(f"  {status}  {name}")
+    if detail:
+        print(f"           {detail}")
+
+
+# ── Individual checks ─────────────────────────────────────────────
+
+def check_env():
+    """Verify required environment variables are set."""
+    print("\n[1] Environment variables")
+    key_id = os.getenv("KALSHI_API_KEY_ID", "")
+    key_path = os.getenv("KALSHI_PRIVATE_KEY_PATH", "")
+    live_flag = os.getenv("LIVE_TRADING", "false")
+
+    record(".env file loaded", Path(PROJECT_ROOT / ".env").exists(),
+           "Copy .env.example → .env and fill in your values" if not Path(PROJECT_ROOT / ".env").exists() else "")
+    record("KALSHI_API_KEY_ID set", bool(key_id) and key_id != "YOUR_KEY_ID_HERE",
+           "Not set or still placeholder" if not key_id else f"Key ID: {key_id[:8]}...")
+    record("KALSHI_PRIVATE_KEY_PATH set", bool(key_path),
+           "Not set" if not key_path else f"Path: {key_path}")
+    record("LIVE_TRADING=false (safe default)", live_flag.lower() == "false",
+           f"LIVE_TRADING={live_flag} — set to false for paper mode", critical=False)
+
+
+def check_pem():
+    """Verify PEM file exists and is a valid RSA key."""
+    print("\n[2] Private key file")
+    key_path_str = os.getenv("KALSHI_PRIVATE_KEY_PATH", "")
+    if not key_path_str:
+        record("PEM file check", False, "KALSHI_PRIVATE_KEY_PATH not set — skipping")
+        return
+
+    key_path = Path(key_path_str)
+    if not key_path.is_absolute():
+        key_path = PROJECT_ROOT / key_path
+
+    exists = key_path.exists()
+    record("PEM file exists", exists,
+           f"Not found at: {key_path}" if not exists else f"Found: {key_path.name}")
+
+    if exists:
+        try:
+            from cryptography.hazmat.backends import default_backend
+            from cryptography.hazmat.primitives import serialization
+            with open(key_path, "rb") as f:
+                key = serialization.load_pem_private_key(f.read(), password=None, backend=default_backend())
+            record("PEM file is valid RSA key", True, f"Key size: {key.key_size} bits")
+        except Exception as e:
+            record("PEM file is valid RSA key", False, f"Error: {e}")
+
+
+def check_auth_headers():
+    """Verify auth header generation works (no network call)."""
+    print("\n[3] Auth header generation")
+    try:
+        from src.auth.kalshi_auth import load_from_env
+        auth = load_from_env()
+        headers = auth.headers("GET", "/trade-api/v2/markets")
+        has_key = "KALSHI-ACCESS-KEY" in headers
+        has_sig = "KALSHI-ACCESS-SIGNATURE" in headers
+        has_ts = "KALSHI-ACCESS-TIMESTAMP" in headers
+        record("Headers generated", has_key and has_sig and has_ts,
+               f"KEY={'✓' if has_key else '✗'} SIG={'✓' if has_sig else '✗'} TS={'✓' if has_ts else '✗'}")
+        if has_ts:
+            age_ms = int(time.time() * 1000) - int(headers["KALSHI-ACCESS-TIMESTAMP"])
+            record("Timestamp freshness", age_ms < 5000, f"Age: {age_ms}ms")
+    except Exception as e:
+        record("Auth module import", False, str(e))
+
+
+async def check_kalshi_demo():
+    """Hit Kalshi demo API — GET /exchange/status (no auth required)."""
+    print("\n[4] Kalshi demo API connectivity")
+    import aiohttp
+    url = "https://demo-api.kalshi.co/trade-api/v2/exchange/status"
+    try:
+        timeout = aiohttp.ClientTimeout(total=10)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    body = await resp.json()
+                    status = body.get("exchange_active", "unknown")
+                    record("Kalshi demo reachable", True, f"Exchange active: {status}")
+                else:
+                    record("Kalshi demo reachable", False, f"HTTP {resp.status}")
+    except Exception as e:
+        record("Kalshi demo reachable", False, str(e))
+
+
+async def check_kalshi_auth_live():
+    """Test authenticated request to Kalshi demo — GET /portfolio/balance."""
+    print("\n[5] Kalshi demo authenticated request")
+    import aiohttp
+    try:
+        from src.auth.kalshi_auth import load_from_env
+        auth = load_from_env()
+    except Exception as e:
+        record("Kalshi auth request", False, f"Auth setup failed: {e}")
+        return
+
+    url = "https://demo-api.kalshi.co/trade-api/v2/portfolio/balance"
+    path = "/trade-api/v2/portfolio/balance"
+    headers = auth.headers("GET", path)
+
+    try:
+        timeout = aiohttp.ClientTimeout(total=10)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(url, headers=headers) as resp:
+                if resp.status == 200:
+                    body = await resp.json()
+                    balance_cents = body.get("available_balance", 0)
+                    record("Authenticated request", True,
+                           f"Balance: ${balance_cents / 100:.2f} (demo)")
+                elif resp.status == 401:
+                    record("Authenticated request", False,
+                           "401 Unauthorized — check API key ID and PEM file match")
+                else:
+                    body = await resp.text()
+                    record("Authenticated request", False, f"HTTP {resp.status}: {body[:100]}")
+    except Exception as e:
+        record("Authenticated request", False, str(e))
+
+
+async def check_binance_feed():
+    """Test Binance BTC WebSocket — connect, get one price, disconnect."""
+    print("\n[6] Binance BTC price feed")
+    import websockets
+    url = "wss://stream.binance.com:9443/ws/btcusdt@trade"
+    try:
+        async with websockets.connect(url, open_timeout=10) as ws:
+            msg = await asyncio.wait_for(ws.recv(), timeout=10)
+            data = json.loads(msg)
+            price = float(data.get("p", 0))
+            record("Binance WebSocket", price > 0, f"BTC price: ${price:,.2f}")
+    except Exception as e:
+        record("Binance WebSocket", False, str(e))
+
+
+async def check_kill_switch():
+    """Verify kill switch module imports and basic state."""
+    print("\n[7] Kill switch")
+    lock_file = PROJECT_ROOT / "kill_switch.lock"
+    if lock_file.exists():
+        record("kill_switch.lock absent", False,
+               "Kill switch is TRIGGERED. Run: python main.py --reset-killswitch")
+        return
+    record("kill_switch.lock absent", True, "No active kill switch")
+
+
+# ── Main ──────────────────────────────────────────────────────────
+
+async def run_all():
+    check_env()
+    check_pem()
+    check_auth_headers()
+    await check_kalshi_demo()
+    await check_kalshi_auth_live()
+    await check_binance_feed()
+    await check_kill_switch()
+
+    # Summary
+    print("\n" + "═" * 48)
+    passed = sum(1 for c in CHECKS if c["passed"])
+    failed_critical = [c for c in CHECKS if not c["passed"] and c["critical"]]
+    total = len(CHECKS)
+    print(f"  Results: {passed}/{total} checks passed")
+
+    if failed_critical:
+        print(f"\n  ❌ {len(failed_critical)} critical check(s) failed:")
+        for c in failed_critical:
+            print(f"     • {c['name']}: {c['detail']}")
+        print("\n  Bot cannot start until critical checks pass.")
+        print("  See BLOCKERS.md if you need help.")
+        print("═" * 48)
+        sys.exit(1)
+    else:
+        print("\n  ✅ All critical checks passed. Bot is ready.")
+        print("  Run: python main.py")
+        print("═" * 48)
+        sys.exit(0)
+
+
+if __name__ == "__main__":
+    asyncio.run(run_all())
