@@ -182,6 +182,71 @@ async def check_kill_switch():
     record("kill_switch.lock absent", True, "No active kill switch")
 
 
+def check_config():
+    """Verify config.yaml exists and is valid YAML with required sections."""
+    print("\n[8] Config file")
+    config_path = PROJECT_ROOT / "config.yaml"
+    if not config_path.exists():
+        record("config.yaml exists", False, "Not found — run: cp .env.example .env")
+        return
+    record("config.yaml exists", True)
+    try:
+        import yaml
+        with open(config_path) as f:
+            cfg = yaml.safe_load(f)
+        required = ["kalshi", "strategy", "risk", "storage"]
+        missing = [k for k in required if k not in cfg]
+        record("config.yaml valid YAML", not missing,
+               f"Missing sections: {missing}" if missing else
+               f"Sections: {list(cfg.keys())}")
+        bankroll = cfg.get("risk", {}).get("starting_bankroll_usd", 0)
+        record("Starting bankroll set", bankroll > 0,
+               f"${bankroll:.2f}" if bankroll > 0 else "Set risk.starting_bankroll_usd in config.yaml")
+    except Exception as e:
+        record("config.yaml valid YAML", False, str(e))
+
+
+def check_db():
+    """Verify database can be created and written to."""
+    print("\n[9] Database")
+    import tempfile
+    import sqlite3
+    from src.db import DB
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+            tmp_path = Path(f.name)
+        db = DB(tmp_path)
+        db.init()
+        db.save_bankroll(50.0, source="verify")
+        val = db.latest_bankroll()
+        db.close()
+        tmp_path.unlink(missing_ok=True)
+        record("DB create + write", val == 50.0, f"Read back: ${val:.2f}")
+    except Exception as e:
+        record("DB create + write", False, str(e))
+
+
+def check_strategy():
+    """Verify strategy module imports and instantiates cleanly."""
+    print("\n[10] Strategy")
+    try:
+        from src.strategies.btc_lag import load_from_config
+        strategy = load_from_config()
+        record("BTCLagStrategy loads", True, f"Strategy: {strategy.name}")
+    except Exception as e:
+        record("BTCLagStrategy loads", False, str(e))
+
+    try:
+        from src.risk.sizing import calculate_size, kalshi_payout
+        payout = kalshi_payout(44, "yes")
+        result = calculate_size(win_prob=0.60, payout_per_dollar=payout,
+                                edge_pct=0.12, bankroll_usd=50.0)
+        record("Sizing module works", result is not None,
+               f"Sample size: ${result.recommended_usd:.2f}" if result else "Returned None")
+    except Exception as e:
+        record("Sizing module works", False, str(e))
+
+
 # ── Main ──────────────────────────────────────────────────────────
 
 async def run_all():
@@ -192,6 +257,9 @@ async def run_all():
     await check_kalshi_auth_live()
     await check_binance_feed()
     await check_kill_switch()
+    check_config()
+    check_db()
+    check_strategy()
 
     # Summary
     print("\n" + "═" * 48)
