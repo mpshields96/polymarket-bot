@@ -18,6 +18,13 @@
 - `test_security.py` excludes itself from the dangerous-paths scan (it contains them as test data)
 - Bankroll floor check must run BEFORE pct cap check in `check_order_allowed()`
 - `LIVE_TRADING=true` in .env AND `--live` at CLI — both required for live mode
+- **Binance.com is geo-blocked in the US (HTTP 451)** — always use `wss://stream.binance.us:9443`
+- Binance.US WebSocket can be silent for 10-30s; `recv` timeout must be ≥30s
+- Kalshi API Key ID = short UUID at kalshi.com → Settings → API (NOT the .pem file contents)
+- `db.win_rate()` must compare `result == side` (not `result == "yes"`) — NO-side bets win when result=="no"
+- `kill_switch.lock` reset requires piping: `echo "RESET" | python main.py --reset-killswitch`
+- `config.yaml` must have sections: kalshi, strategy, risk, **storage** (verify.py checks all four)
+- 107/107 tests must pass before any commit (was 59, expanded with test_db.py + test_strategy.py)
 
 ## Code patterns
 - Every module has `load_from_env()` or `load_from_config()` factory at bottom
