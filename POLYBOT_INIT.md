@@ -361,14 +361,35 @@ Conservative > clever. Working > perfect. Logged > forgotten.
 When starting a new chat, paste this at the top:
 
 ────────────────────────────────────────
-"We are resuming the polymarket-bot project.
-Read these files first (in order), then continue where we left off:
-1. POLYBOT_INIT.md — original build spec + live status + all learnings
-2. SESSION_HANDOFF.md — current state, next actions, component status
-3. BLOCKERS.md — open issues needing my input
+We are resuming the polymarket-bot project. Read these files first (in order), then continue:
+1. POLYBOT_INIT.md — build spec, current status, all known gotchas
+2. SESSION_HANDOFF.md — current state and exact next action
 
-Do NOT ask setup questions — the project is already built.
-Resume from: [paste the 'Next action' section of SESSION_HANDOFF.md here]"
+Do NOT ask setup questions. The bot is fully built, tested, and auth is working.
+
+CURRENT STATE (as of last session):
+- 117/117 tests passing. verify.py 18/18.
+- Trading loop confirmed running: evaluates KXBTC15M every 30s.
+- Every 30s you see: "[btc_lag] BTC move +X.XXX% (need ±0.40%) — waiting for signal"
+- No paper trade signal has fired yet — BTC moves ~0.02-0.05% in calm market, need ~0.65%.
+- All critical safety fixes applied: kill switch wired to settlement, live CONFIRM prompt,
+  PID lock, SIGTERM handler, dashboard DB path, stale threshold 35s.
+- LIVE_TRADING=false — paper mode only. No real orders possible without --live + .env change.
+- All sessions 1-9 committed and pushed to GitHub (main branch).
+
+RESUME FROM:
+Run `python main.py` and let it watch for the first paper signal.
+Every 30s you'll see the near-miss log. First signal fires when BTC moves ~0.65%+ in 60s.
+If no signal after a few hours: lower min_edge_pct 0.08 → 0.05 in config.yaml (NOT min_btc_move_pct).
+
+KEY FACTS:
+- Kalshi API: api.elections.kalshi.com (old URLs dead — trading-api.kalshi.com 401s)
+- BTC feed: Binance.US wss://stream.binance.us:9443/ws/btcusdt@bookTicker
+  (binance.com HTTP 451 geo-blocked in US. @trade stream has near-zero volume — use @bookTicker)
+- Balance: $75 confirmed from API. Starting bankroll: $50 in config.yaml.
+- Next market after BTC proven: KXETH15M (same structure, same lag logic — do NOT add until 7+ paper days positive)
+- Dashboard: streamlit run src/dashboard.py → localhost:8501
+- Kill switch reset: echo "RESET" | python main.py --reset-killswitch
 ────────────────────────────────────────
 
 WHAT CLAUDE SHOULD DO AUTOMATICALLY AT END OF EACH SESSION:
