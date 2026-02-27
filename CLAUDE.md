@@ -43,8 +43,24 @@
 - Stolen code gets `# Adapted from: https://github.com/...` at top of file
 - Attribution for all refs: kalshi-btc, poly-apex, poly-gabagool, poly-official
 
+## Session startup (do this automatically, no prompting Matthew)
+1. Read `SESSION_HANDOFF.md` — get current state + exact next action
+2. Read `POLYBOT_INIT.md` → CURRENT STATUS section — confirm what works
+3. Announce what you found in 2-3 lines, then ask "Ready to continue?" or just proceed
+4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
+
+Current project state (updated each session):
+- 117/117 tests passing, verify.py 18/18
+- Trading loop confirmed: evaluates KXBTC15M every 30s, no signal yet (needs ~0.65% BTC in 60s)
+- All critical safety fixes applied (kill switch wired, live CONFIRM prompt, PID lock)
+- Paper mode only — LIVE_TRADING=false in .env
+- GitHub: main branch, all sessions 1-9 committed (bf60715)
+- Next action: `python main.py` → watch for first `[btc_lag] Signal:` log line
+
 ## Workflow
 - User runs with bypass permissions active — no confirmation needed
 - Proactively invoke superpowers:* skills and sc:* commands without being asked
+- Matthew is a doctor with a new baby — keep explanations short, do the work autonomously
+- Do NOT ask for confirmation on routine operations (running tests, reading files, updating docs)
 - Surface CHECKPOINT_N.md docs and wait for "continue" before next phase
 - 117/117 tests must pass before any commit
