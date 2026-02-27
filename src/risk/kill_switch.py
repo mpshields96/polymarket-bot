@@ -312,7 +312,9 @@ class KillSwitch:
         print("=" * 60 + "\n")
 
     def _write_blockers(self, reason: str):
-        """Write to BLOCKERS.md when auth failures halt the bot."""
+        """Write to BLOCKERS.md when auth failures halt the bot. Skipped during tests."""
+        if os.environ.get("PYTEST_CURRENT_TEST"):
+            return  # Don't pollute BLOCKERS.md with expected test-triggered auth failures
         blockers_path = PROJECT_ROOT / "BLOCKERS.md"
         timestamp = datetime.now(timezone.utc).isoformat()
         try:

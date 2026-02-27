@@ -24,7 +24,19 @@
 - `db.win_rate()` must compare `result == side` (not `result == "yes"`) — NO-side bets win when result=="no"
 - `kill_switch.lock` reset requires piping: `echo "RESET" | python main.py --reset-killswitch`
 - `config.yaml` must have sections: kalshi, strategy, risk, **storage** (verify.py checks all four)
-- 107/107 tests must pass before any commit (was 59, expanded with test_db.py + test_strategy.py)
+- `config.yaml` series ticker must be `KXBTC15M` (not `btc_15min`) — wrong value returns 0 markets silently at DEBUG
+- All `generate_signal()` skip paths log at DEBUG — trading loop appears silent when no signal fires (expected)
+- **Binance.US `@trade` stream has near-zero BTC volume** — always use `@bookTicker` (mid-price = (bid+ask)/2, ~100 ticks/min)
+- `tests/conftest.py` auto-cleans `kill_switch.lock` at session start/end — after interrupted test runs the lock won't block `main.py`
+- `kill_switch._write_blockers()` skips BLOCKERS.md write when `PYTEST_CURRENT_TEST` env var is set — prevents test runs from polluting BLOCKERS.md
+- Never run diagnostic scripts in background without an explicit kill after N seconds — unattended loops burn API credits/quota
+- `bot.pid` is written at startup and removed on clean shutdown — prevents dual instances; if it exists after a crash, delete it before restarting
+- The binding constraint for a signal is `min_edge_pct` (8%), NOT `min_btc_move_pct` — need ~0.65% BTC in 60s at current settings
+- `settlement_loop` must pass `kill_switch` and call `record_win()`/`record_loss()` — otherwise consecutive-loss and total-loss hard stops are dead code
+- Live mode requires BOTH `--live` flag AND `LIVE_TRADING=true` in .env; then user must type `CONFIRM` at runtime prompt — all three gates required
+- `PermissionError` from `os.kill(pid, 0)` means the process IS alive under a different user — not stale; exit on `PermissionError`, skip on `ProcessLookupError`
+- `_STALE_THRESHOLD_SEC = 35.0` in binance.py — Binance.US @bookTicker can be silent 10-30s; 10s threshold causes false stale signals
+- 117/117 tests must pass before any commit (was 107 → +5 settlement → +5 PYTEST guard + dashboard path)
 
 ## Code patterns
 - Every module has `load_from_env()` or `load_from_config()` factory at bottom
@@ -35,4 +47,4 @@
 - User runs with bypass permissions active — no confirmation needed
 - Proactively invoke superpowers:* skills and sc:* commands without being asked
 - Surface CHECKPOINT_N.md docs and wait for "continue" before next phase
-- 59/59 tests must pass before any commit
+- 117/117 tests must pass before any commit

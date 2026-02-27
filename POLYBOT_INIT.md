@@ -6,24 +6,33 @@
 ## CURRENT STATUS — READ THIS FIRST (updated each session)
 ═══════════════════════════════════════════════════
 
-BUILD COMPLETE: All 3 phases done. 107/107 tests passing.
-verify.py: 18/18 ✅. Bot starts and connects to live Kalshi API.
+BUILD COMPLETE: All 3 phases done. 117/117 tests passing.
+verify.py: 18/18 ✅. BTC price feed confirmed live. Trading loop evaluates every 30s.
 
 WHAT WORKS:
   ✅ Kalshi auth (api.elections.kalshi.com — old URLs deprecated)
   ✅ Balance reads $75.00 from API
-  ✅ BTC feed live (Binance.US — binance.com is geo-blocked in US)
-  ✅ One active KXBTC15M market found and parsed correctly
+  ✅ BTC feed live — Binance.US @bookTicker, ~100 ticks/min, btc_move_pct() returning real values
+     (@trade had near-zero volume; @bookTicker uses mid-price = (bid+ask)/2)
+  ✅ Trading loop confirmed: "[trading] Evaluating 1 market(s): [KXBTC15M-...]" every 30s
   ✅ Kill switch clear, DB running, strategy loads
+  ✅ KXETH15M also confirmed live (same structure as BTC — future expansion)
+  ✅ tests/conftest.py: auto-cleans kill_switch.lock at test session start/end
+  ✅ bot.pid lock: prevents two `python main.py` instances running simultaneously
+  ✅ Near-miss log: every 30s shows "BTC move +X.XXX% (need ±0.40%) — waiting for signal"
+  ✅ Dashboard DB path fixed: reads data/polybot.db from config.yaml (was hardcoded wrong)
+  ✅ data/ dir auto-created at startup (safe on fresh clone)
+  ✅ SIGTERM handler: `kill PID` triggers same clean shutdown as Ctrl+C
 
-OPEN INVESTIGATION:
-  Trading loop runs but no INFO-level output observed.
-  Likely benign: BTC feed needs 60s warm-up + market had <5 min remaining.
-  First task tomorrow: confirm trading loop evaluates markets and logs output.
+OPEN:
+  No signal has fired yet. Bot needs to run during a BTC volatile period.
+  Observed moves: ~0.02-0.03% in 60s, threshold is 0.4%. Normal for calm market.
 
 NEXT ACTION:
-  python main.py   (watch for "[btc_lag]" log lines at INFO level)
-  If silent after 60s: add DEBUG logging to diagnose.
+  python main.py — let it run, watch for "[btc_lag] Signal: BUY" log lines.
+  Every 30s you will see: "[btc_lag] BTC move +X.XXX% (need ±0.40%) — waiting for signal"
+  If no signal after a few hours: lower min_edge_pct 0.08→0.05 in config.yaml
+  (NOT min_btc_move_pct — min_edge_pct is the binding constraint, needs ~0.65% BTC in 60s)
 
 DO NOT enable live trading until:
   ✓ Signal fires and is logged in paper mode
@@ -121,35 +130,39 @@ TESTS
    'active', 'initialized' are NOT valid filter values (400 bad_request).
 
 1. BINANCE GEO-BLOCK: wss://stream.binance.com returns HTTP 451 in the US.
-   Always use wss://stream.binance.us:9443/ws/btcusdt@trade
+   Always use wss://stream.binance.us:9443
 
-2. BINANCE TIMEOUT: The Binance.US WebSocket connects fine but trade messages
-   can be silent for >10 seconds. verify.py uses a 30s recv timeout. Don't
-   reduce it or the check will flap.
+2. BINANCE @TRADE STREAM HAS NEAR-ZERO VOLUME ON BINANCE.US: The @trade stream
+   produces 0 messages — there are almost no individual BTC trades. Use @bookTicker
+   instead. It fires on every best bid/ask change (~100 updates/min). Mid-price:
+   (float(msg["b"]) + float(msg["a"])) / 2.0
 
-3. BLOCKERS.MD ACCUMULATES: kill_switch.py automatically appends a new blocker
+3. BINANCE TIMEOUT: verify.py uses a 30s recv timeout for the WebSocket check.
+   Don't reduce it — @bookTicker can have gaps of a few seconds between updates.
+
+4. BLOCKERS.MD ACCUMULATES: kill_switch.py automatically appends a new blocker
    entry every time 3 consecutive auth failures occur. This fires whenever --verify
    is run without valid keys. Expected behavior — don't delete the mechanism,
    just clean up old duplicate entries periodically.
 
-4. KILL SWITCH FALSE TRIGGER: The kill_switch.lock from early auth testing may
+5. KILL SWITCH FALSE TRIGGER: The kill_switch.lock from early auth testing may
    still exist. Always run --reset-killswitch before --verify if blocked.
    Reset requires piping "RESET": echo "RESET" | python main.py --reset-killswitch
 
-5. CONFIG.YAML storage SECTION: verify.py checks for ['kalshi','strategy','risk','storage'].
+6. CONFIG.YAML storage SECTION: verify.py checks for ['kalshi','strategy','risk','storage'].
    The 'storage' section must be present. Template: storage:\n  db_path: data/polybot.db
 
-6. WIN RATE BUG (fixed): db.win_rate() must compare result==side (not result=="yes").
+7. WIN RATE BUG (fixed): db.win_rate() must compare result==side (not result=="yes").
    Betting NO and winning means result=="no"==side. The fix is in db.py.
 
-7. LOAD_FROM_CONFIG lag_sensitivity (fixed): btc_lag.py load_from_config() previously
+8. LOAD_FROM_CONFIG lag_sensitivity (fixed): btc_lag.py load_from_config() previously
    silently dropped lag_sensitivity. Now reads: s.get("lag_sensitivity", _DEFAULT_LAG_SENSITIVITY)
 
-8. KALSHI AUTH: Key ID is a UUID. The Key ID in .env must match EXACTLY the ID
+9. KALSHI AUTH: Key ID is a UUID. The Key ID in .env must match EXACTLY the ID
    shown in Kalshi Settings → API for the specific .pem you downloaded.
    If you have multiple API keys, each has its own .pem. Match them exactly.
 
-9. VENV: Always activate with: source venv/bin/activate (or use venv/bin/python directly)
+10. VENV: Always activate with: source venv/bin/activate (or use venv/bin/python directly)
 
 ═══════════════════════════════════════════════════
 ## THE LOG SYSTEM — Build this first. Update after every action.
@@ -399,6 +412,77 @@ Completed:
 - One active KXBTC15M market found with real prices (yes_bid=87¢, no_bid=10¢).
 - Trading loop confirmed running but no signal output observed yet.
   (Hypothesis: 60s warm-up + market had <5 min remaining when tested)
-Next: Run python main.py, confirm "[btc_lag]" INFO log lines appear.
-      If signal fires: CHECKPOINT_4 complete. Begin 7-day paper period.
-      Also investigate: other Kalshi market categories (ETH next, then macro).
+
+### 2026-02-26 — Session 5 (trading loop confirmed + market catalog)
+Completed:
+- ROOT CAUSE of silence found: config.yaml had "btc_15min" as series ticker.
+  Correct Kalshi ticker is "KXBTC15M". Fixed.
+- main.py: added INFO heartbeat "[trading] Evaluating N market(s)" each poll cycle.
+  Previously all skip paths were DEBUG-only — loop appeared silent when no signal.
+- Confirmed loop runs: evaluates KXBTC15M every 30s, no signal fired yet (normal).
+- Kalshi market catalog probed live: KXETH15M confirmed active (same structure as BTC).
+  Next market after BTC proven = KXETH15M (add ETH feed, run parallel strategy instance).
+- 107/107 tests still passing.
+Next: Let bot run during volatile BTC session. Watch for first paper trade signal.
+      If no signal in several hours: lower min_btc_move_pct 0.4→0.3 and re-observe.
+
+### 2026-02-26 — Session 6 (Binance.US bookTicker fix + feed verified)
+Completed:
+- ROOT CAUSE of zero price data: Binance.US @trade stream has near-zero BTC volume.
+  0 messages over 5 minutes. btc_move_pct() always returned None → gate 1 always failed.
+- Fix: switched src/data/binance.py to @bookTicker stream.
+  Mid-price = (best_bid + best_ask) / 2. ~100 updates/min confirmed on Binance.US.
+  config.yaml binance_ws_url also updated to btcusdt@bookTicker.
+- Feed verified live: 49 ticks in 30s, price=$67,474, btc_move_pct()=+0.030%, is_stale=False.
+- Kill switch stale lock issue: tests/conftest.py created.
+  Session-scoped autouse fixture cleans kill_switch.lock at test start/end.
+  Prevents interrupted pytest run from blocking main.py startup.
+- CLAUDE.md + POLYBOT_INIT.md gotchas updated (bookTicker, conftest.py, diagnostic kill pattern).
+- 107/107 tests still passing.
+Next: Let bot run during a volatile BTC period. Observed moves ~0.02-0.03%; need ~0.65%.
+      If no signal in a few hours: lower min_edge_pct 0.08→0.05 (NOT min_btc_move_pct).
+
+### 2026-02-27 — Session 7 (safeguards + observability + bug fixes)
+Completed:
+- PID lock: main.py writes bot.pid at startup, releases on shutdown.
+  Prevents two bot instances from running simultaneously (dual execution, double API calls).
+  bot.pid added to .gitignore.
+- Near-miss INFO logging: btc_lag.py "BTC move too small" path promoted DEBUG→INFO.
+  Every 30s: "[btc_lag] BTC move +X.XXX% (need ±0.40%) — waiting for signal"
+  Matthew can now see feed is alive + how close bot is to firing without DEBUG mode.
+- kill_switch._write_blockers() guards on PYTEST_CURRENT_TEST env var.
+  Test runs no longer pollute BLOCKERS.md with false auth-failure entries.
+- config.yaml: explicit lag_sensitivity param + signal calibration comment.
+  Documents binding constraint: min_edge_pct=8% needs ~0.65% BTC move in 60s.
+  Guidance corrected: lower min_edge_pct, not min_btc_move_pct.
+- BLOCKERS.md cleaned. SESSION_HANDOFF.md guidance corrected.
+- Dashboard DB path bug fixed: was hardcoded to kalshi_bot.db (wrong path).
+  Fixed via _resolve_db_path() → reads config.yaml → data/polybot.db. Dashboard now works.
+- data/ directory auto-created at main.py startup (fresh clone safety).
+  data/.gitkeep added to repo (DB itself still gitignored).
+- verify.py Binance check fixed: was using @trade (near-zero volume, timeouts).
+  Now uses @bookTicker (same as binance.py), parses bid/ask for mid-price.
+- SIGTERM handler added to main.py: `kill PID` now triggers clean shutdown.
+  Uses loop.add_signal_handler for SIGTERM + SIGHUP — same finally cleanup block.
+- 107/107 tests still passing.
+Next: Let bot run. Watch for "[btc_lag] Signal: BUY" log line.
+      Moves needed: ~0.65%+ in 60s. To fire more often: lower min_edge_pct to 0.05.
+
+### 2026-02-27 — Session 8 (code review critical fixes)
+Completed:
+- CRITICAL: kill_switch was fully disconnected from settlement loop.
+  settlement_loop now takes kill_switch param. Calls record_win()/record_loss() each settlement.
+  Consecutive-loss cooling, daily-loss soft stop, total-loss hard stop were dead code. Now live.
+- CRITICAL: live_confirmed=False was hardcoded — live mode silently fell back to paper.
+  Now: live mode shows warning banner, requires user to type 'CONFIRM' at runtime.
+  Matches the described behavior in dashboard Tips.
+- IMPORTANT: PermissionError in PID lock now exits (process IS alive under another user).
+  Was being swallowed as "stale PID" — could allow dual instances in multi-user scenario.
+- IMPORTANT: Removed dead sizing/paper_executor params from trading_loop signature.
+  Both were always None, never used — dead code in the function signature.
+- MINOR: Stale threshold in binance.py raised 10s→35s.
+  Binance.US @bookTicker documented to be silent 10-30s — 10s threshold caused false stale signals.
+- Added 5 TestSettlementIntegration tests in test_kill_switch.py.
+  Covers: win resets counter, loss accumulates daily/realized, hard stop at 30%, zero ignored.
+- 117/117 tests passing.
+Next: Let bot run. Watch for "[btc_lag] Signal: BUY" log line. First live trade after 7+ paper days.

@@ -57,9 +57,7 @@ async def trading_loop(
     btc_feed,
     strategy,
     kill_switch,
-    sizing,
     db,
-    paper_executor,
     live_executor_enabled: bool,
     live_confirmed: bool,
     btc_series_ticker: str = "KXBTC15M",
@@ -105,9 +103,12 @@ async def trading_loop(
                 continue
 
             if not markets:
-                logger.debug("No open BTC markets found")
+                logger.info("[trading] No open %s markets found", btc_series_ticker)
                 await asyncio.sleep(POLL_INTERVAL_SEC)
                 continue
+
+            logger.info("[trading] Evaluating %d market(s): %s",
+                        len(markets), [m.ticker for m in markets])
 
             # ── Evaluate each market ──────────────────────────────────
             for market in markets:
@@ -198,13 +199,16 @@ async def trading_loop(
 
 # ── Settlement polling loop ────────────────────────────────────────────
 
-async def settlement_loop(kalshi, db):
+async def settlement_loop(kalshi, db, kill_switch):
     """
     Background loop: detect settled markets and record outcomes in DB.
 
     Polls every SETTLEMENT_POLL_SEC seconds. For each open trade, fetches the
     market from Kalshi. When a market status is 'finalized', settles the trade
     and records P&L (same formula for paper + live: win/loss based on result).
+
+    Also notifies kill_switch of each outcome so consecutive-loss and
+    total-bankroll-loss hard stops are properly tracked.
     """
     from src.execution.paper import PaperExecutor
     paper_exec = PaperExecutor(db)
@@ -243,6 +247,7 @@ async def settlement_loop(kalshi, db):
                         count=trade["count"],
                     )
                     mode = "PAPER" if trade["is_paper"] else "LIVE"
+                    won = result == trade["side"]
                     logger.info(
                         "[settle] %s trade %d (%s %s @ %d¢ ×%d): result=%s P&L=$%.2f",
                         mode, trade["id"], trade["side"].upper(), ticker,
@@ -250,10 +255,59 @@ async def settlement_loop(kalshi, db):
                         result.upper(), pnl_cents / 100.0,
                     )
 
+                    # Notify kill switch — drives consecutive-loss and total-loss hard stops
+                    if won:
+                        kill_switch.record_win()
+                    else:
+                        kill_switch.record_loss(abs(pnl_cents) / 100.0)
+
         except asyncio.CancelledError:
             break
         except Exception as e:
             logger.error("Unexpected error in settlement loop: %s", e, exc_info=True)
+
+
+# ── PID lock — prevent two bot instances running at the same time ─────
+
+_PID_FILE = PROJECT_ROOT / "bot.pid"
+
+
+def _acquire_bot_lock() -> Path:
+    """
+    Write current PID to bot.pid. If another instance is already running,
+    print an error and exit. Protects against accidental duplicate runs
+    that could double-execute trades and burn API quota.
+
+    Returns the PID file Path so the caller can release it on shutdown.
+    """
+    if _PID_FILE.exists():
+        try:
+            existing_pid = int(_PID_FILE.read_text().strip())
+            os.kill(existing_pid, 0)  # signal 0 = existence check, no actual signal
+            print(f"\nERROR: Bot is already running (PID {existing_pid}).")
+            print(f"  If that process crashed, delete {_PID_FILE} and retry.")
+            print(f"  To stop a running bot: kill {existing_pid}\n")
+            sys.exit(1)
+        except ProcessLookupError:
+            pass  # Stale PID — process no longer exists, safe to overwrite
+        except PermissionError:
+            # Process exists but is owned by a different user — it IS running
+            print(f"\nERROR: Bot appears to be running under a different user (PID {existing_pid}).")
+            print(f"  Cannot verify ownership. Check: ps aux | grep main.py\n")
+            sys.exit(1)
+        except ValueError:
+            pass  # Corrupt PID file — safe to overwrite
+    _PID_FILE.write_text(str(os.getpid()))
+    logger.info("Bot lock acquired (PID %d)", os.getpid())
+    return _PID_FILE
+
+
+def _release_bot_lock() -> None:
+    """Remove the PID file on clean shutdown."""
+    try:
+        _PID_FILE.unlink(missing_ok=True)
+    except Exception as e:
+        logger.warning("Could not remove bot.pid: %s", e)
 
 
 # ── Startup banner ─────────────────────────────────────────────────────
@@ -335,6 +389,9 @@ async def main():
         print(str(e))
         sys.exit(1)
 
+    # ── Bot process lock (prevents dual instances) ────────────────────
+    _acquire_bot_lock()
+
     # ── Load config ───────────────────────────────────────────────────
     import yaml
     config_path = PROJECT_ROOT / "config.yaml"
@@ -352,6 +409,26 @@ async def main():
         print("ERROR: --live passed but LIVE_TRADING is not 'true' in .env.")
         print("Set LIVE_TRADING=true in .env and try again.")
         sys.exit(1)
+
+    # ── Live mode confirmation prompt ─────────────────────────────
+    live_confirmed = False
+    if live_mode:
+        print("\n" + "=" * 60)
+        print("  ⚠️  LIVE TRADING MODE — REAL MONEY AT RISK")
+        print()
+        print("  Both gates are set:")
+        print("    ✓ LIVE_TRADING=true in .env")
+        print("    ✓ --live flag passed")
+        print()
+        print("  This will place REAL orders on Kalshi.")
+        print("  Review KILL_SWITCH_EVENT.log and verify bankroll before proceeding.")
+        confirm = input("  Type 'CONFIRM' to enable live trading: ").strip()
+        if confirm != "CONFIRM":
+            print("  Live trading not confirmed — exiting.")
+            sys.exit(0)
+        live_confirmed = True
+        print("  ✅ Live trading confirmed.")
+        print("=" * 60 + "\n")
 
     # ── Initialize DB ─────────────────────────────────────────────────
     from src.db import load_from_config as db_load
@@ -394,25 +471,41 @@ async def main():
     logger.info("Strategy loaded: %s", strategy.name)
 
     # ── Run ───────────────────────────────────────────────────────────
+    _configured_markets = config.get("strategy", {}).get("markets", ["KXBTC15M"])
+    if not _configured_markets:
+        print("ERROR: config.yaml strategy.markets is empty. Add at least one ticker (e.g., KXBTC15M).")
+        sys.exit(1)
+    btc_series_ticker = _configured_markets[0]
+
     trade_task = asyncio.create_task(
         trading_loop(
             kalshi=kalshi,
             btc_feed=btc_feed,
             strategy=strategy,
             kill_switch=kill_switch,
-            sizing=None,
             db=db,
-            paper_executor=None,
             live_executor_enabled=live_mode,
-            live_confirmed=False,
-            btc_series_ticker=config.get("strategy", {}).get("markets", ["KXBTC15M"])[0],
+            live_confirmed=live_confirmed,
+            btc_series_ticker=btc_series_ticker,
         ),
         name="trading_loop",
     )
     settle_task = asyncio.create_task(
-        settlement_loop(kalshi=kalshi, db=db),
+        settlement_loop(kalshi=kalshi, db=db, kill_switch=kill_switch),
         name="settlement_loop",
     )
+
+    # ── Signal handlers (clean shutdown on SIGTERM/SIGHUP) ───────────
+    import signal as _signal
+    _loop = asyncio.get_running_loop()
+
+    def _on_signal(signame: str) -> None:
+        logger.info("Received %s — requesting clean shutdown", signame)
+        trade_task.cancel()
+        settle_task.cancel()
+
+    for _sig, _sname in ((_signal.SIGTERM, "SIGTERM"), (_signal.SIGHUP, "SIGHUP")):
+        _loop.add_signal_handler(_sig, lambda n=_sname: _on_signal(n))
 
     try:
         await asyncio.gather(trade_task, settle_task)
@@ -426,11 +519,13 @@ async def main():
         await btc_feed.stop()
         await kalshi.close()
         db.close()
+        _release_bot_lock()
         logger.info("Shutdown complete")
 
 
 if __name__ == "__main__":
-    # Ensure log directories exist
+    # Ensure required directories exist (safe on fresh clone)
     (PROJECT_ROOT / "logs" / "errors").mkdir(parents=True, exist_ok=True)
     (PROJECT_ROOT / "logs" / "trades").mkdir(parents=True, exist_ok=True)
+    (PROJECT_ROOT / "data").mkdir(parents=True, exist_ok=True)
     asyncio.run(main())

@@ -23,7 +23,7 @@ polymarket:
 
 # ── Data feeds ──────────────────────────────────────────────────
 feeds:
-  binance_ws_url: wss://stream.binance.us:9443/ws/btcusdt@trade
+  binance_ws_url: wss://stream.binance.us:9443/ws/btcusdt@bookTicker  # @trade has 0 volume on Binance.US
   btc_window_seconds: 60               # Rolling window for move detection
   reconnect_delay: 5                   # Seconds before reconnecting on disconnect
 
@@ -31,13 +31,21 @@ feeds:
 strategy:
   active: btc_lag                      # Only this. Expand after proven.
   markets:
-    - btc_15min                        # Kalshi BTC 15-min window markets
+    - KXBTC15M                         # Kalshi BTC 15-min series ticker (confirmed live)
 
   btc_lag:
+    # SIGNAL CALIBRATION:
+    # A signal fires ONLY when ALL gates pass. The binding constraint is min_edge_pct.
+    # At min_edge=8% and a 50¢ Kalshi price: need BTC to move ~0.65% in 60s.
+    # (formula: need (btc_move * lag_sensitivity/100) > min_edge + kalshi_fee(price))
+    # Typical BTC 60s move: 0.02-0.05% (calm), 0.3-1%+ (volatile/news events).
+    # To fire more often: lower min_edge_pct first (e.g. 0.05), not min_btc_move_pct.
+    # Do NOT lower thresholds without reviewing 7+ days of paper results first.
     min_btc_move_pct: 0.4              # BTC must move this % in btc_window_seconds
     min_kalshi_lag_cents: 5            # Kalshi price must lag spot by this many cents
     min_minutes_remaining: 5           # Don't enter with < 5 min left in window
     min_edge_pct: 0.08                 # Only trade if edge > 8% (after fees)
+    lag_sensitivity: 15.0              # Cents of YES/NO price move implied per 1% BTC move
 
   whale_copy:                          # Polymarket only — inactive until off waitlist
     enabled: false

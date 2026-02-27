@@ -8,6 +8,7 @@
 *.pfx
 kill_switch.lock
 KILL_SWITCH_EVENT.log
+bot.pid
 
 # ===================================================
 # RUNTIME / GENERATED
@@ -35,6 +36,11 @@ logs/
 # REFERENCE REPOS — cloned locally, not ours
 # ===================================================
 refs/
+
+# ===================================================
+# CLAUDE CODE — local AI assistant settings
+# ===================================================
+claude/
 
 # ===================================================
 # OS / EDITOR

@@ -21,9 +21,31 @@ from pathlib import Path
 import streamlit as st
 
 PROJECT_ROOT = Path(__file__).parent.parent
-DB_PATH = PROJECT_ROOT / "kalshi_bot.db"
 LOCK_FILE = PROJECT_ROOT / "kill_switch.lock"
 EVENT_LOG = PROJECT_ROOT / "KILL_SWITCH_EVENT.log"
+
+
+def _resolve_db_path() -> Path:
+    """Read db_path from config.yaml (same source as db.py load_from_config)."""
+    try:
+        import yaml
+        config_path = PROJECT_ROOT / "config.yaml"
+        if config_path.exists():
+            with open(config_path) as f:
+                cfg = yaml.safe_load(f)
+            db_path_str = cfg.get("storage", {}).get("db_path", "kalshi_bot.db")
+            db_path = Path(db_path_str)
+            if not db_path.is_absolute():
+                db_path = PROJECT_ROOT / db_path
+            return db_path
+    except Exception:
+        pass
+    return PROJECT_ROOT / "kalshi_bot.db"  # fallback to legacy default
+
+
+DB_PATH = _resolve_db_path()
+# NOTE: DB_PATH resolved once at module load. If storage.db_path changes in config.yaml,
+# restart the dashboard process to pick up the new path.
 
 st.set_page_config(
     page_title="POLYBOT",

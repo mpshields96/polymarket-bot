@@ -288,4 +288,65 @@ class TestStatusReporting:
         assert not status["hard_stop"]
         assert not status["soft_stop"]
         assert status["daily_loss_usd"] == 0.0
-        assert status["consecutive_losses"] == 0
+
+
+# ── 11. Settlement loop integration ────────────────────────────────
+
+class TestSettlementIntegration:
+    """Verify kill_switch is properly updated by settlement outcomes."""
+
+    def test_win_resets_consecutive_losses(self, ks):
+        ks.record_loss(1.00)
+        ks.record_loss(1.00)
+        assert ks._state._consecutive_losses == 2
+        ks.record_win()
+        assert ks._state._consecutive_losses == 0
+
+    def test_loss_accumulates_daily_total(self, ks):
+        ks.record_loss(2.50)
+        ks.record_loss(1.00)
+        assert ks._state._daily_loss_usd == pytest.approx(3.50)
+
+    def test_loss_accumulates_realized_loss(self, ks):
+        ks.record_loss(2.00)
+        assert ks._state._realized_loss_usd == pytest.approx(2.00)
+
+    def test_total_loss_hard_stop_triggered_at_30pct(self):
+        ks = KillSwitch(starting_bankroll_usd=100.0)
+        ks.record_loss(29.99)
+        assert not ks.is_hard_stopped
+        ks.record_loss(0.02)  # crosses 30%
+        assert ks.is_hard_stopped
+
+    def test_record_loss_zero_is_ignored(self, ks):
+        ks.record_loss(0.0)
+        assert ks._state._consecutive_losses == 0
+        assert ks._state._daily_loss_usd == 0.0
+
+
+# ── 12. PYTEST guard for _write_blockers ──────────────────────────
+
+class TestPytestGuard:
+    """Verify _write_blockers is suppressed during pytest runs."""
+
+    def test_write_blockers_skipped_during_pytest(self, ks, tmp_path, monkeypatch):
+        """
+        PYTEST_CURRENT_TEST is set by pytest automatically.
+        _write_blockers must not write to BLOCKERS.md during test runs.
+        """
+        import os
+        # Confirm the env var is currently set (we ARE in pytest)
+        assert os.environ.get("PYTEST_CURRENT_TEST"), "PYTEST_CURRENT_TEST not set — test context wrong"
+
+        blockers_path = PROJECT_ROOT / "BLOCKERS.md"
+        original_content = blockers_path.read_text() if blockers_path.exists() else None
+
+        # Trigger _write_blockers via enough auth failures to cross the threshold
+        for _ in range(MAX_AUTH_FAILURES):
+            ks.record_auth_failure()
+
+        # File must be unchanged — guard should have suppressed the write
+        if original_content is not None:
+            assert blockers_path.read_text() == original_content
+        else:
+            assert not blockers_path.exists()

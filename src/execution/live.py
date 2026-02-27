@@ -32,6 +32,9 @@ from src.db import DB
 logger = logging.getLogger(__name__)
 
 _FIRST_RUN_CONFIRMED = False  # module-level flag, reset on restart
+# NOTE: This is an ADDITIONAL guard to the main.py CONFIRM prompt.
+# main.py prompts at startup; this prompts at first actual order placement.
+# Both are intentional — defense-in-depth for real money operations.
 
 
 async def execute(
@@ -100,7 +103,6 @@ async def execute(
     expected_cost = count * cost_per_contract
 
     client_order_id = str(uuid.uuid4())
-    price_key = "yes_price" if signal.side == "yes" else "no_price"
 
     logger.info(
         "[LIVE] Placing order: BUY %s %d contracts @ %d¢ = $%.2f | %s",

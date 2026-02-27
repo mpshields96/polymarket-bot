@@ -235,3 +235,66 @@ class TestKillSwitchEvents:
         db.save_kill_switch_event("hard_stop", "Second")
         events = db.get_kill_switch_events()
         assert events[0]["trigger_type"] == "hard_stop"
+
+
+# ── Dashboard DB path resolution ──────────────────────────────────
+
+class TestDashboardDbPath:
+    """Verify _resolve_db_path reads config.yaml and falls back gracefully.
+
+    streamlit is not installed in the test environment, so we mock it before
+    importing src.dashboard — this avoids an ImportError while still exercising
+    the pure-Python _resolve_db_path function.
+    """
+
+    @pytest.fixture(autouse=True)
+    def mock_streamlit(self, monkeypatch):
+        """Inject a mock streamlit so src.dashboard can be imported without it installed."""
+        import sys
+        from unittest.mock import MagicMock
+        mock_st = MagicMock()
+        mocks = {
+            "streamlit": mock_st,
+            "streamlit_autorefresh": MagicMock(),
+        }
+        with pytest.MonkeyPatch.context() as mp:
+            for name, mock in mocks.items():
+                if name not in sys.modules:
+                    mp.setitem(sys.modules, name, mock)
+            yield
+            # Remove cached dashboard module so next test gets a fresh import
+            sys.modules.pop("src.dashboard", None)
+
+    def test_resolve_returns_absolute_path(self):
+        from src.dashboard import _resolve_db_path
+        path = _resolve_db_path()
+        assert path.is_absolute()
+
+    def test_resolve_points_to_config_value(self):
+        """Should return data/polybot.db (as configured in config.yaml)."""
+        from src.dashboard import _resolve_db_path
+        path = _resolve_db_path()
+        assert path.name == "polybot.db"
+        assert "data" in path.parts
+
+    def test_resolve_fallback_on_bad_config(self, tmp_path):
+        """Malformed config.yaml should fall back gracefully, not raise."""
+        import sys
+        bad_config = tmp_path / "config.yaml"
+        bad_config.write_text("{ invalid yaml: [")
+        sys.modules.pop("src.dashboard", None)
+        import src.dashboard as dash
+        import unittest.mock as mock
+        with mock.patch.object(dash, "PROJECT_ROOT", tmp_path):
+            path = dash._resolve_db_path()
+        assert isinstance(path, Path)
+
+    def test_resolve_fallback_on_missing_config(self, tmp_path):
+        """Missing config.yaml should fall back gracefully, not raise."""
+        import sys
+        sys.modules.pop("src.dashboard", None)
+        import src.dashboard as dash
+        import unittest.mock as mock
+        with mock.patch.object(dash, "PROJECT_ROOT", tmp_path):
+            path = dash._resolve_db_path()
+        assert isinstance(path, Path)

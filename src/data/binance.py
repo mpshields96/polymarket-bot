@@ -1,13 +1,18 @@
 """
 Binance BTC price feed.
 
-JOB:    BTC spot price via Binance public WebSocket trade stream.
+JOB:    BTC spot price via Binance public WebSocket bookTicker stream.
         Maintains rolling price history for move detection.
         Provides: current_price(), btc_move_pct(), is_stale.
 
 DOES NOT: Strategy logic, know about Kalshi, place orders.
 
-URL (only allowed): wss://stream.binance.us:9443/ws/btcusdt@trade
+URL (only allowed): wss://stream.binance.us:9443/ws/btcusdt@bookTicker
+
+NOTE: Using bookTicker (best bid/ask, ~40 updates/min) instead of @trade.
+      Binance.US BTCUSDT has near-zero individual trade volume.
+      bookTicker fires on any order book change — far more reliable for price.
+      Price recorded = mid-price: (best_bid + best_ask) / 2.
 
 Adapted from: https://github.com/Bh-Ayush/Kalshi-CryptoBot (price_feed.py — BinanceFeed class)
 """
@@ -29,19 +34,23 @@ logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
-_BINANCE_WS_URL = "wss://stream.binance.us:9443/ws/btcusdt@trade"
-_STALE_THRESHOLD_SEC = 10.0     # price older than this = stale feed
+_BINANCE_WS_URL = "wss://stream.binance.us:9443/ws/btcusdt@bookTicker"
+_STALE_THRESHOLD_SEC = 35.0     # price older than this = stale feed
+                                 # (Binance.US @bookTicker can be silent 10-30s — use 35s to avoid false stale)
 _WINDOW_SEC = 60                 # default rolling window for move detection
 _RECONNECT_DELAY_SEC = 5         # wait before reconnecting on disconnect
 
 
 class BinanceFeed:
     """
-    Binance BTCUSDT live trade stream.
+    Binance BTCUSDT live bookTicker stream.
 
-    Connects to the public Binance WebSocket stream.
+    Connects to the Binance.US WebSocket bookTicker stream (~40 updates/min).
     Maintains a rolling price history for move detection.
     Auto-reconnects on disconnect.
+
+    Uses bookTicker (not @trade) because Binance.US BTCUSDT has near-zero
+    individual trade volume — the @trade stream produces 0 messages.
 
     Usage:
         feed = BinanceFeed()
@@ -174,9 +183,10 @@ class BinanceFeed:
                             break
                         try:
                             msg = json.loads(raw_msg)
-                            # Binance trade stream: {"e":"trade","p":"97000.50","q":"0.001",...}
-                            if msg.get("e") == "trade":
-                                price = float(msg["p"])
+                            # bookTicker stream: {"u":id,"s":"BTCUSDT","b":"67435.49","B":"0.1","a":"67436.00","A":"0.05"}
+                            # Use mid-price (best_bid + best_ask) / 2 for price tracking.
+                            if "b" in msg and "a" in msg:
+                                price = (float(msg["b"]) + float(msg["a"])) / 2.0
                                 self._record_price(price)
                         except (KeyError, ValueError) as e:
                             logger.debug("BinanceFeed parse error: %s", e)

@@ -100,9 +100,9 @@ class BTCLagStrategy(BaseStrategy):
             return None
 
         if abs(btc_move) < self._min_btc_move_pct:
-            logger.debug(
-                "[btc_lag] BTC move %.3f%% < threshold %.3f%% — skip",
-                abs(btc_move), self._min_btc_move_pct,
+            logger.info(
+                "[btc_lag] BTC move %+.3f%% (need ±%.2f%%) — waiting for signal",
+                btc_move, self._min_btc_move_pct,
             )
             return None
 

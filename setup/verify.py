@@ -160,13 +160,16 @@ async def check_binance_feed():
     """Test Binance BTC WebSocket — connect, get one price, disconnect."""
     print("\n[6] Binance BTC price feed")
     import websockets
-    url = "wss://stream.binance.us:9443/ws/btcusdt@trade"
+    # Use @bookTicker (same stream as binance.py) — @trade has near-zero volume on Binance.US
+    url = "wss://stream.binance.us:9443/ws/btcusdt@bookTicker"
     try:
         async with websockets.connect(url, open_timeout=15) as ws:
             msg = await asyncio.wait_for(ws.recv(), timeout=30)
             data = json.loads(msg)
-            price = float(data.get("p", 0))
-            record("Binance WebSocket", price > 0, f"BTC price: ${price:,.2f}")
+            bid = float(data.get("b", 0))
+            ask = float(data.get("a", 0))
+            mid = (bid + ask) / 2 if bid and ask else 0
+            record("Binance WebSocket", mid > 0, f"BTC mid: ${mid:,.2f}")
     except Exception as e:
         record("Binance WebSocket", False, str(e))
 
