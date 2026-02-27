@@ -31,7 +31,7 @@ If the signal never fires after a few hours:
   2. To fire more signals: lower min_edge_pct: 0.08 → 0.05 in config.yaml (NOT min_btc_move_pct)
      ONLY do this after understanding the tradeoff (lower edge = more trades, less selective)
 
-## What was fixed this session (Session 7)
+## What was fixed Session 7 (prior session)
 
 1. PID lock added to main.py
    → bot.pid written at startup, removed on shutdown
