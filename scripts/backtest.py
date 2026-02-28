@@ -545,6 +545,8 @@ async def main():
                         help=f"Sigmoid sensitivity for btc_drift (default: from config.yaml or {_DEFAULT_SENSITIVITY})")
     parser.add_argument("--min-drift-pct", type=float, default=None,
                         help=f"Minimum BTC drift %% to signal (default: from config.yaml or {_DEFAULT_MIN_DRIFT_PCT})")
+    parser.add_argument("--min-lag-edge-pct", type=float, default=None,
+                        help=f"Minimum edge %% for btc_lag signal (default: from config.yaml or {_DEFAULT_LAG_MIN_EDGE_PCT})")
     parser.add_argument("--strategy", choices=["drift", "lag", "both"], default="drift",
                         help="Which strategy to backtest (default: drift)")
     args = parser.parse_args()
@@ -571,6 +573,10 @@ async def main():
         lag_min_move = _DEFAULT_LAG_MIN_BTC_MOVE_PCT
         lag_sensitivity = _DEFAULT_LAG_SENSITIVITY
         lag_min_edge = _DEFAULT_LAG_MIN_EDGE_PCT
+
+    # CLI override takes highest priority
+    if args.min_lag_edge_pct is not None:
+        lag_min_edge = args.min_lag_edge_pct
 
     run_drift = args.strategy in ("drift", "both")
     run_lag = args.strategy in ("lag", "both")
