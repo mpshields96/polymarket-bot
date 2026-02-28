@@ -651,6 +651,74 @@ def print_banner(mode: str, bankroll: float, stage: int, kill_switch_active: boo
 
 # ── Report command ─────────────────────────────────────────────────────
 
+
+def print_graduation_status(db):
+    """
+    Print graduation progress table for all 8 strategies.
+
+    Imports _GRAD thresholds from setup/verify.py (single source of truth).
+    Reads DB only — does NOT start Kalshi or Binance connections.
+    """
+    from setup.verify import _GRAD
+    from datetime import datetime, timezone
+
+    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    width = 64
+
+    print()
+    print("=" * width)
+    print(f"  GRADUATION STATUS — {now_str}")
+    print("=" * width)
+    print(
+        f"  {'Strategy':<34} {'Trades':>6}  {'Days':>5}  {'Brier':>5}  "
+        f"{'Streak':>6}  {'P&L':>7}  Status"
+    )
+    print("  " + "-" * (width - 2))
+
+    ready_count = 0
+    for strategy, (min_trades, min_days, max_brier, max_consec) in _GRAD.items():
+        stats = db.graduation_stats(strategy)
+
+        settled = stats["settled_count"]
+        days = stats["days_running"]
+        brier = stats["brier_score"]
+        streak = stats["consecutive_losses"]
+        pnl = stats["total_pnl_usd"]
+
+        trades_str = f"{settled}/{min_trades}"
+        days_str = f"{days:.1f}"
+        brier_str = f"{brier:.3f}" if brier is not None else "n/a"
+        streak_str = str(streak)
+        pnl_str = f"${pnl:.2f}"
+
+        # Determine status
+        if streak >= max_consec:
+            status = f"BLOCKED ({streak} consec losses)"
+        else:
+            gaps = []
+            if settled < min_trades:
+                gaps.append(f"needs {min_trades - settled} more trades")
+            if min_days > 0 and days < min_days:
+                gaps.append(f"{min_days - days:.1f} more days")
+            if brier is not None and brier > max_brier:
+                gaps.append(f"brier {brier:.3f}>={max_brier}")
+            if not gaps:
+                status = "READY FOR LIVE"
+                ready_count += 1
+            else:
+                status = ", ".join(gaps)
+
+        print(
+            f"  {strategy:<34} {trades_str:>6}  {days_str:>5}  {brier_str:>5}  "
+            f"{streak_str:>6}  {pnl_str:>7}  {status}"
+        )
+
+    print("=" * width)
+    print(f"  {ready_count} / {len(_GRAD)} strategies ready for live trading.")
+    print("=" * width)
+    print()
+
+
 def print_report(db):
     """Print today's P&L summary."""
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -688,6 +756,8 @@ async def main():
                         help="Reset a triggered hard stop (requires manual confirmation)")
     parser.add_argument("--report", action="store_true",
                         help="Print today's P&L summary and exit")
+    parser.add_argument("--graduation-status", action="store_true",
+                        help="Print graduation progress for all 8 strategies and exit")
     args = parser.parse_args()
 
     # ── --reset-killswitch ────────────────────────────────────────────
@@ -761,6 +831,12 @@ async def main():
     # ── --report ──────────────────────────────────────────────────────
     if args.report:
         print_report(db)
+        db.close()
+        return
+
+    # ── --graduation-status ────────────────────────────────────────────
+    if args.graduation_status:
+        print_graduation_status(db)
         db.close()
         return
 
