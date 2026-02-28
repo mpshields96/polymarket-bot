@@ -339,6 +339,85 @@ class DB:
         total_cents = row[0] or 0
         return total_cents / 100.0
 
+    def graduation_stats(self, strategy: str) -> dict:
+        """
+        Return per-strategy paper trading metrics needed for graduation check.
+
+        Only counts paper trades (is_paper=1). Returns a dict with keys:
+            settled_count       int   — number of settled paper trades
+            win_rate            float | None — wins/settled (result==side)
+            brier_score         float | None — mean((win_prob - outcome)^2), lower is better
+            consecutive_losses  int   — current streak of losses at end of trade history
+            first_trade_ts      float | None — unix timestamp of first paper trade
+            days_running        float — calendar days since first paper trade (0 if none)
+            total_pnl_usd       float — sum of settled P&L in USD (paper only)
+        """
+        import time as _time
+
+        # Settled paper trades for this strategy, oldest first
+        rows = self._conn.execute(
+            """SELECT result, side, win_prob, pnl_cents, timestamp
+               FROM trades
+               WHERE strategy = ? AND is_paper = 1 AND result IS NOT NULL
+               ORDER BY timestamp ASC""",
+            (strategy,),
+        ).fetchall()
+
+        if not rows:
+            return {
+                "settled_count": 0,
+                "win_rate": None,
+                "brier_score": None,
+                "consecutive_losses": 0,
+                "first_trade_ts": None,
+                "days_running": 0.0,
+                "total_pnl_usd": 0.0,
+            }
+
+        rows = [dict(r) for r in rows]
+
+        settled_count = len(rows)
+        wins = sum(1 for r in rows if r["result"] == r["side"])
+        win_rate = wins / settled_count
+
+        # Brier score: only trades that have win_prob recorded
+        brier_rows = [r for r in rows if r["win_prob"] is not None]
+        if brier_rows:
+            brier_score = sum(
+                (r["win_prob"] - (1.0 if r["result"] == r["side"] else 0.0)) ** 2
+                for r in brier_rows
+            ) / len(brier_rows)
+        else:
+            brier_score = None
+
+        # Consecutive losses at end of history
+        consecutive_losses = 0
+        for r in reversed(rows):
+            if r["result"] != r["side"]:
+                consecutive_losses += 1
+            else:
+                break
+
+        # First trade timestamp (paper only, any result — including unsettled)
+        first_row = self._conn.execute(
+            "SELECT MIN(timestamp) FROM trades WHERE strategy = ? AND is_paper = 1",
+            (strategy,),
+        ).fetchone()
+        first_trade_ts = first_row[0] if first_row and first_row[0] else None
+        days_running = (_time.time() - first_trade_ts) / 86400.0 if first_trade_ts else 0.0
+
+        total_pnl_usd = sum((r["pnl_cents"] or 0) for r in rows) / 100.0
+
+        return {
+            "settled_count": settled_count,
+            "win_rate": win_rate,
+            "brier_score": brier_score,
+            "consecutive_losses": consecutive_losses,
+            "first_trade_ts": first_trade_ts,
+            "days_running": days_running,
+            "total_pnl_usd": total_pnl_usd,
+        }
+
 
 # ── Factory ───────────────────────────────────────────────────────────
 
