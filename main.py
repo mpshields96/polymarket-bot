@@ -1197,7 +1197,7 @@ async def main():
     strategy = strategy_load()
     logger.info("Strategy loaded: %s", strategy.name)
     drift_strategy = drift_strategy_load()
-    logger.info("Strategy loaded: %s (paper-only data collection)", drift_strategy.name)
+    logger.info("Strategy loaded: %s (LIVE BTC drift)", drift_strategy.name)
     eth_lag_strategy = eth_lag_load()
     logger.info("Strategy loaded: %s (LIVE ETH lag)", eth_lag_strategy.name)
     eth_drift_strategy = eth_drift_load()
@@ -1263,7 +1263,7 @@ async def main():
         ),
         name="eth_lag_loop",
     )
-    # BTC drift: paper-only, stagger 15s
+    # BTC drift: LIVE (69.1% accuracy confirmed, Brier 0.22), stagger 15s
     drift_task = asyncio.create_task(
         trading_loop(
             kalshi=kalshi,
@@ -1271,12 +1271,12 @@ async def main():
             strategy=drift_strategy,
             kill_switch=kill_switch,
             db=db,
-            live_executor_enabled=False,
-            live_confirmed=False,
+            live_executor_enabled=live_mode,
+            live_confirmed=live_confirmed,
             btc_series_ticker=btc_series_ticker,
             loop_name="drift",
             initial_delay_sec=15.0,
-            max_daily_bets=max_daily_bets_paper,
+            max_daily_bets=max_daily_bets_live,
             slippage_ticks=paper_slippage_ticks,
         ),
         name="drift_loop",
