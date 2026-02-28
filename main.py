@@ -153,8 +153,13 @@ async def trading_loop(
                         continue
 
                 # Size the trade (synchronous)
+                # kalshi_payout() takes YES price — convert NO price for NO-side signals
                 from src.risk.sizing import calculate_size, kalshi_payout
-                payout = kalshi_payout(signal.price_cents, signal.side)
+                yes_price_cents_for_payout = (
+                    signal.price_cents if signal.side == "yes"
+                    else (100 - signal.price_cents)
+                )
+                payout = kalshi_payout(yes_price_cents_for_payout, signal.side)
                 size_result = calculate_size(
                     win_prob=signal.win_prob,
                     payout_per_dollar=payout,
