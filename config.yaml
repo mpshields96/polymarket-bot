@@ -136,6 +136,19 @@ strategy:
     uncertainty_band: 0.2            # ±0.2pp normal distribution width for forecast
     fred_refresh_interval_seconds: 3600   # Reuse shared FRED feed interval
 
+  sports_game:
+    # NBA + NHL game-winner vs bookmaker consensus — paper-only until ODDS_API_KEY is set.
+    # Data: The-Odds-API v4 (api.the-odds-api.com) — requires ODDS_API_KEY in .env
+    # Budget: ~1,000 credits/month (5% of user's 20k/month subscription, renews March 1)
+    # Series: KXNBAGAME (38 markets, up to 1.35M volume), KXNHLGAME (48 markets)
+    # Signal: Kalshi implied prob vs sharp-book consensus → bet when edge > min_edge_pct
+    enabled: false                     # Set true after ODDS_API_KEY added to .env (March 1)
+    min_edge_pct: 0.05                 # 5% net edge required (after Kalshi ~7% fee)
+    min_minutes_remaining: 15.0        # Don't enter with < 15 min to game start
+    min_books: 2                       # Require ≥ 2 bookmakers in consensus
+    min_volume: 100                    # Skip Kalshi markets with < 100 volume
+    refresh_interval_seconds: 900      # Refresh Odds API every 15 min (cache level)
+
   whale_copy:                          # Polymarket only — inactive until off waitlist
     enabled: false
     min_win_rate: 0.62                 # Only copy whales with 62%+ win rate
