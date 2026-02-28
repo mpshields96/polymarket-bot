@@ -67,16 +67,18 @@ class BTCLagStrategy(BaseStrategy):
         min_minutes_remaining: float = _DEFAULT_MIN_MINUTES_REMAINING,
         min_edge_pct: float = _DEFAULT_MIN_EDGE_PCT,
         lag_sensitivity: float = _DEFAULT_LAG_SENSITIVITY,
+        name_override: Optional[str] = None,
     ):
         self._min_btc_move_pct = min_btc_move_pct
         self._min_kalshi_lag_cents = min_kalshi_lag_cents
         self._min_minutes_remaining = min_minutes_remaining
         self._min_edge_pct = min_edge_pct
         self._lag_sensitivity = lag_sensitivity
+        self._name_override = name_override
 
     @property
     def name(self) -> str:
-        return "btc_lag_v1"
+        return self._name_override or "btc_lag_v1"
 
     def generate_signal(
         self,
@@ -100,9 +102,13 @@ class BTCLagStrategy(BaseStrategy):
             return None
 
         if abs(btc_move) < self._min_btc_move_pct:
+            mins = self._minutes_remaining(market)
+            time_str = f"{mins:.1f}min left" if mins is not None else "?min"
             logger.info(
-                "[btc_lag] BTC move %+.3f%% (need ±%.2f%%) — waiting for signal",
+                "[btc_lag] BTC %+.3f%% (need ±%.2f%%) | YES=%d¢ NO=%d¢ | %s",
                 btc_move, self._min_btc_move_pct,
+                market.yes_price, market.no_price,
+                time_str,
             )
             return None
 
@@ -218,4 +224,28 @@ def load_from_config() -> BTCLagStrategy:
         min_minutes_remaining=s.get("min_minutes_remaining", _DEFAULT_MIN_MINUTES_REMAINING),
         min_edge_pct=s.get("min_edge_pct", _DEFAULT_MIN_EDGE_PCT),
         lag_sensitivity=s.get("lag_sensitivity", _DEFAULT_LAG_SENSITIVITY),
+    )
+
+
+def load_eth_lag_from_config() -> BTCLagStrategy:
+    """Build BTCLagStrategy for ETH markets from config.yaml strategy.eth_lag section."""
+    import yaml
+
+    config_path = PROJECT_ROOT / "config.yaml"
+    if not config_path.exists():
+        logger.warning("config.yaml not found, using ETH lag defaults")
+        return BTCLagStrategy(name_override="eth_lag_v1")
+
+    with open(config_path) as f:
+        cfg = yaml.safe_load(f)
+
+    # Fall back to btc_lag params if eth_lag section is absent
+    s = cfg.get("strategy", {}).get("eth_lag") or cfg.get("strategy", {}).get("btc_lag", {})
+    return BTCLagStrategy(
+        min_btc_move_pct=s.get("min_btc_move_pct", _DEFAULT_MIN_BTC_MOVE_PCT),
+        min_kalshi_lag_cents=s.get("min_kalshi_lag_cents", _DEFAULT_MIN_LAG_CENTS),
+        min_minutes_remaining=s.get("min_minutes_remaining", _DEFAULT_MIN_MINUTES_REMAINING),
+        min_edge_pct=s.get("min_edge_pct", _DEFAULT_MIN_EDGE_PCT),
+        lag_sensitivity=s.get("lag_sensitivity", _DEFAULT_LAG_SENSITIVITY),
+        name_override="eth_lag_v1",
     )

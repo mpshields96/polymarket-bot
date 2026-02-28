@@ -25,6 +25,8 @@ polymarket:
 feeds:
   binance_ws_url: wss://stream.binance.us:9443/ws/btcusdt@bookTicker  # @trade has 0 volume on Binance.US
   btc_window_seconds: 60               # Rolling window for move detection
+  eth_ws_url: wss://stream.binance.us:9443/ws/ethusdt@bookTicker      # ETH feed — same bookTicker approach
+  eth_window_seconds: 60               # Rolling window for ETH move detection
   reconnect_delay: 5                   # Seconds before reconnecting on disconnect
 
 # ── Strategy ────────────────────────────────────────────────────
@@ -32,6 +34,8 @@ strategy:
   active: btc_lag                      # Only this. Expand after proven.
   markets:
     - KXBTC15M                         # Kalshi BTC 15-min series ticker (confirmed live)
+  eth_markets:
+    - KXETH15M                         # Kalshi ETH 15-min series ticker (confirmed live)
 
   btc_lag:
     # SIGNAL CALIBRATION:
@@ -46,6 +50,76 @@ strategy:
     min_minutes_remaining: 5           # Don't enter with < 5 min left in window
     min_edge_pct: 0.08                 # Only trade if edge > 8% (after fees)
     lag_sensitivity: 15.0              # Cents of YES/NO price move implied per 1% BTC move
+
+  btc_drift:
+    # SECONDARY strategy — paper-only, collects calibration data.
+    # Fires whenever BTC drifts from market-open price (much more frequent than btc_lag).
+    # Uses sigmoid probability model + time adjustment from refs/kalshi-btc/strategy.py.
+    # Math: need (drift_pct * sensitivity/100) to produce edge > min_edge_pct after fee.
+    # At default settings: 0.3% BTC drift → P(YES)≈0.73 → edge≈0.21 at 50¢ market.
+    sensitivity: 300.0               # Sigmoid steepness (higher = more sensitive to small drifts)
+    min_drift_pct: 0.05              # BTC must drift ≥ 0.05% from market open
+    min_minutes_remaining: 3.0       # Don't enter with ≤ 3 min left
+    min_edge_pct: 0.05               # Only trade if net edge > 5% (after fees)
+    time_weight: 0.7                 # How much time remaining blends probability (0=ignore, 1=full)
+
+  eth_lag:
+    # ETH lag strategy — paper-only, mirrors btc_lag params initially.
+    # ETH is more volatile than BTC; may need lower lag_sensitivity after calibration.
+    min_btc_move_pct: 0.4              # ETH must move this % in eth_window_seconds
+    min_kalshi_lag_cents: 5
+    min_minutes_remaining: 5
+    min_edge_pct: 0.08
+    lag_sensitivity: 15.0             # Same as BTC until we have calibration data
+
+  eth_drift:
+    # ETH drift strategy — paper-only, mirrors btc_drift params initially.
+    sensitivity: 300.0
+    min_drift_pct: 0.05
+    min_minutes_remaining: 3.0
+    min_edge_pct: 0.05
+    time_weight: 0.7
+
+  orderbook_imbalance:
+    # VPIN-lite orderbook imbalance strategy — paper-only, any market.
+    # Fires when YES/NO bid depth is lopsided (smart money detection).
+    # Theory: large bid imbalance → informed traders are on that side.
+    # Reference: PIN model (Easley, Kiefer, O'Hara 1996)
+    # Adapted from: vortexpixelz/Kalshi-smart-money (VPIN model)
+    min_imbalance_ratio: 0.65     # >65% YES depth → buy YES; <35% → buy NO
+    min_total_depth: 50           # Skip thin markets (< 50 total contracts)
+    depth_top_n: 10               # Only consider top 10 price levels
+    min_edge_pct: 0.05            # 5% edge required after fees
+    min_minutes_remaining: 3.0
+    signal_scaling: 1.0           # Scale imbalance→probability mapping
+
+  weather:
+    # Weather forecast vs Kalshi temperature market strategy — paper-only.
+    # Compares Open-Meteo GFS daily high-temp forecast to Kalshi NYC weather markets.
+    # Fires when normal-distribution model probability diverges from market price.
+    # Theory: weather models (NWP) are typically more accurate than prediction markets
+    #         especially 24-48h ahead when market prices reflect outdated info.
+    # Reference: jazzmine-p/weather-forecast-automated-trading (LSTM + NCEI, +20% in 1 week)
+    city: nyc                        # Start with NYC (HIGHNY-* series). Add more after calibration.
+    series_ticker: HIGHNY            # Kalshi event series prefix for NYC daily high-temp markets
+    forecast_std_f: 3.5              # Forecast uncertainty in °F (typical 1-day NWP MAE)
+    min_edge_pct: 0.05               # 5% net edge required after Kalshi fee
+    min_minutes_remaining: 30.0      # Don't enter with < 30 min left in market window
+    min_confidence: 0.60             # Model must assign < 40% or > 60% to YES side
+    refresh_interval_seconds: 1800   # Refresh Open-Meteo forecast every 30 minutes
+
+  fomc:
+    # FOMC Fed rate decision strategy — paper-only.
+    # Compares 2yr yield curve signal (FRED) to Kalshi KXFEDDECISION market prices.
+    # Only fires within days_before_meeting days of the next scheduled FOMC decision.
+    # Reference: Federal Reserve working paper Jan 2026 — perfect day-before track record.
+    # Data: FRED CSV endpoint (free, no API key: fred.stlouisfed.org/graph/fredgraph.csv)
+    min_edge_pct: 0.05              # 5% net edge required after Kalshi fee
+    min_minutes_remaining: 60.0     # Don't enter within 60 min of market close
+    days_before_meeting: 14         # Only run in 14-day window before each FOMC date
+    spread_hold_band: 0.25          # ±0.25% 2yr-DFF spread = hold regime
+    cpi_adjustment: 0.08            # 8% shift between hold/cut on CPI trend
+    fred_refresh_interval_seconds: 3600   # Refresh FRED data every hour
 
   whale_copy:                          # Polymarket only — inactive until off waitlist
     enabled: false

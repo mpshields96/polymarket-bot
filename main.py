@@ -61,10 +61,16 @@ async def trading_loop(
     live_executor_enabled: bool,
     live_confirmed: bool,
     btc_series_ticker: str = "KXBTC15M",
+    loop_name: str = "trading",
+    initial_delay_sec: float = 0.0,
 ):
     """Main async loop: poll markets, generate signals, execute trades."""
     from src.execution import paper as paper_mod
     import time
+
+    if initial_delay_sec > 0:
+        logger.info("[%s] Startup delay %.0fs (stagger)", loop_name, initial_delay_sec)
+        await asyncio.sleep(initial_delay_sec)
 
     last_bankroll_snapshot = 0.0
 
@@ -103,12 +109,12 @@ async def trading_loop(
                 continue
 
             if not markets:
-                logger.info("[trading] No open %s markets found", btc_series_ticker)
+                logger.info("[%s] No open %s markets found", loop_name, btc_series_ticker)
                 await asyncio.sleep(POLL_INTERVAL_SEC)
                 continue
 
-            logger.info("[trading] Evaluating %d market(s): %s",
-                        len(markets), [m.ticker for m in markets])
+            logger.info("[%s] Evaluating %d market(s): %s",
+                        loop_name, len(markets), [m.ticker for m in markets])
 
             # ── Evaluate each market ──────────────────────────────────
             for market in markets:
@@ -195,6 +201,265 @@ async def trading_loop(
             logger.error("Unexpected error in trading loop: %s", e, exc_info=True)
 
         await asyncio.sleep(POLL_INTERVAL_SEC)
+
+
+# ── Weather forecast trading loop ─────────────────────────────────────
+
+WEATHER_POLL_INTERVAL_SEC = 300   # 5 min — weather forecasts change slowly
+
+
+async def weather_loop(
+    kalshi,
+    weather_strategy,
+    weather_feed,
+    kill_switch,
+    db,
+    series_ticker: str = "HIGHNY",
+    loop_name: str = "weather",
+    initial_delay_sec: float = 43.0,
+):
+    """
+    Weather forecast trading loop.
+
+    Fetches HIGHNY (NYC daily high-temp) markets every 5 min.
+    Refreshes Open-Meteo forecast when stale (every 30 min).
+    Evaluates WeatherForecastStrategy on each open market.
+    Paper-only — same signal/execution path as trading_loop.
+    """
+    from src.execution import paper as paper_mod
+
+    if initial_delay_sec > 0:
+        logger.info("[%s] Startup delay %.0fs (stagger)", loop_name, initial_delay_sec)
+        await asyncio.sleep(initial_delay_sec)
+
+    while True:
+        try:
+            if kill_switch.is_hard_stopped:
+                logger.critical("[%s] Kill switch HARD STOPPED. Halting.", loop_name)
+                break
+
+            # Refresh weather feed if stale (blocking ~100ms HTTP call)
+            if weather_feed.is_stale:
+                ok = weather_feed.refresh()
+                if not ok:
+                    logger.warning("[%s] Weather feed refresh failed — skipping cycle", loop_name)
+                    await asyncio.sleep(WEATHER_POLL_INTERVAL_SEC)
+                    continue
+
+            forecast_f = weather_feed.forecast_temp_f()
+            if forecast_f is None:
+                await asyncio.sleep(WEATHER_POLL_INTERVAL_SEC)
+                continue
+
+            # Fetch open weather markets
+            try:
+                markets = await kalshi.get_markets(series_ticker=series_ticker, status="open")
+            except Exception as e:
+                logger.warning("[%s] Failed to fetch markets: %s", loop_name, e)
+                await asyncio.sleep(WEATHER_POLL_INTERVAL_SEC)
+                continue
+
+            if not markets:
+                logger.info(
+                    "[%s] No open %s markets found (forecast=%.1f°F)",
+                    loop_name, series_ticker, forecast_f,
+                )
+                await asyncio.sleep(WEATHER_POLL_INTERVAL_SEC)
+                continue
+
+            logger.info(
+                "[%s] Evaluating %d %s market(s) | forecast=%.1f°F",
+                loop_name, len(markets), series_ticker, forecast_f,
+            )
+
+            for market in markets:
+                if kill_switch.is_hard_stopped:
+                    break
+
+                try:
+                    orderbook = await kalshi.get_orderbook(market.ticker)
+                except Exception as e:
+                    logger.warning("[%s] Orderbook fetch failed for %s: %s", loop_name, market.ticker, e)
+                    continue
+
+                # btc_feed=None — weather strategy ignores it
+                signal = weather_strategy.generate_signal(market, orderbook, None)
+
+                if signal is None:
+                    continue
+
+                # ── Execute (paper only) ──────────────────────────────
+                current_bankroll = db.latest_bankroll() or 50.0
+                order_check = kill_switch.check_order_allowed(
+                    proposed_usd=1.0,   # placeholder; sizing is paper-only
+                    current_bankroll=current_bankroll,
+                )
+                if not order_check.get("allowed", False):
+                    logger.info("[%s] Kill switch blocked trade: %s", loop_name, order_check.get("reason"))
+                    continue
+
+                from src.risk.sizing import calculate_size
+                size = calculate_size(
+                    edge_pct=signal.edge_pct,
+                    win_prob=signal.win_prob,
+                    price_cents=signal.price_cents,
+                    bankroll_usd=current_bankroll,
+                )
+                if size is None:
+                    continue
+
+                paper_exec = paper_mod.PaperExecutor(db=db, strategy_name=weather_strategy.name)
+                result = paper_exec.execute(
+                    ticker=signal.ticker,
+                    side=signal.side,
+                    price_cents=signal.price_cents,
+                    size_usd=size,
+                    reason=signal.reason,
+                )
+                logger.info(
+                    "[%s] Paper trade: %s %s @ %d¢ $%.2f",
+                    loop_name,
+                    result["side"].upper(),
+                    result["ticker"],
+                    result.get("fill_price_cents", result.get("price_cents", 0)),
+                    result["cost_usd"],
+                )
+
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error("[%s] Unexpected error: %s", loop_name, e, exc_info=True)
+
+        await asyncio.sleep(WEATHER_POLL_INTERVAL_SEC)
+
+
+# ── FOMC rate trading loop ─────────────────────────────────────────────
+
+FOMC_POLL_INTERVAL_SEC = 1800   # 30 min — FOMC markets don't move every second
+
+
+async def fomc_loop(
+    kalshi,
+    fomc_strategy,
+    fred_feed,
+    kill_switch,
+    db,
+    series_ticker: str = "KXFEDDECISION",
+    loop_name: str = "fomc",
+    initial_delay_sec: float = 51.0,
+):
+    """
+    FOMC rate decision trading loop.
+
+    Fetches KXFEDDECISION markets every 30 min.
+    Refreshes FRED feed (DFF, DGS2, CPI) if stale.
+    Only active within days_before_meeting of next FOMC date.
+    Paper-only — yield curve model needs calibration over multiple meetings.
+    """
+    from src.execution import paper as paper_mod
+
+    if initial_delay_sec > 0:
+        logger.info("[%s] Startup delay %.0fs (stagger)", loop_name, initial_delay_sec)
+        await asyncio.sleep(initial_delay_sec)
+
+    while True:
+        try:
+            if kill_switch.is_hard_stopped:
+                logger.critical("[%s] Kill switch HARD STOPPED. Halting.", loop_name)
+                break
+
+            # Refresh FRED feed if stale (blocking ~600ms for 3 CSV fetches)
+            if fred_feed.is_stale:
+                ok = fred_feed.refresh()
+                if not ok:
+                    logger.warning("[%s] FRED refresh failed — skipping cycle", loop_name)
+                    await asyncio.sleep(FOMC_POLL_INTERVAL_SEC)
+                    continue
+
+            snap = fred_feed.snapshot()
+            if snap is None:
+                await asyncio.sleep(FOMC_POLL_INTERVAL_SEC)
+                continue
+
+            # Fetch KXFEDDECISION markets
+            try:
+                markets = await kalshi.get_markets(series_ticker=series_ticker, status="open")
+            except Exception as e:
+                logger.warning("[%s] Failed to fetch markets: %s", loop_name, e)
+                await asyncio.sleep(FOMC_POLL_INTERVAL_SEC)
+                continue
+
+            if not markets:
+                logger.info(
+                    "[%s] No open %s markets found (DFF=%.2f%% DGS2=%.2f%%)",
+                    loop_name, series_ticker, snap.fed_funds_rate, snap.yield_2yr,
+                )
+                await asyncio.sleep(FOMC_POLL_INTERVAL_SEC)
+                continue
+
+            logger.info(
+                "[%s] Evaluating %d %s market(s) | DFF=%.2f%% DGS2=%.2f%% spread=%+.2f%% CPI %s",
+                loop_name, len(markets), series_ticker,
+                snap.fed_funds_rate, snap.yield_2yr, snap.yield_spread,
+                "↑accel" if snap.cpi_accelerating else "↓decel",
+            )
+
+            for market in markets:
+                if kill_switch.is_hard_stopped:
+                    break
+
+                try:
+                    orderbook = await kalshi.get_orderbook(market.ticker)
+                except Exception as e:
+                    logger.warning("[%s] Orderbook fetch failed for %s: %s", loop_name, market.ticker, e)
+                    continue
+
+                signal = fomc_strategy.generate_signal(market, orderbook, None)
+                if signal is None:
+                    continue
+
+                current_bankroll = db.latest_bankroll() or 50.0
+                order_check = kill_switch.check_order_allowed(
+                    proposed_usd=1.0,
+                    current_bankroll=current_bankroll,
+                )
+                if not order_check.get("allowed", False):
+                    logger.info("[%s] Kill switch blocked: %s", loop_name, order_check.get("reason"))
+                    continue
+
+                from src.risk.sizing import calculate_size
+                size = calculate_size(
+                    edge_pct=signal.edge_pct,
+                    win_prob=signal.win_prob,
+                    price_cents=signal.price_cents,
+                    bankroll_usd=current_bankroll,
+                )
+                if size is None:
+                    continue
+
+                paper_exec = paper_mod.PaperExecutor(db=db, strategy_name=fomc_strategy.name)
+                result = paper_exec.execute(
+                    ticker=signal.ticker,
+                    side=signal.side,
+                    price_cents=signal.price_cents,
+                    size_usd=size,
+                    reason=signal.reason,
+                )
+                logger.info(
+                    "[%s] Paper trade: %s %s @ %d¢ $%.2f",
+                    loop_name,
+                    result["side"].upper(),
+                    result["ticker"],
+                    result.get("fill_price_cents", result.get("price_cents", 0)),
+                    result["cost_usd"],
+                )
+
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error("[%s] Unexpected error: %s", loop_name, e, exc_info=True)
+
+        await asyncio.sleep(FOMC_POLL_INTERVAL_SEC)
 
 
 # ── Settlement polling loop ────────────────────────────────────────────
@@ -444,7 +709,19 @@ async def main():
     # ── Initialize components ─────────────────────────────────────────
     from src.platforms.kalshi import load_from_env as kalshi_load
     from src.data.binance import load_from_config as binance_load
+    from src.data.binance import load_eth_from_config as eth_binance_load
     from src.strategies.btc_lag import load_from_config as strategy_load
+    from src.strategies.btc_lag import load_eth_lag_from_config as eth_lag_load
+    from src.strategies.btc_drift import load_from_config as drift_strategy_load
+    from src.strategies.btc_drift import load_eth_drift_from_config as eth_drift_load
+    from src.strategies.orderbook_imbalance import (
+        load_btc_imbalance_from_config,
+        load_eth_imbalance_from_config,
+    )
+    from src.strategies.weather_forecast import load_from_config as weather_strategy_load
+    from src.data.weather import load_nyc_weather_from_config as weather_feed_load
+    from src.strategies.fomc_rate import load_from_config as fomc_strategy_load
+    from src.data.fred import load_from_config as fred_feed_load
     from src.risk.sizing import get_stage
 
     starting_bankroll = config.get("risk", {}).get("starting_bankroll_usd", 50.0)
@@ -461,14 +738,34 @@ async def main():
     kalshi = kalshi_load()
     await kalshi.start()
 
-    # ── Start Binance feed ────────────────────────────────────────────
+    # ── Start Binance feeds ───────────────────────────────────────────
     logger.info("Starting Binance BTC feed...")
     btc_feed = binance_load()
     await btc_feed.start()
 
-    # ── Load strategy ─────────────────────────────────────────────────
+    logger.info("Starting Binance ETH feed...")
+    eth_feed = eth_binance_load()
+    await eth_feed.start()
+
+    # ── Load strategies ───────────────────────────────────────────────
     strategy = strategy_load()
     logger.info("Strategy loaded: %s", strategy.name)
+    drift_strategy = drift_strategy_load()
+    logger.info("Strategy loaded: %s (paper-only data collection)", drift_strategy.name)
+    eth_lag_strategy = eth_lag_load()
+    logger.info("Strategy loaded: %s (paper-only ETH lag)", eth_lag_strategy.name)
+    eth_drift_strategy = eth_drift_load()
+    logger.info("Strategy loaded: %s (paper-only ETH drift)", eth_drift_strategy.name)
+    btc_imbalance_strategy = load_btc_imbalance_from_config()
+    logger.info("Strategy loaded: %s (paper-only BTC orderbook imbalance)", btc_imbalance_strategy.name)
+    eth_imbalance_strategy = load_eth_imbalance_from_config()
+    logger.info("Strategy loaded: %s (paper-only ETH orderbook imbalance)", eth_imbalance_strategy.name)
+    weather_feed = weather_feed_load()
+    weather_strategy = weather_strategy_load()
+    logger.info("Strategy loaded: %s (paper-only NYC weather forecast)", weather_strategy.name)
+    fred_feed = fred_feed_load()
+    fomc_strategy = fomc_strategy_load()
+    logger.info("Strategy loaded: %s (paper-only FOMC yield curve, fires ~8x/year)", fomc_strategy.name)
 
     # ── Run ───────────────────────────────────────────────────────────
     _configured_markets = config.get("strategy", {}).get("markets", ["KXBTC15M"])
@@ -476,7 +773,10 @@ async def main():
         print("ERROR: config.yaml strategy.markets is empty. Add at least one ticker (e.g., KXBTC15M).")
         sys.exit(1)
     btc_series_ticker = _configured_markets[0]
+    eth_series_ticker = config.get("strategy", {}).get("eth_markets", ["KXETH15M"])[0]
 
+    # Stagger the 4 loops by 7-8s each to spread Kalshi API calls evenly:
+    #   btc_lag=0s, eth_lag=7s, btc_drift=15s, eth_drift=22s
     trade_task = asyncio.create_task(
         trading_loop(
             kalshi=kalshi,
@@ -487,8 +787,119 @@ async def main():
             live_executor_enabled=live_mode,
             live_confirmed=live_confirmed,
             btc_series_ticker=btc_series_ticker,
+            loop_name="trading",
+            initial_delay_sec=0.0,
         ),
         name="trading_loop",
+    )
+    # ETH lag: paper-only, stagger 7s
+    eth_lag_task = asyncio.create_task(
+        trading_loop(
+            kalshi=kalshi,
+            btc_feed=eth_feed,
+            strategy=eth_lag_strategy,
+            kill_switch=kill_switch,
+            db=db,
+            live_executor_enabled=False,
+            live_confirmed=False,
+            btc_series_ticker=eth_series_ticker,
+            loop_name="eth_trading",
+            initial_delay_sec=7.0,
+        ),
+        name="eth_lag_loop",
+    )
+    # BTC drift: paper-only, stagger 15s
+    drift_task = asyncio.create_task(
+        trading_loop(
+            kalshi=kalshi,
+            btc_feed=btc_feed,
+            strategy=drift_strategy,
+            kill_switch=kill_switch,
+            db=db,
+            live_executor_enabled=False,
+            live_confirmed=False,
+            btc_series_ticker=btc_series_ticker,
+            loop_name="drift",
+            initial_delay_sec=15.0,
+        ),
+        name="drift_loop",
+    )
+    # ETH drift: paper-only, stagger 22s
+    eth_drift_task = asyncio.create_task(
+        trading_loop(
+            kalshi=kalshi,
+            btc_feed=eth_feed,
+            strategy=eth_drift_strategy,
+            kill_switch=kill_switch,
+            db=db,
+            live_executor_enabled=False,
+            live_confirmed=False,
+            btc_series_ticker=eth_series_ticker,
+            loop_name="eth_drift",
+            initial_delay_sec=22.0,
+        ),
+        name="eth_drift_loop",
+    )
+    # BTC orderbook imbalance: paper-only, stagger 29s
+    btc_imbalance_task = asyncio.create_task(
+        trading_loop(
+            kalshi=kalshi,
+            btc_feed=btc_feed,
+            strategy=btc_imbalance_strategy,
+            kill_switch=kill_switch,
+            db=db,
+            live_executor_enabled=False,
+            live_confirmed=False,
+            btc_series_ticker=btc_series_ticker,
+            loop_name="btc_imbalance",
+            initial_delay_sec=29.0,
+        ),
+        name="btc_imbalance_loop",
+    )
+    # ETH orderbook imbalance: paper-only, stagger 36s (offset from ETH drift)
+    eth_imbalance_task = asyncio.create_task(
+        trading_loop(
+            kalshi=kalshi,
+            btc_feed=eth_feed,
+            strategy=eth_imbalance_strategy,
+            kill_switch=kill_switch,
+            db=db,
+            live_executor_enabled=False,
+            live_confirmed=False,
+            btc_series_ticker=eth_series_ticker,
+            loop_name="eth_imbalance",
+            initial_delay_sec=36.0,
+        ),
+        name="eth_imbalance_loop",
+    )
+    # Weather forecast: paper-only, polls every 5 min, stagger 43s
+    weather_series = config.get("strategy", {}).get("weather", {}).get("series_ticker", "HIGHNY")
+    weather_task = asyncio.create_task(
+        weather_loop(
+            kalshi=kalshi,
+            weather_strategy=weather_strategy,
+            weather_feed=weather_feed,
+            kill_switch=kill_switch,
+            db=db,
+            series_ticker=weather_series,
+            loop_name="weather",
+            initial_delay_sec=43.0,
+        ),
+        name="weather_loop",
+    )
+    # FOMC rate: paper-only, polls every 30 min, stagger 51s
+    fomc_task = asyncio.create_task(
+        fomc_loop(
+            kalshi=kalshi,
+            fomc_strategy=fomc_strategy,
+            fred_feed=fred_feed,
+            kill_switch=kill_switch,
+            db=db,
+            series_ticker="KXFEDDECISION",
+            loop_name="fomc",
+            initial_delay_sec=51.0,
+        ),
+        name="fomc_loop",
     )
     settle_task = asyncio.create_task(
         settlement_loop(kalshi=kalshi, db=db, kill_switch=kill_switch),
@@ -502,21 +913,43 @@ async def main():
     def _on_signal(signame: str) -> None:
         logger.info("Received %s — requesting clean shutdown", signame)
         trade_task.cancel()
+        eth_lag_task.cancel()
+        drift_task.cancel()
+        eth_drift_task.cancel()
+        btc_imbalance_task.cancel()
+        eth_imbalance_task.cancel()
+        weather_task.cancel()
+        fomc_task.cancel()
         settle_task.cancel()
 
     for _sig, _sname in ((_signal.SIGTERM, "SIGTERM"), (_signal.SIGHUP, "SIGHUP")):
         _loop.add_signal_handler(_sig, lambda n=_sname: _on_signal(n))
 
     try:
-        await asyncio.gather(trade_task, settle_task)
-    except KeyboardInterrupt:
-        logger.info("Keyboard interrupt — shutting down")
+        await asyncio.gather(
+            trade_task, eth_lag_task, drift_task, eth_drift_task,
+            btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task, settle_task,
+        )
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        pass  # Normal shutdown — SIGTERM or Ctrl+C; finally block handles cleanup
     finally:
         trade_task.cancel()
+        eth_lag_task.cancel()
+        drift_task.cancel()
+        eth_drift_task.cancel()
+        btc_imbalance_task.cancel()
+        eth_imbalance_task.cancel()
+        weather_task.cancel()
+        fomc_task.cancel()
         settle_task.cancel()
-        await asyncio.gather(trade_task, settle_task, return_exceptions=True)
+        await asyncio.gather(
+            trade_task, eth_lag_task, drift_task, eth_drift_task,
+            btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task, settle_task,
+            return_exceptions=True,
+        )
         logger.info("Stopping feeds and connections...")
         await btc_feed.stop()
+        await eth_feed.stop()
         await kalshi.close()
         db.close()
         _release_bot_lock()

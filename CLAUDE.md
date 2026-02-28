@@ -24,6 +24,8 @@
 - `db.win_rate()` must compare `result == side` (not `result == "yes"`) — NO-side bets win when result=="no"
 - `kill_switch.lock` reset requires piping: `echo "RESET" | python main.py --reset-killswitch`
 - `config.yaml` must have sections: kalshi, strategy, risk, **storage** (verify.py checks all four)
+- `WeatherFeed.refresh()` is a synchronous HTTPS call (~100ms) to api.open-meteo.com — no key needed
+- Kalshi HIGHNY markets only exist on weekdays; weather_loop logs "No open HIGHNY markets" on weekends
 - `config.yaml` series ticker must be `KXBTC15M` (not `btc_15min`) — wrong value returns 0 markets silently at DEBUG
 - All `generate_signal()` skip paths log at DEBUG — trading loop appears silent when no signal fires (expected)
 - **Binance.US `@trade` stream has near-zero BTC volume** — always use `@bookTicker` (mid-price = (bid+ask)/2, ~100 ticks/min)
@@ -50,12 +52,14 @@
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- 117/117 tests passing, verify.py 18/18
-- Trading loop confirmed: evaluates KXBTC15M every 30s, no signal yet (needs ~0.65% BTC in 60s)
+- 257/257 tests passing, verify.py 18/18
+- 8 trading loops: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc
+- Weather: Open-Meteo GFS vs Kalshi HIGHNY — paper-only
+- FOMC: FRED yield curve (DGS2-DFF) vs Kalshi KXFEDDECISION — fires ~8x/year, 14-day pre-meeting window
 - All critical safety fixes applied (kill switch wired, live CONFIRM prompt, PID lock)
 - Paper mode only — LIVE_TRADING=false in .env
-- GitHub: main branch, all sessions 1-9 committed (bf60715)
-- Next action: `python main.py` → watch for first `[btc_lag] Signal:` log line
+- GitHub: main branch, sessions 1-9 committed (bf60715); sessions 10-13 not yet committed
+- Next action: `python main.py` → watch 7 loops start; check [weather] logs for HIGHNY market eval
 
 ## Workflow
 - User runs with bypass permissions active — no confirmation needed
