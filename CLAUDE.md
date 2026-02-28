@@ -52,19 +52,26 @@
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- 257/257 tests passing, verify.py 18/18
+- 289/289 tests passing, verify.py 18/18
 - 8 trading loops: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc
-- Weather: Open-Meteo GFS vs Kalshi HIGHNY — paper-only
+- Weather: EnsembleWeatherFeed (Open-Meteo GFS + NOAA NWS NDFD blend) vs Kalshi HIGHNY — paper-only
 - FOMC: FRED yield curve (DGS2-DFF) vs Kalshi KXFEDDECISION — fires ~8x/year, 14-day pre-meeting window
 - All critical safety fixes applied (kill switch wired, live CONFIRM prompt, PID lock)
+- Position dedup + daily bet cap (5/strategy/day) — all 8 loops
 - Paper mode only — LIVE_TRADING=false in .env
-- GitHub: main branch, sessions 1-9 committed (bf60715); sessions 10-13 not yet committed
-- Next action: `python main.py` → watch 7 loops start; check [weather] logs for HIGHNY market eval
+- GitHub: main branch, latest commit b72c333 (Session 15)
+- Next action: `python main.py` → watch 8 loops start; check [weather] logs for HIGHNY market eval
 
 ## Workflow
 - User runs with bypass permissions active — no confirmation needed
-- Proactively invoke superpowers:* skills and sc:* commands without being asked
+- Proactively invoke superpowers:* skills, sc:* commands, AND gsd:* commands without being asked
 - Matthew is a doctor with a new baby — keep explanations short, do the work autonomously
 - Do NOT ask for confirmation on routine operations (running tests, reading files, updating docs)
 - Surface CHECKPOINT_N.md docs and wait for "continue" before next phase
-- 117/117 tests must pass before any commit
+- 289/289 tests must pass before any commit (count updates each session)
+
+## GSD Framework (installed globally)
+- For new major phases (new strategy, cloud deployment, market making): use /gsd:new-project or /gsd:discuss-phase
+- For quick fixes/tasks: use /gsd:quick to get atomic commit + state tracking without full planning
+- To check what to work on next: /gsd:progress
+- Full GSD reference: ~/.claude/rules/gsd-framework.md
