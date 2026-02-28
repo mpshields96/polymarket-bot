@@ -31,7 +31,7 @@ None — slippage model and settlement verification complete.
 
 - Graduation check is WARN not FAIL — advisory, never blocks bot startup
 - fomc_rate min_trades=5 (not 30) — strategy fires ~8x/year, 30 trades would take 3+ years
-- weather_forecast min_days=14 (not 7) — captures seasonal/weekly weather variation
+- weather_forecast min_days=0 (removed) — 30 trades is the only gate, same as all strategies
 - first_trade_ts includes unsettled trades so days_running is accurate from first bot activity
 - slippage_ticks read by caller (main.py) from config, not inside paper.py — keeps paper.py config-free
 - execute() uses keyword-arg signature (ticker, side, price_cents, size_usd, reason) — unified across all call sites
