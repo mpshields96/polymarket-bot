@@ -507,7 +507,7 @@ class KalshiClient:
             volume=m.get("volume", 0),
             close_time=m.get("close_time", ""),
             open_time=m.get("open_time", ""),
-            result=m.get("result"),
+            result=(m.get("result") or "").lower() or None,
             raw=m,
         )
 
