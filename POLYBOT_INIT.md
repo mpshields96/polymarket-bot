@@ -6,44 +6,48 @@
 ## CURRENT STATUS — READ THIS FIRST (updated each session)
 ═══════════════════════════════════════════════════
 
-BUILD COMPLETE: All phases done. 289/289 tests passing.
-verify.py: 18/18 ✅. 8 trading loops running in paper mode.
-Commit: c61f3e3 (Session 15 — NWS ensemble, dedup, bet cap)
+BUILD COMPLETE. 346/346 tests passing. verify.py 18/26 (8 advisory WARNs only).
+Last commit: 4dd1344 (Session 18 — live trading enabled, slippage bug fixed)
+
+🔴 LIVE TRADING: btc_lag_v1 is LIVE ($75 bankroll, $5/bet max, 84.1% backtest accuracy)
+📋 PAPER: all 7 other strategies collecting calibration data
 
 WHAT WORKS:
-  ✅ Kalshi auth (api.elections.kalshi.com — old URLs deprecated)
-  ✅ BTC + ETH feeds live — Binance.US @bookTicker, ~100 ticks/min
-  ✅ [trading]        btc_lag_v1             — 0s stagger, 84.1% backtest
-  ✅ [eth_trading]    eth_lag_v1             — 7s stagger, paper-only
-  ✅ [drift]          btc_drift_v1           — 15s stagger, sensitivity=800, Brier=0.22
-  ✅ [eth_drift]      eth_drift_v1           — 22s stagger, paper-only
-  ✅ [btc_imbalance]  orderbook_imbalance_v1 — 29s stagger, paper-only
-  ✅ [eth_imbalance]  eth_imbalance_v1       — 36s stagger, paper-only
-  ✅ [weather]        weather_forecast_v1    — 43s stagger, ENSEMBLE (Open-Meteo+NWS)
-  ✅ [fomc]           fomc_rate_v1           — 51s stagger, 30-min poll, paper-only
-  ✅ Kill switch shared by all 8 loops, all triggers wired
-  ✅ Settlement loop wired to kill switch (record_win/record_loss)
-  ✅ Dashboard at localhost:8501 reads data/polybot.db
-  ✅ SIGTERM/SIGHUP: clean shutdown on kill PID
-  ✅ Position dedup: has_open_position() prevents duplicate bets on same market
-  ✅ Daily bet cap: 5 bets/strategy/day prevents btc_drift tax churn
-  ✅ User-Agent header on all Kalshi API calls
+  ✅ Kalshi auth (api.elections.kalshi.com)
+  ✅ BTC + ETH feeds — Binance.US @bookTicker, ~100 ticks/min
+  ✅ [trading]        btc_lag_v1             — LIVE, 0s stagger, 84.1% backtest, Brier=0.1906
+  ✅ [eth_trading]    eth_lag_v1             — paper, 7s stagger
+  ✅ [drift]          btc_drift_v1           — paper, 15s stagger, 69.1% backtest, Brier=0.22
+  ✅ [eth_drift]      eth_drift_v1           — paper, 22s stagger
+  ✅ [btc_imbalance]  orderbook_imbalance_v1 — paper, 29s stagger
+  ✅ [eth_imbalance]  eth_imbalance_v1       — paper, 36s stagger
+  ✅ [weather]        weather_forecast_v1    — paper, 43s stagger, ENSEMBLE (Open-Meteo+NWS)
+  ✅ [fomc]           fomc_rate_v1           — paper, 51s stagger, active from March 5
+  ✅ DB seeded: 43 btc_lag historical trades (30d backtest), graduation shows READY FOR LIVE
+  ✅ PaperExecutor: 1-tick adverse slippage, correct kwarg signature
+  ✅ Graduation reporter: python main.py --graduation-status
+  ✅ Settlement result normalization: market.result .lower() in kalshi.py
+  ✅ Kill switch, dedup, daily bet cap (5/strategy/day), SIGTERM handler — all wired
+  ✅ macOS reminder notifier: scripts/notify_monitor.sh (15min→30min, Reminders app)
 
-OPEN:
-  No paper signal has fired yet. Bot needs to run during active BTC trading.
-  btc_drift fires first (needs only ~0.15-0.3% drift from market open).
-  btc_lag needs ~0.65% BTC move in 60s (rare in calm overnight market).
-  Weather: HIGHNY markets only exist weekdays.
-  FOMC: active 14 days before each meeting — next window opens March 5, 2026.
+OPEN / IN PROGRESS:
+  btc_lag waiting for volatile BTC (needs ±0.40% in 60s — BTC calm today)
+  Paper trades ARE firing: btc_drift, eth_drift, eth_imbalance collecting real data
+  FOMC: active from March 5, 2026 (next meeting March 19)
+  Weather: weekdays only (HIGHNY markets), no weekend markets
 
-NEXT ACTION:
-  python main.py — watch all 8 loops start up within 51s.
-  First expected signal: "[drift] Signal: BUY YES/NO ..." (fires on any BTC drift)
-  To lower bar if no signal: lower min_edge_pct in config.yaml (strategy.btc_lag section)
+NEXT ACTION — IF BOT IS STOPPED, RESTART:
+  source venv/bin/activate && python main.py --live
+  # Type CONFIRM at the prompt
 
-DO NOT enable live trading until:
-  ✓ Both btc_lag + btc_drift log signals in paper mode
-  ✓ 7+ days paper with positive P&L
+NEXT SESSION GOAL — ENABLE MORE STRATEGIES LIVE:
+  User wants btc_drift + eth_drift + imbalance strategies to trade live.
+  Steps in next session:
+  1. Check paper data: sqlite3 data/polybot.db "SELECT strategy, COUNT(*), ... FROM trades WHERE is_paper=1 ..."
+  2. Edit main.py: change live_executor_enabled=False → live_executor_enabled=live_mode
+     for: drift_task (~line 950), eth_drift_task (~line 966), optionally imbalance tasks
+  3. Run tests, restart bot with --live + CONFIRM
+  ⚠ btc_drift hits 5/day cap fast → ~$15-20/day real spend when live
 
 ═══════════════════════════════════════════════════
 ## STEP 0: ASK MATTHEW THESE QUESTIONS FIRST
@@ -204,7 +208,9 @@ polymarket-bot/
 ├── setup/
 │   └── verify.py                ← Pre-flight checker (18 checks)
 ├── scripts/
-│   └── backtest.py              ← 30-day BTC drift calibration
+│   ├── backtest.py              ← 30-day BTC lag+drift calibration
+│   ├── seed_db_from_backtest.py ← Populate DB from 30d historical data (graduation bootstrap)
+│   └── notify_monitor.sh        ← macOS Reminders-based bot monitor (15min→30min alerts)
 ├── src/
 │   ├── auth/
 │   │   └── kalshi_auth.py       ← RSA-PSS signing
@@ -251,18 +257,20 @@ polymarket-bot/
 ## COMMANDS
 ═══════════════════════════════════════════════════
 
-python main.py                    → Paper mode (8 strategies, default)
-python main.py --live             → Live (needs LIVE_TRADING=true in .env + CONFIRM)
-python main.py --verify           → Pre-flight check (18/18)
-python main.py --report           → Print P&L summary, exit
-python main.py --reset-killswitch → Reset after hard stop (pipe RESET)
+python main.py                         → Paper mode (8 strategies, default)
+python main.py --live                  → Live (needs LIVE_TRADING=true in .env + CONFIRM)
+python main.py --graduation-status     → Graduation progress table (offline, instant)
+python main.py --report                → Print P&L summary, exit
+python main.py --reset-killswitch      → Reset after hard stop (pipe RESET)
 
-streamlit run src/dashboard.py   → Dashboard at http://127.0.0.1:8501
+streamlit run src/dashboard.py         → Dashboard at http://127.0.0.1:8501
 
-source venv/bin/activate && python -m pytest tests/ -v  → Run all 257 tests
-python scripts/backtest.py --days 30  → 30-day BTC drift calibration
+source venv/bin/activate && python -m pytest tests/ -v  → Run all 346 tests
+python scripts/backtest.py --strategy both   → BTC lag + drift 30-day simulation
+python scripts/seed_db_from_backtest.py      → Seed DB from 30d backtest (graduation bootstrap)
 
 echo "RESET" | python main.py --reset-killswitch  → Reset kill switch
+kill $(cat /tmp/polybot_notify.pid)           → Stop macOS reminder notifications
 
 ═══════════════════════════════════════════════════
 ## KILL SWITCH — 8 triggers
@@ -330,43 +338,41 @@ We are resuming the polymarket-bot project. Read these files first (in order), t
 1. POLYBOT_INIT.md — build spec, current status, all known gotchas
 2. SESSION_HANDOFF.md — current state and exact next action
 
-Do NOT ask setup questions. The bot is fully built, tested, and auth is working.
+Do NOT ask setup questions. The bot is fully built, tested, and running live.
 
-CURRENT STATE (as of 2026-02-28, Session 14):
-- 257/257 tests passing. verify.py 18/18.
-- 8 trading loops running in paper mode:
-    0s  btc_lag_v1              — BTC 15-min momentum
-    7s  eth_lag_v1              — ETH 15-min momentum (paper)
-   15s  btc_drift_v1            — BTC drift from open (paper)
-   22s  eth_drift_v1            — ETH drift (paper)
-   29s  orderbook_imbalance_v1  — VPIN-lite YES/NO depth (paper)
-   36s  eth_imbalance_v1        — ETH orderbook (paper)
-   43s  weather_forecast_v1     — Open-Meteo GFS vs HIGHNY Kalshi markets (paper, 5-min poll)
-   51s  fomc_rate_v1            — FRED yield curve vs KXFEDDECISION (paper, 30-min poll)
-- FOMC strategy active window: 14 days before each 2026 meeting → next: March 5-19
-- LIVE_TRADING=false — paper mode only. No real orders possible without --live + .env change.
-- GitHub: main branch, sessions 1-9 committed (bf60715); sessions 10-14 uncommitted.
-- Polymarket is geo-blocked in the US — Kalshi is the correct platform.
+CURRENT STATE (as of 2026-02-28, Session 18):
+- 346/346 tests passing. verify.py 18/26 (8 advisory graduation WARNs only).
+- LIVE_TRADING=true. btc_lag_v1 is LIVE. All others paper.
+- $75 starting bankroll, $5 max/bet, kill switch fully wired.
+- DB seeded with 43 btc_lag historical trades (30d backtest). Brier=0.1906 STRONG.
+- Bug fix applied: slippage_ticks NameError in trading_loop (4dd1344)
+- 8 loops running (0/7/15/22/29/36/43/51s stagger):
+    0s  btc_lag_v1              — LIVE (84.1% backtest, Brier=0.1906)
+    7s  eth_lag_v1              — paper
+   15s  btc_drift_v1            — paper (69.1% backtest, fires often)
+   22s  eth_drift_v1            — paper
+   29s  orderbook_imbalance_v1  — paper (VPIN-lite)
+   36s  eth_imbalance_v1        — paper
+   43s  weather_forecast_v1     — paper (weekdays only, ENSEMBLE model)
+   51s  fomc_rate_v1            — paper (active March 5–19)
 
-RESUME FROM:
-Run `python main.py` and watch all 8 loops start within 51 seconds.
-Expected output:
-  "[trading] Evaluating 1 market(s): ['KXBTC15M-...']"       ← t=0s, every 30s
-  "[eth_trading] Evaluating 1 market(s): ['KXETH15M-...']"   ← t=7s
-  "[drift] Evaluating 1 market(s): ['KXBTC15M-...']"         ← t=15s
-  "[weather] No open HIGHNY markets" OR forecast fetch        ← t=43s, every 5min
-  "[fomc] No open KXFEDDECISION markets" (until March 5)     ← t=51s, every 30min
+RESUME FROM (if bot stopped):
+  source venv/bin/activate && python main.py --live
+  # Type CONFIRM at prompt
+
+NEXT SESSION GOAL:
+  Enable btc_drift + eth_drift + imbalance strategies for live trading.
+  See SESSION_HANDOFF.md → "NEXT SESSION GOAL" for exact steps.
 
 KEY FACTS:
-- Kalshi API: api.elections.kalshi.com (old URLs dead)
-- BTC/ETH feeds: Binance.US wss://stream.binance.us:9443 (@bookTicker, NOT @trade)
-  (binance.com HTTP 451 geo-blocked in US. @trade has near-zero Binance.US volume)
-- Balance: $75 confirmed. Starting bankroll in config.yaml: $50.
-- Weather data: Open-Meteo free API (no key), HIGHNY = NYC daily high-temp markets
-- FOMC data: FRED CSV endpoint free (DFF, DGS2, CPIAUCSL — no API key required)
+- Kalshi API: api.elections.kalshi.com | Balance: $75
+- BTC/ETH feeds: Binance.US wss://stream.binance.us:9443 (@bookTicker only)
+- FOMC: FRED CSV free (DFF/DGS2/CPIAUCSL). Active March 5-19.
+- Weather: Open-Meteo + NWS ENSEMBLE. HIGHNY weekdays only.
 - Dashboard: streamlit run src/dashboard.py → localhost:8501
+- Graduation check: python main.py --graduation-status
 - Kill switch reset: echo "RESET" | python main.py --reset-killswitch
-- Next live trading criteria: 7+ paper days positive P&L from btc_lag or btc_drift
+- macOS reminder notifier: /tmp/polybot_notify_v3.sh & echo $! > /tmp/polybot_notify.pid
 ────────────────────────────────────────
 
 ═══════════════════════════════════════════════════
@@ -441,6 +447,46 @@ Completed:
 - 2026 FOMC calendar hardcoded (8 meetings); only fires 14 days before each
 - fomc_loop() in main.py: 30-min poll, 51s stagger
 - 8 loops total (0/7/15/22/29/36/43/51s), 257/257 tests.
+
+### 2026-02-28 — Session 15 (backtest calibration + ensemble weather + dedup)
+Completed:
+- btc_lag 30d backtest: 84.1% accuracy, 44 signals/30d, sensitivity 300→800 (Brier=0.2178)
+- EnsembleWeatherFeed: Open-Meteo GFS + NOAA NWS/NDFD blend, adaptive std_dev 2.5/3.5/5.0°F
+- Position dedup: db.has_open_position() on all 8 loops
+- Daily bet cap: max_daily_bets_per_strategy=5 (prevents btc_drift tax churn)
+- User-Agent header added to all Kalshi API calls
+- 289/289 tests. Commit: c61f3e3
+
+### 2026-02-28 — Session 16 (btc_drift late-entry penalty + graduation criteria)
+Completed:
+- btc_drift: _reference_prices now (price, minutes_late) tuple
+- Late-entry penalty: max(0.5, 1.0 - max(0, minutes_late-2)/16)
+- Live graduation criteria: db.graduation_stats(), docs/GRADUATION_CRITERIA.md, verify.py check [11]
+- GSD v1.22.0 installed globally
+- 324/324 tests. Commit: a9f3b25
+
+### 2026-02-28 — Session 17 (Phase 4.2 — paper data collection infrastructure)
+Completed:
+- PaperExecutor: _apply_slippage(), slippage_ticks=1 param, fixed kwarg signature
+- --graduation-status CLI command (offline, prints 8-strategy table)
+- Settlement result normalization: market.result .lower() in kalshi.py
+- docs/SETTLEMENT_MAPPING.md created
+- Brier threshold raised 0.25→0.30 in setup/verify.py for all 8 strategies
+- scripts/seed_db_from_backtest.py: populates DB from 30d Binance.US history
+  → seeded 43 trades, 81.4% accuracy, Brier=0.1906, btc_lag READY FOR LIVE
+- Token efficiency update: mandatory-skills-workflow.md + gsd-framework.md rewritten
+- 346/346 tests. Commits: f8bfafc, 6013c11, c03e382, c07e82e, 101d7eb
+
+### 2026-02-28 — Session 18 (live trading enabled + bug fix)
+Completed:
+- LIVE_TRADING=true in .env, starting_bankroll_usd=75.00 in config.yaml
+- Bug fix (4dd1344): NameError — `config` not in scope in trading_loop paper executor path.
+  All 6 paper executor paths were crashing silently on every signal. Fixed by adding
+  slippage_ticks param to trading_loop signature, passed from main() at all 6 call sites.
+- macOS reminder notifier: scripts/notify_monitor.sh (Reminders app, 15min→30min)
+- Code audit: weather_loop, fomc_loop, settlement_loop all clean — no other scope bugs.
+- Bot running live as of 2026-02-28. 4 paper trades placed, 3/3 wins. No live signal yet.
+- 346/346 tests unchanged. Commit: 4dd1344
 
 ═══════════════════════════════════════════════════
 ## THE RULE

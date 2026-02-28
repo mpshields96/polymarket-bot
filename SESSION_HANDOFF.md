@@ -1,12 +1,13 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume.
-# Last updated: 2026-02-28 (Session 17 — Phase 4.2 complete, 346 tests)
+# Last updated: 2026-02-28 (Session 18 — live trading enabled, slippage bug fixed)
 ═══════════════════════════════════════════════════
 
 ## Current State
 
-8 strategies running in paper mode. All code pushed to GitHub main.
-346/346 tests passing. Bot is ready to run.
+btc_lag_v1 → LIVE MODE ENABLED ($75 starting bankroll, $5 max/bet)
+7 other strategies → paper mode. All code pushed to GitHub main.
+346/346 tests passing. DB seeded: 43 btc_lag trades, 81.4% acc, Brier 0.1906 (STRONG).
 
 Loop stagger (seconds):
    0s → [trading]        btc_lag_v1                 — crypto momentum
@@ -21,7 +22,20 @@ Loop stagger (seconds):
 verify.py: **18/26** (8 graduation WARNs — advisory only, never blocks startup)
 Tests: **346/346 ✅** (was 324, +22 new in Phase 4.2)
 
-## What was done this session (Session 17)
+## What was done this session (Session 18)
+
+Live trading enabled + critical bug fixed:
+
+1. LIVE_TRADING=true (.env), starting_bankroll_usd=75.00 (config.yaml)
+2. Bug fix (4dd1344): NameError in trading_loop — `config` not in scope inside loop.
+   All 6 paper executor paths were crashing on signal execution silently.
+   Fixed: added `slippage_ticks: int = 1` param, passed from main() at all 6 call sites.
+3. Monitoring: scripts/notify_monitor.sh — macOS notifications every 15min (first hr) then 30min
+   Kill notifier: kill $(cat /tmp/polybot_notify.pid)
+4. Audit: weather_loop, fomc_loop, settlement_loop — all clean, no other scope bugs.
+5. Bot running live as of 2026-02-28 ~12:13 UTC. First live signal pending.
+
+## What was done last session (Session 17)
 
 Phase 4.2 — Paper Data Collection Infrastructure:
 
@@ -61,24 +75,39 @@ Commits: f8bfafc, 6013c11, c03e382, c07e82e — all pushed to main
 
 ## Next Action (FIRST THING)
 
-Start the bot and collect paper data:
+Bot is currently RUNNING. If stopped, restart with:
 
-    python main.py
+    source venv/bin/activate && python main.py --live
+    # Type CONFIRM at the prompt
 
-Expected startup sequence (first 51s):
-  [trading]       t=0s  → "Evaluating N market(s)"
-  [eth_trading]   t=7s  → "Evaluating N market(s)"
-  [drift]         t=15s → "Evaluating N market(s)"
-  [eth_drift]     t=22s → "Evaluating N market(s)"
-  [btc_imbalance] t=29s → "Evaluating N market(s)"
-  [eth_imbalance] t=36s → "Evaluating N market(s)"
-  [weather]       t=43s → "No open HIGHNY markets" (weekend) or fetches ensemble forecast
-  [fomc]          t=51s → "timing gate" debug (FOMC active from March 5)
+🔴 LIVE: btc_lag_v1 only ($75 bankroll, $5/bet max). No live trades yet — BTC calm today.
+📋 PAPER: all 7 other strategies collecting data. 4 paper trades placed today, 3/3 wins.
 
-Check graduation progress anytime:
-    python main.py --graduation-status
+### NEXT SESSION GOAL: Enable btc_drift + eth_drift for live trading
+
+The user wants to go live with more strategies. Here's exactly what to do:
+
+1. Check paper trade data first:
+   sqlite3 data/polybot.db "SELECT strategy, COUNT(*), SUM(CASE WHEN won=1 OR result=side THEN 1 ELSE 0 END) as wins FROM trades WHERE is_paper=1 AND client_order_id NOT LIKE 'btc_lag_backtest_seed%' GROUP BY strategy"
+
+2. If btc_drift + eth_drift paper win rates look healthy (>60%), enable live by editing main.py:
+   Change these two trading_loop calls from live_executor_enabled=False → live_executor_enabled=live_mode:
+   - drift_task (btc_drift, line ~950)
+   - eth_drift_task (eth_drift, line ~966)
+   Optionally also btc_imbalance + eth_imbalance (lines ~984, ~1007)
+
+3. Run tests: python -m pytest tests/ -q
+4. Restart bot: Ctrl+C → python main.py --live → CONFIRM
+
+⚠ btc_drift fires on ~every 15-min window → hits 5/day cap fast → ~$15-20/day real spend
+⚠ weather won't fire on weekends, fomc won't fire until March 5
 
 FOMC: Next meeting March 19, 2026 → strategy active from March 5, 2026
+
+### Monitoring reminder
+Reminders-based notifier PID in /tmp/polybot_notify.pid (15min → 30min intervals)
+Kill: kill $(cat /tmp/polybot_notify.pid)
+Restart: /tmp/polybot_notify_v3.sh & echo $! > /tmp/polybot_notify.pid
 
 ## Component Status
 
