@@ -78,6 +78,8 @@ async def trading_loop(
         await asyncio.sleep(initial_delay_sec)
 
     last_bankroll_snapshot = 0.0
+    # Paper/live mode for dedup and daily-cap filtering — computed once, never changes mid-run
+    is_paper_mode = not (live_executor_enabled and live_confirmed)
 
     while True:
         try:
@@ -139,14 +141,16 @@ async def trading_loop(
                     continue
 
                 # Position deduplication — skip if we already have an open bet on this market
-                if db.has_open_position(market.ticker):
+                # is_paper_mode ensures live bets don't dedup against paper positions and vice versa
+                if db.has_open_position(market.ticker, is_paper=is_paper_mode):
                     logger.info("[%s] Open position already exists on %s — skip",
                                 loop_name, market.ticker)
                     continue
 
                 # Daily bet cap (tax protection + quality gate)
+                # is_paper_mode ensures paper bets don't eat into the live daily quota
                 if max_daily_bets > 0:
-                    today_count = db.count_trades_today(strategy.name)
+                    today_count = db.count_trades_today(strategy.name, is_paper=is_paper_mode)
                     if today_count >= max_daily_bets:
                         logger.info("[%s] Daily bet cap reached (%d/%d) for %s — skip",
                                     loop_name, today_count, max_daily_bets, strategy.name)
@@ -171,7 +175,11 @@ async def trading_loop(
                     logger.debug("[main] Sizing returned None for signal on %s", market.ticker)
                     continue
 
-                trade_usd = size_result.recommended_usd
+                # Clamp to hard cap — sizing uses stage caps ($5/$10/$15) but the kill switch
+                # hard cap is always $5.00. Without this clamp, bankroll > $100 means
+                # 5% pct_cap ($5.18) exceeds $5.00 and the kill switch blocks every trade.
+                from src.risk.kill_switch import HARD_MAX_TRADE_USD as _HARD_CAP
+                trade_usd = min(size_result.recommended_usd, _HARD_CAP)
 
                 # Kill switch pre-trade check (synchronous)
                 from src.strategies.btc_lag import BTCLagStrategy
@@ -319,13 +327,13 @@ async def weather_loop(
                 if signal is None:
                     continue
 
-                # Position deduplication
-                if db.has_open_position(market.ticker):
+                # Position deduplication (weather is always paper)
+                if db.has_open_position(market.ticker, is_paper=True):
                     logger.info("[%s] Open position already on %s — skip", loop_name, market.ticker)
                     continue
 
-                # Daily bet cap
-                if max_daily_bets > 0 and db.count_trades_today(weather_strategy.name) >= max_daily_bets:
+                # Daily bet cap (paper only — never counts live bets)
+                if max_daily_bets > 0 and db.count_trades_today(weather_strategy.name, is_paper=True) >= max_daily_bets:
                     logger.info("[%s] Daily bet cap reached for %s — skip", loop_name, weather_strategy.name)
                     continue
 
@@ -469,13 +477,13 @@ async def fomc_loop(
                 if signal is None:
                     continue
 
-                # Position deduplication
-                if db.has_open_position(market.ticker):
+                # Position deduplication (fomc is always paper)
+                if db.has_open_position(market.ticker, is_paper=True):
                     logger.info("[%s] Open position already on %s — skip", loop_name, market.ticker)
                     continue
 
-                # Daily bet cap (FOMC fires rarely but guard anyway)
-                if max_daily_bets > 0 and db.count_trades_today(fomc_strategy.name) >= max_daily_bets:
+                # Daily bet cap (paper only — never counts live bets)
+                if max_daily_bets > 0 and db.count_trades_today(fomc_strategy.name, is_paper=True) >= max_daily_bets:
                     logger.info("[%s] Daily bet cap reached for %s — skip", loop_name, fomc_strategy.name)
                     continue
 
@@ -621,13 +629,13 @@ async def unemployment_loop(
                 if signal is None:
                     continue
 
-                # Position deduplication
-                if db.has_open_position(market.ticker):
+                # Position deduplication (unemployment is always paper)
+                if db.has_open_position(market.ticker, is_paper=True):
                     logger.info("[%s] Open position already on %s — skip", loop_name, market.ticker)
                     continue
 
-                # Daily bet cap (rare signal but guard anyway)
-                if max_daily_bets > 0 and db.count_trades_today(unemployment_strategy.name) >= max_daily_bets:
+                # Daily bet cap (paper only — never counts live bets)
+                if max_daily_bets > 0 and db.count_trades_today(unemployment_strategy.name, is_paper=True) >= max_daily_bets:
                     logger.info("[%s] Daily bet cap reached for %s — skip", loop_name, unemployment_strategy.name)
                     continue
 
@@ -760,14 +768,55 @@ async def settlement_loop(kalshi, db, kill_switch):
 _PID_FILE = PROJECT_ROOT / "bot.pid"
 
 
+def _scan_for_duplicate_main_processes() -> list:
+    """
+    Scan all running processes for other instances of 'python main.py'.
+
+    Returns a list of PIDs that are NOT our own process. Empty list = no duplicates.
+    This catches orphaned instances that survived previous kill $(cat bot.pid) calls,
+    which only kills the most recent bot.pid entry not all older instances.
+    """
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["pgrep", "-f", "main.py"],
+            capture_output=True,
+            text=True,
+        )
+        pids = []
+        for line in result.stdout.strip().splitlines():
+            try:
+                pid = int(line.strip())
+                if pid != os.getpid():
+                    pids.append(pid)
+            except ValueError:
+                pass  # skip non-integer lines
+        return pids
+    except FileNotFoundError:
+        return []  # pgrep not available — fall back to bot.pid check only
+
+
 def _acquire_bot_lock() -> Path:
     """
     Write current PID to bot.pid. If another instance is already running,
     print an error and exit. Protects against accidental duplicate runs
     that could double-execute trades and burn API quota.
 
+    Checks two ways:
+      1. bot.pid file — catches the most recent instance
+      2. pgrep scan — catches orphaned instances from prior restarts
+
     Returns the PID file Path so the caller can release it on shutdown.
     """
+    # ── Check 1: pgrep scan for all running main.py processes ────────────
+    duplicate_pids = _scan_for_duplicate_main_processes()
+    if duplicate_pids:
+        print(f"\nERROR: Other bot instance(s) already running: PIDs {duplicate_pids}")
+        print(f"  Kill all of them: pkill -f 'python main.py'")
+        print(f"  Then retry. (Never use 'kill $(cat bot.pid)' — it misses orphans.)\n")
+        sys.exit(1)
+
+    # ── Check 2: bot.pid file check ───────────────────────────────────────
     if _PID_FILE.exists():
         try:
             existing_pid = int(_PID_FILE.read_text().strip())

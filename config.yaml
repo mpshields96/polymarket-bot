@@ -159,7 +159,7 @@ strategy:
 # ── Risk — hard floors enforced in code, config cannot override ──
 risk:
   # Populated at runtime from USER_CONFIG.json
-  starting_bankroll_usd: 75.00         # Matthew's starting bankroll (Kalshi account balance)
+  starting_bankroll_usd: 100.00        # Updated Session 21: $25 added, clean $100 base bankroll
 
   # Per-trade caps (LOWER of usd and pct always applies)
   max_single_trade_usd: 5.00           # Hard cap: $5 per bet (Stage 1)
