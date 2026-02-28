@@ -378,3 +378,64 @@ class TestPaperLoopCallSignature:
         LOCK_FILE.write_text(json.dumps({"reason": "test", "triggered_at": "now"}))
         ok, reason = ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=100.0)
         assert not ok
+
+
+# ── Regression: paper loop sizing call signature ───────────────────
+class TestPaperLoopSizingCallSignature:
+    """Regression tests for the paper loop calculate_size() call.
+
+    Bug: weather_loop/fomc_loop/unemployment_loop called calculate_size with
+    price_cents=signal.price_cents (invalid kwarg, not in function signature)
+    and omitted the required payout_per_dollar parameter.
+    Result: TypeError silently caught by outer except, ALL paper trades skipped.
+
+    Fix: compute payout_per_dollar via kalshi_payout() before calling calculate_size.
+    """
+
+    def test_wrong_kwarg_price_cents_raises_type_error(self):
+        from src.risk.sizing import calculate_size
+        with pytest.raises(TypeError):
+            calculate_size(
+                edge_pct=0.06,
+                win_prob=0.65,
+                price_cents=45,       # invalid kwarg — not in function signature
+                bankroll_usd=100.0,
+            )
+
+    def test_correct_call_with_payout_per_dollar_works(self):
+        from src.risk.sizing import calculate_size, kalshi_payout
+        # YES side signal at 45¢
+        payout = kalshi_payout(45, "yes")
+        result = calculate_size(
+            win_prob=0.65,
+            payout_per_dollar=payout,
+            edge_pct=0.06,
+            bankroll_usd=100.0,
+        )
+        # Should return a SizeResult, not None — edge 6% > default 8% min? No: 6% < 8% → None
+        # Use min_edge_pct=0.05 to get a result
+        result = calculate_size(
+            win_prob=0.65,
+            payout_per_dollar=payout,
+            edge_pct=0.06,
+            bankroll_usd=100.0,
+            min_edge_pct=0.05,
+        )
+        assert result is not None
+        assert result.recommended_usd > 0
+
+    def test_no_side_requires_yes_price_conversion(self):
+        from src.risk.sizing import calculate_size, kalshi_payout
+        # NO side signal: signal.price_cents=35 → YES price = 100-35=65
+        signal_price_cents = 35
+        signal_side = "no"
+        yes_price_cents_for_payout = 100 - signal_price_cents  # correct conversion
+        payout = kalshi_payout(yes_price_cents_for_payout, signal_side)
+        result = calculate_size(
+            win_prob=0.65,
+            payout_per_dollar=payout,
+            edge_pct=0.06,
+            bankroll_usd=100.0,
+            min_edge_pct=0.05,
+        )
+        assert result is not None

@@ -349,11 +349,12 @@ async def weather_loop(
                     logger.info("[%s] Kill switch blocked trade: %s", loop_name, reason)
                     continue
 
-                from src.risk.sizing import calculate_size
+                from src.risk.sizing import calculate_size, kalshi_payout as _kp
+                _yes_p = signal.price_cents if signal.side == "yes" else (100 - signal.price_cents)
                 size = calculate_size(
-                    edge_pct=signal.edge_pct,
                     win_prob=signal.win_prob,
-                    price_cents=signal.price_cents,
+                    payout_per_dollar=_kp(_yes_p, signal.side),
+                    edge_pct=signal.edge_pct,
                     bankroll_usd=current_bankroll,
                 )
                 if size is None:
@@ -498,11 +499,12 @@ async def fomc_loop(
                     logger.info("[%s] Kill switch blocked: %s", loop_name, reason)
                     continue
 
-                from src.risk.sizing import calculate_size
+                from src.risk.sizing import calculate_size, kalshi_payout as _kp
+                _yes_p = signal.price_cents if signal.side == "yes" else (100 - signal.price_cents)
                 size = calculate_size(
-                    edge_pct=signal.edge_pct,
                     win_prob=signal.win_prob,
-                    price_cents=signal.price_cents,
+                    payout_per_dollar=_kp(_yes_p, signal.side),
+                    edge_pct=signal.edge_pct,
                     bankroll_usd=current_bankroll,
                 )
                 if size is None:
@@ -650,11 +652,12 @@ async def unemployment_loop(
                     logger.info("[%s] Kill switch blocked: %s", loop_name, reason)
                     continue
 
-                from src.risk.sizing import calculate_size
+                from src.risk.sizing import calculate_size, kalshi_payout as _kp
+                _yes_p = signal.price_cents if signal.side == "yes" else (100 - signal.price_cents)
                 size = calculate_size(
-                    edge_pct=signal.edge_pct,
                     win_prob=signal.win_prob,
-                    price_cents=signal.price_cents,
+                    payout_per_dollar=_kp(_yes_p, signal.side),
+                    edge_pct=signal.edge_pct,
                     bankroll_usd=current_bankroll,
                 )
                 if size is None:
