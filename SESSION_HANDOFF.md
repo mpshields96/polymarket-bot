@@ -1,17 +1,24 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume.
-# Last updated: 2026-02-28 (Session 19 cont. — eth_lag 0.06, midnight notifier, --report breakdown)
+# Last updated: 2026-02-28 (Session 20 — btc_lag 0.06→0.04, eth_lag now LIVE, Odds API noted)
 ═══════════════════════════════════════════════════
 
 ## Current State
 
-btc_lag_v1 → LIVE MODE ($75 starting bankroll, $5 max/bet)
-8 other strategies → paper mode. All code pushed to GitHub main.
-412/412 tests passing. Paper P&L today: +$29.63 (9/10 wins).
+btc_lag_v1 + eth_lag_v1 → LIVE MODE ($75 starting bankroll, $5 max/bet)
+7 other strategies → paper mode. All code pushed to GitHub main.
+412/412 tests passing. Paper P&L today: +$37.07 (11/12 wins).
+
+## Session 20 changes (2026-02-28)
+- btc_lag min_edge_pct: 0.06 → 0.04 (~8 live signals/day, 77.1% acc)
+- eth_lag: promoted to LIVE (same executor path as btc_lag, same threshold)
+- Odds API: user has 20,000 req/month subscription; 5-10% budget (~1,000-2,000 req/mo) allocated for sports strategy
+- Sports strategy roadmap logged: .planning/todos.md (KXNBAGAME/KXNHLGAME vs The-Odds-API)
+- Bot restarted with PID 88507, CONFIRM accepted, live_confirmed=True
 
 Loop stagger (seconds):
-   0s → [trading]        btc_lag_v1                 — LIVE, crypto momentum
-   7s → [eth_trading]    eth_lag_v1                 — ETH momentum, paper
+   0s → [trading]        btc_lag_v1                 — LIVE, crypto momentum, min_edge=0.04
+   7s → [eth_trading]    eth_lag_v1                 — LIVE, ETH momentum, min_edge=0.04
   15s → [drift]          btc_drift_v1               — BTC drift from open, paper
   22s → [eth_drift]      eth_drift_v1               — ETH drift, paper
   29s → [btc_imbalance]  orderbook_imbalance_v1     — VPIN-lite depth ratio, paper

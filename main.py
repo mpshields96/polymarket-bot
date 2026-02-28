@@ -1199,7 +1199,7 @@ async def main():
     drift_strategy = drift_strategy_load()
     logger.info("Strategy loaded: %s (paper-only data collection)", drift_strategy.name)
     eth_lag_strategy = eth_lag_load()
-    logger.info("Strategy loaded: %s (paper-only ETH lag)", eth_lag_strategy.name)
+    logger.info("Strategy loaded: %s (LIVE ETH lag)", eth_lag_strategy.name)
     eth_drift_strategy = eth_drift_load()
     logger.info("Strategy loaded: %s (paper-only ETH drift)", eth_drift_strategy.name)
     btc_imbalance_strategy = load_btc_imbalance_from_config()
@@ -1222,7 +1222,8 @@ async def main():
         sys.exit(1)
     btc_series_ticker = _configured_markets[0]
     eth_series_ticker = config.get("strategy", {}).get("eth_markets", ["KXETH15M"])[0]
-    max_daily_bets = config.get("risk", {}).get("max_daily_bets_per_strategy", 5)
+    max_daily_bets_live = config.get("risk", {}).get("max_daily_bets_live", 10)
+    max_daily_bets_paper = config.get("risk", {}).get("max_daily_bets_paper", 0)
     paper_slippage_ticks = config.get("risk", {}).get("paper_slippage_ticks", 1)
 
     # Stagger the 4 loops by 7-8s each to spread Kalshi API calls evenly:
@@ -1239,12 +1240,12 @@ async def main():
             btc_series_ticker=btc_series_ticker,
             loop_name="trading",
             initial_delay_sec=0.0,
-            max_daily_bets=max_daily_bets,
+            max_daily_bets=max_daily_bets_live,
             slippage_ticks=paper_slippage_ticks,
         ),
         name="trading_loop",
     )
-    # ETH lag: paper-only, stagger 7s
+    # ETH lag: LIVE mode as of 2026-02-28 (same path as btc_lag), stagger 7s
     eth_lag_task = asyncio.create_task(
         trading_loop(
             kalshi=kalshi,
@@ -1252,12 +1253,12 @@ async def main():
             strategy=eth_lag_strategy,
             kill_switch=kill_switch,
             db=db,
-            live_executor_enabled=False,
-            live_confirmed=False,
+            live_executor_enabled=live_mode,
+            live_confirmed=live_confirmed,
             btc_series_ticker=eth_series_ticker,
             loop_name="eth_trading",
             initial_delay_sec=7.0,
-            max_daily_bets=max_daily_bets,
+            max_daily_bets=max_daily_bets_live,
             slippage_ticks=paper_slippage_ticks,
         ),
         name="eth_lag_loop",
@@ -1275,7 +1276,7 @@ async def main():
             btc_series_ticker=btc_series_ticker,
             loop_name="drift",
             initial_delay_sec=15.0,
-            max_daily_bets=max_daily_bets,
+            max_daily_bets=max_daily_bets_paper,
             slippage_ticks=paper_slippage_ticks,
         ),
         name="drift_loop",
@@ -1293,7 +1294,7 @@ async def main():
             btc_series_ticker=eth_series_ticker,
             loop_name="eth_drift",
             initial_delay_sec=22.0,
-            max_daily_bets=max_daily_bets,
+            max_daily_bets=max_daily_bets_paper,
             slippage_ticks=paper_slippage_ticks,
         ),
         name="eth_drift_loop",
@@ -1311,7 +1312,7 @@ async def main():
             btc_series_ticker=btc_series_ticker,
             loop_name="btc_imbalance",
             initial_delay_sec=29.0,
-            max_daily_bets=max_daily_bets,
+            max_daily_bets=max_daily_bets_paper,
             slippage_ticks=paper_slippage_ticks,
         ),
         name="btc_imbalance_loop",
@@ -1329,7 +1330,7 @@ async def main():
             btc_series_ticker=eth_series_ticker,
             loop_name="eth_imbalance",
             initial_delay_sec=36.0,
-            max_daily_bets=max_daily_bets,
+            max_daily_bets=max_daily_bets_paper,
             slippage_ticks=paper_slippage_ticks,
         ),
         name="eth_imbalance_loop",
@@ -1346,7 +1347,7 @@ async def main():
             series_ticker=weather_series,
             loop_name="weather",
             initial_delay_sec=43.0,
-            max_daily_bets=max_daily_bets,
+            max_daily_bets=max_daily_bets_paper,
         ),
         name="weather_loop",
     )
@@ -1361,7 +1362,7 @@ async def main():
             series_ticker="KXFEDDECISION",
             loop_name="fomc",
             initial_delay_sec=51.0,
-            max_daily_bets=max_daily_bets,
+            max_daily_bets=max_daily_bets_paper,
         ),
         name="fomc_loop",
     )
@@ -1377,7 +1378,7 @@ async def main():
             series_ticker=unrate_series,
             loop_name="unemployment",
             initial_delay_sec=58.0,
-            max_daily_bets=max_daily_bets,
+            max_daily_bets=max_daily_bets_paper,
         ),
         name="unemployment_loop",
     )

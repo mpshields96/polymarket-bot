@@ -44,11 +44,11 @@ strategy:
     # (formula: need (btc_move * lag_sensitivity/100) > min_edge + kalshi_fee(price))
     # Typical BTC 60s move: 0.02-0.05% (calm), 0.3-1%+ (volatile/news events).
     # Backtest sweep (30d): 0.08=84.1%acc/1.5/day | 0.06=77.9%/3/day | 0.04=77.1%/8/day
-    # Lowered 0.08→0.06 on 2026-02-28: doubles signal frequency, Brier still strong (0.211)
+    # Lowered 0.08→0.06 on 2026-02-28; lowered 0.06→0.04 on 2026-02-28: ~8 signals/day, 77.1% acc
     min_btc_move_pct: 0.4              # BTC must move this % in btc_window_seconds
     min_kalshi_lag_cents: 5            # Kalshi price must lag spot by this many cents
     min_minutes_remaining: 5           # Don't enter with < 5 min left in window
-    min_edge_pct: 0.06                 # Only trade if edge > 6% (after fees) — was 0.08
+    min_edge_pct: 0.04                 # Only trade if edge > 4% (after fees) — was 0.06
     lag_sensitivity: 15.0              # Cents of YES/NO price move implied per 1% BTC move
 
   btc_drift:
@@ -65,13 +65,13 @@ strategy:
     time_weight: 0.7                 # How much time remaining blends probability (0=ignore, 1=full)
 
   eth_lag:
-    # ETH lag strategy — paper-only, mirrors btc_lag params initially.
+    # ETH lag strategy — LIVE mode as of 2026-02-28 (same executor path as btc_lag).
     # ETH is more volatile than BTC; may need lower lag_sensitivity after calibration.
-    # Lowered 0.08→0.06 on 2026-02-28: same rationale as btc_lag (doubles signal freq, Brier stays strong)
+    # Lowered 0.08→0.06 on 2026-02-28; set to 0.04 on 2026-02-28 to match btc_lag live threshold.
     min_btc_move_pct: 0.4              # ETH must move this % in eth_window_seconds
     min_kalshi_lag_cents: 5
     min_minutes_remaining: 5
-    min_edge_pct: 0.06                 # Lowered from 0.08 — paper mode, same sweep rationale as btc_lag
+    min_edge_pct: 0.04                 # Lowered to 0.04 — matches btc_lag live threshold
     lag_sensitivity: 15.0             # Same as BTC until we have calibration data
 
   eth_drift:
@@ -162,9 +162,8 @@ risk:
 
   # Rate limiting
   max_hourly_trades: 15                # Trades per hour before rate pause
-  max_daily_bets_per_strategy: 5       # Max bets per strategy per UTC day (tax + quality gate)
-                                       # btc_drift fires on 96% of windows — cap prevents tax churn
-                                       # Set to 0 to disable (unlimited). Recommended: 3-5 for live.
+  max_daily_bets_live: 10             # Live bets per strategy per UTC day — keeps tax forms manageable
+  max_daily_bets_paper: 35            # Paper bets per strategy per day — graduates in 1 day (need 30 trades)
   paper_slippage_ticks: 1              # 0 = no slippage, 1 = 1-tick adverse fill simulation (realistic paper mode)
 
   # Hard stops (require manual --reset-killswitch)
