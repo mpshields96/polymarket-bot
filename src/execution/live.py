@@ -46,6 +46,7 @@ async def execute(
     db: DB,
     *,
     live_confirmed: bool = False,
+    strategy_name: str = "unknown",
 ) -> Optional[dict]:
     """
     Place a real order on Kalshi.
@@ -58,6 +59,7 @@ async def execute(
         kalshi:         Authenticated KalshiClient
         db:             Database for recording the trade
         live_confirmed: Must be True — set by main.py after first-run confirmation
+        strategy_name:  Strategy name saved to DB (e.g. "btc_lag_v1", "btc_drift_v1")
 
     Returns:
         Trade record dict on success, None on failure.
@@ -142,7 +144,7 @@ async def execute(
         price_cents=price_cents,
         count=count,
         cost_usd=expected_cost,
-        strategy="btc_lag",
+        strategy=strategy_name,
         edge_pct=signal.edge_pct,
         win_prob=signal.win_prob,
         is_paper=False,

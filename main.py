@@ -197,6 +197,7 @@ async def trading_loop(
                         kalshi=kalshi,
                         db=db,
                         live_confirmed=live_confirmed,
+                        strategy_name=strategy.name,
                     )
                 else:
                     _slip = slippage_ticks
