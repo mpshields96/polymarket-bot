@@ -67,10 +67,11 @@ strategy:
   eth_lag:
     # ETH lag strategy — paper-only, mirrors btc_lag params initially.
     # ETH is more volatile than BTC; may need lower lag_sensitivity after calibration.
+    # Lowered 0.08→0.06 on 2026-02-28: same rationale as btc_lag (doubles signal freq, Brier stays strong)
     min_btc_move_pct: 0.4              # ETH must move this % in eth_window_seconds
     min_kalshi_lag_cents: 5
     min_minutes_remaining: 5
-    min_edge_pct: 0.08
+    min_edge_pct: 0.06                 # Lowered from 0.08 — paper mode, same sweep rationale as btc_lag
     lag_sensitivity: 15.0             # Same as BTC until we have calibration data
 
   eth_drift:
