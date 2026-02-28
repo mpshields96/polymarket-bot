@@ -32,13 +32,14 @@ _GRAD = {
     # strategy_name: (min_trades, min_days, max_brier, max_consecutive_losses)
     # max_brier=0.30: 0.25=random coin flip, 0.30=meaningful predictive skill, lower=better
     # btc_lag_v1 validated via 30-day Binance.US backtest: 74%+ accuracy, positive ROI
-    "btc_lag_v1":                   (30, 7,  0.30, 4),
-    "eth_lag_v1":                   (30, 7,  0.30, 4),
-    "btc_drift_v1":                 (30, 7,  0.30, 4),
-    "eth_drift_v1":                 (30, 7,  0.30, 4),
-    "orderbook_imbalance_v1":       (30, 7,  0.30, 4),
-    "eth_orderbook_imbalance_v1":   (30, 7,  0.30, 4),
-    "weather_forecast_v1":          (30, 14, 0.30, 4),
+    # min_days=0: day requirement removed — 30 real trades is the only volume gate
+    "btc_lag_v1":                   (30, 0,  0.30, 4),
+    "eth_lag_v1":                   (30, 0,  0.30, 4),
+    "btc_drift_v1":                 (30, 0,  0.30, 4),
+    "eth_drift_v1":                 (30, 0,  0.30, 4),
+    "orderbook_imbalance_v1":       (30, 0,  0.30, 4),
+    "eth_orderbook_imbalance_v1":   (30, 0,  0.30, 4),
+    "weather_forecast_v1":          (30, 0,  0.30, 4),
     "fomc_rate_v1":                 (5,  0,  0.30, 4),  # low frequency — 5 trade minimum
 }
 

@@ -80,12 +80,12 @@ class TestGraduationStatusPrinter:
         assert fomc_line, "fomc_rate_v1 not found in output"
         assert "0/5" in fomc_line[0], f"Expected 0/5 in fomc line, got: {fomc_line[0]}"
 
-    def test_weather_shows_14_day_threshold(self, db):
-        """weather_forecast_v1 requires 14 days (not 7) — verify shown correctly."""
+    def test_weather_shows_trade_threshold(self, db):
+        """weather_forecast_v1 requires 30 trades — day requirement removed."""
         output = _call_print_graduation_status(db)
         weather_line = [line for line in output.splitlines() if "weather_forecast_v1" in line]
         assert weather_line, "weather_forecast_v1 not found in output"
-        assert "14" in weather_line[0], f"Expected 14 days in weather line, got: {weather_line[0]}"
+        assert "0/30" in weather_line[0], f"Expected 0/30 in weather line, got: {weather_line[0]}"
 
     def test_empty_db_shows_needs_trades_status(self, db):
         """With no trades, every strategy should show 'needs' in status."""
