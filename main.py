@@ -341,12 +341,12 @@ async def weather_loop(
 
                 # ── Execute (paper only) ──────────────────────────────
                 current_bankroll = db.latest_bankroll() or 50.0
-                order_check = kill_switch.check_order_allowed(
-                    proposed_usd=1.0,   # placeholder; sizing is paper-only
-                    current_bankroll=current_bankroll,
+                ok, reason = kill_switch.check_order_allowed(
+                    trade_usd=1.0,   # placeholder; sizing is paper-only
+                    current_bankroll_usd=current_bankroll,
                 )
-                if not order_check.get("allowed", False):
-                    logger.info("[%s] Kill switch blocked trade: %s", loop_name, order_check.get("reason"))
+                if not ok:
+                    logger.info("[%s] Kill switch blocked trade: %s", loop_name, reason)
                     continue
 
                 from src.risk.sizing import calculate_size
@@ -490,12 +490,12 @@ async def fomc_loop(
                     continue
 
                 current_bankroll = db.latest_bankroll() or 50.0
-                order_check = kill_switch.check_order_allowed(
-                    proposed_usd=1.0,
-                    current_bankroll=current_bankroll,
+                ok, reason = kill_switch.check_order_allowed(
+                    trade_usd=1.0,
+                    current_bankroll_usd=current_bankroll,
                 )
-                if not order_check.get("allowed", False):
-                    logger.info("[%s] Kill switch blocked: %s", loop_name, order_check.get("reason"))
+                if not ok:
+                    logger.info("[%s] Kill switch blocked: %s", loop_name, reason)
                     continue
 
                 from src.risk.sizing import calculate_size
@@ -642,12 +642,12 @@ async def unemployment_loop(
                     continue
 
                 current_bankroll = db.latest_bankroll() or 50.0
-                order_check = kill_switch.check_order_allowed(
-                    proposed_usd=1.0,
-                    current_bankroll=current_bankroll,
+                ok, reason = kill_switch.check_order_allowed(
+                    trade_usd=1.0,
+                    current_bankroll_usd=current_bankroll,
                 )
-                if not order_check.get("allowed", False):
-                    logger.info("[%s] Kill switch blocked: %s", loop_name, order_check.get("reason"))
+                if not ok:
+                    logger.info("[%s] Kill switch blocked: %s", loop_name, reason)
                     continue
 
                 from src.risk.sizing import calculate_size

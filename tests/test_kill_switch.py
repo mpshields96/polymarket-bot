@@ -350,3 +350,31 @@ class TestPytestGuard:
             assert blockers_path.read_text() == original_content
         else:
             assert not blockers_path.exists()
+
+
+# ── Regression: paper loop call signature ─────────────────────────
+class TestPaperLoopCallSignature:
+    """Regression tests for the paper loop kill switch call.
+
+    Bug: weather_loop/fomc_loop/unemployment_loop called check_order_allowed
+    with wrong kwargs (proposed_usd, current_bankroll) instead of
+    (trade_usd, current_bankroll_usd), causing TypeError swallowed silently
+    and ALL paper trades in those loops being skipped.
+    """
+
+    def test_wrong_kwargs_raise_type_error(self, ks):
+        # Document the bug: wrong kwarg names blow up immediately.
+        with pytest.raises(TypeError):
+            ks.check_order_allowed(proposed_usd=1.0, current_bankroll=100.0)
+
+    def test_paper_placeholder_trade_allowed(self, ks):
+        # Paper loops use trade_usd=1.0 as a placeholder to check kill switch state.
+        ok, reason = ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=100.0)
+        assert ok, f"Paper placeholder $1 trade should be allowed: {reason}"
+
+    def test_paper_placeholder_blocked_when_hard_stopped(self, ks):
+        from src.risk.kill_switch import LOCK_FILE
+        import json
+        LOCK_FILE.write_text(json.dumps({"reason": "test", "triggered_at": "now"}))
+        ok, reason = ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=100.0)
+        assert not ok
