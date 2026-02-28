@@ -26,6 +26,21 @@ from dotenv import load_dotenv
 load_dotenv(PROJECT_ROOT / ".env")
 
 
+# ── Graduation thresholds (must match docs/GRADUATION_CRITERIA.md) ─
+
+_GRAD = {
+    # strategy_name: (min_trades, min_days, max_brier, max_consecutive_losses)
+    "btc_lag_v1":                   (30, 7,  0.25, 4),
+    "eth_lag_v1":                   (30, 7,  0.25, 4),
+    "btc_drift_v1":                 (30, 7,  0.25, 4),
+    "eth_drift_v1":                 (30, 7,  0.25, 4),
+    "orderbook_imbalance_v1":       (30, 7,  0.25, 4),
+    "eth_orderbook_imbalance_v1":   (30, 7,  0.25, 4),
+    "weather_forecast_v1":          (30, 14, 0.25, 4),
+    "fomc_rate_v1":                 (5,  0,  0.25, 4),  # low frequency — 5 trade minimum
+}
+
+
 # ── Check results tracking ────────────────────────────────────────
 
 CHECKS: list[dict] = []
@@ -250,6 +265,77 @@ def check_strategy():
         record("Sizing module works", False, str(e))
 
 
+def check_graduation_status():
+    """Check paper trading graduation criteria for each strategy (non-critical)."""
+    print("\n[11] Live graduation status (paper trading)")
+    try:
+        import yaml
+        with open(PROJECT_ROOT / "config.yaml") as f:
+            cfg = yaml.safe_load(f)
+        db_path_str = cfg.get("storage", {}).get("db_path", "data/polybot.db")
+        db_path = Path(db_path_str)
+        if not db_path.is_absolute():
+            db_path = PROJECT_ROOT / db_path
+
+        if not db_path.exists():
+            record("Graduation check", False,
+                   "No DB yet — run bot first to collect paper trades", critical=False)
+            return
+
+        from src.db import DB
+        db = DB(db_path)
+        db.init()
+
+        any_ready = False
+        for strategy, (min_trades, min_days, max_brier, max_consec) in _GRAD.items():
+            stats = db.graduation_stats(strategy)
+            n = stats["settled_count"]
+            days = stats["days_running"]
+            brier = stats["brier_score"]
+            consec = stats["consecutive_losses"]
+
+            passes_trades = n >= min_trades
+            passes_days = days >= min_days
+            passes_brier = (brier is None and n < min_trades) or (brier is not None and brier < max_brier)
+            passes_consec = consec < max_consec
+
+            ready = passes_trades and passes_days and passes_brier and passes_consec
+
+            if ready:
+                any_ready = True
+                detail = (
+                    f"trades={n} days={days:.1f} brier={brier:.3f} consec_losses={consec} "
+                    f"pnl=${stats['total_pnl_usd']:.2f} — READY FOR LIVE"
+                )
+            else:
+                gaps = []
+                if not passes_trades:
+                    gaps.append(f"trades {n}/{min_trades}")
+                if not passes_days:
+                    gaps.append(f"days {days:.1f}/{min_days}")
+                if not passes_brier and brier is not None:
+                    gaps.append(f"brier {brier:.3f}>={max_brier}")
+                if not passes_consec:
+                    gaps.append(f"consec_losses {consec}>={max_consec}")
+                brier_str = f"{brier:.3f}" if brier is not None else "n/a"
+                detail = (
+                    f"trades={n} days={days:.1f} brier={brier_str} consec_losses={consec} "
+                    f"| needs: {', '.join(gaps)}"
+                )
+
+            record(f"Graduation: {strategy}", ready, detail, critical=False)
+
+        db.close()
+
+        if any_ready:
+            record("At least one strategy ready for live", True,
+                   "Review docs/GRADUATION_CRITERIA.md before enabling live trading",
+                   critical=False)
+
+    except Exception as e:
+        record("Graduation check", False, f"Error: {e}", critical=False)
+
+
 # ── Main ──────────────────────────────────────────────────────────
 
 async def run_all():
@@ -263,6 +349,7 @@ async def run_all():
     check_config()
     check_db()
     check_strategy()
+    check_graduation_status()
 
     # Summary
     print("\n" + "═" * 48)
