@@ -379,6 +379,7 @@ async def weather_loop(
 # ── FOMC rate trading loop ─────────────────────────────────────────────
 
 FOMC_POLL_INTERVAL_SEC = 1800   # 30 min — FOMC markets don't move every second
+UNEMPLOYMENT_POLL_INTERVAL_SEC = 1800   # 30 min — KXUNRATE markets don't move every second
 
 
 async def fomc_loop(
@@ -522,6 +523,158 @@ async def fomc_loop(
             logger.error("[%s] Unexpected error: %s", loop_name, e, exc_info=True)
 
         await asyncio.sleep(FOMC_POLL_INTERVAL_SEC)
+
+
+# ── Unemployment rate trading loop ─────────────────────────────────────
+
+
+async def unemployment_loop(
+    kalshi,
+    unemployment_strategy,
+    fred_feed,
+    kill_switch,
+    db,
+    series_ticker: str = "KXUNRATE",
+    loop_name: str = "unemployment",
+    initial_delay_sec: float = 58.0,
+    max_daily_bets: int = 5,
+):
+    """
+    Unemployment rate trading loop.
+
+    Fetches KXUNRATE markets every 30 min.
+    Refreshes FRED feed (UNRATE data) if stale.
+    Only active within days_before_release of next BLS Employment Situation date.
+    Paper-only — BLS linear trend model needs calibration over multiple releases.
+    """
+    from src.execution import paper as paper_mod
+
+    if initial_delay_sec > 0:
+        logger.info("[%s] Startup delay %.0fs (stagger)", loop_name, initial_delay_sec)
+        await asyncio.sleep(initial_delay_sec)
+
+    while True:
+        try:
+            if kill_switch.is_hard_stopped:
+                logger.critical("[%s] Kill switch HARD STOPPED. Halting.", loop_name)
+                break
+
+            # Refresh FRED feed if stale (blocking ~800ms for 4 CSV fetches incl. UNRATE)
+            if fred_feed.is_stale:
+                ok = fred_feed.refresh()
+                if not ok:
+                    logger.warning("[%s] FRED refresh failed — skipping cycle", loop_name)
+                    await asyncio.sleep(UNEMPLOYMENT_POLL_INTERVAL_SEC)
+                    continue
+
+            snap = fred_feed.snapshot()
+            if snap is None:
+                await asyncio.sleep(UNEMPLOYMENT_POLL_INTERVAL_SEC)
+                continue
+
+            # Fetch KXUNRATE markets
+            try:
+                markets = await kalshi.get_markets(series_ticker=series_ticker, status="open")
+            except Exception as e:
+                logger.warning("[%s] Failed to fetch markets: %s", loop_name, e)
+                await asyncio.sleep(UNEMPLOYMENT_POLL_INTERVAL_SEC)
+                continue
+
+            if not markets:
+                forecast_str = (
+                    f"forecast={snap.unrate_forecast:.2f}%"
+                    if snap.unrate_latest != 0.0 else "no UNRATE data"
+                )
+                logger.info(
+                    "[%s] No open %s markets found (%s)",
+                    loop_name, series_ticker, forecast_str,
+                )
+                await asyncio.sleep(UNEMPLOYMENT_POLL_INTERVAL_SEC)
+                continue
+
+            forecast_str = (
+                f"{snap.unrate_forecast:.2f}%"
+                if snap.unrate_latest != 0.0 else "n/a"
+            )
+            logger.info(
+                "[%s] Evaluating %d KXUNRATE market(s) | forecast=%s",
+                loop_name, len(markets), forecast_str,
+            )
+
+            for market in markets:
+                if kill_switch.is_hard_stopped:
+                    break
+
+                try:
+                    orderbook = await kalshi.get_orderbook(market.ticker)
+                except Exception as e:
+                    logger.warning("[%s] Orderbook fetch failed for %s: %s", loop_name, market.ticker, e)
+                    continue
+
+                signal = unemployment_strategy.generate_signal(market, orderbook, None)
+                if signal is None:
+                    continue
+
+                # Position deduplication
+                if db.has_open_position(market.ticker):
+                    logger.info("[%s] Open position already on %s — skip", loop_name, market.ticker)
+                    continue
+
+                # Daily bet cap (rare signal but guard anyway)
+                if max_daily_bets > 0 and db.count_trades_today(unemployment_strategy.name) >= max_daily_bets:
+                    logger.info("[%s] Daily bet cap reached for %s — skip", loop_name, unemployment_strategy.name)
+                    continue
+
+                current_bankroll = db.latest_bankroll() or 50.0
+                order_check = kill_switch.check_order_allowed(
+                    proposed_usd=1.0,
+                    current_bankroll=current_bankroll,
+                )
+                if not order_check.get("allowed", False):
+                    logger.info("[%s] Kill switch blocked: %s", loop_name, order_check.get("reason"))
+                    continue
+
+                from src.risk.sizing import calculate_size
+                size = calculate_size(
+                    edge_pct=signal.edge_pct,
+                    win_prob=signal.win_prob,
+                    price_cents=signal.price_cents,
+                    bankroll_usd=current_bankroll,
+                )
+                if size is None:
+                    continue
+
+                import yaml as _yaml
+                with open(PROJECT_ROOT / "config.yaml") as _f:
+                    _ucfg = _yaml.safe_load(_f)
+                _uslip = _ucfg.get("risk", {}).get("paper_slippage_ticks", 1)
+                paper_exec = paper_mod.PaperExecutor(
+                    db=db,
+                    strategy_name=unemployment_strategy.name,
+                    slippage_ticks=_uslip,
+                )
+                result = paper_exec.execute(
+                    ticker=signal.ticker,
+                    side=signal.side,
+                    price_cents=signal.price_cents,
+                    size_usd=size,
+                    reason=signal.reason,
+                )
+                logger.info(
+                    "[%s] Paper trade: %s %s @ %d¢ $%.2f",
+                    loop_name,
+                    result["side"].upper(),
+                    result["ticker"],
+                    result.get("fill_price_cents", result.get("price_cents", 0)),
+                    result["cost_usd"],
+                )
+
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error("[%s] Unexpected error: %s", loop_name, e, exc_info=True)
+
+        await asyncio.sleep(UNEMPLOYMENT_POLL_INTERVAL_SEC)
 
 
 # ── Settlement polling loop ────────────────────────────────────────────
@@ -997,6 +1150,7 @@ async def main():
     from src.data.weather import load_nyc_weather_from_config as weather_feed_load
     from src.strategies.fomc_rate import load_from_config as fomc_strategy_load
     from src.data.fred import load_from_config as fred_feed_load
+    from src.strategies.unemployment_rate import load_from_config as unemployment_strategy_load
     from src.risk.sizing import get_stage
 
     starting_bankroll = config.get("risk", {}).get("starting_bankroll_usd", 50.0)
@@ -1041,6 +1195,8 @@ async def main():
     fred_feed = fred_feed_load()
     fomc_strategy = fomc_strategy_load()
     logger.info("Strategy loaded: %s (paper-only FOMC yield curve, fires ~8x/year)", fomc_strategy.name)
+    unemployment_strategy = unemployment_strategy_load()
+    logger.info("Strategy loaded: %s (paper-only BLS unemployment, fires ~12x/year)", unemployment_strategy.name)
 
     # ── Run ───────────────────────────────────────────────────────────
     _configured_markets = config.get("strategy", {}).get("markets", ["KXBTC15M"])
@@ -1192,6 +1348,22 @@ async def main():
         ),
         name="fomc_loop",
     )
+    # Unemployment rate: paper-only, polls every 30 min, stagger 58s
+    unrate_series = config.get("strategy", {}).get("unemployment", {}).get("series_ticker", "KXUNRATE")
+    unemployment_task = asyncio.create_task(
+        unemployment_loop(
+            kalshi=kalshi,
+            unemployment_strategy=unemployment_strategy,
+            fred_feed=fred_feed,
+            kill_switch=kill_switch,
+            db=db,
+            series_ticker=unrate_series,
+            loop_name="unemployment",
+            initial_delay_sec=58.0,
+            max_daily_bets=max_daily_bets,
+        ),
+        name="unemployment_loop",
+    )
     settle_task = asyncio.create_task(
         settlement_loop(kalshi=kalshi, db=db, kill_switch=kill_switch),
         name="settlement_loop",
@@ -1211,6 +1383,7 @@ async def main():
         eth_imbalance_task.cancel()
         weather_task.cancel()
         fomc_task.cancel()
+        unemployment_task.cancel()
         settle_task.cancel()
 
     for _sig, _sname in ((_signal.SIGTERM, "SIGTERM"), (_signal.SIGHUP, "SIGHUP")):
@@ -1219,7 +1392,8 @@ async def main():
     try:
         await asyncio.gather(
             trade_task, eth_lag_task, drift_task, eth_drift_task,
-            btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task, settle_task,
+            btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task,
+            unemployment_task, settle_task,
         )
     except (KeyboardInterrupt, asyncio.CancelledError):
         pass  # Normal shutdown — SIGTERM or Ctrl+C; finally block handles cleanup
@@ -1232,10 +1406,12 @@ async def main():
         eth_imbalance_task.cancel()
         weather_task.cancel()
         fomc_task.cancel()
+        unemployment_task.cancel()
         settle_task.cancel()
         await asyncio.gather(
             trade_task, eth_lag_task, drift_task, eth_drift_task,
-            btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task, settle_task,
+            btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task,
+            unemployment_task, settle_task,
             return_exceptions=True,
         )
         logger.info("Stopping feeds and connections...")

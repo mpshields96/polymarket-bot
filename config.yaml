@@ -122,6 +122,19 @@ strategy:
     cpi_adjustment: 0.08            # 8% shift between hold/cut on CPI trend
     fred_refresh_interval_seconds: 3600   # Refresh FRED data every hour
 
+  unemployment:
+    # Unemployment rate vs Kalshi KXUNRATE market strategy — paper-only.
+    # Compares BLS Employment Situation forecast (linear trend on last 3 UNRATE readings)
+    # to Kalshi KXUNRATE market prices. Active 7 days before each monthly BLS release.
+    # Data: FRED CSV UNRATE series (free, no API key).
+    # BLS 2026 release dates: Jan 9, Feb 7, Mar 7, Apr 3, May 1, Jun 5, Jul 3, Aug 7, Sep 4, Oct 2, Nov 6, Dec 4
+    series_ticker: KXUNRATE          # Kalshi unemployment rate series prefix
+    days_before_release: 7           # Active window: 7 days before each BLS release
+    min_edge_pct: 0.05               # 5% net edge required after Kalshi fee
+    min_minutes_remaining: 60.0      # Don't enter with < 60 min left in market window
+    uncertainty_band: 0.2            # ±0.2pp normal distribution width for forecast
+    fred_refresh_interval_seconds: 3600   # Reuse shared FRED feed interval
+
   whale_copy:                          # Polymarket only — inactive until off waitlist
     enabled: false
     min_win_rate: 0.62                 # Only copy whales with 62%+ win rate
