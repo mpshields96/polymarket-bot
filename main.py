@@ -736,10 +736,12 @@ async def settlement_loop(kalshi, db, kill_switch):
                     )
 
                     # Notify kill switch — drives consecutive-loss and total-loss hard stops
-                    if won:
-                        kill_switch.record_win()
-                    else:
-                        kill_switch.record_loss(abs(pnl_cents) / 100.0)
+                    # Only count LIVE trades toward daily loss limit (paper losses are not real money)
+                    if not trade["is_paper"]:
+                        if won:
+                            kill_switch.record_win()
+                        else:
+                            kill_switch.record_loss(abs(pnl_cents) / 100.0)
 
         except asyncio.CancelledError:
             break
@@ -1142,6 +1144,10 @@ async def main():
             print("  Live trading not confirmed — exiting.")
             sys.exit(0)
         live_confirmed = True
+        # Propagate confirmation to live executor so its internal guard doesn't
+        # re-prompt via input() (which hangs when stdin is piped/non-interactive)
+        import src.execution.live as _live_exec_mod
+        _live_exec_mod._FIRST_RUN_CONFIRMED = True
         print("  ✅ Live trading confirmed.")
         print("=" * 60 + "\n")
 
