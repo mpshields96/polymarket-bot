@@ -32,13 +32,15 @@
 - `tests/conftest.py` auto-cleans `kill_switch.lock` at session start/end — after interrupted test runs the lock won't block `main.py`
 - `kill_switch._write_blockers()` skips BLOCKERS.md write when `PYTEST_CURRENT_TEST` env var is set — prevents test runs from polluting BLOCKERS.md
 - Never run diagnostic scripts in background without an explicit kill after N seconds — unattended loops burn API credits/quota
+- **`config` is NOT in scope inside `trading_loop()` or any loop function** — only exists in `main()`. Pass needed values as params (e.g. `slippage_ticks: int = 1`). Bug hit all 6 paper executor paths in Session 18.
+- **macOS notifications**: `osascript display notification` is unreliable from subprocess on newer macOS (Terminal not in System Settings Notifications). Use Reminders app instead: `tell application "Reminders" to make new reminder`
 - `bot.pid` is written at startup and removed on clean shutdown — prevents dual instances; if it exists after a crash, delete it before restarting
 - The binding constraint for a signal is `min_edge_pct` (8%), NOT `min_btc_move_pct` — need ~0.65% BTC in 60s at current settings
 - `settlement_loop` must pass `kill_switch` and call `record_win()`/`record_loss()` — otherwise consecutive-loss and total-loss hard stops are dead code
 - Live mode requires BOTH `--live` flag AND `LIVE_TRADING=true` in .env; then user must type `CONFIRM` at runtime prompt — all three gates required
 - `PermissionError` from `os.kill(pid, 0)` means the process IS alive under a different user — not stale; exit on `PermissionError`, skip on `ProcessLookupError`
 - `_STALE_THRESHOLD_SEC = 35.0` in binance.py — Binance.US @bookTicker can be silent 10-30s; 10s threshold causes false stale signals
-- 117/117 tests must pass before any commit (was 107 → +5 settlement → +5 PYTEST guard + dashboard path)
+- 346/346 tests must pass before any commit (count updates each session)
 
 ## Code patterns
 - Every module has `load_from_env()` or `load_from_config()` factory at bottom
@@ -60,10 +62,11 @@ Current project state (updated each session):
 - Position dedup + daily bet cap (5/strategy/day) — all 8 loops
 - Phase 4.2 COMPLETE (Session 17): slippage model, --graduation-status CLI, settlement normalization
 - PaperExecutor fills at limit+1 tick adverse (paper_slippage_ticks: 1 in config.yaml)
-- Pre-existing bug fixed: weather/fomc loops now use correct execute() keyword-arg signature
-- Paper mode only — LIVE_TRADING=false in .env
-- GitHub: main branch, pushed through Session 17 (c07e82e)
-- Next action: python main.py → watch 8 loops start, collect paper data
+- Session 18 bug fix: config scope in trading_loop — slippage_ticks now passed as param from main()
+- **btc_lag_v1 → LIVE MODE ($75 bankroll, $5 max/bet)** — LIVE_TRADING=true in .env
+- 7 other strategies → paper mode collecting calibration data
+- GitHub: main branch, pushed through Session 18 (commit 78f12af)
+- Next action: source venv/bin/activate && python main.py --live → type CONFIRM
 
 ## Workflow
 - User runs with bypass permissions active — no confirmation needed
