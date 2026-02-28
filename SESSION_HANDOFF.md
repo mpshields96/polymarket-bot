@@ -1,157 +1,115 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file + POLYBOT_INIT.md to any new Claude session to resume.
-# Last updated: 2026-02-28 (Session 21 — 485 tests, $100 bankroll, paper/live separation fixed)
+# Last updated: 2026-02-28 (Session 21 end — 492 tests, $100 bankroll, fully autonomous protocol set)
 ═══════════════════════════════════════════════════
 
 ## EXACT CURRENT STATE — READ THIS FIRST
 
 The bot is **running right now** in background.
-PID: stored in `bot.pid` (run `cat bot.pid` to get it)
-Log: `/tmp/polybot_session21.log` — `tail -f /tmp/polybot_session21.log` to watch live
+PID: **7396** (stored in `bot.pid`)
+Log: `tail -f /tmp/polybot.log` (stable symlink → /tmp/polybot_session21.log)
 
 **3 strategies LIVE** (real money): btc_lag_v1, eth_lag_v1, btc_drift_v1
 **6 strategies paper**: eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate
-Test count: **485/485 ✅** (33 new tests for live.py + 12 for bot lock added this session)
-Latest commit: **a0acfa9** — `feat: Session 21 — live.py tests, paper/live separation, sizing clamp, process guard`
-All changes committed and pushed to main.
-Log: `/tmp/polybot.log` (stable symlink) or `/tmp/polybot_session21.log`
+Test count: **492/492 ✅**
+Latest commit: **7f37a8d** — all Session 21 changes pushed to main
 
 ## DO NOT restart the bot unless it's stopped
-Check first: `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"`
-
-If stopped, restart:
+Check first:
 ```
-pkill -f "python main.py"; sleep 3; rm -f bot.pid && echo "CONFIRM" | nohup /Users/matthewshields/Projects/polymarket-bot/venv/bin/python main.py --live >> /tmp/polybot_session21.log 2>&1 &
-sleep 5 && ps aux | grep "[m]ain.py"
+cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"
 ```
 
-## What changed in Session 21 (2026-02-28)
+If stopped, restart (ALWAYS use full venv path + pkill):
+```
+pkill -f "python main.py"; sleep 3; rm -f bot.pid && echo "CONFIRM" | nohup /Users/matthewshields/Projects/polymarket-bot/venv/bin/python /Users/matthewshields/Projects/polymarket-bot/main.py --live >> /tmp/polybot_session21.log 2>&1 &
+sleep 6 && ps aux | grep "[m]ain.py" | awk '{print "PID:", $2}' && cat bot.pid
+```
+Verify exactly ONE PID. If two show up, orphan guard triggered — wait 10s, try again.
 
-### Priority #1 complete: tests for src/execution/live.py (was ZERO)
-- Created `tests/test_live_executor.py` — 33 tests covering ALL paths in the real-money executor
-- pytest.ini created with `asyncio_mode = auto` (enables async tests)
-- pytest-asyncio==0.23.7 installed into venv
-- Test classes: TestDetermineLimitPrice, TestExecuteGuards, TestExecuteSuccess, TestRegressions, TestExecuteFailures
-- Regressions covered: strategy_name not hardcoded, is_paper=False, server_order_id stored, guards enforced
-- **485/485 tests passing** (was 440)
+## P&L Status (as of 2026-02-28 23:03 UTC)
+- **Live P&L today:** -$0.91 (2 settled: btc_lag +$3.50 win, btc_drift -$4.41 loss)
+- **Paper P&L today:** +$25.57
+- **All-time live:** -$0.91 | **All-time paper:** $37.81 | **Win rate:** 74%
+- First live loss this session ($4.41) is within expected 31% loss rate at 69% accuracy
 
-### Bankroll updated to $100
-- config.yaml: `starting_bankroll_usd: 100.00` (was 75.00)
-- Matthew deposited $25 — Kalshi balance now $103.51 ($75 original + $25 deposit + $3.50 from first live win)
-- Kill switch confirmed: "KillSwitch initialized (starting bankroll: $100.00)"
-- New daily loss limit: 15% of $100 = $15.00 (was $11.25)
+## Graduation Progress (2026-02-28 23:03 UTC)
+| Strategy              | Trades | Status                        |
+|-----------------------|--------|-------------------------------|
+| btc_lag_v1            | 43/30  | READY FOR LIVE (already live) |
+| btc_drift_v1          | 7/30   | 23 more (already live)        |
+| eth_drift_v1          | 10/30  | 20 more needed (paper)        |
+| eth_orderbook_v1      | 5/30   | 25 more needed (paper)        |
+| orderbook_imbalance   | 1/30   | 29 more needed (paper)        |
+| eth_lag_v1            | 0/30   | calm market (expected)        |
+| weather_forecast_v1   | 0/30   | weekday HIGHNY only           |
+| fomc_rate_v1          | 0/5    | active March 5-19             |
 
-### Paper/live separation fix (main.py)
-**Bug**: `has_open_position()` and `count_trades_today()` defaulted to mixing paper + live bets.
-- Effect: 7 paper btc_drift bets were eating into the 10-bet live daily quota
-- Effect: A paper bet on a market window would block a live bet on the same window
+## What changed in Session 21 (2026-02-28) — all committed + pushed
 
-**Fix**: Pass `is_paper` filter to both calls in all 4 loop locations:
-- `trading_loop()`: `is_paper_mode = not (live_executor_enabled and live_confirmed)` computed once
-  → `has_open_position(ticker, is_paper=is_paper_mode)` — live dedup only blocks live, paper only blocks paper
-  → `count_trades_today(strategy, is_paper=is_paper_mode)` — live cap counts live bets only
-- `weather_loop()`, `fomc_loop()`, `unemployment_loop()`: hardcoded `is_paper=True` (always paper)
+### Tests: 440 → 492 (+52)
+- tests/test_live_executor.py: 33 tests for live.py (was ZERO)
+- tests/test_bot_lock.py: 12 tests for _acquire_bot_lock + process scan
+- tests/test_live_announce.py: 7 tests for _announce_live_bet
 
-### Bot restarted
-- Restart at 16:15 UTC with `nohup ... >> /tmp/polybot_session21.log`
-- All 9 loops confirmed started (log shows all stagger delays)
-- Fresh window (KXBTC15M-26FEB281730-30) ready for first live btc_drift bet this run
+### Critical fixes
+1. **Sizing clamp**: bankroll >$100 → ALL live bets were blocked. Fixed: `trade_usd = min(size_result.recommended_usd, HARD_MAX_TRADE_USD)` in trading_loop().
+2. **Paper/live separation**: has_open_position() + count_trades_today() now pass is_paper filter.
+3. **Orphan instance guard**: pgrep-based scan in _acquire_bot_lock() — exits if duplicate found.
+4. **Live bet announcement**: _announce_live_bet() fires banner log + Reminders notification.
 
-### Live P&L status (as of restart)
-- First live bet (trade_id=64, "btc_lag" label, was btc_drift) — SETTLED WON: +$3.50
-- All-time live P&L: $3.50 | All-time paper P&L: $45.73 | All-time win rate: 78%
-- Note: trade_id=64 has wrong strategy label ("btc_lag" not "btc_drift_v1") — unfixable, from Session 20 bug
+### Docs / protocol
+- CLAUDE.md Workflow: **ALWAYS AUTONOMOUS** standing directive (never ask for confirmation)
+- CLAUDE.md: Context Handoff Protocol section (mandatory when approaching token limit)
+- CLAUDE.md: Step 5 pre-live audit expanded with 6 new checks
+- .planning/todos.md: 7 roadmap items (CPI strategy, cross-market arb, confidence field, etc.)
+- Stable log symlink: /tmp/polybot.log → /tmp/polybot_session21.log
+
+## KEY PRIORITIES FOR NEXT SESSION
+
+**#1 — Monitor, no new code needed immediately**
+- `tail -f /tmp/polybot.log` — watch for 💰 LIVE BET PLACED banners
+- btc_drift needs 23 more live trades before Brier computable
+- First live loss ($4.41) is expected variance
+
+**#2 — eth_drift approaching graduation (10/30)**
+When eth_drift hits 30 paper trades AND Brier < 0.30 AND streak < 4:
+1. Run full Step 5 pre-live audit from CLAUDE.md
+2. Check: sizing clamp? is_paper filters? announce wiring? scope bugs?
+3. Flip `live_executor_enabled=live_mode` in eth_drift_task in main.py
+4. Restart, verify FIRST 15-min window places a live bet
+5. Confirm --graduation-status counter increments
+
+**#3 — New strategies: DO NOT build yet**
+- Log ideas only. See .planning/todos.md for roadmap.
+- Next candidate: CPI release strategy (similar to fomc_rate_v1 structure)
 
 ## Loop stagger (what's running right now)
 ```
-   0s → [trading]        btc_lag_v1                 — LIVE, BTC momentum, min_edge=0.04
-   7s → [eth_trading]    eth_lag_v1                 — LIVE, ETH momentum, min_edge=0.04
-  15s → [drift]          btc_drift_v1               — LIVE, BTC drift, min_edge=0.05
-  22s → [eth_drift]      eth_drift_v1               — paper, ETH drift
-  29s → [btc_imbalance]  orderbook_imbalance_v1     — paper, VPIN-lite depth ratio
-  36s → [eth_imbalance]  eth_orderbook_imbalance_v1 — paper, ETH orderbook
-  43s → [weather]        weather_forecast_v1        — paper, HIGHNY vs ensemble forecast
-  51s → [fomc]           fomc_rate_v1               — paper, active March 5–19
+   0s → [trading]        btc_lag_v1                 — LIVE
+   7s → [eth_trading]    eth_lag_v1                 — LIVE
+  15s → [drift]          btc_drift_v1               — LIVE
+  22s → [eth_drift]      eth_drift_v1               — paper
+  29s → [btc_imbalance]  orderbook_imbalance_v1     — paper
+  36s → [eth_imbalance]  eth_orderbook_imbalance_v1 — paper
+  43s → [weather]        weather_forecast_v1        — paper
+  51s → [fomc]           fomc_rate_v1               — paper, active March 5-19
   58s → [unemployment]   unemployment_rate_v1       — paper, active Feb 28 – Mar 7
 ```
 
-## KEY PRIORITY FOR NEXT SESSION
-
-**#1 — Commit and push Session 21 changes** (uncommitted):
-- tests/test_live_executor.py (33 new tests)
-- pytest.ini (asyncio_mode = auto)
-- main.py (paper/live separation fix)
-- config.yaml ($100 bankroll)
-
-**#2 — Monitor live results**
-- `python main.py --report` — check P&L, verify btc_drift shows live bets (🔴 not 📋)
-- `python main.py --graduation-status` — track toward 30 live trades threshold
-- Watch `/tmp/polybot_session21.log` for [LIVE] order placement messages
-- btc_drift should now place live bets on each 15-min window it hasn't already bet on
-
-**#3 — Ongoing: no new strategies until live P&L data is in**
-- Sports game skeleton built but disabled — enable after 30 live trades collected
-- Focus: data quality, monitoring, stability
-
-## Component Status
-
-| Component                    | Status      | Notes                                          |
-|------------------------------|-------------|------------------------------------------------|
-| Auth (RSA-PSS)               | ✅ Working  | api.elections.kalshi.com                       |
-| Kalshi REST client           | ✅ Working  |                                                |
-| Binance.US BTC feed          | ✅ Working  | @bookTicker, ~100 ticks/min                    |
-| Binance.US ETH feed          | ✅ Working  | @bookTicker, ethusdt stream                    |
-| btc_lag_v1                   | ✅ LIVE     | 0s stagger, 77.1% at 4% threshold             |
-| eth_lag_v1                   | ✅ LIVE     | 7s stagger, same model as btc_lag             |
-| btc_drift_v1                 | ✅ LIVE     | 15s stagger, 69.1% acc, Brier=0.22            |
-| eth_drift_v1                 | ✅ Paper    | 22s stagger                                   |
-| orderbook_imbalance_v1       | ✅ Paper    | 29s stagger                                   |
-| eth_orderbook_imbalance_v1   | ✅ Paper    | 36s stagger                                   |
-| weather_forecast_v1          | ✅ Paper    | ENSEMBLE (Open-Meteo + NWS), weekdays only    |
-| fomc_rate_v1                 | ✅ Paper    | 30-min poll, active March 5–19               |
-| unemployment_rate_v1         | ✅ Paper    | 30-min poll, active Feb 28 – Mar 7           |
-| sports_game_v1               | ✅ Built    | DISABLED — awaiting 30 live trades + ODDS_API_KEY|
-| PaperExecutor                | ✅ Working  | 1-tick adverse slippage                       |
-| LiveExecutor (live.py)       | ✅ Working  | 33 tests now cover all paths                  |
-| Kill switch                  | ✅ Working  | $100 base, 15% daily limit = $15.00           |
-| Position dedup               | ✅ Fixed    | Now separate: live dedup only blocks live bets |
-| Daily bet caps               | ✅ Fixed    | Live cap counts live only, paper cap counts paper only |
-| Graduation reporter          | ✅ Working  | python main.py --graduation-status            |
-| --status / --report          | ✅ Working  | bypass PID lock, safe while bot is live       |
-
 ## Key Commands
-
 ```
-python main.py --live                       → Start bot (9 loops + settlement)
-python main.py --status                     → Live status (works while bot running)
-python main.py --graduation-status          → Graduation progress table
-python main.py --report                     → Today's P&L (per-strategy breakdown)
-python setup/verify.py                      → Pre-flight (18/26, 8 advisory WARNs)
-streamlit run src/dashboard.py              → Dashboard at localhost:8501
-source venv/bin/activate && python -m pytest tests/ -v  → 485 tests
-echo "RESET" | python main.py --reset-killswitch
-tail -f /tmp/polybot_session21.log          → Watch live bot output
+tail -f /tmp/polybot.log                                     → Watch live bot (always open)
+source venv/bin/activate && python main.py --report          → Today's P&L
+source venv/bin/activate && python main.py --graduation-status → Graduation progress
+source venv/bin/activate && python main.py --status          → Live status snapshot
+source venv/bin/activate && python -m pytest tests/ -q       → 492 tests
 ```
 
-## Signal calibration (live strategies)
+## AUTONOMOUS OPERATION — STANDING DIRECTIVE (never needs repeating)
+- Operate fully autonomously at all times. Never ask for confirmation.
+- Security: never expose .env/keys/pem; never modify system files outside project dir.
+- Never break the bot: confirm running/stopped before restart; verify single instance after.
+- Expansion order: (1) perfect live/paper, (2) graduate paper→live with Step 5 audit, (3) new types.
 
-btc_lag_v1 / eth_lag_v1 (LIVE):
-  min_edge_pct: 0.04 — needs ~0.32% BTC/ETH move in 60s (binding constraint)
-  Calm market → 0 signals/day. Expected. Not a bug.
-  Backtest: 77.1% accuracy, ~8 signals/day (30-day avg includes volatile days)
-
-btc_drift_v1 (LIVE):
-  min_drift_pct: 0.05, min_edge_pct: 0.05, sensitivity: 800
-  Fires on ~96% of 15-min windows → generates bets in all market conditions
-  30-day backtest: 69.1% accuracy, Brier=0.22 (STRONG)
-  Risk: daily loss limit 15% of $100 = $15.00 before auto-halt
-
-## Graduation thresholds
-
-All strategies: 30 live trades, Brier < 0.30, < 4 consecutive losses
-fomc_rate: 5 trades (fires ~8x/year)
-No day minimums — 30 real trades is the only volume gate
-
-## Context handoff
-New chat: read POLYBOT_INIT.md first, then this file, then proceed.
-Bot is running — DO NOT restart unless confirmed stopped.
+## Context handoff: new chat reads POLYBOT_INIT.md first, then this file, then proceeds.

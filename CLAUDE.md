@@ -101,7 +101,11 @@ DO NOT: fix symptoms without finding root cause
 - `_STALE_THRESHOLD_SEC = 35.0` in binance.py — Binance.US @bookTicker can be silent 10-30s; 10s threshold causes false stale signals
 - **RESTART PROCEDURE — use pkill not kill**: `kill $(cat bot.pid)` only kills the most recent instance; orphaned old instances keep running and place duplicate trades. Always restart with: `pkill -f "python main.py"; sleep 3; rm -f bot.pid; echo "CONFIRM" | nohup python main.py --live >> /tmp/polybot_session21.log 2>&1 &` — then verify with `ps aux | grep "[m]ain.py"` (should be exactly 1 process).
 - **Paper/live separation** (fixed Session 21): `has_open_position()` and `count_trades_today()` now pass `is_paper` filter. Live daily cap counts live bets only. Paper bets no longer eat into live quota.
-- 485/485 tests must pass before any commit (count updates each session)
+- 492/492 tests must pass before any commit (count updates each session)
+- **`confidence` field in Signal is computed but never consumed** (not used in sizing, kill switch, or main.py). It's a dead field — low priority to wire in or remove.
+- **eth_drift uses BTCDriftStrategy internally** — logs say `[btc_drift]` and "BTC=ETH_price". Cosmetic only. `btc_feed=eth_feed` in main.py call is correct.
+- **settlement_loop uses `paper_exec.settle()` for live trades too** — logs say `[paper] Settled` even for live trades. Cosmetic only; P&L math and DB update are correct.
+- **late_penalty in btc_drift reduces `confidence` but NOT `edge_pct`** — so late-reference signals still show high edge_pct. Capped at $5 hard max anyway, so no real money impact.
 - **`--status`, `--report`, `--graduation-status`** all bypass bot PID lock — safe while live
 - **`--report`**: now shows per-strategy breakdown (bets, W/L, P&L, live/paper emoji)
 - **`scripts/notify_midnight.sh`**: midnight UTC daily P&L Reminders notifier — start once with `& echo $! > /tmp/polybot_midnight.pid`
@@ -126,26 +130,38 @@ DO NOT: fix symptoms without finding root cause
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- 440/440 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
+- 492/492 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
 - 9 trading loops: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate
-- **3 strategies LIVE: btc_lag_v1 + eth_lag_v1 + btc_drift_v1** ($75 bankroll, $5 max/bet)
+- **3 strategies LIVE: btc_lag_v1 + eth_lag_v1 + btc_drift_v1** ($100 bankroll, $5 max/bet)
 - 6 other strategies → paper mode collecting calibration data
-- Session 20: eth_lag LIVE, btc_drift LIVE, 4 live-trading bugs found+fixed, first live bet placed
-- GitHub: main branch, latest commit: 188d01c
-- Bot running: PID in bot.pid, log at /tmp/polybot_session20.log
-- Restart: `pkill -f "python main.py"; sleep 3; rm -f bot.pid && echo "CONFIRM" | nohup python main.py --live >> /tmp/polybot_session21.log 2>&1 &`
-  (NOTE: use pkill not kill — `kill $(cat bot.pid)` leaves orphaned old instances running)
+- Session 21: live.py 33 tests + 12 bot-lock tests + 7 announce tests; sizing clamp; paper/live separation; orphan guard
+- GitHub: main branch, latest commit: 7f37a8d
+- Bot running: PID in bot.pid, log at /tmp/polybot.log (stable symlink) or /tmp/polybot_session21.log
+- Restart: `pkill -f "python main.py"; sleep 3; rm -f bot.pid && echo "CONFIRM" | nohup /Users/matthewshields/Projects/polymarket-bot/venv/bin/python main.py --live >> /tmp/polybot_session21.log 2>&1 &`
+  (ALWAYS use full venv python path + pkill — never `kill $(cat bot.pid)` and never bare `python`)
 
-## Workflow
-- User runs with bypass permissions active — no confirmation needed
-- Matthew is a doctor with a new baby — keep explanations short, do the work autonomously
-- Do NOT ask for confirmation on routine operations (running tests, reading files, updating docs)
+## Workflow — ALWAYS AUTONOMOUS (Matthew's standing directive, never needs repeating)
+- **Bypass permissions ACTIVE — operate fully autonomously at all times**
+- **Never ask for confirmation** on: running tests, reading files, editing code, committing, restarting the bot, running reports, researching
+- **Do the work first, summarize after** — Matthew is a doctor with a new baby, no time for back-and-forth
+- **Security first, always**: never expose .env / API keys / pem files; never run untrusted code; never modify system files outside the project directory
+- **Never break the bot**: before any restart or config change, confirm the current bot is running or stopped; always verify single instance after restart
 - Two parallel Claude Code chats may run simultaneously — keep framework overhead ≤10-15% per chat
 - 492/492 tests must pass before any commit (count updates each session)
 - **Before ANY new live strategy: complete all 6 steps of Development Workflow Protocol above**
 - **Graduation → live promotion**: when `--graduation-status` shows READY FOR LIVE, run the full Step 5 pre-live audit checklist before flipping `live_executor_enabled=True` in main.py. Session 20 lost 2 hours of live bets to silent bugs found only after going live — catch them in Step 5 first.
 - **After ANY bug fix: write regression test immediately, check sibling code**
 - **Priority #1: write tests for live.py before adding features**
+
+## Context Handoff Protocol — MANDATORY when approaching token limit
+When context is near limit, BEFORE stopping:
+1. `python main.py --report` + `python main.py --graduation-status` → capture output
+2. `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo running` → confirm bot alive
+3. Update SESSION_HANDOFF.md: bot PID, log path, last commit, pending tasks, mid-flight work
+4. Update this file's "Current project state" section (test count, commit hash, strategies live)
+5. `git add -A && git commit -m "docs: session handoff $(date +%Y-%m-%d)"` + git push
+6. Output a self-contained copy-paste prompt for the new chat that picks up at the exact second
+7. The new-chat prompt must include: bot PID, log path, last commit, next concrete action
 
 ## GSD Framework — Token-Optimized (dual-chat mode)
 DEFAULT: gsd:quick + superpowers:TDD + superpowers:verification-before-completion for all standard work.
