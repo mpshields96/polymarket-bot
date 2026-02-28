@@ -21,7 +21,10 @@ from src.strategies.weather_forecast import (
     _normal_cdf,
     load_from_config,
 )
-from src.data.weather import WeatherFeed, CITY_NYC, load_nyc_weather_from_config
+from src.data.weather import (
+    WeatherFeed, NWSFeed, EnsembleWeatherFeed,
+    CITY_NYC, load_nyc_weather_from_config,
+)
 from src.platforms.kalshi import Market, OrderBook
 
 
@@ -433,7 +436,264 @@ class TestWeatherFeed:
         assert success is False
         assert feed.forecast_temp_f() is None
 
-    def test_load_nyc_weather_from_config_returns_feed(self):
+    def test_load_nyc_weather_from_config_returns_ensemble(self):
         feed = load_nyc_weather_from_config()
-        assert isinstance(feed, WeatherFeed)
+        # Factory now returns EnsembleWeatherFeed (Open-Meteo + NWS blend)
+        assert isinstance(feed, EnsembleWeatherFeed)
         assert "nyc" in feed.city_name.lower() or feed.city_name == "NYC"
+
+
+# ── NWSFeed unit tests ─────────────────────────────────────────────────
+
+
+def _make_nws_points_response(forecast_url: str) -> bytes:
+    import json
+    return json.dumps({
+        "properties": {"forecast": forecast_url}
+    }).encode()
+
+
+def _make_nws_forecast_response(temp_f: float = 52, name: str = "Today") -> bytes:
+    import json
+    return json.dumps({
+        "properties": {
+            "periods": [
+                {
+                    "number": 1,
+                    "name": name,
+                    "isDaytime": True,
+                    "temperature": temp_f,
+                    "temperatureUnit": "F",
+                    "startTime": "2026-02-28T06:00:00-05:00",
+                },
+                {
+                    "number": 2,
+                    "name": "Tonight",
+                    "isDaytime": False,
+                    "temperature": 38,
+                    "temperatureUnit": "F",
+                    "startTime": "2026-02-28T18:00:00-05:00",
+                },
+            ]
+        }
+    }).encode()
+
+
+class _MockUrlOpen:
+    """Context-manager that returns canned bytes."""
+    def __init__(self, data: bytes):
+        self._data = data
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def read(self):
+        return self._data
+
+
+class TestNWSFeed:
+    def test_is_stale_before_first_fetch(self):
+        feed = NWSFeed(latitude=40.71, longitude=-74.01, city_name="NYC")
+        assert feed.is_stale is True
+
+    def test_forecast_temp_none_before_fetch(self):
+        feed = NWSFeed(latitude=40.71, longitude=-74.01, city_name="NYC")
+        assert feed.forecast_temp_f() is None
+
+    def test_refresh_success_two_step(self):
+        """Two HTTP calls: points → forecast URL → temp stored."""
+        forecast_url = "https://api.weather.gov/gridpoints/OKX/33,35/forecast"
+        responses = [
+            _make_nws_points_response(forecast_url),
+            _make_nws_forecast_response(temp_f=54.0),
+        ]
+        call_count = [0]
+
+        def fake_urlopen(req, timeout=10):
+            data = responses[call_count[0]]
+            call_count[0] += 1
+            return _MockUrlOpen(data)
+
+        with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+            feed = NWSFeed(latitude=40.71, longitude=-74.01, city_name="NYC")
+            success = feed.refresh()
+
+        assert success is True
+        assert feed.forecast_temp_f() == pytest.approx(54.0)
+        assert feed.is_stale is False
+
+    def test_refresh_caches_forecast_url(self):
+        """Second call uses cached URL — only 1 HTTP call (no re-resolve)."""
+        forecast_url = "https://api.weather.gov/gridpoints/OKX/33,35/forecast"
+        responses = [
+            _make_nws_points_response(forecast_url),
+            _make_nws_forecast_response(temp_f=54.0),
+            _make_nws_forecast_response(temp_f=57.0),  # second refresh
+        ]
+        call_count = [0]
+
+        def fake_urlopen(req, timeout=10):
+            data = responses[call_count[0]]
+            call_count[0] += 1
+            return _MockUrlOpen(data)
+
+        with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+            feed = NWSFeed(latitude=40.71, longitude=-74.01,
+                           city_name="NYC", refresh_interval_seconds=0)
+            feed.refresh()    # calls 1+2
+            feed.refresh()    # calls 3 only (URL cached)
+
+        assert call_count[0] == 3  # not 4
+
+    def test_refresh_failure_on_points_returns_false(self):
+        with patch("urllib.request.urlopen", side_effect=OSError("no route")):
+            feed = NWSFeed(latitude=40.71, longitude=-74.01, city_name="NYC")
+            success = feed.refresh()
+        assert success is False
+        assert feed.forecast_temp_f() is None
+
+    def test_celsius_conversion(self):
+        """NWS occasionally reports Celsius — verify conversion."""
+        import json
+        forecast_url = "https://api.weather.gov/gridpoints/OKX/33,35/forecast"
+        celsius_response = json.dumps({
+            "properties": {
+                "periods": [{
+                    "number": 1, "name": "Today", "isDaytime": True,
+                    "temperature": 10,   # 10°C = 50°F
+                    "temperatureUnit": "C",
+                    "startTime": "2026-02-28T06:00:00-05:00",
+                }]
+            }
+        }).encode()
+        responses = [_make_nws_points_response(forecast_url), celsius_response]
+        call_count = [0]
+
+        def fake_urlopen(req, timeout=10):
+            data = responses[call_count[0]]
+            call_count[0] += 1
+            return _MockUrlOpen(data)
+
+        with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+            feed = NWSFeed(latitude=40.71, longitude=-74.01, city_name="NYC")
+            feed.refresh()
+
+        assert feed.forecast_temp_f() == pytest.approx(50.0)
+
+
+# ── EnsembleWeatherFeed unit tests ────────────────────────────────────
+
+
+def _make_om_feed(temp_f=None, std_f=3.5, stale=True) -> WeatherFeed:
+    feed = MagicMock(spec=WeatherFeed)
+    feed.is_stale = stale
+    feed.forecast_temp_f.return_value = temp_f
+    feed.forecast_std_f.return_value = std_f
+    feed.city_name = "NYC"
+    feed.forecast_date.return_value = "2026-02-28"
+    feed.refresh.return_value = temp_f is not None
+    return feed
+
+
+def _make_nws_mock(temp_f=None, std_f=3.5, stale=True) -> NWSFeed:
+    feed = MagicMock(spec=NWSFeed)
+    feed.is_stale = stale
+    feed.forecast_temp_f.return_value = temp_f
+    feed.forecast_std_f.return_value = std_f
+    feed.city_name = "NYC"
+    feed.refresh.return_value = temp_f is not None
+    return feed
+
+
+class TestEnsembleWeatherFeed:
+    def test_is_stale_both_stale(self):
+        om = _make_om_feed(stale=True)
+        nws = _make_nws_mock(stale=True)
+        ens = EnsembleWeatherFeed(open_meteo=om, nws=nws, city_name="NYC")
+        assert ens.is_stale is True
+
+    def test_not_stale_if_either_fresh(self):
+        om = _make_om_feed(stale=False)
+        nws = _make_nws_mock(stale=True)
+        ens = EnsembleWeatherFeed(open_meteo=om, nws=nws, city_name="NYC")
+        assert ens.is_stale is False
+
+    def test_both_sources_equal_weight_blend(self):
+        om = _make_om_feed(temp_f=60.0, stale=True)
+        nws = _make_nws_mock(temp_f=64.0, stale=True)
+        ens = EnsembleWeatherFeed(open_meteo=om, nws=nws, city_name="NYC")
+        ens.refresh()
+        assert ens.forecast_temp_f() == pytest.approx(62.0)
+
+    def test_sources_agree_tightens_std(self):
+        """|diff| < 1°F → std_dev < base."""
+        om = _make_om_feed(temp_f=65.0, std_f=3.5, stale=True)
+        nws = _make_nws_mock(temp_f=65.4, std_f=3.5, stale=True)
+        ens = EnsembleWeatherFeed(open_meteo=om, nws=nws, forecast_std_f=3.5, city_name="NYC")
+        ens.refresh()
+        assert ens.forecast_std_f() < 3.5
+
+    def test_sources_diverge_widens_std(self):
+        """|diff| > 4°F → std_dev > base."""
+        om = _make_om_feed(temp_f=60.0, std_f=3.5, stale=True)
+        nws = _make_nws_mock(temp_f=65.0, std_f=3.5, stale=True)
+        ens = EnsembleWeatherFeed(open_meteo=om, nws=nws, forecast_std_f=3.5, city_name="NYC")
+        ens.refresh()
+        assert ens.forecast_std_f() > 3.5
+
+    def test_std_unchanged_for_moderate_diff(self):
+        """1°F < |diff| < 4°F → std_dev stays at base."""
+        om = _make_om_feed(temp_f=63.0, std_f=3.5, stale=True)
+        nws = _make_nws_mock(temp_f=65.0, std_f=3.5, stale=True)
+        ens = EnsembleWeatherFeed(open_meteo=om, nws=nws, forecast_std_f=3.5, city_name="NYC")
+        ens.refresh()
+        assert ens.forecast_std_f() == pytest.approx(3.5)
+
+    def test_only_open_meteo_available(self):
+        """NWS fails → use Open-Meteo at full weight, std slightly wider."""
+        om = _make_om_feed(temp_f=62.0, std_f=3.5, stale=True)
+        nws = _make_nws_mock(temp_f=None, stale=True)
+        ens = EnsembleWeatherFeed(open_meteo=om, nws=nws, forecast_std_f=3.5, city_name="NYC")
+        result = ens.refresh()
+        assert result is True
+        assert ens.forecast_temp_f() == pytest.approx(62.0)
+        assert ens.forecast_std_f() > 3.5  # +0.5 penalty
+
+    def test_only_nws_available(self):
+        """Open-Meteo fails → use NWS at full weight, std slightly wider."""
+        om = _make_om_feed(temp_f=None, stale=True)
+        nws = _make_nws_mock(temp_f=58.0, std_f=3.5, stale=True)
+        ens = EnsembleWeatherFeed(open_meteo=om, nws=nws, forecast_std_f=3.5, city_name="NYC")
+        result = ens.refresh()
+        assert result is True
+        assert ens.forecast_temp_f() == pytest.approx(58.0)
+        assert ens.forecast_std_f() > 3.5
+
+    def test_both_sources_fail_returns_false(self):
+        """Both fail → return False, forecast stays None."""
+        om = _make_om_feed(temp_f=None, stale=True)
+        nws = _make_nws_mock(temp_f=None, stale=True)
+        ens = EnsembleWeatherFeed(open_meteo=om, nws=nws, city_name="NYC")
+        result = ens.refresh()
+        assert result is False
+        assert ens.forecast_temp_f() is None
+
+    def test_forecast_date_delegates_to_open_meteo(self):
+        om = _make_om_feed(temp_f=65.0, stale=False)
+        nws = _make_nws_mock(temp_f=65.0, stale=False)
+        ens = EnsembleWeatherFeed(open_meteo=om, nws=nws, city_name="NYC")
+        assert ens.forecast_date() == "2026-02-28"
+
+    def test_custom_weights_blend_correctly(self):
+        """Weights 0.7/0.3 should produce weighted average."""
+        om = _make_om_feed(temp_f=60.0, stale=True)
+        nws = _make_nws_mock(temp_f=70.0, stale=True)
+        ens = EnsembleWeatherFeed(
+            open_meteo=om, nws=nws, weights=(0.7, 0.3), city_name="NYC"
+        )
+        ens.refresh()
+        expected = (0.7 * 60.0 + 0.3 * 70.0) / 1.0  # 63.0
+        assert ens.forecast_temp_f() == pytest.approx(expected)

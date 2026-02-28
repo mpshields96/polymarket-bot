@@ -220,6 +220,7 @@ class KalshiClient:
         full_path = f"{_API_PATH_PREFIX}{path}"
         headers = self._auth.headers(method, full_path)
         headers["Content-Type"] = "application/json"
+        headers["User-Agent"] = "polymarket-bot/1.0 (automated-trader; paper-mode)"
         return headers
 
     # ── Generic HTTP ──────────────────────────────────────────────────

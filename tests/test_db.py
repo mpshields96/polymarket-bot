@@ -298,3 +298,104 @@ class TestDashboardDbPath:
         with mock.patch.object(dash, "PROJECT_ROOT", tmp_path):
             path = dash._resolve_db_path()
         assert isinstance(path, Path)
+
+
+# ── count_trades_today ────────────────────────────────────────────
+
+
+class TestCountTradesToday:
+    """count_trades_today() counts bets placed in the current UTC day by strategy."""
+
+    def _save_with_ts(self, db, timestamp: float, strategy: str = "btc_lag",
+                      is_paper: bool = True):
+        """Insert a trade row with a custom timestamp (bypasses save_trade's time.time())."""
+        db._conn.execute(
+            """INSERT INTO trades
+               (timestamp, ticker, side, action, price_cents, count, cost_usd,
+                strategy, edge_pct, win_prob, is_paper)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (timestamp, "TEST-001", "yes", "buy", 44, 10, 4.40,
+             strategy, 0.12, 0.62, int(is_paper)),
+        )
+        db._conn.commit()
+
+    def test_zero_when_empty(self, db):
+        assert db.count_trades_today("btc_lag") == 0
+
+    def test_counts_trade_placed_now(self, db):
+        self._save_with_ts(db, time.time(), strategy="btc_lag")
+        assert db.count_trades_today("btc_lag") == 1
+
+    def test_multiple_trades_same_strategy(self, db):
+        for _ in range(3):
+            self._save_with_ts(db, time.time(), strategy="btc_lag")
+        assert db.count_trades_today("btc_lag") == 3
+
+    def test_filters_by_strategy(self, db):
+        self._save_with_ts(db, time.time(), strategy="btc_lag")
+        self._save_with_ts(db, time.time(), strategy="btc_drift")
+        assert db.count_trades_today("btc_lag") == 1
+        assert db.count_trades_today("btc_drift") == 1
+        assert db.count_trades_today("weather_forecast_v1") == 0
+
+    def test_filters_by_paper_flag(self, db):
+        self._save_with_ts(db, time.time(), strategy="btc_lag", is_paper=True)
+        self._save_with_ts(db, time.time(), strategy="btc_lag", is_paper=False)
+        assert db.count_trades_today("btc_lag", is_paper=True) == 1
+        assert db.count_trades_today("btc_lag", is_paper=False) == 1
+        assert db.count_trades_today("btc_lag") == 2  # no filter → both
+
+    def test_old_trade_not_counted(self, db):
+        """A trade from 2 days ago should not appear in today's count."""
+        two_days_ago = time.time() - 2 * 86400
+        self._save_with_ts(db, two_days_ago, strategy="btc_lag")
+        assert db.count_trades_today("btc_lag") == 0
+
+    def test_settled_trade_still_counts(self, db):
+        """Settlement doesn't remove a trade from today's count."""
+        trade_id = _save_trade(db)
+        db.settle_trade(trade_id, result="yes", pnl_cents=560)
+        assert db.count_trades_today("btc_lag") == 1
+
+
+# ── has_open_position ─────────────────────────────────────────────
+
+
+class TestHasOpenPosition:
+    """has_open_position() returns True when an unsettled trade exists on ticker."""
+
+    def test_false_when_empty(self, db):
+        assert db.has_open_position("KXBTC15M-TEST") is False
+
+    def test_true_after_saving_trade(self, db):
+        _save_trade(db, ticker="KXBTC15M-TEST")
+        assert db.has_open_position("KXBTC15M-TEST") is True
+
+    def test_false_after_settlement(self, db):
+        trade_id = _save_trade(db, ticker="KXBTC15M-TEST")
+        db.settle_trade(trade_id, result="yes", pnl_cents=560)
+        assert db.has_open_position("KXBTC15M-TEST") is False
+
+    def test_different_ticker_no_conflict(self, db):
+        _save_trade(db, ticker="KXBTC15M-001")
+        assert db.has_open_position("KXBTC15M-002") is False
+
+    def test_paper_filter_true(self, db):
+        _save_trade(db, ticker="KXBTC15M-TEST", is_paper=True)
+        assert db.has_open_position("KXBTC15M-TEST", is_paper=True) is True
+        assert db.has_open_position("KXBTC15M-TEST", is_paper=False) is False
+
+    def test_paper_filter_false(self, db):
+        _save_trade(db, ticker="KXBTC15M-TEST", is_paper=False)
+        assert db.has_open_position("KXBTC15M-TEST", is_paper=False) is True
+        assert db.has_open_position("KXBTC15M-TEST", is_paper=True) is False
+
+    def test_no_filter_matches_both(self, db):
+        _save_trade(db, ticker="KXBTC15M-TEST", is_paper=True)
+        assert db.has_open_position("KXBTC15M-TEST") is True
+
+    def test_multiple_open_positions_same_ticker(self, db):
+        """Two unsettled bets on same ticker → still returns True (any open)."""
+        _save_trade(db, ticker="KXBTC15M-TEST")
+        _save_trade(db, ticker="KXBTC15M-TEST")
+        assert db.has_open_position("KXBTC15M-TEST") is True

@@ -63,6 +63,7 @@ async def trading_loop(
     btc_series_ticker: str = "KXBTC15M",
     loop_name: str = "trading",
     initial_delay_sec: float = 0.0,
+    max_daily_bets: int = 5,
 ):
     """Main async loop: poll markets, generate signals, execute trades."""
     from src.execution import paper as paper_mod
@@ -132,6 +133,20 @@ async def trading_loop(
                 signal = strategy.generate_signal(market, orderbook, btc_feed)
                 if signal is None:
                     continue
+
+                # Position deduplication — skip if we already have an open bet on this market
+                if db.has_open_position(market.ticker):
+                    logger.info("[%s] Open position already exists on %s — skip",
+                                loop_name, market.ticker)
+                    continue
+
+                # Daily bet cap (tax protection + quality gate)
+                if max_daily_bets > 0:
+                    today_count = db.count_trades_today(strategy.name)
+                    if today_count >= max_daily_bets:
+                        logger.info("[%s] Daily bet cap reached (%d/%d) for %s — skip",
+                                    loop_name, today_count, max_daily_bets, strategy.name)
+                        continue
 
                 # Size the trade (synchronous)
                 from src.risk.sizing import calculate_size, kalshi_payout
@@ -217,6 +232,7 @@ async def weather_loop(
     series_ticker: str = "HIGHNY",
     loop_name: str = "weather",
     initial_delay_sec: float = 43.0,
+    max_daily_bets: int = 5,
 ):
     """
     Weather forecast trading loop.
@@ -288,6 +304,16 @@ async def weather_loop(
                 if signal is None:
                     continue
 
+                # Position deduplication
+                if db.has_open_position(market.ticker):
+                    logger.info("[%s] Open position already on %s — skip", loop_name, market.ticker)
+                    continue
+
+                # Daily bet cap
+                if max_daily_bets > 0 and db.count_trades_today(weather_strategy.name) >= max_daily_bets:
+                    logger.info("[%s] Daily bet cap reached for %s — skip", loop_name, weather_strategy.name)
+                    continue
+
                 # ── Execute (paper only) ──────────────────────────────
                 current_bankroll = db.latest_bankroll() or 50.0
                 order_check = kill_switch.check_order_allowed(
@@ -347,6 +373,7 @@ async def fomc_loop(
     series_ticker: str = "KXFEDDECISION",
     loop_name: str = "fomc",
     initial_delay_sec: float = 51.0,
+    max_daily_bets: int = 5,
 ):
     """
     FOMC rate decision trading loop.
@@ -416,6 +443,16 @@ async def fomc_loop(
 
                 signal = fomc_strategy.generate_signal(market, orderbook, None)
                 if signal is None:
+                    continue
+
+                # Position deduplication
+                if db.has_open_position(market.ticker):
+                    logger.info("[%s] Open position already on %s — skip", loop_name, market.ticker)
+                    continue
+
+                # Daily bet cap (FOMC fires rarely but guard anyway)
+                if max_daily_bets > 0 and db.count_trades_today(fomc_strategy.name) >= max_daily_bets:
+                    logger.info("[%s] Daily bet cap reached for %s — skip", loop_name, fomc_strategy.name)
                     continue
 
                 current_bankroll = db.latest_bankroll() or 50.0
@@ -774,6 +811,7 @@ async def main():
         sys.exit(1)
     btc_series_ticker = _configured_markets[0]
     eth_series_ticker = config.get("strategy", {}).get("eth_markets", ["KXETH15M"])[0]
+    max_daily_bets = config.get("risk", {}).get("max_daily_bets_per_strategy", 5)
 
     # Stagger the 4 loops by 7-8s each to spread Kalshi API calls evenly:
     #   btc_lag=0s, eth_lag=7s, btc_drift=15s, eth_drift=22s
@@ -789,6 +827,7 @@ async def main():
             btc_series_ticker=btc_series_ticker,
             loop_name="trading",
             initial_delay_sec=0.0,
+            max_daily_bets=max_daily_bets,
         ),
         name="trading_loop",
     )
@@ -805,6 +844,7 @@ async def main():
             btc_series_ticker=eth_series_ticker,
             loop_name="eth_trading",
             initial_delay_sec=7.0,
+            max_daily_bets=max_daily_bets,
         ),
         name="eth_lag_loop",
     )
@@ -821,6 +861,7 @@ async def main():
             btc_series_ticker=btc_series_ticker,
             loop_name="drift",
             initial_delay_sec=15.0,
+            max_daily_bets=max_daily_bets,
         ),
         name="drift_loop",
     )
@@ -837,6 +878,7 @@ async def main():
             btc_series_ticker=eth_series_ticker,
             loop_name="eth_drift",
             initial_delay_sec=22.0,
+            max_daily_bets=max_daily_bets,
         ),
         name="eth_drift_loop",
     )
@@ -853,6 +895,7 @@ async def main():
             btc_series_ticker=btc_series_ticker,
             loop_name="btc_imbalance",
             initial_delay_sec=29.0,
+            max_daily_bets=max_daily_bets,
         ),
         name="btc_imbalance_loop",
     )
@@ -869,6 +912,7 @@ async def main():
             btc_series_ticker=eth_series_ticker,
             loop_name="eth_imbalance",
             initial_delay_sec=36.0,
+            max_daily_bets=max_daily_bets,
         ),
         name="eth_imbalance_loop",
     )
@@ -884,6 +928,7 @@ async def main():
             series_ticker=weather_series,
             loop_name="weather",
             initial_delay_sec=43.0,
+            max_daily_bets=max_daily_bets,
         ),
         name="weather_loop",
     )
@@ -898,6 +943,7 @@ async def main():
             series_ticker="KXFEDDECISION",
             loop_name="fomc",
             initial_delay_sec=51.0,
+            max_daily_bets=max_daily_bets,
         ),
         name="fomc_loop",
     )

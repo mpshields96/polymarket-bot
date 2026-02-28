@@ -1,5 +1,5 @@
 """
-scripts/backtest.py — Calibration backtest for btc_drift strategy.
+scripts/backtest.py — Calibration backtest for btc_drift and btc_lag strategies.
 
 Compresses ~30 days of BTC price history into a 2-3 minute run.
 Replaces the need for 7 days of live paper trading for initial calibration.
@@ -10,20 +10,22 @@ DATA SOURCES:
 
 SETTLEMENT PROXY:
   KXBTC15M "YES" settles when BTC ends the 15-min window above the reference
-  price (the BTC price at market open). This matches the drift model's logic.
+  price (the BTC price at market open). This matches both strategies' logic.
   Note: actual Kalshi settlement may use a slightly different reference price;
   treat these results as directional calibration, not exact P&L simulation.
 
 WHAT THIS TELLS YOU:
-  - Signal coverage: what % of 15-min windows would trigger a btc_drift signal
+  - Signal coverage: what % of 15-min windows would trigger a signal
   - Directional accuracy: when the model predicted YES/NO, was it correct?
   - Brier score: probability calibration (0.25 = coin flip, lower = better)
   - Calibration table: are the model's confidence levels accurate?
 
 USAGE:
   source venv/bin/activate && python scripts/backtest.py
-  python scripts/backtest.py --days 60   (look back further)
-  python scripts/backtest.py --sensitivity 500  (test different params)
+  python scripts/backtest.py --days 60            (look back further)
+  python scripts/backtest.py --sensitivity 800    (test different params)
+  python scripts/backtest.py --strategy lag       (btc_lag only)
+  python scripts/backtest.py --strategy both      (both strategies)
 """
 
 from __future__ import annotations
@@ -41,15 +43,22 @@ import aiohttp
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-# ── Default parameters (match config.yaml strategy.btc_drift) ─────────
+# ── Default parameters (match config.yaml) ────────────────────────────
 
 _DEFAULT_DAYS = 30
-_DEFAULT_SENSITIVITY = 300.0
+_DEFAULT_SENSITIVITY = 800.0        # Calibrated from 30d backtest (was 300)
 _DEFAULT_MIN_DRIFT_PCT = 0.05       # 0.05% drift from open required
 _DEFAULT_TIME_WEIGHT = 0.7
 _DEFAULT_MIN_MINUTES_REMAINING = 3.0
 _WINDOW_MIN = 15                    # Kalshi 15-minute markets
 _POLL_INTERVAL_MIN = 0.5            # Simulate 30s polling (0.5 min)
+
+# btc_lag defaults (match config.yaml strategy.btc_lag)
+_DEFAULT_LAG_MIN_BTC_MOVE_PCT = 0.4       # BTC must move this % in 60s
+_DEFAULT_LAG_SENSITIVITY = 15.0           # Cents of implied Kalshi move per 1% BTC
+_DEFAULT_LAG_MIN_EDGE_PCT = 0.08          # 8% edge minimum
+_DEFAULT_LAG_ASSUMED_MARKET_PRICE = 50    # Assume neutral 50¢ (no Kalshi historical data)
+_LAG_WINDOW_SECONDS = 60                  # 60s rolling window for BTC move detection
 
 # Binance.US public REST (no auth required)
 _KLINES_URL = "https://api.binance.us/api/v3/klines"
@@ -167,7 +176,175 @@ def _price_at(candles: Dict[int, float], target_ms: int, tolerance_ms: int = 90_
     return best_price if best_diff <= tolerance_ms else None
 
 
-# ── Window simulation ──────────────────────────────────────────────────
+# ── btc_lag fee helper (mirrors src/strategies/btc_lag.py) ────────────
+
+def _lag_fee_pct(price_cents: int) -> float:
+    p = price_cents / 100.0
+    return 0.07 * p * (1.0 - p)
+
+
+# ── btc_lag window simulation ─────────────────────────────────────────
+
+def simulate_window_lag(
+    candles: Dict[int, float],
+    window_start_ms: int,
+    min_btc_move_pct: float = _DEFAULT_LAG_MIN_BTC_MOVE_PCT,
+    lag_sensitivity: float = _DEFAULT_LAG_SENSITIVITY,
+    min_edge_pct: float = _DEFAULT_LAG_MIN_EDGE_PCT,
+    assumed_market_price: int = _DEFAULT_LAG_ASSUMED_MARKET_PRICE,
+    min_minutes_remaining: float = _DEFAULT_MIN_MINUTES_REMAINING,
+) -> Optional[Dict]:
+    """
+    Simulate btc_lag on a single 15-min window.
+
+    Logic: slide a 60-second window across the 15-min period (every 30s).
+    When BTC moves more than min_btc_move_pct in those 60 seconds AND the
+    implied Kalshi edge clears min_edge_pct, a signal fires.
+
+    Limitation: We don't have actual Kalshi prices, so we assume the market
+    is always at assumed_market_price (default 50¢). The real edge depends
+    on whether Kalshi lagged the BTC move, which we can't measure in backtest.
+    This tests: when BTC has a large 60s momentum move, does it continue
+    through the end of the 15-min window?
+
+    Returns result dict or None if no signal fired.
+    """
+    window_end_ms = window_start_ms + _WINDOW_MIN * 60 * 1000
+
+    # Settlement: BTC above reference at window end?
+    reference = _price_at(candles, window_start_ms)
+    if reference is None or reference <= 0:
+        return None
+    final_price = _price_at(candles, window_end_ms)
+    if final_price is None:
+        return None
+    outcome = 1 if final_price > reference else 0
+
+    # Slide 60s window starting at T+1min (need 60s of price history)
+    t_min = 1.0
+    lag_window_min = _LAG_WINDOW_SECONDS / 60.0
+
+    while t_min <= (_WINDOW_MIN - min_minutes_remaining):
+        current_ms = window_start_ms + int(t_min * 60 * 1000)
+        prev_ms = window_start_ms + int((t_min - lag_window_min) * 60 * 1000)
+
+        current_price = _price_at(candles, current_ms)
+        prev_price = _price_at(candles, prev_ms)
+
+        if current_price is None or prev_price is None or prev_price <= 0:
+            t_min += _POLL_INTERVAL_MIN
+            continue
+
+        btc_move_pct = (current_price - prev_price) / prev_price * 100  # e.g. 0.65
+
+        # Gate 1: must meet minimum BTC move
+        if abs(btc_move_pct) < min_btc_move_pct:
+            t_min += _POLL_INTERVAL_MIN
+            continue
+
+        # Gate 2: implied edge must clear floor
+        implied_lag_cents = abs(btc_move_pct) * lag_sensitivity
+        fee = _lag_fee_pct(assumed_market_price)
+        edge_pct = (implied_lag_cents / 100.0) - fee
+
+        if edge_pct < min_edge_pct:
+            t_min += _POLL_INTERVAL_MIN
+            continue
+
+        # Signal: side follows momentum direction
+        side = "yes" if btc_move_pct > 0 else "no"
+        minutes_remaining = _WINDOW_MIN - t_min
+
+        # win_prob mirrors btc_lag.py formula
+        win_prob = min(0.85, (assumed_market_price / 100.0) + (implied_lag_cents / 100.0) * 0.8)
+
+        return {
+            "btc_move_pct": btc_move_pct,
+            "side": side,
+            "implied_lag_cents": implied_lag_cents,
+            "edge_pct": edge_pct,
+            "win_prob": win_prob,
+            "prob_yes": win_prob if side == "yes" else 1.0 - win_prob,
+            "minutes_remaining": minutes_remaining,
+            "time_elapsed_min": t_min,
+            "outcome": outcome,
+        }
+
+    return None
+
+
+def print_report_lag(
+    results: List[Dict],
+    no_signal_count: int,
+    total_windows: int,
+    days: int,
+    min_btc_move_pct: float,
+    min_edge_pct: float,
+):
+    """Print btc_lag backtest results."""
+    total_signals = len(results)
+    if total_signals == 0:
+        print("\n  ⚠️  No btc_lag signals fired.")
+        print(f"  BTC needed to move >{min_btc_move_pct:.2f}% in 60s with edge>{min_edge_pct:.0%}")
+        print(f"  At lag_sensitivity=15, need ~{(min_edge_pct + 0.0175) * 100 / 15:.2f}% BTC move to clear fee.")
+        return
+
+    wins = sum(1 for r in results if r["outcome"] == (1 if r["side"] == "yes" else 0))
+    win_rate = wins / total_signals
+    brier = _brier_score(results)
+    coverage = total_signals / max(1, total_windows) * 100
+
+    avg_move = sum(abs(r["btc_move_pct"]) for r in results) / total_signals
+    avg_edge = sum(r["edge_pct"] for r in results) / total_signals
+
+    width = 60
+    print()
+    print("=" * width)
+    print(f"  BTC LAG STRATEGY — CALIBRATION BACKTEST")
+    print(f"  Period: last {days} days | Min BTC move: {min_btc_move_pct:.2f}% in 60s")
+    print(f"  Min edge: {min_edge_pct:.0%} | Lag sensitivity: {_DEFAULT_LAG_SENSITIVITY:.0f}")
+    print(f"  Caveat: assumes Kalshi market always at 50¢ (no historical Kalshi prices)")
+    print("=" * width)
+    print()
+    print(f"  15-min windows evaluated: {total_windows:,}")
+    print(f"  Signals fired:            {total_signals:,}  ({coverage:.1f}% coverage)")
+    print(f"  Windows with no signal:   {no_signal_count:,}")
+    print()
+    print(f"  Directional accuracy:     {win_rate:.1%}  ({'above' if win_rate > 0.5 else 'AT or below'} coin flip)")
+    print(f"  Brier score:              {brier:.4f}  (0.25 = coin flip)")
+    print(f"  Avg BTC move at signal:   ±{avg_move:.3f}%  in 60s")
+    print(f"  Avg implied edge:         {avg_edge:.1%}  (before fill slippage)")
+    print()
+    print("  CALIBRATION TABLE:")
+    print(_calibration_table(results))
+    print()
+
+    # Key insight about this strategy vs institutions
+    if coverage < 5.0:
+        freq_note = f"Signals fire {coverage:.1f}% of windows (~{int(total_signals/days)}/day)."
+    else:
+        freq_note = f"Signals fire {coverage:.1f}% of windows ({int(total_signals/days)}/day avg)."
+
+    if win_rate >= 0.60 and brier < 0.22:
+        rec = "✅ STRONG directional edge on momentum continuation."
+    elif win_rate >= 0.54 and brier < 0.24:
+        rec = "✅ GOOD — Thin edge exists. Collect live paper data before going live."
+    elif win_rate >= 0.50:
+        rec = "⚠️  MARGINAL — Slight momentum bias but may not survive fees."
+    else:
+        rec = "❌ NO EDGE — Momentum reversal dominates. Strategy needs rethink."
+
+    print(f"  {freq_note}")
+    print(f"  RECOMMENDATION: {rec}")
+    print()
+    print(f"  ⚠️  WARNING: Finance/BTC markets have 0.17pp maker-taker gap.")
+    print(f"  Institutional HFTs (Susquehanna, Jump) price these markets in ms.")
+    print(f"  Real fill prices may be significantly worse than this backtest assumes.")
+    print("=" * width)
+    print()
+
+
+# ── btc_drift window simulation ────────────────────────────────────────
 
 def simulate_window(
     candles: Dict[int, float],
@@ -360,14 +537,16 @@ def print_report(
 
 async def main():
     parser = argparse.ArgumentParser(
-        description="Backtest btc_drift calibration against historical BTC data"
+        description="Backtest btc_drift and btc_lag against historical BTC data"
     )
     parser.add_argument("--days", type=int, default=_DEFAULT_DAYS,
                         help=f"Days of history to analyze (default: {_DEFAULT_DAYS})")
     parser.add_argument("--sensitivity", type=float, default=None,
-                        help=f"Sigmoid sensitivity (default: from config.yaml or {_DEFAULT_SENSITIVITY})")
+                        help=f"Sigmoid sensitivity for btc_drift (default: from config.yaml or {_DEFAULT_SENSITIVITY})")
     parser.add_argument("--min-drift-pct", type=float, default=None,
                         help=f"Minimum BTC drift %% to signal (default: from config.yaml or {_DEFAULT_MIN_DRIFT_PCT})")
+    parser.add_argument("--strategy", choices=["drift", "lag", "both"], default="drift",
+                        help="Which strategy to backtest (default: drift)")
     args = parser.parse_args()
 
     # Load config if available
@@ -376,20 +555,34 @@ async def main():
         with open(PROJECT_ROOT / "config.yaml") as f:
             cfg = yaml.safe_load(f)
         drift_cfg = cfg.get("strategy", {}).get("btc_drift", {})
+        lag_cfg = cfg.get("strategy", {}).get("btc_lag", {})
         sensitivity = args.sensitivity or drift_cfg.get("sensitivity", _DEFAULT_SENSITIVITY)
         min_drift_pct = args.min_drift_pct or drift_cfg.get("min_drift_pct", _DEFAULT_MIN_DRIFT_PCT)
         time_weight = drift_cfg.get("time_weight", _DEFAULT_TIME_WEIGHT)
         min_minutes_remaining = drift_cfg.get("min_minutes_remaining", _DEFAULT_MIN_MINUTES_REMAINING)
+        lag_min_move = lag_cfg.get("min_btc_move_pct", _DEFAULT_LAG_MIN_BTC_MOVE_PCT)
+        lag_sensitivity = lag_cfg.get("lag_sensitivity", _DEFAULT_LAG_SENSITIVITY)
+        lag_min_edge = lag_cfg.get("min_edge_pct", _DEFAULT_LAG_MIN_EDGE_PCT)
     except Exception:
         sensitivity = args.sensitivity or _DEFAULT_SENSITIVITY
         min_drift_pct = args.min_drift_pct or _DEFAULT_MIN_DRIFT_PCT
         time_weight = _DEFAULT_TIME_WEIGHT
         min_minutes_remaining = _DEFAULT_MIN_MINUTES_REMAINING
+        lag_min_move = _DEFAULT_LAG_MIN_BTC_MOVE_PCT
+        lag_sensitivity = _DEFAULT_LAG_SENSITIVITY
+        lag_min_edge = _DEFAULT_LAG_MIN_EDGE_PCT
 
+    run_drift = args.strategy in ("drift", "both")
+    run_lag = args.strategy in ("lag", "both")
+
+    strategies_str = {"drift": "btc_drift", "lag": "btc_lag", "both": "btc_drift + btc_lag"}[args.strategy]
     print()
-    print(f"  Backtesting btc_drift against {args.days} days of BTCUSDT history...")
-    print(f"  Parameters: sensitivity={sensitivity:.0f}, min_drift={min_drift_pct:.2f}%, time_weight={time_weight:.1f}")
+    print(f"  Backtesting {strategies_str} against {args.days} days of BTCUSDT history...")
     print(f"  Data source: Binance.US 1-min klines (public, no auth)")
+    if run_drift:
+        print(f"  [drift] sensitivity={sensitivity:.0f}, min_drift={min_drift_pct:.2f}%, time_weight={time_weight:.1f}")
+    if run_lag:
+        print(f"  [lag]   min_btc_move={lag_min_move:.2f}%, lag_sensitivity={lag_sensitivity:.0f}, min_edge={lag_min_edge:.0%}")
     print()
 
     # Fetch historical data
@@ -407,7 +600,6 @@ async def main():
     now_ms = max(candles.keys()) if candles else 0
     start_ms = min(candles.keys()) if candles else 0
 
-    # Round start up to next 15-min boundary
     window_size_ms = _WINDOW_MIN * 60 * 1000
     aligned_start = ((start_ms // window_size_ms) + 1) * window_size_ms
 
@@ -421,22 +613,39 @@ async def main():
     print()
 
     # Simulate each window
-    results: List[Dict] = []
-    no_signal_count = 0
+    drift_results: List[Dict] = []
+    drift_no_signal = 0
+    lag_results: List[Dict] = []
+    lag_no_signal = 0
 
     for i, window_start in enumerate(windows):
-        result = simulate_window(
-            candles=candles,
-            window_start_ms=window_start,
-            sensitivity=sensitivity,
-            time_weight=time_weight,
-            min_drift_pct=min_drift_pct,
-            min_minutes_remaining=min_minutes_remaining,
-        )
-        if result is not None:
-            results.append(result)
-        else:
-            no_signal_count += 1
+        if run_drift:
+            result = simulate_window(
+                candles=candles,
+                window_start_ms=window_start,
+                sensitivity=sensitivity,
+                time_weight=time_weight,
+                min_drift_pct=min_drift_pct,
+                min_minutes_remaining=min_minutes_remaining,
+            )
+            if result is not None:
+                drift_results.append(result)
+            else:
+                drift_no_signal += 1
+
+        if run_lag:
+            result_lag = simulate_window_lag(
+                candles=candles,
+                window_start_ms=window_start,
+                min_btc_move_pct=lag_min_move,
+                lag_sensitivity=lag_sensitivity,
+                min_edge_pct=lag_min_edge,
+                min_minutes_remaining=_DEFAULT_MIN_MINUTES_REMAINING,
+            )
+            if result_lag is not None:
+                lag_results.append(result_lag)
+            else:
+                lag_no_signal += 1
 
         if (i + 1) % 500 == 0:
             pct = (i + 1) / len(windows) * 100
@@ -444,14 +653,25 @@ async def main():
 
     print(f"\r  Simulating: 100% ({len(windows)}/{len(windows)} windows)     ")
 
-    print_report(
-        results=results,
-        no_signal_count=no_signal_count,
-        total_windows=len(windows),
-        days=args.days,
-        sensitivity=sensitivity,
-        min_drift_pct=min_drift_pct,
-    )
+    if run_drift:
+        print_report(
+            results=drift_results,
+            no_signal_count=drift_no_signal,
+            total_windows=len(windows),
+            days=args.days,
+            sensitivity=sensitivity,
+            min_drift_pct=min_drift_pct,
+        )
+
+    if run_lag:
+        print_report_lag(
+            results=lag_results,
+            no_signal_count=lag_no_signal,
+            total_windows=len(windows),
+            days=args.days,
+            min_btc_move_pct=lag_min_move,
+            min_edge_pct=lag_min_edge,
+        )
 
 
 if __name__ == "__main__":

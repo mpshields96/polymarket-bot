@@ -56,8 +56,9 @@ strategy:
     # Fires whenever BTC drifts from market-open price (much more frequent than btc_lag).
     # Uses sigmoid probability model + time adjustment from refs/kalshi-btc/strategy.py.
     # Math: need (drift_pct * sensitivity/100) to produce edge > min_edge_pct after fee.
-    # At default settings: 0.3% BTC drift → P(YES)≈0.73 → edge≈0.21 at 50¢ market.
-    sensitivity: 300.0               # Sigmoid steepness (higher = more sensitive to small drifts)
+    # Sensitivity=800 confirmed via 30-day backtest: Brier=0.2178 (STRONG), 69.1% accuracy.
+    # At sensitivity=800: 0.1% drift → P(YES)≈0.55 → edge≈0.03 at 50¢ market.
+    sensitivity: 800.0               # Sigmoid steepness — calibrated from 30d backtest (was 300)
     min_drift_pct: 0.05              # BTC must drift ≥ 0.05% from market open
     min_minutes_remaining: 3.0       # Don't enter with ≤ 3 min left
     min_edge_pct: 0.05               # Only trade if net edge > 5% (after fees)
@@ -74,7 +75,7 @@ strategy:
 
   eth_drift:
     # ETH drift strategy — paper-only, mirrors btc_drift params initially.
-    sensitivity: 300.0
+    sensitivity: 800.0
     min_drift_pct: 0.05
     min_minutes_remaining: 3.0
     min_edge_pct: 0.05
@@ -147,6 +148,9 @@ risk:
 
   # Rate limiting
   max_hourly_trades: 15                # Trades per hour before rate pause
+  max_daily_bets_per_strategy: 5       # Max bets per strategy per UTC day (tax + quality gate)
+                                       # btc_drift fires on 96% of windows — cap prevents tax churn
+                                       # Set to 0 to disable (unlimited). Recommended: 3-5 for live.
 
   # Hard stops (require manual --reset-killswitch)
   hard_stop_loss_pct: 0.30             # Lose 30% total → HARD STOP

@@ -10,8 +10,8 @@
 │  indicators) and compares them to what the Kalshi prediction market is pricing.  │
 │  When it finds a gap, it bets on the correct side.                               │
 │                                                                                  │
-│  Example: Open-Meteo says NYC will hit 72°F tomorrow. Kalshi is pricing that    │
-│  outcome at only 45¢ (45%). If our model says 62% chance, we bet YES.           │
+│  Example: Two weather models say NYC will hit 72°F tomorrow. Kalshi prices that  │
+│  outcome at only 45¢ (45%). If our ensemble says 62% chance, we bet YES.        │
 └──────────────────────────────────────────────────────────────────────────────────┘
 
 
@@ -22,12 +22,16 @@
 ╠══════════════╬══════════════════════════════════╬═══════════════════╬═══════════╣
 ║ btc_lag_v1   ║ BTC moved >0.65% in 60s →        ║ Binance.US        ║ 🟢 LIVE*  ║
 ║              ║ Kalshi BTC market lags behind     ║ @bookTicker       ║           ║
+║              ║ 30-day backtest: 84.1% accuracy   ║                   ║           ║
+║              ║ ⚠ HFTs (Jane St / Jump) compete   ║                   ║           ║
 ╠══════════════╬══════════════════════════════════╬═══════════════════╬═══════════╣
 ║ eth_lag_v1   ║ Same as above, ETH/USD            ║ Binance.US        ║ 📝 PAPER  ║
 ║              ║ ETH price move → Kalshi lag       ║ @bookTicker       ║           ║
 ╠══════════════╬══════════════════════════════════╬═══════════════════╬═══════════╣
 ║ btc_drift_v1 ║ BTC drifted from day's open →    ║ Binance.US        ║ 📝 PAPER  ║
 ║              ║ sigmoid model, 69% accuracy       ║ @bookTicker       ║           ║
+║              ║ Fires ~96% of 15-min windows      ║                   ║           ║
+║              ║ Capped at 5 bets/day (tax safe)   ║                   ║           ║
 ╠══════════════╬══════════════════════════════════╬═══════════════════╬═══════════╣
 ║ eth_drift_v1 ║ Same as above, ETH               ║ Binance.US        ║ 📝 PAPER  ║
 ║              ║                                  ║ @bookTicker       ║           ║
@@ -37,8 +41,9 @@
 ╠══════════════╬══════════════════════════════════╬═══════════════════╬═══════════╣
 ║ eth_imbal_v1 ║ Same, ETH orderbook              ║ Kalshi orderbook  ║ 📝 PAPER  ║
 ╠══════════════╬══════════════════════════════════╬═══════════════════╬═══════════╣
-║ weather_v1   ║ Weather app says 72°F. Kalshi    ║ Open-Meteo GFS    ║ 📝 PAPER  ║
-║              ║ prices it wrong → bet on temp    ║ (free, no key)    ║           ║
+║ weather_v1   ║ Two weather models say 72°F.      ║ Open-Meteo GFS    ║ 📝 PAPER  ║
+║              ║ Kalshi prices it wrong → bet      ║ + NOAA NWS NDFD   ║           ║
+║              ║ Ensemble: blends both sources     ║ (free, no key)    ║           ║
 ╠══════════════╬══════════════════════════════════╬═══════════════════╬═══════════╣
 ║ fomc_rate_v1 ║ Treasury yield curve implies     ║ FRED CSV          ║ 📝 PAPER  ║
 ║              ║ Fed will hold/cut/hike → compare ║ DFF + DGS2 + CPI  ║           ║
@@ -53,6 +58,10 @@
 │  [Data Feed OK?] → [Market Exists?] → [Time Remaining?] → [Edge > Threshold?]  │
 │       ❌ skip          ❌ skip              ❌ skip              ❌ skip           │
 │       ✅                ✅                  ✅                    ✅               │
+│                                                                                  │
+│  → [No duplicate open position?] → [Daily bet cap not hit?]                    │
+│       ❌ skip (dedup)                  ❌ skip (tax/quality gate)                │
+│       ✅                               ✅                                        │
 │                                                                                  │
 │                     → [Size bet via Kelly] → [Paper fill] → [Log to DB]         │
 └──────────────────────────────────────────────────────────────────────────────────┘
@@ -79,14 +88,17 @@
 │  • Max bet:         $5.00 hardcoded (cannot be configured away)                 │
 │  • Bankroll floor:  $20.00 → bot stops if balance drops this low                │
 │  • Total loss cap:  30% of starting bankroll → hard stop                        │
-│  • Kill switch:     any 3 consecutive losses or auth failure → shuts all loops  │
+│  • Consecutive:     5 losses in a row → 2-hour pause                            │
+│  • Daily bet cap:   5 bets/strategy/day (tax + quality gate)                    │
+│  • Deduplication:   won't open 2 positions on same market simultaneously        │
+│  • Kill switch:     any auth failure (3x) → shuts all loops                     │
 │  • Live mode:       requires --live flag + .env setting + type "CONFIRM"        │
 │  • PID lock:        prevents two copies of bot running simultaneously           │
 └──────────────────────────────────────────────────────────────────────────────────┘
 
 
 ╔══════════════════════════════════════════════════════════════════════════════════╗
-║  BUILD HISTORY  (14 sessions)                                                   ║
+║  BUILD HISTORY  (15 sessions)                                                   ║
 ╠════════╦═════════════════════════════════════════════════════════════════════════╣
 ║ S1–S3  ║ Foundation: Kalshi auth (RSA-PSS), REST client, SQLite DB, dashboard  ║
 ╠════════╬═════════════════════════════════════════════════════════════════════════╣
@@ -104,18 +116,23 @@
 ║ S13    ║ Orderbook imbalance (BTC+ETH), weather strategy vs HIGHNY, 7 loops    ║
 ╠════════╬═════════════════════════════════════════════════════════════════════════╣
 ║ S14    ║ FOMC strategy: FRED yield curve vs Kalshi Fed decisions, 8 loops      ║
+╠════════╬═════════════════════════════════════════════════════════════════════════╣
+║ S15    ║ Research: btc_lag 30d backtest (84.1%), sensitivity 300→800 (Brier    ║
+║        ║ 0.2178), User-Agent header, position dedup, daily bet cap (5/day),    ║
+║        ║ NWS ensemble (Open-Meteo + NOAA/NDFD blend, adaptive uncertainty)     ║
+║        ║ 289/289 tests passing                                                  ║
 ╚════════╩═════════════════════════════════════════════════════════════════════════╝
 
 
 ┌──────────────────────────────────────────────────────────────────────────────────┐
-│  CURRENT STATE  (Session 14, Feb 28 2026)                                       │
+│  CURRENT STATE  (Session 15, Feb 28 2026)                                       │
 │                                                                                  │
-│  Tests:    257/257 ✅   Verify: 18/18 ✅   Balance: $75 (paper mode)            │
+│  Tests:    289/289 ✅   Verify: 18/18 ✅   Balance: paper mode                  │
 │  Platform: Kalshi only (Polymarket US geo-blocked after 2022 CFTC settlement)   │
 │  Mode:     PAPER — all strategies collecting data, no real money at risk yet    │
 │                                                                                  │
 │  Next FOMC: March 19, 2026  →  strategy activates March 5 (14-day window)      │
-│  Weather:   fires weekdays only (HIGHNY markets don't exist on weekends)        │
+│  Weather:   ENSEMBLE (Open-Meteo + NOAA NWS) — fires weekdays only             │
 └──────────────────────────────────────────────────────────────────────────────────┘
 
 
@@ -123,33 +140,91 @@
 │  SIGNAL CALIBRATION  (what triggers a bet)                                      │
 │                                                                                  │
 │  btc_lag / eth_lag       min_edge: 8%   needs ~0.65% BTC/ETH move in 60s       │
+│                          backtest: 84.1% accuracy, 44 signals/30 days           │
+│                          ⚠ HFTs (Jane Street, Susquehanna, Jump) compete         │
 │  btc_drift / eth_drift   min_edge: 5%   fires at ~0.15–0.30% drift from open   │
+│                          backtest: 69.1% accuracy, sensitivity=800 (Brier 0.22) │
+│                          capped: 5 bets/day to avoid tax complexity             │
 │  orderbook imbalance     ratio: 0.65    YES bids > 65% of total depth          │
-│  weather                 min_edge: 5%   normal dist N(forecast, 3.5°F)         │
+│  weather (ensemble)      min_edge: 5%   N(ensemble_temp, adaptive_std)         │
+│                          std_dev: 2.5°F (agree) / 3.5°F (normal) / 5°F (wide)  │
 │  fomc_rate               min_edge: 5%   yield spread regime + CPI trend        │
 └──────────────────────────────────────────────────────────────────────────────────┘
 
 
 ╔══════════════════════════════════════════════════════════════════════════════════╗
+║  RESEARCH FINDINGS  (Session 15 — from open-source Kalshi/Polymarket bots)     ║
+╠══════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                  ║
+║  BTC/ETH Kalshi markets: maker-taker spread ~0.17pp — Jane Street, Susquehanna  ║
+║  and Jump Trading compete professionally post-Oct 2024. Our btc_lag edge is     ║
+║  real historically (84.1%) but fill quality vs HFTs is a known risk.            ║
+║                                                                                  ║
+║  Best structural edges (ranked by documented profitability):                    ║
+║    1. Entertainment/sports/media markets: 4.79–7.32pp spread (large, dumb money)║
+║    2. Market making (Avellaneda-Stoikov): earn the spread vs retail             ║
+║    3. PMF extraction (KXUNRATE, KXFEDDECISION): BLS/FRED release timing        ║
+║    4. Weather ensemble (our weather_v1): best with 48h+ window                 ║
+║                                                                                  ║
+║  btc_drift calibration:                                                          ║
+║    sensitivity=300 → Brier=0.2330, systematic undershoot                        ║
+║    sensitivity=800 → Brier=0.2178 (STRONG), updated in config                  ║
+╚══════════════════════════════════════════════════════════════════════════════════╝
+
+
+╔══════════════════════════════════════════════════════════════════════════════════╗
+║  ARCHITECTURAL ISSUES ROADMAP  (objective problems, priority order)             ║
+╠═════╦════════════════════════════════════════════════════════════════╦══════════╣
+║  1  ║ btc_drift reference price drift (FIXED IN S15 PLAN)            ║ OPEN     ║
+║     ║ "market open price" should be Kalshi window open, not BTC      ║          ║
+║     ║ midnight — causes false drift signals in long sessions         ║          ║
+╠═════╬════════════════════════════════════════════════════════════════╬══════════╣
+║  2  ║ Paper executor slippage model is optimistic                    ║ OPEN     ║
+║     ║ Fills at limit price always — real markets have spread.        ║          ║
+║     ║ Add 1-2¢ slippage to paper fill model for realistic P&L.       ║          ║
+╠═════╬════════════════════════════════════════════════════════════════╬══════════╣
+║  3  ║ BTC/ETH lag — institutional HFT competition                    ║ KNOWN    ║
+║     ║ Jane St / Susquehanna / Jump now professional market-make.     ║          ║
+║     ║ Paper results may not replicate live; monitor carefully.       ║          ║
+╠═════╬════════════════════════════════════════════════════════════════╬══════════╣
+║  4  ║ Settlement proxy accuracy                                       ║ OPEN     ║
+║     ║ Bot guesses settlement result from Kalshi status.              ║          ║
+║     ║ Needs direct result field verification from API response.      ║          ║
+╠═════╬════════════════════════════════════════════════════════════════╬══════════╣
+║  5  ║ No cloud / 24-7 infrastructure                                  ║ FUTURE   ║
+║     ║ Bot dies when MacBook closes. Options: Raspberry Pi,           ║          ║
+║     ║ GCP Cloud Run free tier, small VPS (~$4/mo).                   ║          ║
+╠═════╬════════════════════════════════════════════════════════════════╬══════════╣
+║  6  ║ Paper → Live graduation criteria not yet defined               ║ NEXT     ║
+║     ║ Need: N paper days, Brier < threshold, >X signals seen,        ║          ║
+║     ║ no kill-switch events. Define and document formal criteria.    ║          ║
+╚═════╩════════════════════════════════════════════════════════════════╩══════════╝
+
+
+╔══════════════════════════════════════════════════════════════════════════════════╗
 ║  FUTURE ROADMAP  (priority order)                                               ║
 ╠═════╦════════════════════════════════════════════════════════════════╦══════════╣
-║  1  ║ Paper → Live graduation                                        ║ Near     ║
+║  1  ║ Define live graduation criteria (see Issue #6 above)           ║ Next     ║
 ║     ║ Run 7+ paper days → compare all 8 Brier scores →              ║          ║
 ║     ║ enable best strategy for $5 live bets                         ║          ║
 ╠═════╬════════════════════════════════════════════════════════════════╬══════════╣
-║  2  ║ Market Making (Avellaneda-Stoikov)                             ║ Medium   ║
+║  2  ║ Fix btc_drift reference price (Issue #1)                       ║ Near     ║
+║     ║ Use Kalshi window start price, not BTC midnight price          ║          ║
+╠═════╬════════════════════════════════════════════════════════════════╬══════════╣
+║  3  ║ Market Making (Avellaneda-Stoikov)                             ║ Medium   ║
 ║     ║ Post both YES and NO limit orders, earn the spread            ║          ║
 ║     ║ Ref: nikhilnd/kalshi-market-making (+20.3% in 1 day)         ║          ║
 ╠═════╬════════════════════════════════════════════════════════════════╬══════════╣
-║  3  ║ Unemployment Rate Strategy (KXUNRATE)                         ║ Medium   ║
+║  4  ║ Unemployment Rate Strategy (KXUNRATE)                         ║ Medium   ║
 ║     ║ Extract PMF from BLS release cadence                          ║          ║
 ║     ║ Ref: rmmomin/kalshi-urate-pmf technique                       ║          ║
 ╠═════╬════════════════════════════════════════════════════════════════╬══════════╣
-║  4  ║ Bankroll growth → Stage 2 unlock ($100–$500, max $20/bet)     ║ Earned   ║
+║  5  ║ Bankroll growth → Stage 2 unlock ($100–$500, max $20/bet)     ║ Earned   ║
 ║     ║ Happens automatically when balance crosses $100               ║          ║
 ╠═════╬════════════════════════════════════════════════════════════════╬══════════╣
-║  5  ║ More data sources: BLS API, earnings calendars,               ║ Far      ║
-║     ║ sports scores, political event feeds                          ║          ║
+║  6  ║ Entertainment / sports markets expansion                       ║ Far      ║
+║     ║ Best documented structural edge (4.79–7.32pp spread vs        ║          ║
+║     ║ crypto's 0.17pp). Less HFT competition, larger margins.       ║          ║
 ╚═════╩════════════════════════════════════════════════════════════════╩══════════╝
 
 
@@ -159,8 +234,10 @@
 │  python main.py                              → start all 8 loops (paper mode)  │
 │  python main.py --verify                     → pre-flight check (18/18)        │
 │  streamlit run src/dashboard.py              → live dashboard localhost:8501    │
-│  python -m pytest tests/ -v                  → run 257 tests                   │
+│  python -m pytest tests/ -v                  → run 289 tests                   │
 │  python scripts/backtest.py --days 30        → 30-day BTC drift calibration    │
+│  python scripts/backtest.py --strategy lag   → 30-day btc_lag simulation       │
+│  python scripts/backtest.py --strategy both  → both strategies                 │
 │  echo "RESET" | python main.py --reset-killswitch  → clear kill switch         │
 └──────────────────────────────────────────────────────────────────────────────────┘
 
@@ -174,5 +251,5 @@
 ╚══════════════════════════════════════════════════════════════════════════════════╝
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Generated: 2026-02-28  |  polymarket-bot Session 14  |  257/257 tests passing
+Generated: 2026-02-28  |  polymarket-bot Session 15  |  289/289 tests passing
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

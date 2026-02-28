@@ -288,6 +288,31 @@ class DB:
 
     # ── Stats ─────────────────────────────────────────────────────────
 
+    def count_trades_today(self, strategy: str, is_paper: Optional[bool] = None) -> int:
+        """Return number of bets placed today for a given strategy (UTC day)."""
+        from datetime import datetime, timezone as _tz
+        now_utc = datetime.now(_tz.utc)
+        midnight_utc = now_utc.replace(
+            hour=0, minute=0, second=0, microsecond=0
+        ).timestamp()
+        query = "SELECT COUNT(*) FROM trades WHERE strategy = ? AND timestamp >= ?"
+        params: list = [strategy, midnight_utc]
+        if is_paper is not None:
+            query += " AND is_paper = ?"
+            params.append(int(is_paper))
+        row = self._conn.execute(query, params).fetchone()
+        return row[0] or 0
+
+    def has_open_position(self, ticker: str, is_paper: Optional[bool] = None) -> bool:
+        """Return True if there is an unsettled trade on this exact ticker."""
+        query = "SELECT COUNT(*) FROM trades WHERE ticker = ? AND result IS NULL"
+        params: list = [ticker]
+        if is_paper is not None:
+            query += " AND is_paper = ?"
+            params.append(int(is_paper))
+        row = self._conn.execute(query, params).fetchone()
+        return (row[0] or 0) > 0
+
     def win_rate(self, is_paper: Optional[bool] = None, limit: int = 100) -> Optional[float]:
         """Return win rate (0.0–1.0) over last `limit` settled trades, or None."""
         query = "SELECT result, side FROM trades WHERE result IS NOT NULL"
