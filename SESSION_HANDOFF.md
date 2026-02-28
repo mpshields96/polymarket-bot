@@ -1,13 +1,13 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume.
-# Last updated: 2026-02-28 (Session 15 — NWS ensemble, dedup, bet cap, 289 tests)
+# Last updated: 2026-02-28 (Session 16 — btc_drift late-entry penalty, 296 tests)
 ═══════════════════════════════════════════════════
 
 ## Current State
 
 8 strategies running in parallel in paper mode.
 8 async trading loops + 1 settlement loop, staggered to spread Kalshi API calls.
-289/289 tests passing.
+296/296 tests passing.
 
 Loop stagger (seconds):
    0s → [trading]        btc_lag_v1                 — crypto momentum
@@ -20,9 +20,29 @@ Loop stagger (seconds):
   51s → [fomc]           fomc_rate_v1               — KXFEDDECISION vs yield curve, paper, 30-min poll
 
 verify.py: **18/18 ✅**
-Tests: **289/289 ✅** (was 257, +32 new)
+Tests: **296/296 ✅** (was 289, +7 new late-entry penalty tests)
 
-## What was done this session (Session 15)
+## What was done this session (Session 16)
+
+btc_drift architecture fix #1:
+- `_reference_prices` now stores `(price, minutes_late)` tuple instead of plain float
+- `minutes_late` = minutes elapsed since market open when bot first observed the market
+- Late-entry confidence penalty: `max(0.5, 1.0 - max(0, minutes_late - 2) / 16)`
+  → No penalty within first 2 min of observation (grace period)
+  → Penalty grows linearly to 0.5× at 10+ min late
+- `_minutes_since_open()` static helper added to BTCDriftStrategy
+- Reason string shows "[ref +X.Xmin late]" when late > 2 min (visible in paper logs)
+- 4 test failures fixed (tuple indexing + test helper refactored for clean isolation)
+
+Global workflow automation:
+- Installed GSD v1.22.0 globally: npx get-shit-done-cc@latest --global --claude
+- Created ~/.claude/rules/gsd-framework.md — MANDATORY trigger table
+- Created ~/.claude/rules/mandatory-skills-workflow.md — superpowers skill requirements
+- Both files auto-load into EVERY Claude Code session on this machine
+
+Commits: a9f3b25 (btc_drift fix, 296 tests), c4f8c9a/b72c333/c61f3e3 (Session 15)
+
+## What was done last session (Session 15)
 
 Research phase:
 - btc_lag 30-day backtest: 84.1% accuracy, 44 signals/30 days
@@ -56,6 +76,8 @@ Commit: c61f3e3 (pushed to main)
 Run the bot and watch 8 loops start:
 
     python main.py
+    # or: push commits first
+    git push
 
 Expected startup sequence (first 51s):
   [trading]       t=0s  → BTC lag evaluating
@@ -134,7 +156,7 @@ FOMC strategy fires 14 days before each meeting:
 
 ## Architecture issues to address next
 
-  1. btc_drift reference price: "drift from open" uses BTC midnight price, not Kalshi window start
+  1. ✅ btc_drift reference price: FIXED — late-entry penalty applied (Session 16, a9f3b25)
   2. Paper executor: fills at limit price, no slippage model (optimistic P&L)
   3. Live graduation criteria: not yet formally defined (need N days, Brier threshold, etc.)
   4. Settlement proxy: verify result from Kalshi API response field directly
