@@ -115,7 +115,7 @@ class TestReferencePrice:
         signal = s.generate_signal(market, _make_orderbook(), feed)
         assert signal is None
         assert "KXBTC15M-TEST" in s._reference_prices
-        assert s._reference_prices["KXBTC15M-TEST"] == 50000.0
+        assert s._reference_prices["KXBTC15M-TEST"][0] == 50000.0
 
     def test_second_observation_uses_stored_reference(self):
         """After reference is set, strategy computes drift and can generate a signal."""
@@ -140,8 +140,8 @@ class TestReferencePrice:
         # Seed different references
         _strategy_seed_reference(s, market_a, ref_price=50000.0)
         _strategy_seed_reference(s, market_b, ref_price=51000.0)
-        assert s._reference_prices["KXBTC15M-A"] == 50000.0
-        assert s._reference_prices["KXBTC15M-B"] == 51000.0
+        assert s._reference_prices["KXBTC15M-A"][0] == 50000.0
+        assert s._reference_prices["KXBTC15M-B"][0] == 51000.0
 
 
 # ── Gate 2: Drift threshold ──────────────────────────────────────
@@ -305,3 +305,93 @@ class TestTimeAdjustment:
         # 1 min elapsed out of 20 total = 5% elapsed
         early_confidence = self._get_confidence(minutes_remaining=19.0, minutes_since_open=1.0)
         assert late_confidence > early_confidence
+
+
+# ── Late-entry penalty (reference staleness) ─────────────────────
+
+
+class TestLateEntryPenalty:
+    """
+    When the bot first observes a market mid-window (e.g. after a restart),
+    the reference price is stale relative to the true market open.
+    confidence should be penalised proportionally.
+    """
+
+    def _signal_with_late_entry(self, minutes_late: float) -> object:
+        """
+        Return a signal where the reference was set `minutes_late` minutes
+        after the market opened.  BTC moves +2% from the reference.
+
+        Inject _reference_prices directly so that time_factor is identical
+        across all minutes_late values — this isolates the late_penalty from
+        the time-remaining confidence adjustment.
+        """
+        s = BTCDriftStrategy(
+            sensitivity=300.0,
+            min_edge_pct=0.01,      # very low threshold so signal fires
+            min_minutes_remaining=1.0,
+            time_weight=0.7,
+            min_drift_pct=0.05,
+        )
+        # Fixed market geometry: 5 min left, 10 min since open.
+        # time_factor is the same regardless of minutes_late.
+        market = _make_market(
+            yes_price=50, no_price=50,
+            minutes_remaining=5.0,
+            minutes_since_open=10.0,
+        )
+        # Inject reference directly — (price, minutes_late stored at first-obs)
+        s._reference_prices[market.ticker] = (50000.0, minutes_late)
+        feed = _make_btc_feed(current_price=51000.0)  # +2% drift
+        return s.generate_signal(market, _make_orderbook(), feed)
+
+    def test_on_time_reference_no_penalty(self):
+        """First observation within 2 min of open: no penalty applied."""
+        sig_on_time = self._signal_with_late_entry(0.0)
+        sig_slightly_late = self._signal_with_late_entry(1.5)
+        assert sig_on_time is not None
+        assert sig_slightly_late is not None
+        # Confidence should be similar (within penalty threshold of 2 min)
+        assert abs(sig_on_time.confidence - sig_slightly_late.confidence) < 0.02
+
+    def test_late_reference_reduces_confidence(self):
+        """Reference set 10 min late should have lower confidence than on-time."""
+        sig_on_time = self._signal_with_late_entry(0.0)
+        sig_late = self._signal_with_late_entry(10.0)
+        assert sig_on_time is not None
+        assert sig_late is not None
+        assert sig_late.confidence < sig_on_time.confidence
+
+    def test_very_late_reference_halves_confidence(self):
+        """Reference set near end of window (14 min late) should cap at ~50% confidence."""
+        sig = self._signal_with_late_entry(14.0)
+        assert sig is not None
+        # late_penalty at 14min late = max(0.5, 1.0 - (14-2)/16) = max(0.5, 0.25) = 0.5
+        sig_on_time = self._signal_with_late_entry(0.0)
+        assert sig_on_time is not None
+        # Late signal confidence should be at most 50% of on-time signal confidence
+        assert sig.confidence <= sig_on_time.confidence * 0.55
+
+    def test_reason_includes_late_marker(self):
+        """Reason string should mention late reference when minutes_late > 2."""
+        sig = self._signal_with_late_entry(8.0)
+        assert sig is not None
+        assert "late" in sig.reason.lower()
+
+    def test_reason_clean_when_on_time(self):
+        """On-time reference should not add noise to reason string."""
+        sig = self._signal_with_late_entry(0.0)
+        assert sig is not None
+        assert "late" not in sig.reason.lower()
+
+    def test_minutes_since_open_helper_zero_at_open(self):
+        """Market just opened (open_time == now): minutes_since_open ≈ 0."""
+        market = _make_market(minutes_since_open=0.0, minutes_remaining=15.0)
+        result = BTCDriftStrategy._minutes_since_open(market)
+        assert result < 0.5  # within half a minute of zero
+
+    def test_minutes_since_open_helper_reflects_elapsed(self):
+        """Market opened 7 min ago: _minutes_since_open returns ≈ 7."""
+        market = _make_market(minutes_since_open=7.0, minutes_remaining=8.0)
+        result = BTCDriftStrategy._minutes_since_open(market)
+        assert 6.5 < result < 7.5

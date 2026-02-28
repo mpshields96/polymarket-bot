@@ -37,9 +37,10 @@ from __future__ import annotations
 
 import logging
 import math
+import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 from src.strategies.base import BaseStrategy, Signal
 from src.platforms.kalshi import Market, OrderBook
@@ -94,7 +95,10 @@ class BTCDriftStrategy(BaseStrategy):
         self._time_weight = time_weight
         self._min_drift_pct = min_drift_pct
         self._name_override = name_override
-        self._reference_prices: Dict[str, float] = {}  # ticker → ref price
+        # ticker → (ref_btc_price, minutes_into_window_when_observed)
+        # minutes_into_window tells us how stale our reference is relative to market open.
+        # 0 = observed right at open (ideal), 15 = observed at end of window (worthless).
+        self._reference_prices: Dict[str, Tuple[float, float]] = {}
 
     @property
     def name(self) -> str:
@@ -122,19 +126,22 @@ class BTCDriftStrategy(BaseStrategy):
             return None
 
         # ── 2. Record reference price on first observation ────────────
-        # The first BTC price we see for this ticker becomes the "open" reference.
-        # This is not the Kalshi market open, but close enough for paper-mode
-        # calibration. In production, a better reference would be the BTC price
-        # exactly at market open time — but that requires historical data.
+        # Record the BTC price the first time we see each market ticker, plus
+        # how many minutes into the 15-min window we observed it.
+        # Minutes-into-window = 0 at market open (ideal), 15 at market close (useless).
+        # When the bot restarts mid-window, minutes_late > 0 and we apply a
+        # late-entry confidence penalty later so stale references don't look like
+        # clean signals.
         if market.ticker not in self._reference_prices:
-            self._reference_prices[market.ticker] = current_btc
+            minutes_late = self._minutes_since_open(market)
+            self._reference_prices[market.ticker] = (current_btc, minutes_late)
             logger.debug(
-                "[btc_drift] Reference set for %s: BTC=%.2f",
-                market.ticker, current_btc,
+                "[btc_drift] Reference set for %s: BTC=%.2f (%.1f min into window)",
+                market.ticker, current_btc, minutes_late,
             )
             return None  # No reference yet → can't compute drift → hold
 
-        ref_btc = self._reference_prices[market.ticker]
+        ref_btc, minutes_late = self._reference_prices[market.ticker]
         if ref_btc <= 0:
             logger.debug("[btc_drift] Invalid reference price %.2f for %s — skip",
                          ref_btc, market.ticker)
@@ -216,11 +223,18 @@ class BTCDriftStrategy(BaseStrategy):
         # win_prob must be above coin flip for a valid signal
         win_prob = max(0.51, min(0.99, win_prob))
 
-        # Confidence: how far prob is from 0.5, scaled by time_factor
-        confidence = min(1.0, abs(prob_yes - 0.5) * 2 * (0.3 + 0.7 * time_factor))
+        # Late-entry confidence penalty: if we first observed the market >2 min into
+        # the 15-min window, our "drift" reference may not reflect the true market open.
+        # Penalty linearly reduces confidence from 1.0 (on time) to 0.5 (very late).
+        # No effect in the first 2 minutes; full penalty if we joined at minute 10+.
+        late_penalty = max(0.5, 1.0 - max(0.0, minutes_late - 2.0) / 16.0)
 
+        # Confidence: how far prob is from 0.5, scaled by time_factor and late_penalty
+        confidence = min(1.0, abs(prob_yes - 0.5) * 2 * (0.3 + 0.7 * time_factor) * late_penalty)
+
+        late_str = f" [ref +{minutes_late:.1f}min late]" if minutes_late > 2.0 else ""
         reason = (
-            f"BTC drift {pct_from_open:+.3%} from open {ref_btc:.2f}, "
+            f"BTC drift {pct_from_open:+.3%} from ref {ref_btc:.2f}{late_str}, "
             f"P(YES)={prob_yes:.3f}, "
             f"edge_{side}={edge_pct:.1%}, "
             f"{minutes_remaining:.1f}min remaining"
@@ -253,6 +267,23 @@ class BTCDriftStrategy(BaseStrategy):
             return max(0.0, remaining_sec / 60.0)
         except Exception:
             return None
+
+    @staticmethod
+    def _minutes_since_open(market: Market) -> float:
+        """
+        Return minutes elapsed since the Kalshi market opened.
+
+        This tells us how "late" we are in observing a market for the first time.
+        If the bot restarts mid-window, this will be > 0 and we penalise confidence.
+        Falls back to 0.0 (assume on-time) on parse error.
+        """
+        try:
+            open_dt = datetime.fromisoformat(market.open_time.replace("Z", "+00:00"))
+            now_dt = datetime.now(timezone.utc)
+            elapsed_sec = max(0.0, (now_dt - open_dt).total_seconds())
+            return elapsed_sec / 60.0
+        except Exception:
+            return 0.0
 
     @staticmethod
     def _time_remaining_frac(market: Market) -> float:
