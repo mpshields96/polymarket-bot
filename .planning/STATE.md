@@ -9,8 +9,9 @@
 ## Key Context
 
 - 8 paper-trading strategies: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc
-- 346/346 tests passing, verify.py 18/26 (8 graduation WARNs advisory — non-critical)
-- All loops run in paper mode (LIVE_TRADING=false)
+- 366/366 tests passing, verify.py 18/26 (8 graduation WARNs advisory — non-critical)
+- btc_lag_v1 is LIVE (LIVE_TRADING=true in .env, $75 bankroll, $5 max/bet)
+- 7 other strategies in paper mode collecting calibration data
 - Hard safety limits: $5 max bet, $20 bankroll floor, 30% stop-loss
 - Graduation criteria checkable via `python main.py --graduation-status` (new) or `python setup/verify.py` (section [11])
 - PaperExecutor: slippage_ticks=1 default — realistic 1-tick adverse fills
@@ -36,12 +37,16 @@ None — slippage model and settlement verification complete.
 - execute() uses keyword-arg signature (ticker, side, price_cents, size_usd, reason) — unified across all call sites
 - result normalization in kalshi.py _parse_market() via .lower() — makes settlement robust to API casing changes
 - print_graduation_status imports _GRAD from setup/verify.py as single source of truth
+- min_days=0 for all strategies — 30 trades is the only volume gate
+- --status bypasses bot lock — safe to run while bot is live (read-only DB + 2 REST calls)
+- get_binance_mid_price() returns None on network error — never raises
 
 ## Quick Tasks Completed
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 1 | Define formal live graduation criteria | 2026-02-28 | d6b9e21 | .planning/quick/1-define-formal-live-graduation-criteria-f/ |
+| 2 | Commit graduation threshold + build --status command | 2026-02-28 | e999d6c, 74f5dbb, ab72b61 | .planning/quick/2-commit-graduation-threshold-change-and-b/ |
 
 ## Phase Plans Completed
 
@@ -51,5 +56,5 @@ None — slippage model and settlement verification complete.
 
 ## Last Session
 
-**Stopped at:** Completed 04.2-01 tasks 1-3, awaiting Task 4 checkpoint (human-verify)
-**Session timestamp:** 2026-02-28T08:25:00Z
+**Stopped at:** Completed quick task 2 — graduation threshold commit + --status command with TDD (366/366 tests)
+**Session timestamp:** 2026-02-28T19:40:00Z
