@@ -95,7 +95,7 @@ DO NOT: fix symptoms without finding root cause
 - `_STALE_THRESHOLD_SEC = 35.0` in binance.py — Binance.US @bookTicker can be silent 10-30s; 10s threshold causes false stale signals
 - **RESTART PROCEDURE — use pkill not kill**: `kill $(cat bot.pid)` only kills the most recent instance; orphaned old instances keep running and place duplicate trades. Always restart with: `pkill -f "python main.py"; sleep 3; rm -f bot.pid; echo "CONFIRM" | nohup python main.py --live >> /tmp/polybot_session21.log 2>&1 &` — then verify with `ps aux | grep "[m]ain.py"` (should be exactly 1 process).
 - **Paper/live separation** (fixed Session 21): `has_open_position()` and `count_trades_today()` now pass `is_paper` filter. Live daily cap counts live bets only. Paper bets no longer eat into live quota.
-- 473/473 tests must pass before any commit (count updates each session)
+- 485/485 tests must pass before any commit (count updates each session)
 - **`--status`, `--report`, `--graduation-status`** all bypass bot PID lock — safe while live
 - **`--report`**: now shows per-strategy breakdown (bets, W/L, P&L, live/paper emoji)
 - **`scripts/notify_midnight.sh`**: midnight UTC daily P&L Reminders notifier — start once with `& echo $! > /tmp/polybot_midnight.pid`
@@ -135,7 +135,7 @@ Current project state (updated each session):
 - Matthew is a doctor with a new baby — keep explanations short, do the work autonomously
 - Do NOT ask for confirmation on routine operations (running tests, reading files, updating docs)
 - Two parallel Claude Code chats may run simultaneously — keep framework overhead ≤10-15% per chat
-- 473/473 tests must pass before any commit (count updates each session)
+- 485/485 tests must pass before any commit (count updates each session)
 - **Before ANY new live strategy: complete all 6 steps of Development Workflow Protocol above**
 - **After ANY bug fix: write regression test immediately, check sibling code**
 - **Priority #1: write tests for live.py before adding features**

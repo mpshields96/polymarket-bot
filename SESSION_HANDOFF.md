@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file + POLYBOT_INIT.md to any new Claude session to resume.
-# Last updated: 2026-02-28 (Session 21 — 473 tests, $100 bankroll, paper/live separation fixed)
+# Last updated: 2026-02-28 (Session 21 — 485 tests, $100 bankroll, paper/live separation fixed)
 ═══════════════════════════════════════════════════
 
 ## EXACT CURRENT STATE — READ THIS FIRST
@@ -11,17 +11,18 @@ Log: `/tmp/polybot_session21.log` — `tail -f /tmp/polybot_session21.log` to wa
 
 **3 strategies LIVE** (real money): btc_lag_v1, eth_lag_v1, btc_drift_v1
 **6 strategies paper**: eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate
-Test count: **473/473 ✅** (33 new tests for live.py added this session)
-Latest commit: **188d01c** — `fix: live executor hardcoded strategy name btc_lag → dynamic`
-Uncommitted changes: main.py (paper/live separation fix), config.yaml ($100 bankroll)
-GitHub: push pending — see "What changed in Session 21" below
+Test count: **485/485 ✅** (33 new tests for live.py + 12 for bot lock added this session)
+Latest commit: **a0acfa9** — `feat: Session 21 — live.py tests, paper/live separation, sizing clamp, process guard`
+All changes committed and pushed to main.
+Log: `/tmp/polybot.log` (stable symlink) or `/tmp/polybot_session21.log`
 
 ## DO NOT restart the bot unless it's stopped
 Check first: `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"`
 
 If stopped, restart:
 ```
-rm -f bot.pid && source venv/bin/activate && echo "CONFIRM" | nohup python main.py --live >> /tmp/polybot_session21.log 2>&1 &
+pkill -f "python main.py"; sleep 3; rm -f bot.pid && echo "CONFIRM" | nohup /Users/matthewshields/Projects/polymarket-bot/venv/bin/python main.py --live >> /tmp/polybot_session21.log 2>&1 &
+sleep 5 && ps aux | grep "[m]ain.py"
 ```
 
 ## What changed in Session 21 (2026-02-28)
@@ -32,7 +33,7 @@ rm -f bot.pid && source venv/bin/activate && echo "CONFIRM" | nohup python main.
 - pytest-asyncio==0.23.7 installed into venv
 - Test classes: TestDetermineLimitPrice, TestExecuteGuards, TestExecuteSuccess, TestRegressions, TestExecuteFailures
 - Regressions covered: strategy_name not hardcoded, is_paper=False, server_order_id stored, guards enforced
-- **473/473 tests passing** (was 440)
+- **485/485 tests passing** (was 440)
 
 ### Bankroll updated to $100
 - config.yaml: `starting_bankroll_usd: 100.00` (was 75.00)
@@ -127,7 +128,7 @@ python main.py --graduation-status          → Graduation progress table
 python main.py --report                     → Today's P&L (per-strategy breakdown)
 python setup/verify.py                      → Pre-flight (18/26, 8 advisory WARNs)
 streamlit run src/dashboard.py              → Dashboard at localhost:8501
-source venv/bin/activate && python -m pytest tests/ -v  → 473 tests
+source venv/bin/activate && python -m pytest tests/ -v  → 485 tests
 echo "RESET" | python main.py --reset-killswitch
 tail -f /tmp/polybot_session21.log          → Watch live bot output
 ```
