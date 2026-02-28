@@ -40,7 +40,11 @@
 - Live mode requires BOTH `--live` flag AND `LIVE_TRADING=true` in .env; then user must type `CONFIRM` at runtime prompt — all three gates required
 - `PermissionError` from `os.kill(pid, 0)` means the process IS alive under a different user — not stale; exit on `PermissionError`, skip on `ProcessLookupError`
 - `_STALE_THRESHOLD_SEC = 35.0` in binance.py — Binance.US @bookTicker can be silent 10-30s; 10s threshold causes false stale signals
-- 346/346 tests must pass before any commit (count updates each session)
+- 412/412 tests must pass before any commit (count updates each session)
+- **`--status`** bypasses bot PID lock — safe to run while bot is live: `python main.py --status`
+- **unemployment_rate_v1**: uses `math.erfc` for normal CDF (no scipy). Shares fred_feed with fomc_loop.
+- **KXUNRATE markets**: open ~2 days before BLS release. No open markets outside that window = expected.
+- **Sports markets on Kalshi**: KXNBA/KXMLB are season-winner markets (illiquid, months to settle) — not suitable
 
 ## Code patterns
 - Every module has `load_from_env()` or `load_from_config()` factory at bottom
@@ -54,18 +58,12 @@
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- 346/346 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
-- 8 trading loops: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc
-- Weather: EnsembleWeatherFeed (Open-Meteo GFS + NOAA NWS NDFD blend) vs Kalshi HIGHNY — paper-only
-- FOMC: FRED yield curve (DGS2-DFF) vs Kalshi KXFEDDECISION — fires ~8x/year, 14-day pre-meeting window
-- All critical safety fixes applied (kill switch wired, live CONFIRM prompt, PID lock)
-- Position dedup + daily bet cap (5/strategy/day) — all 8 loops
-- Phase 4.2 COMPLETE (Session 17): slippage model, --graduation-status CLI, settlement normalization
-- PaperExecutor fills at limit+1 tick adverse (paper_slippage_ticks: 1 in config.yaml)
-- Session 18 bug fix: config scope in trading_loop — slippage_ticks now passed as param from main()
+- 412/412 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
+- 9 trading loops: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate
 - **btc_lag_v1 → LIVE MODE ($75 bankroll, $5 max/bet)** — LIVE_TRADING=true in .env
-- 7 other strategies → paper mode collecting calibration data
-- GitHub: main branch, pushed through Session 18 (commit 78f12af)
+- 8 other strategies → paper mode collecting calibration data
+- Session 19: --status CLI, graduation min_days removed, unemployment_rate_v1 built + wired
+- GitHub: main branch, pushed through Session 19 (latest: b83b1f9)
 - Next action: source venv/bin/activate && python main.py --live → type CONFIRM
 
 ## Workflow
@@ -73,7 +71,7 @@ Current project state (updated each session):
 - Matthew is a doctor with a new baby — keep explanations short, do the work autonomously
 - Do NOT ask for confirmation on routine operations (running tests, reading files, updating docs)
 - Two parallel Claude Code chats may run simultaneously — keep framework overhead ≤10-15% per chat
-- 346/346 tests must pass before any commit (count updates each session)
+- 412/412 tests must pass before any commit (count updates each session)
 
 ## GSD Framework — Token-Optimized (dual-chat mode)
 DEFAULT: gsd:quick + superpowers:TDD + superpowers:verification-before-completion for all standard work.
