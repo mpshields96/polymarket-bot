@@ -47,6 +47,12 @@ Run through this checklist:
 - [ ] Price conversion correct (YES price for kalshi_payout, not NO price)?
 - [ ] DB save has correct is_paper flag?
 - [ ] All parameters received by function from caller (no scope leakage from main())?
+- [ ] sizing clamp applied? (trade_usd = min(size_result.recommended_usd, HARD_MAX_TRADE_USD))
+- [ ] has_open_position() and count_trades_today() both pass is_paper= filter?
+- [ ] _announce_live_bet() wired in for the new strategy's loop? (all live loops must call it)
+- [ ] Live bets placed for the FIRST window after enabling — verify in log within 15 min of restart
+- [ ] `--graduation-status` run after first live bet to confirm trade counter increments
+- [ ] No silent blocking: watch log for "Kill switch blocked" or "exceeds hard cap" on first window
 
 ### Step 6: Post-bug retrospective (mandatory after fixing any bug)
 - Write a regression test IMMEDIATELY that would have caught the bug
@@ -135,8 +141,9 @@ Current project state (updated each session):
 - Matthew is a doctor with a new baby — keep explanations short, do the work autonomously
 - Do NOT ask for confirmation on routine operations (running tests, reading files, updating docs)
 - Two parallel Claude Code chats may run simultaneously — keep framework overhead ≤10-15% per chat
-- 485/485 tests must pass before any commit (count updates each session)
+- 492/492 tests must pass before any commit (count updates each session)
 - **Before ANY new live strategy: complete all 6 steps of Development Workflow Protocol above**
+- **Graduation → live promotion**: when `--graduation-status` shows READY FOR LIVE, run the full Step 5 pre-live audit checklist before flipping `live_executor_enabled=True` in main.py. Session 20 lost 2 hours of live bets to silent bugs found only after going live — catch them in Step 5 first.
 - **After ANY bug fix: write regression test immediately, check sibling code**
 - **Priority #1: write tests for live.py before adding features**
 
