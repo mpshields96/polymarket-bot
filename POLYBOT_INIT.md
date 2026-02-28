@@ -6,51 +6,57 @@
 ## CURRENT STATUS — READ THIS FIRST (updated each session)
 ═══════════════════════════════════════════════════
 
-BUILD COMPLETE. 412/412 tests passing. verify.py 18/26 (8 advisory WARNs only).
-Last commit: 15307cf (Session 19 — 9th strategy, --status cmd, btc_lag 0.08→0.06, backtest sweep)
+BUILD COMPLETE. 440/440 tests passing. verify.py 18/26 (8 advisory WARNs only).
+Last commit: 188d01c (Session 20 — 4 live bugs fixed, first live bet, live.py strategy_name dynamic)
 
-🔴 LIVE TRADING: btc_lag_v1 is LIVE ($75 bankroll, $5/bet max, 77.9% backtest at current 6% threshold)
-📋 PAPER: 8 other strategies collecting calibration data
+🔴 LIVE TRADING: btc_lag_v1 + eth_lag_v1 + btc_drift_v1 are LIVE ($75 bankroll, $5/bet max)
+📋 PAPER: 6 other strategies collecting calibration data
+
+BOT IS RUNNING: PID in bot.pid | Log: /tmp/polybot_session20.log
+Watch: tail -f /tmp/polybot_session20.log
 
 WHAT WORKS:
   ✅ Kalshi auth (api.elections.kalshi.com)
   ✅ BTC + ETH feeds — Binance.US @bookTicker, ~100 ticks/min
-  ✅ [trading]        btc_lag_v1                 — LIVE, 0s stagger, 77.9% backtest (min_edge=6%)
-  ✅ [eth_trading]    eth_lag_v1                 — paper, 7s stagger
-  ✅ [drift]          btc_drift_v1               — paper, 15s stagger, 69.1% backtest, Brier=0.22
+  ✅ [trading]        btc_lag_v1                 — LIVE, 0s stagger, 77.1% backtest (min_edge=4%)
+  ✅ [eth_trading]    eth_lag_v1                 — LIVE, 7s stagger (min_edge=4%)
+  ✅ [drift]          btc_drift_v1               — LIVE, 15s stagger, 69.1% backtest, Brier=0.22
   ✅ [eth_drift]      eth_drift_v1               — paper, 22s stagger
   ✅ [btc_imbalance]  orderbook_imbalance_v1     — paper, 29s stagger
   ✅ [eth_imbalance]  eth_orderbook_imbalance_v1 — paper, 36s stagger
   ✅ [weather]        weather_forecast_v1        — paper, 43s stagger, ENSEMBLE (Open-Meteo+NWS)
   ✅ [fomc]           fomc_rate_v1               — paper, 51s stagger, active March 5-19
-  ✅ [unemployment]   unemployment_rate_v1       — paper, 58s stagger, active Feb 28 – Mar 7 NOW
-  ✅ --status command: python main.py --status (bypasses PID lock, safe while bot live)
-  ✅ --graduation-status: python main.py --graduation-status
-  ✅ Graduation: min_days removed, 30 real trades only gate. btc_lag_v1 = READY FOR LIVE (43 trades)
-  ✅ btc_lag backtest sweep: 0.08=84.1%/1.5/day | 0.06=77.9%/3/day | 0.04=77.1%/8/day → 0.06 chosen
-  ✅ PaperExecutor: 1-tick adverse slippage
-  ✅ Kill switch, dedup, daily bet cap (5/strategy/day), SIGTERM handler — all wired
-  ✅ Reminders notifier: /tmp/polybot_notify_v3.sh, flat 15-min, single process
+  ✅ [unemployment]   unemployment_rate_v1       — paper, 58s stagger, active NOW (Feb 28 – Mar 7)
+  ✅ sports_game_v1 skeleton built — DISABLED until live results confirmed + ODDS_API_KEY
+  ✅ --status / --report / --graduation-status: bypass PID lock, safe while bot live
+  ✅ PaperExecutor: 1-tick adverse slippage. Daily caps: live=10/day, paper=35/day per strategy
+  ✅ Kill switch: paper losses excluded from daily limit (fixed Session 20)
+  ✅ Live executor: strategy_name dynamic (fixed Session 20), payout price fix (fixed Session 20)
+
+SESSION 20 BUGS FIXED (critical — all were silent live-trading failures):
+  Bug 1: Kill switch counted paper losses toward daily limit → only live trades now
+  Bug 2: Live executor double-CONFIRM via input() → _FIRST_RUN_CONFIRMED propagated from main
+  Bug 3: kalshi_payout() got NO price for NO-side bets → convert to YES price first
+  Bug 4: strategy="btc_lag" hardcoded in live.py → now dynamic from strategy.name
+  First live bet: trade_id=64, BUY NO, KXBTC15M-26FEB281700-00, $3.36 @ 48¢
 
 OPEN / IN PROGRESS:
-  btc_lag needs ±0.40% BTC move in 60s at 6% threshold (~3/day expected vs calm 0-1/day)
-  Paper trades firing: btc_drift, eth_drift, eth_imbalance collecting real data
+  btc_lag/eth_lag need ±0.32% move in 60s at 4% threshold (~8/day expected, 0 on calm days)
+  btc_drift fires ~96% of windows — expect 1-3 live bets/day from drift
   FOMC: active March 5-19, 2026 (next meeting March 19)
   Unemployment: active NOW (Feb 28 – Mar 7), KXUNRATE markets open ~March 5
-  Weather: weekdays only (HIGHNY markets), no weekend markets
+  Weather: weekdays only (HIGHNY markets)
+  CRITICAL DEBT: src/execution/live.py has ZERO unit tests
 
 NEXT ACTION — IF BOT IS STOPPED, RESTART:
-  source venv/bin/activate && python main.py --live
-  # Type CONFIRM at the prompt
-  kill $(cat /tmp/polybot_notify.pid) && /tmp/polybot_notify_v3.sh & echo $! > /tmp/polybot_notify.pid
+  rm -f bot.pid && source venv/bin/activate && echo "CONFIRM" | nohup python main.py --live >> /tmp/polybot_session20.log 2>&1 &
 
-NEXT SESSION GOALS:
-  1. Monitor paper data: python main.py --graduation-status (need 30 trades to graduate each strategy)
-  2. eth_lag min_edge_pct 0.08→0.06 (same rationale as btc_lag — if not done this session)
-  3. Midnight daily P&L summary Reminders notification (if not done this session)
-  4. Improved --report with per-strategy breakdown (if not done this session)
-  5. Find short-term sports/entertainment Kalshi markets (game-by-game, not season-winner)
-  6. Market making strategy (Avellaneda-Stoikov) — nikhilnd/kalshi-market-making ref
+NEXT SESSION PRIORITY ORDER:
+  1. Write integration tests for src/execution/live.py (zero coverage on real-money code)
+  2. Monitor live results: python main.py --report + --graduation-status
+  3. Check trade_id=64 settlement result (first live bet)
+  4. NO new strategies, NO new features until live results data is in
+  5. When ready: wire sports_game_v1 (KXNBAGAME/KXNHLGAME) into main.py with ODDS_API_KEY
 
 ═══════════════════════════════════════════════════
 ## STEP 0: ASK MATTHEW THESE QUESTIONS FIRST
@@ -343,29 +349,30 @@ We are resuming the polymarket-bot project. Read these files first (in order), t
 
 Do NOT ask setup questions. The bot is fully built, tested, and running live.
 
-CURRENT STATE (as of 2026-02-28, Session 18):
-- 346/346 tests passing. verify.py 18/26 (8 advisory graduation WARNs only).
-- LIVE_TRADING=true. btc_lag_v1 is LIVE. All others paper.
-- $75 starting bankroll, $5 max/bet, kill switch fully wired.
-- DB seeded with 43 btc_lag historical trades (30d backtest). Brier=0.1906 STRONG.
-- Bug fix applied: slippage_ticks NameError in trading_loop (4dd1344)
-- 8 loops running (0/7/15/22/29/36/43/51s stagger):
-    0s  btc_lag_v1              — LIVE (84.1% backtest, Brier=0.1906)
-    7s  eth_lag_v1              — paper
-   15s  btc_drift_v1            — paper (69.1% backtest, fires often)
+CURRENT STATE (as of 2026-02-28, Session 20):
+- 440/440 tests passing. verify.py 18/26 (8 advisory graduation WARNs only).
+- LIVE_TRADING=true. btc_lag_v1 + eth_lag_v1 + btc_drift_v1 are LIVE. 6 others paper.
+- $75 starting bankroll, $5 max/bet. Daily caps: live=10/day, paper=35/day per strategy.
+- 4 live-trading bugs fixed this session. First live bet placed (trade_id=64, ~$3.36).
+- Bot is running: check bot.pid, log at /tmp/polybot_session20.log
+- 9 loops running (0/7/15/22/29/36/43/51/58s stagger):
+    0s  btc_lag_v1              — LIVE (77.1% backtest, min_edge=4%)
+    7s  eth_lag_v1              — LIVE (same model, min_edge=4%)
+   15s  btc_drift_v1            — LIVE (69.1% backtest, Brier=0.22)
    22s  eth_drift_v1            — paper
    29s  orderbook_imbalance_v1  — paper (VPIN-lite)
    36s  eth_imbalance_v1        — paper
    43s  weather_forecast_v1     — paper (weekdays only, ENSEMBLE model)
    51s  fomc_rate_v1            — paper (active March 5–19)
+   58s  unemployment_rate_v1    — paper (active Feb 28 – Mar 7)
 
 RESUME FROM (if bot stopped):
-  source venv/bin/activate && python main.py --live
-  # Type CONFIRM at prompt
+  rm -f bot.pid && source venv/bin/activate && echo "CONFIRM" | nohup python main.py --live >> /tmp/polybot_session20.log 2>&1 &
 
 NEXT SESSION GOAL:
-  Enable btc_drift + eth_drift + imbalance strategies for live trading.
-  See SESSION_HANDOFF.md → "NEXT SESSION GOAL" for exact steps.
+  Priority 1: Write integration tests for src/execution/live.py (zero coverage)
+  Priority 2: Monitor live results, check trade_id=64 settlement
+  Priority 3: No new strategies until live P&L data is in
 
 KEY FACTS:
 - Kalshi API: api.elections.kalshi.com | Balance: $75
@@ -375,7 +382,7 @@ KEY FACTS:
 - Dashboard: streamlit run src/dashboard.py → localhost:8501
 - Graduation check: python main.py --graduation-status
 - Kill switch reset: echo "RESET" | python main.py --reset-killswitch
-- macOS reminder notifier: /tmp/polybot_notify_v3.sh & echo $! > /tmp/polybot_notify.pid
+- Sports game skeleton: built but disabled (KXNBAGAME/KXNHLGAME), enable after live results in
 ────────────────────────────────────────
 
 ═══════════════════════════════════════════════════
@@ -490,6 +497,36 @@ Completed:
 - Code audit: weather_loop, fomc_loop, settlement_loop all clean — no other scope bugs.
 - Bot running live as of 2026-02-28. 4 paper trades placed, 3/3 wins. No live signal yet.
 - 346/346 tests unchanged. Commit: 4dd1344
+
+### 2026-02-28 — Session 19 (9th strategy + btc_lag calibration)
+Completed:
+- unemployment_rate_v1: 9th loop, 58s stagger, FRED UNRATE vs KXUNRATE markets
+  uses math.erfc for normal CDF (no scipy), shares fred_feed with fomc_loop
+  Active Feb 28 – Mar 7 (next active: Mar 13 – Apr 3)
+- --status CLI command (bypasses PID lock, safe while bot is live)
+- Graduation: min_days removed. 30 real trades is the only volume gate.
+- btc_lag backtest sweep: 0.08=84.1%/1.5/day | 0.06=77.9%/3/day | 0.04=77.1%/8/day → 0.06 chosen
+- eth_lag min_edge_pct 0.08→0.06 (matching btc_lag rationale)
+- per-strategy --report (bets, W/L, P&L, live/paper emoji per strategy)
+- midnight UTC Reminders notifier, lock bypass for --report/--graduation-status
+- FREDSnapshot extended with UNRATE fields
+- 412/412 tests. Commit: 697db57
+
+### 2026-02-28 — Session 20 (eth_lag+btc_drift LIVE + 4 critical bug fixes)
+Completed:
+- btc_lag + eth_lag min_edge_pct 0.06 → 0.04 (~8 live signals/day, 77.1% accuracy)
+- eth_lag_v1: promoted from paper to LIVE
+- btc_drift_v1: promoted from paper to LIVE (69.1% acc, Brier=0.22)
+- Split live/paper daily caps: live=10/day, paper=35/day per strategy
+- sports_game_v1 skeleton: odds_api.py + sports_game.py + 28 tests (DISABLED, awaiting live results)
+- 4 critical live-trading bugs found and fixed (all were silent live-trading failures):
+  1. Kill switch counting paper losses toward daily limit → live-only now
+  2. Live executor double-CONFIRM (_FIRST_RUN_CONFIRMED not propagated from main.py)
+  3. kalshi_payout() receiving NO price for NO-side bets → YES price conversion
+  4. strategy="btc_lag" hardcoded in live.py → dynamic from strategy.name
+- First live bet ever: trade_id=64, BUY NO 7 contracts @ 48¢ = $3.36, KXBTC15M-26FEB281700-00
+- CLAUDE.md updated with 6-step Development Workflow Protocol (proactive debugging standard)
+- 440/440 tests. Commits: 0f6bae7, 891e988, e41b059, 188d01c
 
 ═══════════════════════════════════════════════════
 ## THE RULE
