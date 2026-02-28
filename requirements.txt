@@ -24,5 +24,8 @@ streamlit==1.36.0
 pytest==8.2.2
 pytest-asyncio==0.23.7
 
+# === Synchronous HTTP (status command, Binance REST snapshot) ===
+requests==2.32.5
+
 # === Polymarket (build now, activate when off waitlist) ===
 eth-account==0.11.3

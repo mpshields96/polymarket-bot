@@ -26,6 +26,9 @@ import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
+
+import requests
 
 from dotenv import load_dotenv
 
@@ -744,6 +747,132 @@ def print_report(db):
     print(f"{'='*50}\n")
 
 
+# ── Status command ─────────────────────────────────────────────────────
+
+
+def get_binance_mid_price(symbol: str) -> Optional[float]:
+    """
+    Fetch a single mid-price snapshot from Binance.US REST API.
+
+    Uses /api/v3/ticker/bookTicker (same data as the WebSocket bookTicker stream).
+    Returns mid = (bidPrice + askPrice) / 2.
+    Returns None on any network error or malformed response — never raises.
+
+    Always uses api.binance.us — binance.com is geo-blocked in the US (HTTP 451).
+    """
+    url = f"https://api.binance.us/api/v3/ticker/bookTicker?symbol={symbol}"
+    try:
+        resp = requests.get(url, timeout=5)
+        resp.raise_for_status()
+        data = resp.json()
+        bid = float(data["bidPrice"])
+        ask = float(data["askPrice"])
+        return (bid + ask) / 2
+    except requests.RequestException:
+        return None
+    except (KeyError, ValueError, TypeError):
+        return None
+
+
+def print_status(db) -> None:
+    """
+    Print a rich bot status snapshot to stdout.
+
+    Reads from:
+    - DB: last 10 trades, open trades, latest bankroll, today's P&L, all-time P&L
+    - Binance.US REST: BTC and ETH mid-prices (synchronous, no WebSocket)
+
+    Exits in under 2 seconds. Safe to run while bot is running (read-only DB + short REST call).
+    """
+    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    width = 64
+
+    # ── Fetch prices (fast REST snapshot) ─────────────────────────────
+    btc_mid = get_binance_mid_price("BTCUSDT")
+    eth_mid = get_binance_mid_price("ETHUSDT")
+
+    btc_str = f"${btc_mid:,.2f}" if btc_mid is not None else "n/a"
+    eth_str = f"${eth_mid:,.2f}" if eth_mid is not None else "n/a"
+
+    # ── DB reads ──────────────────────────────────────────────────────
+    bankroll = db.latest_bankroll()
+    bankroll_str = f"${bankroll:.2f}" if bankroll is not None else "n/a"
+
+    open_trades = db.get_open_trades()
+    open_paper = [t for t in open_trades if t.get("is_paper")]
+    open_live = [t for t in open_trades if not t.get("is_paper")]
+    pending_total = len(open_trades)
+
+    # Today's trades (paper + live split)
+    all_trades_today_window = db.get_trades(limit=200)
+    today_trades = [
+        t for t in all_trades_today_window
+        if t.get("timestamp") and
+        datetime.fromtimestamp(t["timestamp"], timezone.utc).strftime("%Y-%m-%d") == today
+    ]
+    today_paper_settled = [
+        t for t in today_trades if t.get("result") and t.get("is_paper")
+    ]
+    today_live_settled = [
+        t for t in today_trades if t.get("result") and not t.get("is_paper")
+    ]
+    today_paper_pnl = sum(t.get("pnl_cents", 0) or 0 for t in today_paper_settled) / 100
+    today_live_pnl = sum(t.get("pnl_cents", 0) or 0 for t in today_live_settled) / 100
+
+    alltime_paper_pnl = db.total_realized_pnl_usd(is_paper=True)
+    alltime_live_pnl = db.total_realized_pnl_usd(is_paper=False)
+
+    # Recent 10 trades (newest first)
+    recent = db.get_trades(limit=10)
+
+    # ── Print block ───────────────────────────────────────────────────
+    print()
+    print("=" * width)
+    print(f"  BOT STATUS — {now_str}")
+    print("=" * width)
+    print(f"  Bankroll (DB):   {bankroll_str}")
+    print(f"  BTC mid:         {btc_str}")
+    print(f"  ETH mid:         {eth_str}")
+    print(
+        f"  Pending bets:    {pending_total} "
+        f"(paper: {len(open_paper)}, live: {len(open_live)})"
+    )
+    print()
+    today_live_display = (
+        f"${today_live_pnl:.2f}   ({len(today_live_settled)} settled)"
+        if today_live_settled else
+        "n/a     (0 settled)"
+    )
+    print(f"  Today's P&L (paper):   ${today_paper_pnl:.2f}   ({len(today_paper_settled)} settled)")
+    print(f"  Today's P&L (live):    {today_live_display}")
+    print(f"  All-time P&L (paper):  ${alltime_paper_pnl:.2f}")
+    print(f"  All-time P&L (live):   ${alltime_live_pnl:.2f}")
+    print()
+    print(f"  Recent Trades (last {len(recent)}):")
+    print("  " + "-" * (width - 2))
+    if not recent:
+        print("  (no trades yet)")
+    else:
+        for t in recent:
+            ts = t.get("timestamp")
+            ts_str = (
+                datetime.fromtimestamp(ts, timezone.utc).strftime("%Y-%m-%d %H:%M")
+                if ts else "          ?"
+            )
+            ticker = t.get("ticker", "?")
+            side = t.get("side", "?")
+            price = t.get("price_cents", 0) or 0
+            label = "[PAPER]" if t.get("is_paper") else "[LIVE] "
+            result = t.get("result", "")
+            result_str = f"  [{result}]" if result else "  [open]"
+            print(
+                f"  {ts_str}  {ticker:<36} {side:<4} {price:>3}c  {label}{result_str}"
+            )
+    print("=" * width)
+    print()
+
+
 # ── Main ──────────────────────────────────────────────────────────────
 
 
@@ -759,6 +888,8 @@ async def main():
                         help="Print today's P&L summary and exit")
     parser.add_argument("--graduation-status", action="store_true",
                         help="Print graduation progress for all 8 strategies and exit")
+    parser.add_argument("--status", action="store_true",
+                        help="Print bot status (bankroll, prices, pending bets, recent trades) and exit")
     args = parser.parse_args()
 
     # ── --reset-killswitch ────────────────────────────────────────────
@@ -774,6 +905,15 @@ async def main():
             [sys.executable, str(PROJECT_ROOT / "setup" / "verify.py")]
         )
         sys.exit(result.returncode)
+
+    # ── --status (bypasses bot lock — safe to run while bot is live) ──
+    if args.status:
+        from src.db import load_from_config as db_load
+        db = db_load()
+        db.init()
+        print_status(db)
+        db.close()
+        return
 
     # ── Kill switch startup check ─────────────────────────────────────
     from src.risk.kill_switch import check_lock_at_startup, KillSwitch
