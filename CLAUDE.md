@@ -117,6 +117,10 @@ DO NOT: fix symptoms without finding root cause
 - **`kalshi_payout(yes_price_cents, side)` always expects YES price** — for NO-side signals, convert: `yes_for_payout = signal.price_cents if signal.side == "yes" else (100 - signal.price_cents)`. Bug fixed in Session 20.
 - **`live.py` `strategy_name` parameter**: was hardcoded as "btc_lag". Now passed as `strategy.name` from trading_loop. Fixed in Session 20.
 - **`src/execution/live.py` has ZERO unit tests** — highest priority testing gap. Before adding any new live strategy, write integration tests for this file.
+- **`calculate_size()` signature requires `payout_per_dollar`, NOT `price_cents`** — paper loops (weather/fomc/unemployment) had this bug (Session 22). Always compute `payout = kalshi_payout(yes_price, side)` first, then pass `payout_per_dollar=payout`. Bug pattern: `calculate_size(price_cents=..., ...)` raises TypeError silently caught by outer except. Regression tests in TestPaperLoopSizingCallSignature.
+- **Stage promotion is gated on Kelly calibration, not just bankroll** — bankroll crossed $100 (Stage 2 threshold) but Stage 2 ($10 max/bet) requires 30+ live settled bets with `limiting_factor=="kelly"` + Brier < 0.25 on live bets. See docs/GRADUATION_CRITERIA.md v1.1 Stage Promotion section. Do NOT raise bet cap yet.
+- **Kelly sizing is invisible at Stage 1** — $5 cap always binds before Kelly; we can't evaluate Kelly calibration until Stage 2+ where bet can be between $5 and $10. Don't trust Kelly for promotion decisions until ~30 live settled bets at Stage 2.
+- **Volatility × Kelly interaction** — static signal thresholds (min_edge_pct) mean no signals on calm days; Kelly scales bet size with edge within the stage cap. Both are intentional. See .planning/todos.md "Volatility-Adaptive Parameters" for future roadmap item (don't build yet).
 
 ## Code patterns
 - Every module has `load_from_env()` or `load_from_config()` factory at bottom
@@ -130,12 +134,12 @@ DO NOT: fix symptoms without finding root cause
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- 492/492 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
+- 498/498 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
 - 9 trading loops: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate
 - **3 strategies LIVE: btc_lag_v1 + eth_lag_v1 + btc_drift_v1** ($100 bankroll, $5 max/bet)
 - 6 other strategies → paper mode collecting calibration data
-- Session 21: live.py 33 tests + 12 bot-lock tests + 7 announce tests; sizing clamp; paper/live separation; orphan guard
-- GitHub: main branch, latest commit: 7f37a8d
+- Session 22: calculate_size wrong-kwargs fix in weather/fomc/unemployment loops; GRADUATION_CRITERIA v1.1 (Kelly calibration + Stage promotion criteria); live P&L +$17.80 (4 settled live bets, day 1)
+- GitHub: main branch, latest commit: d3a889e
 - Bot running: PID in bot.pid, log at /tmp/polybot.log (stable symlink) or /tmp/polybot_session21.log
 - Restart: `pkill -f "python main.py"; sleep 3; rm -f bot.pid && echo "CONFIRM" | nohup /Users/matthewshields/Projects/polymarket-bot/venv/bin/python main.py --live >> /tmp/polybot_session21.log 2>&1 &`
   (ALWAYS use full venv python path + pkill — never `kill $(cat bot.pid)` and never bare `python`)
@@ -147,7 +151,7 @@ Current project state (updated each session):
 - **Security first, always**: never expose .env / API keys / pem files; never run untrusted code; never modify system files outside the project directory
 - **Never break the bot**: before any restart or config change, confirm the current bot is running or stopped; always verify single instance after restart
 - Two parallel Claude Code chats may run simultaneously — keep framework overhead ≤10-15% per chat
-- 492/492 tests must pass before any commit (count updates each session)
+- 498/498 tests must pass before any commit (count updates each session)
 - **Before ANY new live strategy: complete all 6 steps of Development Workflow Protocol above**
 - **Graduation → live promotion**: when `--graduation-status` shows READY FOR LIVE, run the full Step 5 pre-live audit checklist before flipping `live_executor_enabled=True` in main.py. Session 20 lost 2 hours of live bets to silent bugs found only after going live — catch them in Step 5 first.
 - **EXPANSION GATE (Matthew's standing directive)**: Do NOT build new strategy types until current live strategies are producing solid, consistent results. Hard gate: btc_drift at 30+ live trades + Brier < 0.30 + 2-3 weeks of live P&L data + no kill switch events + no silent blockers. Until then: log ideas to .planning/todos.md only. Do not build.
