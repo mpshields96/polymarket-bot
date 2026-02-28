@@ -1,13 +1,13 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume.
-# Last updated: 2026-02-28 (Session 14 — FOMC/FRED strategy, 257 tests)
+# Last updated: 2026-02-28 (Session 15 — NWS ensemble, dedup, bet cap, 289 tests)
 ═══════════════════════════════════════════════════
 
 ## Current State
 
-9 strategies running in parallel in paper mode.
+8 strategies running in parallel in paper mode.
 8 async trading loops + 1 settlement loop, staggered to spread Kalshi API calls.
-257/257 tests passing.
+289/289 tests passing.
 
 Loop stagger (seconds):
    0s → [trading]        btc_lag_v1                 — crypto momentum
@@ -16,39 +16,40 @@ Loop stagger (seconds):
   22s → [eth_drift]      eth_drift_v1               — ETH drift, paper
   29s → [btc_imbalance]  orderbook_imbalance_v1     — VPIN-lite depth ratio, paper
   36s → [eth_imbalance]  eth_orderbook_imbalance_v1 — ETH orderbook, paper
-  43s → [weather]        weather_forecast_v1        — HIGHNY vs Open-Meteo, paper, 5-min poll
+  43s → [weather]        weather_forecast_v1        — HIGHNY vs ensemble forecast, paper, 5-min poll
   51s → [fomc]           fomc_rate_v1               — KXFEDDECISION vs yield curve, paper, 30-min poll
 
 verify.py: **18/18 ✅**
-Tests: **257/257 ✅** (was 212, +45 new FOMC strategy tests)
+Tests: **289/289 ✅** (was 257, +32 new)
 
-## What was done this session (Session 14)
+## What was done this session (Session 15)
 
-1. Researched FOMC data sources:
-   → CME FedWatch blocked from server IPs (scrape-ban)
-   → FRED CSV endpoint FREE, no API key: fred.stlouisfed.org/graph/fredgraph.csv
-   → Kalshi KXFEDDECISION confirmed active: 5M+ volume, tickers H0/C25/C26/H25/H26
+Research phase:
+- btc_lag 30-day backtest: 84.1% accuracy, 44 signals/30 days
+  → scripts/backtest.py now supports --strategy lag|drift|both
+  → ⚠ Jane Street / Susquehanna / Jump compete in BTC/ETH markets (0.17pp spread)
+  → Entertainment/sports markets have 4.79-7.32pp spread — better long-term target
+- btc_drift sensitivity calibrated: 300→800 (Brier 0.2330→0.2178 STRONG)
+  → Updated config.yaml: btc_drift.sensitivity = 800, eth_drift.sensitivity = 800
 
-2. Built FRED economic data feed (src/data/fred.py)
-   → FREDFeed: fetches DFF (fed funds rate), DGS2 (2yr yield), CPIAUCSL (3 months)
-   → FREDSnapshot: computed yield_spread, cpi_accelerating, cpi_mom_latest
-   → Caches 1 hour (FRED updates once/day), synchronous CSV fetch (~600ms)
-   → No API key required — uses public fredgraph.csv endpoint
+Protections added:
+- User-Agent header in Kalshi REST client (transparent bot identification)
+- Position deduplication: has_open_position() in db.py — all 8 loops check before placing
+- Daily bet cap: count_trades_today() in db.py — max_daily_bets_per_strategy: 5 in config
+  → btc_drift fires on 96% of 15-min windows; cap prevents ~90+ bets/day tax churn
 
-3. Built FOMC rate strategy (src/strategies/fomc_rate.py)
-   → Signal model: yield_spread = DGS2 - DFF
-     * spread < -0.50% → aggressive cut regime (P(hold)=0.30, P(cut25)=0.50)
-     * spread < -0.25% → mild cut bias  (P(hold)=0.55, P(cut25)=0.35)
-     * |spread| ≤ 0.25% → hold regime   (P(hold)=0.75, P(cut25)=0.15)
-     * spread > +0.25% → hike bias      (P(hold)=0.45, P(hike25)=0.40)
-   → CPI adjustment: ±8% shift between hold/cut when CPI accelerating/decelerating
-   → Hardcoded 2026 FOMC dates (8 meetings) — only fires in 14-day window before each
-   → Ticker parser: KXFEDDECISION-26MAR-H0 → FedAction.HOLD
-   → 45 tests in tests/test_fomc_strategy.py
+Weather ensemble upgrade:
+- NWSFeed: NOAA api.weather.gov (free, US-only, 2-step point→forecast, User-Agent required)
+- EnsembleWeatherFeed: blends Open-Meteo + NWS with adaptive uncertainty
+  → |diff| < 1°F → std_dev = 2.5°F (high confidence)
+  → |diff| > 4°F → std_dev = 5.0°F (low confidence)
+  → One source fails → other used with +0.5°F penalty
+- load_nyc_weather_from_config() now returns EnsembleWeatherFeed (drop-in replacement)
 
-4. Updated config.yaml: strategy.fomc section
-5. Updated main.py: fomc_loop() function + fomc_task (stagger 51s, polls 30min)
-6. 257/257 tests passing
+Tests: 32 new tests for NWSFeed, EnsembleWeatherFeed, count_trades_today, has_open_position
+Fixed: db.py uses timezone-aware datetime.now(UTC) instead of deprecated utcnow()
+
+Commit: c61f3e3 (pushed to main)
 
 ## Next Action (FIRST THING)
 
@@ -63,7 +64,7 @@ Expected startup sequence (first 51s):
   [eth_drift]     t=22s → ETH drift evaluating
   [btc_imbalance] t=29s → BTC orderbook evaluating
   [eth_imbalance] t=36s → ETH orderbook evaluating
-  [weather]       t=43s → "No open HIGHNY markets" (weekend) or fetches forecast
+  [weather]       t=43s → "No open HIGHNY markets" (weekend) or fetches ensemble forecast
   [fomc]          t=51s → "No open KXFEDDECISION markets" OR evaluates with FRED data
 
 FOMC strategy fires 14 days before each meeting:
@@ -74,19 +75,21 @@ FOMC strategy fires 14 days before each meeting:
 
 | Component                    | Status      | Notes                                          |
 |------------------------------|-------------|------------------------------------------------|
-| Auth (RSA-PSS)               | ✅ Working  | $75 balance confirmed                          |
-| Kalshi REST client           | ✅ Working  | api.elections.kalshi.com                       |
+| Auth (RSA-PSS)               | ✅ Working  | api.elections.kalshi.com                       |
+| Kalshi REST client           | ✅ Working  | User-Agent header added                        |
 | Binance.US BTC feed          | ✅ Working  | @bookTicker, ~100 ticks/min                    |
 | Binance.US ETH feed          | ✅ Working  | @bookTicker, ethusdt stream                    |
-| BTCLagStrategy               | ✅ Running  | btc_lag_v1, 0s stagger                         |
-| BTCDriftStrategy             | ✅ Running  | btc_drift_v1, paper, 15s stagger               |
+| BTCLagStrategy               | ✅ Running  | btc_lag_v1, 0s stagger, 84.1% backtest         |
+| BTCDriftStrategy             | ✅ Running  | btc_drift_v1, paper, sensitivity=800           |
 | ETH lag strategy             | ✅ Running  | eth_lag_v1, paper, 7s stagger                  |
-| ETH drift strategy           | ✅ Running  | eth_drift_v1, paper, 22s stagger               |
+| ETH drift strategy           | ✅ Running  | eth_drift_v1, paper, sensitivity=800           |
 | Orderbook imbalance (BTC)    | ✅ Running  | paper, 29s stagger                             |
 | Orderbook imbalance (ETH)    | ✅ Running  | paper, 36s stagger                             |
-| WeatherForecastStrategy      | ✅ Running  | paper, 5-min poll, 43s stagger                 |
-| FOMCRateStrategy             | ✅ NEW      | fomc_rate_v1, paper, 30-min poll, 51s stagger  |
-| FREDFeed                     | ✅ NEW      | DFF/DGS2/CPI from FRED CSV, hourly cache       |
+| WeatherForecastStrategy      | ✅ Running  | ENSEMBLE (Open-Meteo + NWS), adaptive std_dev  |
+| FOMCRateStrategy             | ✅ Running  | fomc_rate_v1, paper, 30-min poll, 51s stagger  |
+| FREDFeed                     | ✅ Working  | DFF/DGS2/CPI from FRED CSV, hourly cache       |
+| Position deduplication       | ✅ NEW      | db.has_open_position() on all 8 loops          |
+| Daily bet cap                | ✅ NEW      | 5 bets/strategy/day, db.count_trades_today()   |
 | Kill switch                  | ✅ Working  | Shared by all 8 loops                          |
 | Database                     | ✅ Working  | data/polybot.db                                |
 | Dashboard                    | ✅ Working  | localhost:8501                                 |
@@ -97,40 +100,53 @@ FOMC strategy fires 14 days before each meeting:
     python main.py                    → Paper mode (8 strategies + settlement)
     python main.py --verify           → Pre-flight check (18/18)
     streamlit run src/dashboard.py   → Dashboard at localhost:8501
-    source venv/bin/activate && python -m pytest tests/ -v  → 257 tests
+    source venv/bin/activate && python -m pytest tests/ -v  → 289 tests
     echo "RESET" | python main.py --reset-killswitch
-    python scripts/backtest.py --days 30   → 30-day BTC drift calibration
+    python scripts/backtest.py --days 30              → 30-day BTC drift calibration
+    python scripts/backtest.py --strategy lag         → btc_lag 30-day simulation
+    python scripts/backtest.py --strategy both        → both strategies
 
 ## Signal calibration
 
   btc_lag / eth_lag:
     min_edge_pct: 0.08 — needs ~0.65% BTC move in 60s
+    30-day backtest: 84.1% accuracy, 44 signals/30 days
+    ⚠ HFTs compete (Jane St / Susquehanna / Jump) — monitor fill quality vs paper
 
   btc_drift / eth_drift:
-    min_drift_pct: 0.05, min_edge_pct: 0.05 — fires at ~0.15-0.3% drift
-    30-day backtest: 69% accuracy, Brier=0.2330
+    min_drift_pct: 0.05, min_edge_pct: 0.05, sensitivity: 800
+    30-day backtest: 69.1% accuracy, Brier=0.2178 (STRONG)
+    Capped: 5 bets/day (fires on 96% of windows otherwise = tax nightmare)
 
   orderbook_imbalance (BTC + ETH):
     min_imbalance_ratio: 0.65 — VPIN-lite smart money signal
 
-  weather_forecast (NYC HIGHNY):
-    Normal distribution model: N(forecast_temp_f, 3.5°F) vs Kalshi YES price
+  weather_forecast (NYC HIGHNY) — ENSEMBLE:
+    EnsembleWeatherFeed: Open-Meteo GFS + NOAA NWS/NDFD weighted blend
+    Adaptive std_dev: 2.5°F (sources agree) / 3.5°F (normal) / 5.0°F (sources diverge)
     min_edge_pct: 0.05, min_minutes_remaining: 30
 
   fomc_rate (KXFEDDECISION):
     Yield curve: DGS2 - DFF spread → P(hold/cut/hike) at next meeting
     CPI adjustment: ±8% on acceleration/deceleration
     Only active 14 days before each 2026 FOMC date
-    Current: DFF=3.64%, DGS2=3.90%, spread=+0.26% → hold-biased
     Next meeting: March 19 → active from March 5
 
-## Research findings (Sessions 13-14)
+## Architecture issues to address next
+
+  1. btc_drift reference price: "drift from open" uses BTC midnight price, not Kalshi window start
+  2. Paper executor: fills at limit price, no slippage model (optimistic P&L)
+  3. Live graduation criteria: not yet formally defined (need N days, Brier threshold, etc.)
+  4. Settlement proxy: verify result from Kalshi API response field directly
+
+## Research findings (Sessions 13-15)
 
 Highest documented edge strategies:
-1. ✅ Weather markets (HIGHNY) — jazzmine-p bot: +20% in 1 week
+1. ✅ Weather ensemble (HIGHNY) — jazzmine-p bot: +20% in 1 week, now using 2 sources
 2. ✅ FOMC/Fed rate markets — Fed working paper Jan 2026: near-perfect day-before record
 3. ✅ Orderbook imbalance — VPIN/PIN (Easley, Kiefer, O'Hara 1996)
-4. ⬜ Market making (Avellaneda-Stoikov) — nikhilnd/kalshi-market-making: 20.3% in 1 day
-5. ⬜ Unemployment rate (KXUNRATE) — rmmomin/kalshi-urate-pmf: PMF extraction technique
+4. ⬜ Entertainment/sports markets — 4.79-7.32pp spread vs crypto 0.17pp, less HFT competition
+5. ⬜ Market making (Avellaneda-Stoikov) — nikhilnd/kalshi-market-making: 20.3% in 1 day
+6. ⬜ Unemployment rate (KXUNRATE) — rmmomin/kalshi-urate-pmf: PMF extraction technique
 
 Priority after 7+ paper days: Compare all 8 strategy Brier scores → enable best for live.

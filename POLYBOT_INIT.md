@@ -6,25 +6,28 @@
 ## CURRENT STATUS — READ THIS FIRST (updated each session)
 ═══════════════════════════════════════════════════
 
-BUILD COMPLETE: All phases done. 257/257 tests passing.
+BUILD COMPLETE: All phases done. 289/289 tests passing.
 verify.py: 18/18 ✅. 8 trading loops running in paper mode.
+Commit: c61f3e3 (Session 15 — NWS ensemble, dedup, bet cap)
 
 WHAT WORKS:
   ✅ Kalshi auth (api.elections.kalshi.com — old URLs deprecated)
-  ✅ Balance reads $75.00 from API
   ✅ BTC + ETH feeds live — Binance.US @bookTicker, ~100 ticks/min
-  ✅ [trading]        btc_lag_v1             — 0s stagger, 30s poll
+  ✅ [trading]        btc_lag_v1             — 0s stagger, 84.1% backtest
   ✅ [eth_trading]    eth_lag_v1             — 7s stagger, paper-only
-  ✅ [drift]          btc_drift_v1           — 15s stagger, paper-only
+  ✅ [drift]          btc_drift_v1           — 15s stagger, sensitivity=800, Brier=0.22
   ✅ [eth_drift]      eth_drift_v1           — 22s stagger, paper-only
   ✅ [btc_imbalance]  orderbook_imbalance_v1 — 29s stagger, paper-only
   ✅ [eth_imbalance]  eth_imbalance_v1       — 36s stagger, paper-only
-  ✅ [weather]        weather_forecast_v1    — 43s stagger, 5-min poll, paper-only
+  ✅ [weather]        weather_forecast_v1    — 43s stagger, ENSEMBLE (Open-Meteo+NWS)
   ✅ [fomc]           fomc_rate_v1           — 51s stagger, 30-min poll, paper-only
   ✅ Kill switch shared by all 8 loops, all triggers wired
   ✅ Settlement loop wired to kill switch (record_win/record_loss)
   ✅ Dashboard at localhost:8501 reads data/polybot.db
   ✅ SIGTERM/SIGHUP: clean shutdown on kill PID
+  ✅ Position dedup: has_open_position() prevents duplicate bets on same market
+  ✅ Daily bet cap: 5 bets/strategy/day prevents btc_drift tax churn
+  ✅ User-Agent header on all Kalshi API calls
 
 OPEN:
   No paper signal has fired yet. Bot needs to run during active BTC trading.
