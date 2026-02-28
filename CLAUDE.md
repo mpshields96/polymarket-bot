@@ -52,15 +52,16 @@
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- 296/296 tests passing, verify.py 18/18
+- 324/324 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
 - 8 trading loops: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc
 - Weather: EnsembleWeatherFeed (Open-Meteo GFS + NOAA NWS NDFD blend) vs Kalshi HIGHNY — paper-only
 - FOMC: FRED yield curve (DGS2-DFF) vs Kalshi KXFEDDECISION — fires ~8x/year, 14-day pre-meeting window
 - All critical safety fixes applied (kill switch wired, live CONFIRM prompt, PID lock)
 - Position dedup + daily bet cap (5/strategy/day) — all 8 loops
 - btc_drift late-entry confidence penalty — FIXED (Session 16, a9f3b25)
+- Live graduation criteria — WIRED (Session 16, d6b9e21): docs/GRADUATION_CRITERIA.md + verify.py [11]
 - Paper mode only — LIVE_TRADING=false in .env
-- GitHub: main branch, latest commit a9f3b25 (Session 16 — unpushed)
+- GitHub: main branch, latest commit 5b62110 (unpushed)
 - Next action: git push → then python main.py → watch 8 loops start
 
 ## Workflow
@@ -69,7 +70,7 @@ Current project state (updated each session):
 - Matthew is a doctor with a new baby — keep explanations short, do the work autonomously
 - Do NOT ask for confirmation on routine operations (running tests, reading files, updating docs)
 - Surface CHECKPOINT_N.md docs and wait for "continue" before next phase
-- 296/296 tests must pass before any commit (count updates each session)
+- 324/324 tests must pass before any commit (count updates each session)
 
 ## GSD Framework (installed globally)
 - For new major phases (new strategy, cloud deployment, market making): use /gsd:new-project or /gsd:discuss-phase
