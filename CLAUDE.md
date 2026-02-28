@@ -52,28 +52,45 @@
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- 324/324 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
+- 346/346 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
 - 8 trading loops: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc
 - Weather: EnsembleWeatherFeed (Open-Meteo GFS + NOAA NWS NDFD blend) vs Kalshi HIGHNY — paper-only
 - FOMC: FRED yield curve (DGS2-DFF) vs Kalshi KXFEDDECISION — fires ~8x/year, 14-day pre-meeting window
 - All critical safety fixes applied (kill switch wired, live CONFIRM prompt, PID lock)
 - Position dedup + daily bet cap (5/strategy/day) — all 8 loops
-- btc_drift late-entry confidence penalty — FIXED (Session 16, a9f3b25)
-- Live graduation criteria — WIRED (Session 16, d6b9e21): docs/GRADUATION_CRITERIA.md + verify.py [11]
+- Phase 4.2 COMPLETE (Session 17): slippage model, --graduation-status CLI, settlement normalization
+- PaperExecutor fills at limit+1 tick adverse (paper_slippage_ticks: 1 in config.yaml)
+- Pre-existing bug fixed: weather/fomc loops now use correct execute() keyword-arg signature
 - Paper mode only — LIVE_TRADING=false in .env
-- GitHub: main branch, latest commit 5b62110 (unpushed)
-- Next action: git push → then python main.py → watch 8 loops start
+- GitHub: main branch, pushed through Session 17 (c07e82e)
+- Next action: python main.py → watch 8 loops start, collect paper data
 
 ## Workflow
 - User runs with bypass permissions active — no confirmation needed
-- Proactively invoke superpowers:* skills, sc:* commands, AND gsd:* commands without being asked
 - Matthew is a doctor with a new baby — keep explanations short, do the work autonomously
 - Do NOT ask for confirmation on routine operations (running tests, reading files, updating docs)
-- Surface CHECKPOINT_N.md docs and wait for "continue" before next phase
-- 324/324 tests must pass before any commit (count updates each session)
+- Two parallel Claude Code chats may run simultaneously — keep framework overhead ≤10-15% per chat
+- 346/346 tests must pass before any commit (count updates each session)
 
-## GSD Framework (installed globally)
-- For new major phases (new strategy, cloud deployment, market making): use /gsd:new-project or /gsd:discuss-phase
-- For quick fixes/tasks: use /gsd:quick to get atomic commit + state tracking without full planning
-- To check what to work on next: /gsd:progress
-- Full GSD reference: ~/.claude/rules/gsd-framework.md
+## GSD Framework — Token-Optimized (dual-chat mode)
+DEFAULT: gsd:quick + superpowers:TDD + superpowers:verification-before-completion for all standard work.
+This covers ~90% of tasks at minimal overhead (no sub-agent spawns).
+
+SESSION START (once only, not mid-session):
+- /gsd:health — check planning directory health
+- /gsd:progress — check current state and next action
+
+ALWAYS FREE (inline, no sub-agents):
+- superpowers:test-driven-development — before any implementation code
+- superpowers:verification-before-completion — before claiming work done
+- superpowers:systematic-debugging — before proposing any bug fix
+- gsd:add-todo — when any idea or issue surfaces
+
+ESCALATE TO plan-phase + execute-phase ONLY when ALL are true:
+- 5+ distinct tasks, touches 4+ subsystems, spans multiple sessions, PLAN.md explicitly needed
+- Otherwise: gsd:quick
+
+NEVER mandatory: gsd:discuss-phase, gsd:verify-work (agent), superpowers:brainstorming,
+superpowers:dispatching-parallel-agents — use only when explicitly justified by complexity.
+
+Full reference: ~/.claude/rules/gsd-framework.md and ~/.claude/rules/mandatory-skills-workflow.md
