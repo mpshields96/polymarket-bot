@@ -190,13 +190,18 @@ async def trading_loop(
                         live_confirmed=live_confirmed,
                     )
                 else:
-                    paper_exec = paper_mod.PaperExecutor(db)
+                    _slip = config.get("risk", {}).get("paper_slippage_ticks", 1)
+                    paper_exec = paper_mod.PaperExecutor(
+                        db=db,
+                        strategy_name=strategy.name,
+                        slippage_ticks=_slip,
+                    )
                     result = paper_exec.execute(
-                        signal=signal,
-                        market=market,
-                        orderbook=orderbook,
-                        bankroll_usd=current_bankroll,
-                        trade_usd=trade_usd,
+                        ticker=signal.ticker,
+                        side=signal.side,
+                        price_cents=signal.price_cents,
+                        size_usd=trade_usd,
+                        reason=signal.reason,
                     )
 
                 if result:
@@ -334,7 +339,15 @@ async def weather_loop(
                 if size is None:
                     continue
 
-                paper_exec = paper_mod.PaperExecutor(db=db, strategy_name=weather_strategy.name)
+                import yaml as _yaml
+                with open(PROJECT_ROOT / "config.yaml") as _f:
+                    _wcfg = _yaml.safe_load(_f)
+                _wslip = _wcfg.get("risk", {}).get("paper_slippage_ticks", 1)
+                paper_exec = paper_mod.PaperExecutor(
+                    db=db,
+                    strategy_name=weather_strategy.name,
+                    slippage_ticks=_wslip,
+                )
                 result = paper_exec.execute(
                     ticker=signal.ticker,
                     side=signal.side,
@@ -474,7 +487,15 @@ async def fomc_loop(
                 if size is None:
                     continue
 
-                paper_exec = paper_mod.PaperExecutor(db=db, strategy_name=fomc_strategy.name)
+                import yaml as _yaml
+                with open(PROJECT_ROOT / "config.yaml") as _f:
+                    _fcfg = _yaml.safe_load(_f)
+                _fslip = _fcfg.get("risk", {}).get("paper_slippage_ticks", 1)
+                paper_exec = paper_mod.PaperExecutor(
+                    db=db,
+                    strategy_name=fomc_strategy.name,
+                    slippage_ticks=_fslip,
+                )
                 result = paper_exec.execute(
                     ticker=signal.ticker,
                     side=signal.side,
@@ -513,7 +534,7 @@ async def settlement_loop(kalshi, db, kill_switch):
     total-bankroll-loss hard stops are properly tracked.
     """
     from src.execution.paper import PaperExecutor
-    paper_exec = PaperExecutor(db)
+    paper_exec = PaperExecutor(db=db, strategy_name="settlement")
 
     while True:
         try:

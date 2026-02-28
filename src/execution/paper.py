@@ -6,12 +6,16 @@ JOB:    Simulate trade execution without touching Kalshi order endpoints.
 
 DOES NOT: Call any Kalshi order API endpoint. Zero real money at risk.
           Does not know about strategy or risk decisions — those happen upstream.
+          Does NOT read config — caller passes slippage_ticks at construction time.
 
 Fill simulation:
-    Uses current orderbook spread to simulate realistic fills.
-    YES buy: fills at current YES ask (implied from NO best bid)
-    NO buy:  fills at current NO ask (implied from YES best bid)
-    Falls back to market.yes_price / market.no_price if orderbook is empty.
+    Uses price_cents from the signal as the base fill price.
+    Slippage is applied adversely: buyer always pays more.
+    slippage_ticks=1 (default): fill_price = price_cents + 1 tick (adverse).
+    slippage_ticks=0: exact fill at price_cents.
+
+Caller (main.py) reads paper_slippage_ticks from config.yaml and passes it as:
+    PaperExecutor(db=db, strategy_name=..., slippage_ticks=config["risk"]["paper_slippage_ticks"])
 """
 
 from __future__ import annotations
@@ -21,8 +25,6 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from src.platforms.kalshi import Market, OrderBook
-from src.strategies.base import Signal
 from src.db import DB
 
 logger = logging.getLogger(__name__)
@@ -33,37 +35,49 @@ class PaperExecutor:
     Simulates trade execution in paper mode.
 
     All operations are synchronous. DB writes are the only side effect.
+
+    Slippage model:
+        Buyer always pays more. fill_price = price_cents + slippage_ticks.
+        Clamped to 99 (never fills above 99 cents).
+        Default slippage_ticks=1 matches realistic paper mode.
+        Set slippage_ticks=0 for exact-price backtesting.
     """
 
-    def __init__(self, db: DB):
+    def __init__(self, db: DB, strategy_name: str = "btc_lag", slippage_ticks: int = 1):
+        """
+        Args:
+            db:              SQLite persistence layer.
+            strategy_name:   Name of the strategy placing the trade (stored in DB).
+            slippage_ticks:  Adverse fill shift in cents. Default 1 (realistic paper mode).
+                             Caller reads this from config.yaml risk.paper_slippage_ticks.
+        """
         self._db = db
+        self._strategy_name = strategy_name
+        self._slippage_ticks = slippage_ticks
 
     def execute(
         self,
-        signal: Signal,
-        market: Market,
-        orderbook: OrderBook,
-        bankroll_usd: float,
-        trade_usd: float,
+        ticker: str,
+        side: str,
+        price_cents: int,
+        size_usd: float,
+        reason: str = "",
     ) -> Optional[dict]:
         """
         Record a simulated trade.
 
         Args:
-            signal:      The signal from the strategy (side, edge_pct, etc.)
-            market:      Current market snapshot
-            orderbook:   Current order book (used for fill price simulation)
-            bankroll_usd: Current paper bankroll (for context only — not modified here)
-            trade_usd:   Dollar amount to spend (from sizing module)
+            ticker:       Kalshi market ticker.
+            side:         "yes" | "no"
+            price_cents:  Signal price (base fill price before slippage).
+            size_usd:     Dollar amount to spend (from sizing module).
+            reason:       Human-readable reason string from signal.
 
         Returns:
             Trade record dict, or None if execution failed.
         """
-        # Determine fill price (simulate realistic fill from orderbook)
-        fill_price_cents = self._simulate_fill_price(signal.side, market, orderbook)
-        if fill_price_cents is None:
-            logger.warning("[paper] Cannot determine fill price for %s — skip", signal.ticker)
-            return None
+        # Apply slippage adversely (buyer pays more)
+        fill_price_cents = self._apply_slippage(price_cents, self._slippage_ticks)
 
         if fill_price_cents <= 0 or fill_price_cents >= 100:
             logger.warning("[paper] Unreasonable fill price %d¢ — skip", fill_price_cents)
@@ -75,33 +89,35 @@ class PaperExecutor:
         if cost_per_contract <= 0:
             return None
 
-        count = max(1, int(trade_usd / cost_per_contract))
+        count = max(1, int(size_usd / cost_per_contract))
         actual_cost = count * cost_per_contract
 
         client_order_id = str(uuid.uuid4())
         now_utc = datetime.now(timezone.utc).isoformat()
 
+        slip_note = f" (+{self._slippage_ticks} slip)" if self._slippage_ticks > 0 else ""
         logger.info(
-            "[PAPER] BUY %s %d contracts @ %d¢ = $%.2f | %s | %s",
-            signal.side.upper(),
+            "[PAPER] BUY %s %d contracts @ %d¢%s = $%.2f | %s | %s",
+            side.upper(),
             count,
             fill_price_cents,
+            slip_note,
             actual_cost,
-            signal.ticker,
-            signal.reason[:60] if signal.reason else "",
+            ticker,
+            reason[:60] if reason else "",
         )
 
         # Record to DB
         trade_id = self._db.save_trade(
-            ticker=signal.ticker,
-            side=signal.side,
+            ticker=ticker,
+            side=side,
             action="buy",
             price_cents=fill_price_cents,
             count=count,
             cost_usd=actual_cost,
-            strategy="btc_lag",
-            edge_pct=signal.edge_pct,
-            win_prob=signal.win_prob,
+            strategy=self._strategy_name,
+            edge_pct=None,
+            win_prob=None,
             is_paper=True,
             client_order_id=client_order_id,
         )
@@ -109,15 +125,15 @@ class PaperExecutor:
         return {
             "trade_id": trade_id,
             "client_order_id": client_order_id,
-            "ticker": signal.ticker,
-            "side": signal.side,
+            "ticker": ticker,
+            "side": side,
             "action": "buy",
             "fill_price_cents": fill_price_cents,
             "count": count,
             "cost_usd": actual_cost,
             "is_paper": True,
             "timestamp": now_utc,
-            "reason": signal.reason,
+            "reason": reason,
         }
 
     def settle(
@@ -130,6 +146,9 @@ class PaperExecutor:
     ) -> int:
         """
         Record settlement for a paper trade.
+
+        result and side are both lowercase: "yes" | "no". Kalshi API returns lowercase.
+        WIN condition: result == side (NO-side bets win when result=="no").
 
         Returns:
             P&L in cents.
@@ -158,34 +177,15 @@ class PaperExecutor:
         return pnl_cents
 
     @staticmethod
-    def _simulate_fill_price(
-        side: str,
-        market: Market,
-        orderbook: OrderBook,
-    ) -> Optional[int]:
+    def _apply_slippage(fill_price_cents: int, ticks: int) -> int:
         """
-        Estimate the fill price using orderbook data.
+        Shift fill price adversely by ticks. Buyer always pays more. Clamped to 99.
 
-        For a buy:
-            YES buy → we pay the YES ask = 100 - best_no_bid
-            NO buy  → we pay the NO ask = 100 - best_yes_bid
+        Args:
+            fill_price_cents: Raw fill price before slippage.
+            ticks:            Number of ticks to shift adversely.
 
-        Falls back to market.yes_price / market.no_price.
+        Returns:
+            Slippage-adjusted fill price, clamped to 99.
         """
-        if side == "yes":
-            # Try orderbook-implied ask first
-            yes_ask = orderbook.yes_ask()
-            if yes_ask and 1 <= yes_ask <= 99:
-                return yes_ask
-            # Fallback to market snapshot
-            if 1 <= market.yes_price <= 99:
-                return market.yes_price
-
-        elif side == "no":
-            no_ask = orderbook.no_ask()
-            if no_ask and 1 <= no_ask <= 99:
-                return no_ask
-            if 1 <= market.no_price <= 99:
-                return market.no_price
-
-        return None
+        return min(99, fill_price_cents + ticks)

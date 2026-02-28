@@ -151,6 +151,7 @@ risk:
   max_daily_bets_per_strategy: 5       # Max bets per strategy per UTC day (tax + quality gate)
                                        # btc_drift fires on 96% of windows — cap prevents tax churn
                                        # Set to 0 to disable (unlimited). Recommended: 3-5 for live.
+  paper_slippage_ticks: 1              # 0 = no slippage, 1 = 1-tick adverse fill simulation (realistic paper mode)
 
   # Hard stops (require manual --reset-killswitch)
   hard_stop_loss_pct: 0.30             # Lose 30% total → HARD STOP
