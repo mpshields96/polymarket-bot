@@ -877,27 +877,49 @@ def print_graduation_status(db):
 
 
 def print_report(db):
-    """Print today's P&L summary."""
+    """Print today's P&L summary with per-strategy breakdown."""
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    trades = db.get_trades(limit=50)
+    trades = db.get_trades(limit=500)  # wide window — up to 500 trades today
     today_trades = [t for t in trades if t["timestamp"] and
                     datetime.fromtimestamp(t["timestamp"], timezone.utc).strftime("%Y-%m-%d") == today]
     settled = [t for t in today_trades if t.get("result")]
     wins = [t for t in settled if t["result"] == t["side"]]
     total_pnl_cents = sum(t.get("pnl_cents", 0) or 0 for t in settled)
+    live_settled = [t for t in settled if not t.get("is_paper")]
+    paper_settled = [t for t in settled if t.get("is_paper")]
+    live_pnl = sum(t.get("pnl_cents", 0) or 0 for t in live_settled) / 100
+    paper_pnl = sum(t.get("pnl_cents", 0) or 0 for t in paper_settled) / 100
 
-    print(f"\n{'='*50}")
+    width = 56
+    print(f"\n{'='*width}")
     print(f"  P&L REPORT — {today}")
-    print(f"  Trades today:  {len(today_trades)}")
-    print(f"  Settled:       {len(settled)}")
-    print(f"  Wins:          {len(wins)}")
-    print(f"  Win rate:      {len(wins)/max(1,len(settled)):.0%}")
-    print(f"  P&L:           ${total_pnl_cents/100:.2f}")
+    print(f"{'='*width}")
+    print(f"  Trades today:      {len(today_trades):>4}  (settled: {len(settled)})")
+    print(f"  Wins:              {len(wins):>4}  (rate: {len(wins)/max(1,len(settled)):.0%})")
+    print(f"  P&L live:        ${live_pnl:>6.2f}  ({len(live_settled)} settled)")
+    print(f"  P&L paper:       ${paper_pnl:>6.2f}  ({len(paper_settled)} settled)")
+    print(f"  P&L total:       ${total_pnl_cents/100:>6.2f}")
+
+    # Per-strategy breakdown
+    strategies = sorted({t.get("strategy", "unknown") for t in today_trades if t.get("strategy")})
+    if strategies:
+        print(f"\n  {'Strategy':<28} {'Bets':>4} {'W/L':>5} {'P&L':>8}")
+        print("  " + "-" * (width - 2))
+        for strat in strategies:
+            strat_settled = [t for t in settled if t.get("strategy") == strat]
+            strat_wins = [t for t in strat_settled if t["result"] == t["side"]]
+            strat_pnl = sum(t.get("pnl_cents", 0) or 0 for t in strat_settled) / 100
+            strat_all_today = [t for t in today_trades if t.get("strategy") == strat]
+            wl = f"{len(strat_wins)}/{len(strat_settled)}"
+            mode = "📋" if all(t.get("is_paper") for t in strat_all_today) else "🔴"
+            print(f"  {mode} {strat:<26} {len(strat_all_today):>4} {wl:>5} ${strat_pnl:>6.2f}")
+
+    print(f"\n  All-time P&L (live):   ${db.total_realized_pnl_usd(is_paper=False):>7.2f}")
+    print(f"  All-time P&L (paper):  ${db.total_realized_pnl_usd(is_paper=True):>7.2f}")
     wr = db.win_rate()
     if wr is not None:
-        print(f"  All-time win:  {wr:.0%}")
-    print(f"  All-time P&L:  ${db.total_realized_pnl_usd():.2f}")
-    print(f"{'='*50}\n")
+        print(f"  All-time win rate:     {wr:>6.0%}")
+    print(f"{'='*width}\n")
 
 
 # ── Status command ─────────────────────────────────────────────────────
@@ -1059,12 +1081,18 @@ async def main():
         )
         sys.exit(result.returncode)
 
-    # ── --status (bypasses bot lock — safe to run while bot is live) ──
-    if args.status:
+    # ── Read-only commands (bypass bot lock — safe while bot is live) ──
+    _read_only_mode = args.status or args.report or args.graduation_status
+    if _read_only_mode:
         from src.db import load_from_config as db_load
         db = db_load()
         db.init()
-        print_status(db)
+        if args.status:
+            print_status(db)
+        elif args.report:
+            print_report(db)
+        elif args.graduation_status:
+            print_graduation_status(db)
         db.close()
         return
 
@@ -1122,17 +1150,6 @@ async def main():
     db = db_load()
     db.init()
 
-    # ── --report ──────────────────────────────────────────────────────
-    if args.report:
-        print_report(db)
-        db.close()
-        return
-
-    # ── --graduation-status ────────────────────────────────────────────
-    if args.graduation_status:
-        print_graduation_status(db)
-        db.close()
-        return
 
     # ── Initialize components ─────────────────────────────────────────
     from src.platforms.kalshi import load_from_env as kalshi_load
