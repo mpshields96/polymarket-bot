@@ -8,8 +8,8 @@
 
 ## Key Context
 
-- 8 paper-trading strategies: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc
-- 366/366 tests passing, verify.py 18/26 (8 graduation WARNs advisory — non-critical)
+- 9 paper-trading strategies: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate
+- 412/412 tests passing, verify.py 18/26 (8 graduation WARNs advisory — non-critical)
 - btc_lag_v1 is LIVE (LIVE_TRADING=true in .env, $75 bankroll, $5 max/bet)
 - 7 other strategies in paper mode collecting calibration data
 - Hard safety limits: $5 max bet, $20 bankroll floor, 30% stop-loss
@@ -40,6 +40,8 @@ None — slippage model and settlement verification complete.
 - min_days=0 for all strategies — 30 trades is the only volume gate
 - --status bypasses bot lock — safe to run while bot is live (read-only DB + 2 REST calls)
 - get_binance_mid_price() returns None on network error — never raises
+- unemployment_rate uses math.erfc for norm.cdf — no scipy dependency, avoids adding a package
+- shared fred_feed between fomc_loop and unemployment_loop — single HTTP feed, no double fetching
 
 ## Quick Tasks Completed
 
@@ -47,6 +49,7 @@ None — slippage model and settlement verification complete.
 |---|-------------|------|--------|-----------|
 | 1 | Define formal live graduation criteria | 2026-02-28 | d6b9e21 | .planning/quick/1-define-formal-live-graduation-criteria-f/ |
 | 2 | Commit graduation threshold + build --status command | 2026-02-28 | e999d6c, 74f5dbb, ab72b61 | .planning/quick/2-commit-graduation-threshold-change-and-b/ |
+| 3 | Unemployment rate strategy (9th loop, KXUNRATE, BLS window, FRED UNRATE, TDD) | 2026-02-28 | d38f20d, 15307cf | .planning/quick/3-unemployment-rate-strategy/ |
 
 ## Phase Plans Completed
 
@@ -56,5 +59,5 @@ None — slippage model and settlement verification complete.
 
 ## Last Session
 
-**Stopped at:** Completed quick task 2 — graduation threshold commit + --status command with TDD (366/366 tests)
-**Session timestamp:** 2026-02-28T19:40:00Z
+**Stopped at:** Completed quick task 3 — unemployment_rate_v1 (9th loop, TDD, 412/412 tests)
+**Session timestamp:** 2026-02-28T20:15:00Z
