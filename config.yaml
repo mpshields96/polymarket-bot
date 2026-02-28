@@ -40,15 +40,15 @@ strategy:
   btc_lag:
     # SIGNAL CALIBRATION:
     # A signal fires ONLY when ALL gates pass. The binding constraint is min_edge_pct.
-    # At min_edge=8% and a 50¢ Kalshi price: need BTC to move ~0.65% in 60s.
+    # At min_edge=6% and a 50¢ Kalshi price: need BTC to move ~0.48% in 60s.
     # (formula: need (btc_move * lag_sensitivity/100) > min_edge + kalshi_fee(price))
     # Typical BTC 60s move: 0.02-0.05% (calm), 0.3-1%+ (volatile/news events).
-    # To fire more often: lower min_edge_pct first (e.g. 0.05), not min_btc_move_pct.
-    # Do NOT lower thresholds without reviewing 7+ days of paper results first.
+    # Backtest sweep (30d): 0.08=84.1%acc/1.5/day | 0.06=77.9%/3/day | 0.04=77.1%/8/day
+    # Lowered 0.08→0.06 on 2026-02-28: doubles signal frequency, Brier still strong (0.211)
     min_btc_move_pct: 0.4              # BTC must move this % in btc_window_seconds
     min_kalshi_lag_cents: 5            # Kalshi price must lag spot by this many cents
     min_minutes_remaining: 5           # Don't enter with < 5 min left in window
-    min_edge_pct: 0.08                 # Only trade if edge > 8% (after fees)
+    min_edge_pct: 0.06                 # Only trade if edge > 6% (after fees) — was 0.08
     lag_sensitivity: 15.0              # Cents of YES/NO price move implied per 1% BTC move
 
   btc_drift:

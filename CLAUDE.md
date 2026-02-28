@@ -35,7 +35,7 @@
 - **`config` is NOT in scope inside `trading_loop()` or any loop function** — only exists in `main()`. Pass needed values as params (e.g. `slippage_ticks: int = 1`). Bug hit all 6 paper executor paths in Session 18.
 - **macOS notifications**: `osascript display notification` is unreliable from subprocess on newer macOS (Terminal not in System Settings Notifications). Use Reminders app instead: `tell application "Reminders" to make new reminder`
 - `bot.pid` is written at startup and removed on clean shutdown — prevents dual instances; if it exists after a crash, delete it before restarting
-- The binding constraint for a signal is `min_edge_pct` (8%), NOT `min_btc_move_pct` — need ~0.65% BTC in 60s at current settings
+- The binding constraint for a signal is `min_edge_pct` (6% as of 2026-02-28, was 8%), NOT `min_btc_move_pct` — need ~0.48% BTC in 60s at current settings
 - `settlement_loop` must pass `kill_switch` and call `record_win()`/`record_loss()` — otherwise consecutive-loss and total-loss hard stops are dead code
 - Live mode requires BOTH `--live` flag AND `LIVE_TRADING=true` in .env; then user must type `CONFIRM` at runtime prompt — all three gates required
 - `PermissionError` from `os.kill(pid, 0)` means the process IS alive under a different user — not stale; exit on `PermissionError`, skip on `ProcessLookupError`
