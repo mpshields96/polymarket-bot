@@ -17,6 +17,14 @@
 
 None currently.
 
+## Accumulated Context
+
+### Pending Todos
+
+2 todos pending:
+- Add slippage model to paper executor (area: trading)
+- Verify settlement result from Kalshi API directly (area: trading)
+
 ## Key Decisions
 
 - Graduation check is WARN not FAIL — advisory, never blocks bot startup
