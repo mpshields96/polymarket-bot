@@ -232,6 +232,8 @@ async def trading_loop(
                         result["cost_usd"],
                         result.get("trade_id"),
                     )
+                    if live_executor_enabled and live_confirmed:
+                        _announce_live_bet(result, strategy_name=strategy.name)
 
         except asyncio.CancelledError:
             break
@@ -761,6 +763,44 @@ async def settlement_loop(kalshi, db, kill_switch):
             break
         except Exception as e:
             logger.error("Unexpected error in settlement loop: %s", e, exc_info=True)
+
+
+# ── Live bet announcement ─────────────────────────────────────────────
+
+
+def _announce_live_bet(result: dict, strategy_name: str) -> None:
+    """
+    Fire a prominent log banner and macOS Reminders notification when a live bet is placed.
+
+    Called immediately after live_mod.execute() returns a confirmed result.
+    Exceptions from the notification subprocess are always swallowed — never crashes the loop.
+    """
+    import subprocess
+
+    side = result["side"].upper()
+    ticker = result["ticker"]
+    cost = result["cost_usd"]
+    fill = result.get("fill_price_cents", result.get("price_cents", 0))
+    trade_id = result.get("trade_id", "?")
+
+    sep = "=" * 62
+    logger.info(sep)
+    logger.info(
+        "💰 LIVE BET PLACED  ·  %s  ·  %s %s @ %d¢ = $%.2f  ·  trade_id=%s",
+        strategy_name, side, ticker, fill, cost, trade_id,
+    )
+    logger.info(sep)
+
+    msg = f"LIVE BET: {side} {ticker} @ {fill}¢ = ${cost:.2f}"
+    body = f"trade_id={trade_id} — {strategy_name}"
+    script = (
+        f'tell application "Reminders" to make new reminder '
+        f'with properties {{name:"{msg}", body:"{body}"}}'
+    )
+    try:
+        subprocess.run(["osascript", "-e", script], timeout=3, capture_output=True)
+    except Exception:
+        pass  # notification is best-effort; never block the trading loop
 
 
 # ── PID lock — prevent two bot instances running at the same time ─────
