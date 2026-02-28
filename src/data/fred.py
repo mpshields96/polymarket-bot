@@ -60,6 +60,10 @@ class FREDSnapshot:
     cpi_prior: float               # CPIAUCSL: prior month CPI (for trend)
     cpi_prior2: float              # CPIAUCSL: 2 months ago (for trend confirmation)
     fetched_at: datetime           # UTC timestamp of last successful fetch
+    # UNRATE fields — added with defaults so existing callers are not broken
+    unrate_latest: float = 0.0    # UNRATE: most recent reading (e.g. 4.3)
+    unrate_prior: float = 0.0     # UNRATE: one reading before latest (e.g. 4.4)
+    unrate_prior2: float = 0.0    # UNRATE: two readings before latest (e.g. 4.5)
 
     @property
     def yield_spread(self) -> float:
@@ -84,6 +88,25 @@ class FREDSnapshot:
     def cpi_accelerating(self) -> bool:
         """True if CPI month-over-month change is rising (inflation re-accelerating)."""
         return self.cpi_mom_latest > self.cpi_mom_prior
+
+    @property
+    def unrate_trend(self) -> float:
+        """
+        Linear slope of UNRATE over last 3 readings (percentage points per month).
+
+        Formula: (latest - prior2) / 2  (rise over run across 2 intervals).
+        Negative = unemployment falling. Positive = unemployment rising.
+        """
+        return (self.unrate_latest - self.unrate_prior2) / 2.0
+
+    @property
+    def unrate_forecast(self) -> float:
+        """
+        One-step-ahead UNRATE forecast using linear extrapolation.
+
+        forecast = latest + trend  (extend the linear fit one more month).
+        """
+        return self.unrate_latest + self.unrate_trend
 
 
 # ── Feed class ────────────────────────────────────────────────────────
@@ -120,16 +143,30 @@ class FREDFeed:
         """
         Fetch all series from FRED. Returns True on success.
         On partial failure, uses cached value for missing series.
+        UNRATE failure is non-fatal — snapshot is still created with 0.0 defaults.
         """
         try:
             dff = self._fetch_latest("DFF")
             dgs2 = self._fetch_latest("DGS2")
             cpi_rows = self._fetch_last_n("CPIAUCSL", 3)
+            unrate_rows = self._fetch_last_n("UNRATE", 3)
 
             if dff is None or dgs2 is None or len(cpi_rows) < 3:
                 logger.warning("[fred] Incomplete FRED data — dff=%s dgs2=%s cpi_rows=%d",
                                dff, dgs2, len(cpi_rows))
                 return False
+
+            # UNRATE is optional — use 0.0 defaults if unavailable (network error, etc.)
+            if len(unrate_rows) >= 3:
+                unrate_latest = unrate_rows[0]
+                unrate_prior = unrate_rows[1]
+                unrate_prior2 = unrate_rows[2]
+            else:
+                if unrate_rows:
+                    logger.debug("[fred] Only %d UNRATE rows — using 0.0 defaults", len(unrate_rows))
+                unrate_latest = 0.0
+                unrate_prior = 0.0
+                unrate_prior2 = 0.0
 
             self._snapshot = FREDSnapshot(
                 fed_funds_rate=dff,
@@ -138,16 +175,24 @@ class FREDFeed:
                 cpi_prior=cpi_rows[1],
                 cpi_prior2=cpi_rows[2],
                 fetched_at=datetime.now(timezone.utc),
+                unrate_latest=unrate_latest,
+                unrate_prior=unrate_prior,
+                unrate_prior2=unrate_prior2,
             )
             self._last_fetch_ts = time.monotonic()
 
+            unrate_str = (
+                f"UNRATE={unrate_latest:.1f}% forecast={self._snapshot.unrate_forecast:.2f}%"
+                if unrate_latest != 0.0 else "UNRATE=n/a"
+            )
             logger.info(
                 "[fred] DFF=%.2f%% DGS2=%.2f%% spread=%.2f%% | "
-                "CPI mom=%.3f%% (was %.3f%%) %s",
+                "CPI mom=%.3f%% (was %.3f%%) %s | %s",
                 dff, dgs2, self._snapshot.yield_spread,
                 self._snapshot.cpi_mom_latest,
                 self._snapshot.cpi_mom_prior,
                 "↑ accel" if self._snapshot.cpi_accelerating else "↓ decel",
+                unrate_str,
             )
             return True
 
