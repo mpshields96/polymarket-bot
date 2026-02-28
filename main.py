@@ -64,6 +64,7 @@ async def trading_loop(
     loop_name: str = "trading",
     initial_delay_sec: float = 0.0,
     max_daily_bets: int = 5,
+    slippage_ticks: int = 1,
 ):
     """Main async loop: poll markets, generate signals, execute trades."""
     from src.execution import paper as paper_mod
@@ -190,7 +191,7 @@ async def trading_loop(
                         live_confirmed=live_confirmed,
                     )
                 else:
-                    _slip = config.get("risk", {}).get("paper_slippage_ticks", 1)
+                    _slip = slippage_ticks
                     paper_exec = paper_mod.PaperExecutor(
                         db=db,
                         strategy_name=strategy.name,
@@ -909,6 +910,7 @@ async def main():
     btc_series_ticker = _configured_markets[0]
     eth_series_ticker = config.get("strategy", {}).get("eth_markets", ["KXETH15M"])[0]
     max_daily_bets = config.get("risk", {}).get("max_daily_bets_per_strategy", 5)
+    paper_slippage_ticks = config.get("risk", {}).get("paper_slippage_ticks", 1)
 
     # Stagger the 4 loops by 7-8s each to spread Kalshi API calls evenly:
     #   btc_lag=0s, eth_lag=7s, btc_drift=15s, eth_drift=22s
@@ -925,6 +927,7 @@ async def main():
             loop_name="trading",
             initial_delay_sec=0.0,
             max_daily_bets=max_daily_bets,
+            slippage_ticks=paper_slippage_ticks,
         ),
         name="trading_loop",
     )
@@ -942,6 +945,7 @@ async def main():
             loop_name="eth_trading",
             initial_delay_sec=7.0,
             max_daily_bets=max_daily_bets,
+            slippage_ticks=paper_slippage_ticks,
         ),
         name="eth_lag_loop",
     )
@@ -959,6 +963,7 @@ async def main():
             loop_name="drift",
             initial_delay_sec=15.0,
             max_daily_bets=max_daily_bets,
+            slippage_ticks=paper_slippage_ticks,
         ),
         name="drift_loop",
     )
@@ -976,6 +981,7 @@ async def main():
             loop_name="eth_drift",
             initial_delay_sec=22.0,
             max_daily_bets=max_daily_bets,
+            slippage_ticks=paper_slippage_ticks,
         ),
         name="eth_drift_loop",
     )
@@ -993,6 +999,7 @@ async def main():
             loop_name="btc_imbalance",
             initial_delay_sec=29.0,
             max_daily_bets=max_daily_bets,
+            slippage_ticks=paper_slippage_ticks,
         ),
         name="btc_imbalance_loop",
     )
@@ -1010,6 +1017,7 @@ async def main():
             loop_name="eth_imbalance",
             initial_delay_sec=36.0,
             max_daily_bets=max_daily_bets,
+            slippage_ticks=paper_slippage_ticks,
         ),
         name="eth_imbalance_loop",
     )
