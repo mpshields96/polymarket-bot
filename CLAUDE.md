@@ -41,10 +41,13 @@
 - `PermissionError` from `os.kill(pid, 0)` means the process IS alive under a different user — not stale; exit on `PermissionError`, skip on `ProcessLookupError`
 - `_STALE_THRESHOLD_SEC = 35.0` in binance.py — Binance.US @bookTicker can be silent 10-30s; 10s threshold causes false stale signals
 - 412/412 tests must pass before any commit (count updates each session)
-- **`--status`** bypasses bot PID lock — safe to run while bot is live: `python main.py --status`
+- **`--status`, `--report`, `--graduation-status`** all bypass bot PID lock — safe while live
+- **`--report`**: now shows per-strategy breakdown (bets, W/L, P&L, live/paper emoji)
+- **`scripts/notify_midnight.sh`**: midnight UTC daily P&L Reminders notifier — start once with `& echo $! > /tmp/polybot_midnight.pid`
 - **unemployment_rate_v1**: uses `math.erfc` for normal CDF (no scipy). Shares fred_feed with fomc_loop.
 - **KXUNRATE markets**: open ~2 days before BLS release. No open markets outside that window = expected.
 - **Sports markets on Kalshi**: KXNBA/KXMLB are season-winner markets (illiquid, months to settle) — not suitable
+- **eth_lag min_edge_pct**: 0.06 as of 2026-02-28 (was 0.08). Paper-only — same rationale as btc_lag sweep.
 
 ## Code patterns
 - Every module has `load_from_env()` or `load_from_config()` factory at bottom
@@ -62,8 +65,9 @@ Current project state (updated each session):
 - 9 trading loops: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate
 - **btc_lag_v1 → LIVE MODE ($75 bankroll, $5 max/bet)** — LIVE_TRADING=true in .env
 - 8 other strategies → paper mode collecting calibration data
-- Session 19: --status CLI, graduation min_days removed, unemployment_rate_v1 built + wired
-- GitHub: main branch, pushed through Session 19 (latest: b83b1f9)
+- Session 19: --status CLI, graduation min_days removed, unemployment_rate_v1 built + wired,
+    btc_lag + eth_lag 0.08→0.06, per-strategy --report, midnight notifier, lock bypass for --report/--grad
+- GitHub: main branch, pushed through Session 19 (latest: 697db57)
 - Next action: source venv/bin/activate && python main.py --live → type CONFIRM
 
 ## Workflow
