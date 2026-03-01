@@ -29,6 +29,9 @@ None — slippage model and settlement verification complete.
 
 ## Key Decisions
 
+- Kalshi API status=settled (not 'finalized') for settled markets — confirmed correct filter
+- Candlestick end_period_ts in seconds (not ms), yes_bid.close/yes_ask.close in cents
+- At 0.40% BTC move threshold: YES avg 49.5c (50c assumption largely valid), accuracy 66.7%, edge 13.5%
 - Graduation check is WARN not FAIL — advisory, never blocks bot startup
 - fomc_rate min_trades=5 (not 30) — strategy fires ~8x/year, 30 trades would take 3+ years
 - weather_forecast min_days=0 (removed) — 30 trades is the only gate, same as all strategies
@@ -50,7 +53,7 @@ None — slippage model and settlement verification complete.
 | 1 | Define formal live graduation criteria | 2026-02-28 | d6b9e21 | .planning/quick/1-define-formal-live-graduation-criteria-f/ |
 | 2 | Commit graduation threshold + build --status command | 2026-02-28 | e999d6c, 74f5dbb, ab72b61 | .planning/quick/2-commit-graduation-threshold-change-and-b/ |
 | 3 | Unemployment rate strategy (9th loop, KXUNRATE, BLS window, FRED UNRATE, TDD) | 2026-02-28 | d38f20d, 15307cf | .planning/quick/3-unemployment-rate-strategy/ |
-| 4 | Build real Kalshi-calibrated backtest from bot logs + Kalshi candlestick API | 2026-03-01 | pending | .planning/quick/4-build-real-kalshi-calibrated-backtest-fr/ |
+| 4 | Build real Kalshi-calibrated backtest using Kalshi candlestick API | 2026-03-01 | ecce5be | .planning/quick/4-build-real-kalshi-calibrated-backtest-fr/ |
 
 ## Phase Plans Completed
 
@@ -60,5 +63,5 @@ None — slippage model and settlement verification complete.
 
 ## Last Session
 
-**Stopped at:** Session 26 — Deep research on Kalshi calibration. Key finding: Kalshi has free 1-min candlestick API. Building kalshi_real_backtest.py to get real win rates (not synthetic 84.1%). btc_drift demoted (7W/12L live). btc_lag live (2W/0L — too small to trust). Bankroll $79.76.
-**Session timestamp:** 2026-03-01T19:40:00Z
+**Stopped at:** Completed quick task 4 — kalshi_real_backtest.py built and run. Key result: at 0.40% threshold, YES price avg 49.5c (50c assumption valid), accuracy 66.7%, edge 13.5% (vs 14.9% assumed, -1.5pp delta). 603/603 tests pass.
+**Session timestamp:** 2026-03-01T20:10:00Z
