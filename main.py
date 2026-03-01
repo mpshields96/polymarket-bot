@@ -1424,6 +1424,10 @@ async def main():
 
     # Stagger the 4 loops by 7-8s each to spread Kalshi API calls evenly:
     #   btc_lag=0s, eth_lag=7s, btc_drift=15s, eth_drift=22s
+    # BTC lag: PAPER-ONLY — demoted 2026-03-01. Real backtest: 0 signals in last 5 days.
+    # HFTs now price KXBTC15M within same minute as BTC move. Signal valid (66.7% accuracy,
+    # 13.5% edge) but frequency shrinking to 0 as market matures. Re-promote only when
+    # 30-day rolling signal count > 5/month AND bankroll > $90.
     trade_task = asyncio.create_task(
         trading_loop(
             kalshi=kalshi,
@@ -1431,8 +1435,8 @@ async def main():
             strategy=strategy,
             kill_switch=kill_switch,
             db=db,
-            live_executor_enabled=live_mode,
-            live_confirmed=live_confirmed,
+            live_executor_enabled=False,
+            live_confirmed=False,
             btc_series_ticker=btc_series_ticker,
             loop_name="trading",
             initial_delay_sec=0.0,
