@@ -673,3 +673,62 @@ class TestHardStopNoPollutionDuringTests:
             ks.record_loss(1.0)
         # State should be set even though files are not written
         assert ks.is_hard_stopped, "Hard stop in-memory state must still be set during tests"
+
+
+# ── Daily loss counter persistence across restarts ─────────────────
+
+
+class TestRestoreDailyLoss:
+    """
+    Regression tests: restore_daily_loss() seeds the daily counter from the DB
+    so that bot restarts mid-session don't reset daily risk limits to zero.
+
+    Design intent:
+    - Consecutive loss counter DOES reset on restart (restart = manual soft-stop override)
+    - Daily loss counter DOES NOT reset — daily risk protection should survive restart
+    """
+
+    @pytest.fixture
+    def ks(self):
+        return KillSwitch(starting_bankroll_usd=100.0)
+
+    def test_restore_daily_loss_seeds_counter(self, ks):
+        """After restore, daily loss counter reflects restored amount."""
+        ks.restore_daily_loss(15.0)
+        status = ks.get_status()
+        assert status["daily_loss_usd"] == pytest.approx(15.0)
+
+    def test_restore_zero_is_noop(self, ks):
+        """restore_daily_loss(0) must not change anything."""
+        ks.restore_daily_loss(0.0)
+        status = ks.get_status()
+        assert status["daily_loss_usd"] == pytest.approx(0.0)
+
+    def test_restore_negative_is_noop(self, ks):
+        """restore_daily_loss with negative value must be ignored."""
+        ks.restore_daily_loss(-5.0)
+        status = ks.get_status()
+        assert status["daily_loss_usd"] == pytest.approx(0.0)
+
+    def test_restore_triggers_daily_limit_block(self, ks):
+        """If restored loss >= daily limit, next trade must be blocked.
+        Use bankroll=100 and trade=2.0 to avoid pct_cap check ($2 < 5% of $100)."""
+        daily_limit = 100.0 * DAILY_LOSS_LIMIT_PCT  # $20
+        ks.restore_daily_loss(daily_limit)
+        ok, reason = ks.check_order_allowed(trade_usd=2.0, current_bankroll_usd=100.0)
+        assert not ok
+        assert "Daily loss" in reason
+
+    def test_restore_partial_does_not_block(self, ks):
+        """Restored loss below daily limit should not block trading.
+        Use bankroll=100 and trade=2.0 to avoid pct_cap check."""
+        daily_limit = 100.0 * DAILY_LOSS_LIMIT_PCT  # $20
+        ks.restore_daily_loss(daily_limit * 0.8)  # $16 — still has $4 of room
+        ok, reason = ks.check_order_allowed(trade_usd=2.0, current_bankroll_usd=100.0)
+        assert ok, f"Expected trade allowed but got: {reason}"
+
+    def test_restore_does_not_affect_consecutive_count(self, ks):
+        """restore_daily_loss must not increment consecutive_losses."""
+        ks.restore_daily_loss(10.0)
+        status = ks.get_status()
+        assert status["consecutive_losses"] == 0

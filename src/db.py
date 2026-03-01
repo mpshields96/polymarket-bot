@@ -330,6 +330,28 @@ class DB:
         wins = sum(1 for r in rows if dict(r)["result"] == dict(r)["side"])
         return wins / len(rows)
 
+    def daily_live_loss_usd(self) -> float:
+        """Return total live losses settled today (UTC) as a positive USD amount.
+
+        Used by kill_switch on restart to restore the daily loss counter so that
+        bot restarts don't reset daily risk limits mid-session.
+        """
+        from datetime import datetime, timezone as _tz
+        now_utc = datetime.now(_tz.utc)
+        midnight_utc = now_utc.replace(
+            hour=0, minute=0, second=0, microsecond=0
+        ).timestamp()
+        row = self._conn.execute(
+            """SELECT COALESCE(-SUM(pnl_cents), 0) / 100.0
+               FROM trades
+               WHERE is_paper = 0
+                 AND result IS NOT NULL
+                 AND pnl_cents < 0
+                 AND settled_at >= ?""",
+            (midnight_utc,),
+        ).fetchone()
+        return float(row[0] or 0.0)
+
     def total_realized_pnl_usd(self, is_paper: Optional[bool] = None) -> float:
         """Return sum of all settled P&L in USD."""
         query = "SELECT SUM(pnl_cents) FROM trades WHERE result IS NOT NULL"

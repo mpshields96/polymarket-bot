@@ -1319,6 +1319,12 @@ async def main():
     starting_bankroll = config.get("risk", {}).get("starting_bankroll_usd", 50.0)
     kill_switch = KillSwitch(starting_bankroll_usd=starting_bankroll)
 
+    # Restore today's live loss total so mid-session restarts don't reset daily risk limits.
+    # Consecutive loss counter intentionally resets on restart (restart = manual soft-stop override).
+    _today_live_loss = db.daily_live_loss_usd()
+    if _today_live_loss > 0:
+        kill_switch.restore_daily_loss(_today_live_loss)
+
     current_bankroll = db.latest_bankroll() or starting_bankroll
     stage = get_stage(current_bankroll)
 

@@ -279,6 +279,25 @@ class KillSwitch:
                 f"Total bankroll loss {total_loss_pct:.1%} >= {HARD_STOP_LOSS_PCT:.0%} limit"
             )
 
+    def restore_daily_loss(self, loss_usd: float):
+        """Restore today's live loss total from the DB on bot restart.
+
+        Prevents bot restarts from resetting the daily loss counter to 0 mid-session.
+        Adds to _daily_loss_usd (and _realized_loss_usd) without touching consecutive
+        loss count or triggering cooling — those are session-scoped and reset on restart
+        intentionally (restart = manual override of soft stops).
+        """
+        if loss_usd <= 0:
+            return
+        self._state._daily_loss_usd += loss_usd
+        self._state._realized_loss_usd += loss_usd
+        logger.info(
+            "Daily live loss restored from DB: $%.2f (today's running limit: $%.2f / $%.2f)",
+            loss_usd,
+            self._state._daily_loss_usd,
+            self._state.starting_bankroll * DAILY_LOSS_LIMIT_PCT,
+        )
+
     def record_win(self):
         """Call when a trade settles as a win."""
         self._state._consecutive_losses = 0

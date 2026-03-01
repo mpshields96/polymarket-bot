@@ -481,3 +481,46 @@ class TestExportTradesCsv:
         _save_trade(db)
         db.export_trades_csv(out)
         assert out.exists()
+
+
+# ── daily_live_loss_usd ─────────────────────────────────────────────
+
+
+class TestDailyLiveLossUsd:
+    """daily_live_loss_usd() returns today's settled live losses as a positive USD amount."""
+
+    def _live_trade(self, db, ticker="KXBTC15M-T", side="yes", price_cents=50):
+        return db.save_trade(
+            ticker=ticker, side=side, action="buy", price_cents=price_cents,
+            count=100, cost_usd=5.0, is_paper=False,
+            strategy="btc_lag_v1", edge_pct=0.05, win_prob=0.6,
+        )
+
+    def test_returns_zero_if_no_settled_trades(self, db):
+        assert db.daily_live_loss_usd() == pytest.approx(0.0)
+
+    def test_returns_zero_if_only_paper_losses(self, db):
+        t = db.save_trade(
+            ticker="KXBTC15M-T", side="yes", action="buy", price_cents=50,
+            count=100, cost_usd=5.0, is_paper=True,
+            strategy="btc_drift_v1", edge_pct=0.05, win_prob=0.6,
+        )
+        db.settle_trade(t, result="no", pnl_cents=-500)
+        assert db.daily_live_loss_usd() == pytest.approx(0.0)
+
+    def test_counts_live_losses(self, db):
+        t = self._live_trade(db)
+        db.settle_trade(t, result="no", pnl_cents=-500)  # $5 loss
+        assert db.daily_live_loss_usd() == pytest.approx(5.0)
+
+    def test_excludes_live_wins(self, db):
+        t = self._live_trade(db)
+        db.settle_trade(t, result="yes", pnl_cents=560)  # win
+        assert db.daily_live_loss_usd() == pytest.approx(0.0)
+
+    def test_sums_multiple_live_losses(self, db):
+        t1 = self._live_trade(db, ticker="KXBTC15M-A")
+        t2 = self._live_trade(db, ticker="KXBTC15M-B")
+        db.settle_trade(t1, result="no", pnl_cents=-500)  # $5 loss
+        db.settle_trade(t2, result="no", pnl_cents=-480)  # $4.80 loss
+        assert db.daily_live_loss_usd() == pytest.approx(9.80, abs=0.01)
