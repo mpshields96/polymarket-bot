@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file + CLAUDE.md to any new Claude session to resume.
-# Last updated: 2026-03-01 18:50 UTC (Session 25 END — btc_drift demoted, btc_lag only live)
+# Last updated: 2026-03-01 19:45 UTC (Session 26 END — research complete, real backtest building)
 ═══════════════════════════════════════════════════
 
 ## EXACT CURRENT STATE — READ THIS FIRST
@@ -9,14 +9,13 @@ Bot is **RUNNING** — PID 6225, log at /tmp/polybot_session25.log
 Check: `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"`
 
 **1 strategy LIVE** (real money): **btc_lag_v1 only**
-**9 strategies paper**: btc_drift_v1 (demoted today), eth_lag_v1 (demoted earlier), eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
+**9 strategies paper**: btc_drift_v1 (demoted), eth_lag_v1 (demoted), eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
 Test count: **603/603 ✅**
 
 Latest commits (most recent first):
+- f3e08ae — research: Kalshi calibration deep-dive + real backtest framework (Session 26)
+- b8f9947 — docs: update POLYBOT_INIT.md — expand with Sessions 23-25 state
 - 9da4941 — feat: demote btc_drift_v1 to paper-only (live record 7W/12L)
-- ed57e14 — docs: session handoff — 2hr soft stop active after trade 121
-- 14620d0 — fix: count_trades_today uses CST midnight (UTC-6), not UTC midnight
-- 224b320 — feat: raise btc_drift min_edge 5%→8%, min_drift 0.05%→0.10%
 
 ## KILL SWITCH STATUS (2026-03-01 18:50 UTC)
 
