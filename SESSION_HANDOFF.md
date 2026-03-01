@@ -27,12 +27,12 @@ sleep 6 && ps aux | grep "[m]ain.py" | awk '{print "PID:", $2}' && cat bot.pid
 ```
 Verify exactly ONE PID. If two show up, orphan guard triggered — wait 10s, try again.
 
-## P&L Status (as of 2026-03-01 18:13 UTC)
-- **Bankroll:** $107.87 (API confirmed)
-- **Live P&L today:** $0.00 (2 unsettled — btc_drift + eth_orderbook)
-- **All-time live:** +$12.86 (5 settled: 3W 2L)
-- **All-time paper:** +$23.63 (many settled)
-- **All-time win rate:** 70%
+## P&L Status (as of 2026-03-01 18:26 UTC)
+- **Bankroll:** ~$116+ (API update pending — trade 78 won +$8.82)
+- **Live P&L today:** +$8.82 (1 settled, 1 open — trade 80 on 1930 BTC window)
+- **All-time live:** +$21.68 (6 settled: 4W 2L)
+- **All-time paper:** +$36.59
+- **All-time win rate:** 71%
 
 ### Live bets breakdown (all-time):
 | id | Strategy | Side | Cost | Result | P&L |
@@ -42,7 +42,8 @@ Verify exactly ONE PID. If two show up, orphan guard triggered — wait 10s, try
 | 70 | btc_drift | NO @33¢ | $4.95 | WON | +$9.75 |
 | 74 | btc_drift | NO @34¢ | $4.76 | WON | +$8.96 |
 | 75 | btc_drift | NO @26¢ | $4.94 | LOST | -$4.94 |
-| 78 | btc_drift | NO @35¢ | $4.90 | pending | — |
+| 78 | btc_drift | NO @35¢ | $4.90 | WON | +$8.82 |
+| 80 | btc_drift | NO @57¢ | $4.56 | pending | — |
 
 ## Graduation Progress (2026-03-01 00:13 UTC)
 | Strategy              | Trades | Status                        |
