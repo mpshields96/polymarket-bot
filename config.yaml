@@ -54,16 +54,18 @@ strategy:
     lag_sensitivity: 15.0              # Cents of YES/NO price move implied per 1% BTC move
 
   btc_drift:
-    # SECONDARY strategy — paper-only, collects calibration data.
-    # Fires whenever BTC drifts from market-open price (much more frequent than btc_lag).
-    # Uses sigmoid probability model + time adjustment from refs/kalshi-btc/strategy.py.
-    # Math: need (drift_pct * sensitivity/100) to produce edge > min_edge_pct after fee.
-    # Sensitivity=800 confirmed via 30-day backtest: Brier=0.2178 (STRONG), 69.1% accuracy.
-    # At sensitivity=800: 0.1% drift → P(YES)≈0.55 → edge≈0.03 at 50¢ market.
+    # SECONDARY strategy — LIVE (btc_drift_v1) + paper calibration.
+    # Fires whenever BTC drifts from market-open price.
+    # Math: at sensitivity=800, need ~0.19% BTC drift to achieve 8% edge at 50¢ market.
+    # Raised min_edge 0.05→0.08 and min_drift 0.05→0.10 on 2026-03-01 (Matthew):
+    #   - Titanium V36 review showed 5% edge = "speculative" tier — not production grade
+    #   - Single drift signal (no RLM, no efficiency data) needs higher edge floor
+    #   - 8% edge + 0.10% min_drift requires genuine BTC conviction before betting real money
+    #   - Price range guard also tightened to 35-65¢ (in btc_drift.py constants)
     sensitivity: 800.0               # Sigmoid steepness — calibrated from 30d backtest (was 300)
-    min_drift_pct: 0.05              # BTC must drift ≥ 0.05% from market open
+    min_drift_pct: 0.10              # BTC must drift ≥ 0.10% from market open (was 0.05)
     min_minutes_remaining: 3.0       # Don't enter with ≤ 3 min left
-    min_edge_pct: 0.05               # Only trade if net edge > 5% (after fees)
+    min_edge_pct: 0.08               # Only trade if net edge > 8% (after fees) — was 0.05
     time_weight: 0.7                 # How much time remaining blends probability (0=ignore, 1=full)
 
   eth_lag:
