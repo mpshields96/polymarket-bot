@@ -341,6 +341,56 @@ def check_graduation_status():
 
 # ── Main ──────────────────────────────────────────────────────────
 
+async def check_polymarket_auth():
+    """Verify Polymarket Ed25519 auth header generation (no network call)."""
+    print("\n[12] Polymarket auth")
+    key_id = os.getenv("POLYMARKET_KEY_ID", "")
+    secret = os.getenv("POLYMARKET_SECRET_KEY", "")
+
+    if not key_id or not secret:
+        record("Polymarket credentials set", False,
+               "POLYMARKET_KEY_ID or POLYMARKET_SECRET_KEY missing in .env", critical=False)
+        return
+
+    try:
+        from src.auth.polymarket_auth import load_from_env
+        auth = load_from_env()
+        hdrs = auth.headers("GET", "/v1/markets")
+        has_key = "X-PM-Access-Key" in hdrs
+        has_sig = "X-PM-Signature" in hdrs
+        has_ts  = "X-PM-Timestamp" in hdrs
+        record("Polymarket auth headers", has_key and has_sig and has_ts,
+               f"KEY={'✓' if has_key else '✗'} SIG={'✓' if has_sig else '✗'} TS={'✓' if has_ts else '✗'}",
+               critical=False)
+    except Exception as e:
+        record("Polymarket auth headers", False, str(e), critical=False)
+
+
+async def check_polymarket_api():
+    """Test authenticated Polymarket.us API call — GET /v1/markets."""
+    print("\n[13] Polymarket API connectivity")
+    key_id = os.getenv("POLYMARKET_KEY_ID", "")
+    if not key_id:
+        record("Polymarket API reachable", False,
+               "Credentials not set — skipping", critical=False)
+        return
+
+    try:
+        from src.platforms.polymarket import load_from_env
+        client = load_from_env()
+        ok = await client.connectivity_check()
+        if ok:
+            markets = await client.get_markets(closed=False, limit=5)
+            record("Polymarket API reachable", True,
+                   f"Open markets: {len(markets)} returned (all sports as of 2026-03)",
+                   critical=False)
+        else:
+            record("Polymarket API reachable", False,
+                   "API did not respond", critical=False)
+    except Exception as e:
+        record("Polymarket API reachable", False, str(e), critical=False)
+
+
 async def run_all():
     check_env()
     check_pem()
@@ -353,6 +403,8 @@ async def run_all():
     check_db()
     check_strategy()
     check_graduation_status()
+    await check_polymarket_auth()
+    await check_polymarket_api()
 
     # Summary
     print("\n" + "═" * 48)
