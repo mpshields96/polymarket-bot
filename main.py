@@ -350,15 +350,17 @@ async def weather_loop(
                     continue
 
                 from src.risk.sizing import calculate_size, kalshi_payout as _kp
+                from src.risk.kill_switch import HARD_MAX_TRADE_USD as _HARD_CAP
                 _yes_p = signal.price_cents if signal.side == "yes" else (100 - signal.price_cents)
-                size = calculate_size(
+                _size_result = calculate_size(
                     win_prob=signal.win_prob,
                     payout_per_dollar=_kp(_yes_p, signal.side),
                     edge_pct=signal.edge_pct,
                     bankroll_usd=current_bankroll,
                 )
-                if size is None:
+                if _size_result is None:
                     continue
+                _trade_usd = min(_size_result.recommended_usd, _HARD_CAP)
 
                 import yaml as _yaml
                 with open(PROJECT_ROOT / "config.yaml") as _f:
@@ -373,9 +375,11 @@ async def weather_loop(
                     ticker=signal.ticker,
                     side=signal.side,
                     price_cents=signal.price_cents,
-                    size_usd=size,
+                    size_usd=_trade_usd,
                     reason=signal.reason,
                 )
+                if result is None:
+                    continue
                 logger.info(
                     "[%s] Paper trade: %s %s @ %d¢ $%.2f",
                     loop_name,
@@ -500,15 +504,17 @@ async def fomc_loop(
                     continue
 
                 from src.risk.sizing import calculate_size, kalshi_payout as _kp
+                from src.risk.kill_switch import HARD_MAX_TRADE_USD as _HARD_CAP
                 _yes_p = signal.price_cents if signal.side == "yes" else (100 - signal.price_cents)
-                size = calculate_size(
+                _size_result = calculate_size(
                     win_prob=signal.win_prob,
                     payout_per_dollar=_kp(_yes_p, signal.side),
                     edge_pct=signal.edge_pct,
                     bankroll_usd=current_bankroll,
                 )
-                if size is None:
+                if _size_result is None:
                     continue
+                _trade_usd = min(_size_result.recommended_usd, _HARD_CAP)
 
                 import yaml as _yaml
                 with open(PROJECT_ROOT / "config.yaml") as _f:
@@ -523,9 +529,11 @@ async def fomc_loop(
                     ticker=signal.ticker,
                     side=signal.side,
                     price_cents=signal.price_cents,
-                    size_usd=size,
+                    size_usd=_trade_usd,
                     reason=signal.reason,
                 )
+                if result is None:
+                    continue
                 logger.info(
                     "[%s] Paper trade: %s %s @ %d¢ $%.2f",
                     loop_name,
@@ -653,15 +661,17 @@ async def unemployment_loop(
                     continue
 
                 from src.risk.sizing import calculate_size, kalshi_payout as _kp
+                from src.risk.kill_switch import HARD_MAX_TRADE_USD as _HARD_CAP
                 _yes_p = signal.price_cents if signal.side == "yes" else (100 - signal.price_cents)
-                size = calculate_size(
+                _size_result = calculate_size(
                     win_prob=signal.win_prob,
                     payout_per_dollar=_kp(_yes_p, signal.side),
                     edge_pct=signal.edge_pct,
                     bankroll_usd=current_bankroll,
                 )
-                if size is None:
+                if _size_result is None:
                     continue
+                _trade_usd = min(_size_result.recommended_usd, _HARD_CAP)
 
                 import yaml as _yaml
                 with open(PROJECT_ROOT / "config.yaml") as _f:
@@ -676,9 +686,11 @@ async def unemployment_loop(
                     ticker=signal.ticker,
                     side=signal.side,
                     price_cents=signal.price_cents,
-                    size_usd=size,
+                    size_usd=_trade_usd,
                     reason=signal.reason,
                 )
+                if result is None:
+                    continue
                 logger.info(
                     "[%s] Paper trade: %s %s @ %d¢ $%.2f",
                     loop_name,

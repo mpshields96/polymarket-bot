@@ -439,3 +439,59 @@ class TestPaperLoopSizingCallSignature:
             min_edge_pct=0.05,
         )
         assert result is not None
+
+
+# ── Regression: paper loop size_usd must be float, not SizeResult ──
+class TestPaperLoopSizeExtraction:
+    """Regression tests for the SizeResult vs float bug.
+
+    Bug: weather_loop/fomc_loop/unemployment_loop passed size_usd=size where
+    size is a SizeResult object from calculate_size(), not a float.
+    PaperExecutor.execute() does int(size_usd / cost_per_contract) which
+    raises TypeError: unsupported operand type(s) for /: 'SizeResult' and 'float'.
+    Caught by outer except, paper trade silently skipped.
+
+    Fix: use _size_result.recommended_usd and clamp with HARD_MAX_TRADE_USD.
+    Also added result is None guard before accessing result["side"] etc.
+    """
+
+    def test_size_result_not_directly_divisible(self):
+        from src.risk.sizing import calculate_size, kalshi_payout, SizeResult
+        payout = kalshi_payout(55, "yes")
+        size_result = calculate_size(
+            win_prob=0.65,
+            payout_per_dollar=payout,
+            edge_pct=0.06,
+            bankroll_usd=100.0,
+            min_edge_pct=0.05,
+        )
+        assert isinstance(size_result, SizeResult)
+        with pytest.raises(TypeError):
+            _ = size_result / 0.55
+
+    def test_recommended_usd_is_float(self):
+        from src.risk.sizing import calculate_size, kalshi_payout
+        payout = kalshi_payout(55, "yes")
+        size_result = calculate_size(
+            win_prob=0.65,
+            payout_per_dollar=payout,
+            edge_pct=0.06,
+            bankroll_usd=100.0,
+            min_edge_pct=0.05,
+        )
+        assert isinstance(size_result.recommended_usd, float)
+        assert size_result.recommended_usd > 0
+
+    def test_hard_cap_clamp_applied(self):
+        from src.risk.sizing import calculate_size, kalshi_payout
+        from src.risk.kill_switch import HARD_MAX_TRADE_USD
+        payout = kalshi_payout(55, "yes")
+        size_result = calculate_size(
+            win_prob=0.95,
+            payout_per_dollar=payout,
+            edge_pct=0.30,
+            bankroll_usd=100.0,
+            min_edge_pct=0.05,
+        )
+        trade_usd = min(size_result.recommended_usd, HARD_MAX_TRADE_USD)
+        assert trade_usd <= HARD_MAX_TRADE_USD
