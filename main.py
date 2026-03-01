@@ -1464,7 +1464,10 @@ async def main():
         ),
         name="eth_lag_loop",
     )
-    # BTC drift: LIVE (69.1% accuracy confirmed, Brier 0.22), stagger 15s
+    # BTC drift: PAPER-ONLY — demoted 2026-03-01.
+    # Live record: 7W/12L, persistent losing streak after tighter filters.
+    # Drift-continuation thesis not validated vs live Kalshi market makers.
+    # Re-promote only after: 30+ paper trades with Brier < 0.25.
     drift_task = asyncio.create_task(
         trading_loop(
             kalshi=kalshi,
@@ -1472,14 +1475,14 @@ async def main():
             strategy=drift_strategy,
             kill_switch=kill_switch,
             db=db,
-            live_executor_enabled=live_mode,
-            live_confirmed=live_confirmed,
+            live_executor_enabled=False,
+            live_confirmed=False,
             btc_series_ticker=btc_series_ticker,
             loop_name="drift",
             initial_delay_sec=15.0,
-            max_daily_bets=max_daily_bets_live,
+            max_daily_bets=max_daily_bets_paper,
             slippage_ticks=paper_slippage_ticks,
-            trade_lock=_live_trade_lock,
+            trade_lock=None,
         ),
         name="drift_loop",
     )
