@@ -331,17 +331,21 @@ class DB:
         return wins / len(rows)
 
     def all_time_live_loss_usd(self) -> float:
-        """Return total live losses ever settled as a positive USD amount.
+        """Return net live loss (positive USD) across ALL settled live trades ever.
+
+        Returns 0 if live trading is profitable overall.
 
         Used by kill_switch on restart to restore _realized_loss_usd so the
-        30% lifetime hard stop persists correctly across calendar days and restarts.
+        30% lifetime hard stop represents actual NET bankroll drawdown, not gross
+        losses. Using net (not gross) prevents spurious hard stops on bots that
+        have had wins offsetting losses — e.g. $41 gross losses but only $3.73
+        net loss does NOT warrant a 30% ($30) hard stop.
         """
         row = self._conn.execute(
-            """SELECT COALESCE(-SUM(pnl_cents), 0) / 100.0
+            """SELECT MAX(0, COALESCE(-SUM(pnl_cents), 0)) / 100.0
                FROM trades
                WHERE is_paper = 0
-                 AND result IS NOT NULL
-                 AND pnl_cents < 0""",
+                 AND result IS NOT NULL""",
         ).fetchone()
         return float(row[0] or 0.0)
 

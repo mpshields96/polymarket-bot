@@ -530,7 +530,13 @@ class TestDailyLiveLossUsd:
 
 
 class TestAllTimeLiveLossUsd:
-    """all_time_live_loss_usd() returns total live losses ever, regardless of date."""
+    """
+    all_time_live_loss_usd() returns NET live loss (positive USD) across all
+    settled live trades ever. Returns 0 when live trading is profitable.
+
+    Uses NET P&L (not gross losses) so wins offset losses — prevents spurious
+    hard stops on bots that have had wins offsetting their losses.
+    """
 
     def _live_trade(self, db, ticker="KXBTC15M-T", side="yes", price_cents=50):
         return db.save_trade(
@@ -543,6 +549,7 @@ class TestAllTimeLiveLossUsd:
         assert db.all_time_live_loss_usd() == pytest.approx(0.0)
 
     def test_returns_zero_if_only_paper_losses(self, db):
+        """Paper losses must not count — live only."""
         t = db.save_trade(
             ticker="KXBTC15M-T", side="yes", action="buy", price_cents=50,
             count=100, cost_usd=5.0, is_paper=True,
@@ -551,14 +558,24 @@ class TestAllTimeLiveLossUsd:
         db.settle_trade(t, result="no", pnl_cents=-500)
         assert db.all_time_live_loss_usd() == pytest.approx(0.0)
 
-    def test_counts_live_losses(self, db):
+    def test_net_loss_only_trades(self, db):
+        """Net loss when all live trades are losses."""
         t = self._live_trade(db)
         db.settle_trade(t, result="no", pnl_cents=-500)  # $5 loss
         assert db.all_time_live_loss_usd() == pytest.approx(5.0)
 
-    def test_excludes_live_wins(self, db):
+    def test_returns_zero_when_only_wins(self, db):
+        """Net loss is 0 when all live trades are wins."""
         t = self._live_trade(db)
-        db.settle_trade(t, result="yes", pnl_cents=560)  # win
+        db.settle_trade(t, result="yes", pnl_cents=560)  # $5.60 win
+        assert db.all_time_live_loss_usd() == pytest.approx(0.0)
+
+    def test_returns_zero_when_profitable_overall(self, db):
+        """Wins offsetting losses → net positive → return 0 (not negative)."""
+        t1 = self._live_trade(db, ticker="KXBTC15M-A")
+        t2 = self._live_trade(db, ticker="KXBTC15M-B")
+        db.settle_trade(t1, result="no", pnl_cents=-500)   # $5 loss
+        db.settle_trade(t2, result="yes", pnl_cents=560)   # $5.60 win → net +$0.60
         assert db.all_time_live_loss_usd() == pytest.approx(0.0)
 
     def test_excludes_unsettled_live_trades(self, db):
@@ -566,17 +583,18 @@ class TestAllTimeLiveLossUsd:
         self._live_trade(db)  # no settle_trade call
         assert db.all_time_live_loss_usd() == pytest.approx(0.0)
 
-    def test_sums_losses_across_multiple_trades(self, db):
+    def test_net_loss_wins_partially_offset_losses(self, db):
+        """Wins partially offset losses → return remaining net loss."""
         t1 = self._live_trade(db, ticker="KXBTC15M-A")
         t2 = self._live_trade(db, ticker="KXBTC15M-B")
         t3 = self._live_trade(db, ticker="KXBTC15M-C")
         db.settle_trade(t1, result="no", pnl_cents=-500)   # $5 loss
-        db.settle_trade(t2, result="no", pnl_cents=-480)   # $4.80 loss
-        db.settle_trade(t3, result="yes", pnl_cents=560)   # $5.60 win — excluded
-        assert db.all_time_live_loss_usd() == pytest.approx(9.80, abs=0.01)
+        db.settle_trade(t2, result="no", pnl_cents=-480)   # $4.80 loss → $9.80 gross losses
+        db.settle_trade(t3, result="yes", pnl_cents=560)   # $5.60 win → net = $9.80 - $5.60 = $4.20
+        assert db.all_time_live_loss_usd() == pytest.approx(4.20, abs=0.01)
 
     def test_does_not_filter_by_date(self, db):
-        """Unlike daily_live_loss_usd, all_time must include old losses."""
+        """Unlike daily_live_loss_usd, all_time must include old trades."""
         import time
         t = self._live_trade(db, ticker="KXBTC15M-OLD")
         # Settle first, then backdate settled_at to 30 days ago
