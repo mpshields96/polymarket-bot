@@ -495,3 +495,61 @@ class TestPaperLoopSizeExtraction:
         )
         trade_usd = min(size_result.recommended_usd, HARD_MAX_TRADE_USD)
         assert trade_usd <= HARD_MAX_TRADE_USD
+
+
+# ── Regression: strategy min_edge_pct must propagate to calculate_size ─
+class TestStrategyMinEdgePropagation:
+    """Regression tests for the missing min_edge_pct propagation bug.
+
+    Bug: trading_loop called calculate_size() without passing min_edge_pct,
+    so the default 8% applied even though the strategy threshold is 4% (btc_lag)
+    or 5% (btc_drift). Signals at 4-7.9% edge were silently dropped even though:
+      (a) the strategy already cleared the signal past its own threshold, and
+      (b) Kelly formula at those edge levels still produces positive bet size.
+
+    This caused the 17:23 mystery: btc_drift signal at 6.7% edge was generated
+    (5% < 6.7%) but dropped by calculate_size with 8% default (6.7% < 8%).
+
+    Fix: pass min_edge_pct=getattr(strategy, '_min_edge_pct', 0.08) to calculate_size.
+    """
+
+    def test_5pct_edge_drops_with_8pct_default(self):
+        from src.risk.sizing import calculate_size, kalshi_payout
+        payout = kalshi_payout(65, "no")
+        # 6.7% edge signal, calculate_size default 8% → None (signal silently dropped)
+        result = calculate_size(
+            win_prob=0.62,
+            payout_per_dollar=payout,
+            edge_pct=0.067,
+            bankroll_usd=100.0,
+            # min_edge_pct defaults to 0.08 → 6.7% < 8% → returns None
+        )
+        assert result is None, "8% default should drop 6.7% edge signal"
+
+    def test_5pct_edge_succeeds_with_strategy_threshold(self):
+        from src.risk.sizing import calculate_size, kalshi_payout
+        payout = kalshi_payout(65, "no")
+        # Same 6.7% edge signal, but using btc_drift min_edge_pct=5% → should size
+        result = calculate_size(
+            win_prob=0.62,
+            payout_per_dollar=payout,
+            edge_pct=0.067,
+            bankroll_usd=100.0,
+            min_edge_pct=0.05,  # btc_drift strategy threshold
+        )
+        assert result is not None, "With 5% threshold, 6.7% edge should produce a bet"
+        assert result.recommended_usd >= 0.50
+
+    def test_kelly_positive_at_4pct_btc_lag_edge(self):
+        from src.risk.sizing import calculate_size, kalshi_payout
+        # btc_lag: YES signal at 55¢, edge 4% → Kelly should be positive
+        payout = kalshi_payout(55, "yes")
+        result = calculate_size(
+            win_prob=0.60,
+            payout_per_dollar=payout,
+            edge_pct=0.04,
+            bankroll_usd=100.0,
+            min_edge_pct=0.04,  # btc_lag strategy threshold
+        )
+        assert result is not None, "Kelly is positive at 4% edge — should produce a bet"
+        assert result.kelly_raw_usd > 0

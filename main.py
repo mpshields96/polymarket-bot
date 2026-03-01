@@ -164,11 +164,16 @@ async def trading_loop(
                     else (100 - signal.price_cents)
                 )
                 payout = kalshi_payout(yes_price_cents_for_payout, signal.side)
+                # Use strategy's own min_edge_pct so calculate_size doesn't silently drop
+                # signals the strategy already cleared (btc_lag 4%, btc_drift 5% vs 8% default).
+                # Signal reaching this point already passed the strategy's edge gate.
+                _strat_min_edge = getattr(strategy, '_min_edge_pct', 0.08)
                 size_result = calculate_size(
                     win_prob=signal.win_prob,
                     payout_per_dollar=payout,
                     edge_pct=signal.edge_pct,
                     bankroll_usd=current_bankroll,
+                    min_edge_pct=_strat_min_edge,
                 )
 
                 if size_result is None:
