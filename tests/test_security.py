@@ -248,3 +248,22 @@ class TestSizingSafety:
             edge_pct=0.10, bankroll_usd=100.0
         )
         assert result is None
+
+    def test_pct_cap_does_not_round_up_past_limit(self):
+        """Regression: at bankroll $95.37, pct_cap = $4.7685.
+        round() gives $4.77 which is 5.0016% > 5% → kill switch blocks it.
+        floor() gives $4.76 which is 4.991% — passes kill switch.
+        The sized bet must never exceed 5% of bankroll when recomputed."""
+        from src.risk.sizing import calculate_size
+        bankroll = 95.37
+        result = calculate_size(
+            win_prob=0.65, payout_per_dollar=2.0,
+            edge_pct=0.10, bankroll_usd=bankroll,
+            min_edge_pct=0.04,
+        )
+        assert result is not None
+        # The critical invariant: sized bet must be <= 5% of bankroll
+        assert result.recommended_usd / bankroll <= 0.05, (
+            f"${result.recommended_usd:.2f} / ${bankroll:.2f} = "
+            f"{result.recommended_usd/bankroll:.4%} exceeds 5% pct cap"
+        )

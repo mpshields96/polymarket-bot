@@ -22,6 +22,7 @@ Adapted from: https://github.com/djienne/Polymarket-bot (core/kelly.py)
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass
 from typing import Optional
 
@@ -128,8 +129,11 @@ def calculate_size(
         size = ABSOLUTE_MAX_USD
         limiting_factor = "absolute_cap"
 
-    # Round down to nearest cent
-    size = round(size, 2)
+    # Floor to nearest cent (truncate, never round up).
+    # Using round() would round $4.7685 → $4.77, which then fails the kill switch
+    # pct_cap check ($4.77 / $95.37 = 5.0016% > 5.0%).  Floor ensures the sized
+    # bet never exceeds the pct cap when the kill switch re-checks the same bankroll.
+    size = math.floor(size * 100) / 100
 
     # Minimum viable bet ($0.50 — below this isn't worth the fee)
     if size < 0.50:
