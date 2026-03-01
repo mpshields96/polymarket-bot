@@ -112,7 +112,7 @@ DO NOT: fix symptoms without finding root cause
 - Live mode requires BOTH `--live` flag AND `LIVE_TRADING=true` in .env; then user must type `CONFIRM` at runtime prompt — all three gates required
 - `PermissionError` from `os.kill(pid, 0)` means the process IS alive under a different user — not stale; exit on `PermissionError`, skip on `ProcessLookupError`
 - `_STALE_THRESHOLD_SEC = 35.0` in binance.py — Binance.US @bookTicker can be silent 10-30s; 10s threshold causes false stale signals
-- **RESTART PROCEDURE — use pkill not kill**: `kill $(cat bot.pid)` only kills the most recent instance; orphaned old instances keep running and place duplicate trades. Always restart with: `pkill -f "python main.py"; sleep 3; rm -f bot.pid; echo "CONFIRM" | nohup python main.py --live >> /tmp/polybot_session21.log 2>&1 &` — then verify with `ps aux | grep "[m]ain.py"` (should be exactly 1 process).
+- **RESTART PROCEDURE**: `kill $(cat bot.pid)` only kills the most recent instance; use pkill. `echo "CONFIRM" | nohup python main.py` does NOT work — nohup drops piped stdin (EOFError). Always use temp file: `pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session25.log 2>&1 &` — then verify with `ps aux | grep "[m]ain.py"` (should be exactly 1 process).
 - **Paper/live separation** (fixed Session 21): `has_open_position()` and `count_trades_today()` now pass `is_paper` filter. Live daily cap counts live bets only. Paper bets no longer eat into live quota.
 - 540/540 tests must pass before any commit (count updates each session)
 - **`confidence` field in Signal is computed but never consumed** (not used in sizing, kill switch, or main.py). It's a dead field — low priority to wire in or remove.
@@ -167,17 +167,18 @@ Current project state (updated each session):
 - 10 trading loops: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
 - **2 strategies LIVE: btc_lag_v1 + btc_drift_v1** ($5 max/bet)
 - **eth_lag_v1 returned to PAPER** (2026-03-01): was promoted live with 0/30 paper trades — process violation. Re-promote after 30 paper trades + Brier < 0.25.
-- Latest commit: 773f515 — demote eth_lag to paper-only + add PRINCIPLES.md
+- Latest commit: 317c04a — fix daily loss counter to CST midnight (598/598 tests)
 - Kill switch: consecutive loss limit = 4, daily loss limit = 20% ($20 on $100 bankroll)
+- **Daily loss counter is CST-based (UTC-6)** — resets at midnight New Orleans time = 06:00 UTC daily
 - Paper-during-softkill: check_paper_order_allowed() in all paper loops — soft stops block live only
 - Price range guard 10-90¢: active on BOTH btc_drift.py AND btc_lag.py (applied to all 3 lag strategies)
 - **ALL THREE kill switch counters now persist across restarts**: daily loss + lifetime loss + consecutive losses
 - `asyncio.Lock` (_live_trade_lock) shared across 3 live loops — check→execute→record is atomic
 - 8 paper strategies → calibration data collection (eth_lag now paper, plus eth_drift, imbalance, weather, fomc, unemployment, sol_lag)
 - Bot running: PID in bot.pid, log at /tmp/polybot_session25.log
-- **DAILY SOFT STOP ACTIVE** (2026-03-01): $37.10 live losses today > $20 limit. Live bets blocked. Paper bets continue.
-- Restart: `kill -9 $(cat bot.pid); sleep 2; rm -f bot.pid && echo "CONFIRM" | nohup /Users/matthewshields/Projects/polymarket-bot/venv/bin/python main.py --live >> /tmp/polybot_session25.log 2>&1 &`
-  (ALWAYS use full venv python path + kill -9 — never `pkill -f "python main.py"` alone, it may not catch all instances)
+- **NO SOFT STOP** (2026-03-01 16:15 UTC) — live bets active, daily CST counter $0.00
+- Restart (MUST use temp file — nohup drops piped stdin → EOFError):
+  `pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session25.log 2>&1 &`
 
 ## Workflow — ALWAYS AUTONOMOUS (Matthew's standing directive, never needs repeating)
 - **Bypass permissions ACTIVE — operate fully autonomously at all times**

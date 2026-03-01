@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file + CLAUDE.md to any new Claude session to resume.
-# Last updated: 2026-03-01 09:42 UTC (Session 25 — principles doc + eth_lag demotion)
+# Last updated: 2026-03-01 16:15 UTC (Session 25 cont — CST timezone fix, dashboard, Polymarket plan)
 ═══════════════════════════════════════════════════
 
 ## EXACT CURRENT STATE — READ THIS FIRST
@@ -10,20 +10,20 @@ Check: `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || e
 
 **2 strategies LIVE** (real money): btc_lag_v1, btc_drift_v1
 **8 strategies paper**: eth_lag_v1 (demoted), eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
-Test count: **596/596 ✅**
+Test count: **598/598 ✅**
 
 Latest commits (most recent first):
+- 317c04a — fix: daily loss counter resets at CST midnight (not UTC)
 - 773f515 — feat: demote eth_lag to paper-only + add PRINCIPLES.md anti-bloat doc
 - 84a977f — fix: restore consecutive loss streak on restart (prevent cooling bypass)
-- ac791ac — docs: session 25 handoff
 
-## KILL SWITCH STATUS (2026-03-01)
+## KILL SWITCH STATUS (2026-03-01 16:15 UTC)
 
-**DAILY SOFT STOP ACTIVE** — Live bets blocked until midnight UTC (~10 PM Eastern).
-- Daily live losses: $37.10 > $20 limit
-- Resets at midnight UTC. btc_lag_v1 and btc_drift_v1 resume then.
+**NO SOFT STOP** — Live bets active. Daily CST counter reset at midnight CST (06:00 UTC).
+- Daily live losses today (CST March 1): $0.00 — yesterday's losses were CST Feb 28
 - All-time net live P&L: **-$3.73** (well within 30% hard stop)
 - No hard stop active.
+- Consecutive loss streak: 0 (last live trade was a win)
 
 ## WHAT CHANGED IN SESSION 25
 
@@ -84,9 +84,11 @@ On startup (main.py):
 
 ```bash
 cd /Users/matthewshields/Projects/polymarket-bot
-kill -9 $(cat bot.pid) 2>/dev/null; sleep 2; rm -f bot.pid
-echo "CONFIRM" | nohup /Users/matthewshields/Projects/polymarket-bot/venv/bin/python main.py --live >> /tmp/polybot_session25.log 2>&1 &
-sleep 5 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep | grep -v zsh
+pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid
+# NOTE: use temp-file for stdin — nohup drops piped stdin (EOFError)
+echo "CONFIRM" > /tmp/polybot_confirm.txt
+nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session25.log 2>&1 &
+sleep 8 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep | grep -v zsh
 ```
 
 ## Loop stagger (reference)
