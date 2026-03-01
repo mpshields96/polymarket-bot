@@ -1,3 +1,19 @@
+## [DONE] btc_drift: add price extremes filter (min/max price guard)
+**Completed:** 2026-03-01 Session 25 cont2 — tightened to 35-65¢ (commits 1a6c136 + tests). Applied to btc_lag.py too.
+
+---
+
+## [ ] count_trades_today() uses UTC midnight, not CST midnight
+**Added:** 2026-03-01 Session 25 cont2
+**Problem:** `db.count_trades_today(strategy, is_paper)` uses UTC midnight as the day boundary. The daily loss counter was already moved to CST midnight (UTC-6) in Session 25, but bet cap counting wasn't updated. This means bets from CST Feb 28 evening (00:00-06:00 UTC = 6-8 PM CST) eat into the CST March 1 daily bet cap.
+**Impact observed:** btc_drift_v1 hit 10/10 UTC cap at 11:06 CST March 1. A 9.4% edge signal at 53¢ (would have passed all new quality filters) was blocked because 8/10 slots were used by CST-yesterday bets.
+**Fix:** Modify `db.count_trades_today()` to accept an optional `tz_offset_hours=-6` parameter, same pattern as `daily_live_loss_usd()`. Update all callers in main.py. Write regression test.
+**Effort:** ~30 min (DB query + one param, update main.py callers, 2-3 new tests)
+**Priority:** Medium — causes no losses, only misses good signals when day boundary crosses CST evening
+**Approval needed:** Yes — functional behavior change to bet cap logic; don't merge without Matthew's OK
+
+---
+
 ## [ ] btc_drift: add price extremes filter (min/max price guard)
 **Added:** 2026-02-28 Session 23
 **Problem:** btc_drift fires at any price, including 3¢ NO / 97¢ YES. At those extremes:
