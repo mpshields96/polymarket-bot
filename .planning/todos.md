@@ -1,3 +1,17 @@
+## [ ] Volatility-Adaptive Parameters (btc_lag / btc_drift)
+**Added:** 2026-02-28 Session 22
+**Observation:** All strategy parameters are static (config.yaml). On calm days (e.g. weekends), btc_lag fires 0 signals because BTC moves 0.005–0.068% vs 0.40% threshold. On high-vol days, same threshold may be too loose (noise trades). The bot doesn't know what "today's volatility regime" is.
+**Current partial adaptation:** Kelly sizing already scales bet size to edge_pct per signal — higher-edge signals get bigger bets. But threshold for signal entry is fixed.
+**Options:**
+  - (A) Realized-vol-scaled min_edge_pct: if 1h realized vol < 0.15%/min, widen lag threshold; if > 0.5%/min, tighten it
+  - (B) ATR-based reference window: widen btc_drift drift threshold on calm days, tighten on volatile days
+  - (C) No change — static thresholds are intentional (wait for clean signal only)
+**Decision gate:** Need 30 live bets first to know if static params are performing. Do not build until expansion gate clears.
+**Estimated effort:** 1 session (add vol calculation to BinanceFeed, pass to strategies, update tests)
+**Unlock condition:** 30+ live settled bets + expansion gate cleared
+
+---
+
 ## [ ] Sports Game Strategy (KXNBAGAME / KXNHLGAME)
 **Added:** 2026-02-28 Session 20
 **Series:** KXNBAGAME (38 markets, up to 1.35M vol, 1-2¢ spread), KXNHLGAME (48 markets, up to 108K vol, 1-4¢ spread). KXMLBGAME unusable pre-season (54¢ spread).
@@ -87,3 +101,73 @@
 ## [x] Live bet announcement (DONE Session 21)
 - _announce_live_bet(): banner log + Reminders notification on every live order confirmation
 - 7 tests in tests/test_live_announce.py
+
+---
+
+## [ ] Odds API Integration — Quota Guard + Kill Switch (FUTURE — next session)
+**Added:** 2026-03-01 Session 22
+**Context:** Matthew obtained The Odds API subscription (20,000 credits/month, renewed March 1 2026).
+**Standing directives from Matthew:**
+- **HARD CAP: 1,000 credits max for polymarket-bot** (5% of 20,000 monthly budget)
+- Before ANY API call: implement a quota counter + hard stop (like kill_switch but for API credits)
+- Sports props / moneyline / spreads / totals are NOT for Kalshi bot (different system)
+- Do NOT confuse with titanium-v36 / agentic-sandbox-rd project (entirely separate sports betting system)
+- Reference code at ~/ClaudeCode/agentic-sandbox-rd (READ ONLY for reference, not this session)
+**What OddsAPI CAN help with in Kalshi bot:**
+- FOMC/macro market calibration: cross-reference Fed futures odds vs KXFEDDECISION prices
+- Potentially: BTC volatility implied vols from derivatives markets (if covered by API)
+- NOT: sports game props, moneyline, spreads — those are separate system
+**Implementation requirements (before first API call):**
+1. `src/data/odds_api.py` — OddsApiClient with rate counter and quota enforcement
+2. `OddsApiQuotaGuard`: tracks credits used, raises if > 1,000 credits
+3. Config: `odds_api.max_monthly_credits: 1000` in config.yaml
+4. Tests: test_odds_api.py with quota guard tests
+5. Manual review of first 10 API responses before wiring into strategy
+**API info:** https://the-odds-api.com/ | Key in .env as ODDS_API_KEY
+**Estimated effort:** 0.5 session (quota guard only) + 1 session (FOMC calibration feature)
+**Unlock condition:** After expansion gate clears (30+ live trades on btc_drift, ~4-6 weeks)
+
+---
+
+## [ ] Copytrade / Polymarket Access Research
+**Added:** 2026-03-01 Session 22
+**Context:** Matthew mentioned copytrade feature on Polymarket + potential VPN access.
+**Research needed:**
+- Does Polymarket have a copytrade feature (copy another trader's positions)?
+- Is Polymarket accessible via VPN from the US without ToS violation?
+- Are there Polymarket API SDKs that would allow programmatic trading?
+- Cross-market arb: Kalshi vs Polymarket on same event (BTC price, FOMC, etc.)
+**Sources to check:**
+- r/Kalshi, r/predictionmarkets, r/algobetting
+- Polymarket docs: https://docs.polymarket.com
+- Polymarket API: Gamma API + CLOB API
+**Decision gate:** Do not build until current strategies stable. Research only.
+**Estimated effort:** 0.5 session research, then assess
+
+---
+
+## [ ] Kill Switch Event Log — Test Pollution Fix
+**Added:** 2026-03-01 Session 22
+**Issue:** `kill_switch._hard_stop()` writes to KILL_SWITCH_EVENT.log during pytest runs
+- Tests that trigger the hard stop (record_loss × 3 → $30+ losses) write to the LIVE event log
+- This creates misleading entries like "HARD STOP — $31 loss" that look like real trading events
+- _write_blockers() correctly guards with `PYTEST_CURRENT_TEST` — but _hard_stop() does not
+**Fix:** Add `if os.environ.get("PYTEST_CURRENT_TEST"): return` before writing to EVENT_LOG in _hard_stop()
+Also: avoid writing kill_switch.lock during tests (conftest.py cleans it but better to skip)
+**Priority:** Low — cosmetic issue, no trading impact
+**Estimated effort:** 5 minutes + 1 test
+
+---
+
+## [ ] Sports Betting System — Entirely Separate Project
+**Added:** 2026-03-01 Session 22
+**Standing directive from Matthew:** Sports props / moneyline / spreads / totals are NOT for this bot.
+- Entirely separate system from Kalshi/polymarket-bot
+- Reference code: ~/ClaudeCode/agentic-sandbox-rd and titanium-v36 subdirectory
+- Odds API (20,000 credits/month) is the primary data source for that system
+- Do NOT mix sports betting logic into polymarket-bot
+**What this means for polymarket-bot:**
+- KXNBAGAME / KXNHLGAME market types: potentially still viable (these are prediction markets on game outcomes, not traditional sportsbook bets) — but Matthew wants a very solid argument before pursuing
+- Required: Cite multiple r/algobetting + r/predictionmarkets + r/Kalshi posts showing comparable strategies work on prediction markets vs traditional sportsbooks
+- Only pursue if Matthew explicitly approves after review of that research
+**Decision gate:** Matthew must explicitly approve after research. Default is NO for sports on Kalshi bot.
