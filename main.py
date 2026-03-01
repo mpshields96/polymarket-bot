@@ -1345,13 +1345,18 @@ async def main():
     # Restore loss counters from DB so restarts never reset financial risk limits.
     # _realized_loss_usd (30% hard stop): ALL-TIME live losses — restored first, set not add.
     # _daily_loss_usd (daily soft stop): TODAY's live losses only.
-    # Consecutive loss counter intentionally resets on restart (restart = manual soft-stop override).
+    # _consecutive_losses (cooling period): streak from end of live trade history.
+    #   Restoring prevents a restart mid-streak from bypassing the 4-loss cool-down.
+    #   If streak >= 4 at startup, a fresh 2hr cooling period fires immediately.
     _all_time_live_loss = db.all_time_live_loss_usd()
     if _all_time_live_loss > 0:
         kill_switch.restore_realized_loss(_all_time_live_loss)
     _today_live_loss = db.daily_live_loss_usd()
     if _today_live_loss > 0:
         kill_switch.restore_daily_loss(_today_live_loss)
+    _consecutive_streak = db.current_live_consecutive_losses()
+    if _consecutive_streak > 0:
+        kill_switch.restore_consecutive_losses(_consecutive_streak)
 
     current_bankroll = db.latest_bankroll() or starting_bankroll
     stage = get_stage(current_bankroll)

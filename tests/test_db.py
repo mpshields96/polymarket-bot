@@ -608,3 +608,106 @@ class TestAllTimeLiveLossUsd:
         assert db.daily_live_loss_usd() == pytest.approx(0.0)
         # all_time_live_loss_usd has no date filter — must still return $5
         assert db.all_time_live_loss_usd() == pytest.approx(5.0)
+
+
+# ── current_live_consecutive_losses ─────────────────────────────────
+
+
+class TestCurrentLiveConsecutiveLosses:
+    """
+    current_live_consecutive_losses() returns the number of consecutive
+    losses at the END of live settled trade history (global, all strategies).
+
+    Regression: consecutive loss counter was resetting to 0 on restart,
+    allowing the bot to place 3 extra losing bets (trades 86, 88, 90) after
+    already reaching the 4-loss limit in a prior session.
+    """
+
+    def _live(self, db, ticker, side, result, pnl_cents):
+        t = db.save_trade(
+            ticker=ticker, side=side, action="buy", price_cents=50,
+            count=100, cost_usd=5.0, is_paper=False,
+            strategy="btc_drift_v1", edge_pct=0.05, win_prob=0.6,
+        )
+        db.settle_trade(t, result=result, pnl_cents=pnl_cents)
+        return t
+
+    def _paper(self, db, ticker, side, result, pnl_cents):
+        t = db.save_trade(
+            ticker=ticker, side=side, action="buy", price_cents=50,
+            count=100, cost_usd=5.0, is_paper=True,
+            strategy="btc_drift_v1", edge_pct=0.05, win_prob=0.6,
+        )
+        db.settle_trade(t, result=result, pnl_cents=pnl_cents)
+        return t
+
+    def test_returns_zero_if_no_trades(self, db):
+        assert db.current_live_consecutive_losses() == 0
+
+    def test_returns_zero_if_only_paper_losses(self, db):
+        """Paper losses must NOT count toward consecutive loss streak."""
+        self._paper(db, "KXBTC15M-A", "yes", "no", -500)
+        self._paper(db, "KXBTC15M-B", "yes", "no", -500)
+        assert db.current_live_consecutive_losses() == 0
+
+    def test_returns_one_for_single_live_loss(self, db):
+        self._live(db, "KXBTC15M-A", "yes", "no", -500)
+        assert db.current_live_consecutive_losses() == 1
+
+    def test_returns_zero_if_most_recent_is_win(self, db):
+        self._live(db, "KXBTC15M-A", "yes", "no", -500)  # loss
+        self._live(db, "KXBTC15M-B", "yes", "yes", +560)  # win — resets streak
+        assert db.current_live_consecutive_losses() == 0
+
+    def test_counts_streak_ending_in_losses(self, db):
+        """Win then 3 losses → streak = 3."""
+        self._live(db, "KXBTC15M-A", "yes", "yes", +560)  # win
+        self._live(db, "KXBTC15M-B", "yes", "no", -500)   # loss 1
+        self._live(db, "KXBTC15M-C", "yes", "no", -500)   # loss 2
+        self._live(db, "KXBTC15M-D", "yes", "no", -500)   # loss 3
+        assert db.current_live_consecutive_losses() == 3
+
+    def test_stops_counting_at_first_win_from_end(self, db):
+        """L L W L L → streak = 2 (only tail losses count)."""
+        self._live(db, "KXBTC15M-A", "yes", "no", -500)   # loss (old)
+        self._live(db, "KXBTC15M-B", "yes", "no", -500)   # loss (old)
+        self._live(db, "KXBTC15M-C", "yes", "yes", +560)  # win — resets
+        self._live(db, "KXBTC15M-D", "yes", "no", -500)   # loss 1
+        self._live(db, "KXBTC15M-E", "yes", "no", -500)   # loss 2
+        assert db.current_live_consecutive_losses() == 2
+
+    def test_counts_four_consecutive_at_limit(self, db):
+        """Exactly 4 consecutive losses → kill switch should fire on restore."""
+        for i in range(4):
+            self._live(db, f"KXBTC15M-{i}", "yes", "no", -500)
+        assert db.current_live_consecutive_losses() == 4
+
+    def test_works_across_strategies(self, db):
+        """Streak counts globally across all live strategies."""
+        db.save_trade(  # btc_lag loss
+            ticker="KXBTC15M-A", side="yes", action="buy", price_cents=50,
+            count=100, cost_usd=5.0, is_paper=False,
+            strategy="btc_lag_v1", edge_pct=0.05, win_prob=0.6,
+        )
+        t1 = db._conn.execute("SELECT MAX(id) FROM trades").fetchone()[0]
+        db.settle_trade(t1, result="no", pnl_cents=-500)
+
+        db.save_trade(  # eth_lag loss
+            ticker="KXETH15M-A", side="yes", action="buy", price_cents=50,
+            count=100, cost_usd=5.0, is_paper=False,
+            strategy="eth_lag_v1", edge_pct=0.05, win_prob=0.6,
+        )
+        t2 = db._conn.execute("SELECT MAX(id) FROM trades").fetchone()[0]
+        db.settle_trade(t2, result="no", pnl_cents=-500)
+
+        assert db.current_live_consecutive_losses() == 2
+
+    def test_ignores_unsettled_live_trades(self, db):
+        """Open positions (no result yet) must not affect the streak."""
+        self._live(db, "KXBTC15M-A", "yes", "no", -500)  # settled loss
+        db.save_trade(  # open, unsettled
+            ticker="KXBTC15M-B", side="yes", action="buy", price_cents=50,
+            count=100, cost_usd=5.0, is_paper=False,
+            strategy="btc_drift_v1", edge_pct=0.05, win_prob=0.6,
+        )
+        assert db.current_live_consecutive_losses() == 1

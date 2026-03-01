@@ -371,6 +371,33 @@ class DB:
         ).fetchone()
         return float(row[0] or 0.0)
 
+    def current_live_consecutive_losses(self) -> int:
+        """Return the current consecutive live loss streak (global, all strategies).
+
+        Walks settled live trades from most recent backwards and counts losses
+        until a win is found (or the beginning of history).
+
+        Used by kill_switch on restart to restore _consecutive_losses so the
+        4-loss cooling period persists across bot restarts — prevents the restart
+        from resetting the counter mid-streak and allowing extra losing bets.
+        """
+        rows = self._conn.execute(
+            """SELECT result, side
+               FROM trades
+               WHERE is_paper = 0
+                 AND result IS NOT NULL
+               ORDER BY timestamp DESC""",
+        ).fetchall()
+
+        streak = 0
+        for row in rows:
+            result, side = row[0], row[1]
+            if result != side:
+                streak += 1
+            else:
+                break
+        return streak
+
     def total_realized_pnl_usd(self, is_paper: Optional[bool] = None) -> float:
         """Return sum of all settled P&L in USD."""
         query = "SELECT SUM(pnl_cents) FROM trades WHERE result IS NOT NULL"

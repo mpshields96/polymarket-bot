@@ -323,6 +323,40 @@ class KillSwitch:
                 f">= {HARD_STOP_LOSS_PCT:.0%} hard stop limit"
             )
 
+    def restore_consecutive_losses(self, count: int):
+        """Restore consecutive live loss streak from the DB on bot restart.
+
+        Prevents bot restarts from resetting the consecutive loss counter to 0
+        mid-streak, which previously allowed the bot to place extra losing bets
+        after already reaching the 4-loss cooling threshold.
+
+        If count >= CONSECUTIVE_LOSS_LIMIT: triggers a fresh 2hr cooling period
+        immediately so the bot cannot trade on restart after a breach.
+        If count < limit: seeds the counter so fewer additional losses are needed
+        to trigger cooling (e.g. restored at 3 → 1 more loss fires it).
+
+        Called on startup with db.current_live_consecutive_losses().
+        """
+        if count <= 0:
+            return
+        self._state._consecutive_losses = count
+        logger.info(
+            "Consecutive live losses restored from DB: %d (limit: %d)",
+            count,
+            CONSECUTIVE_LOSS_LIMIT,
+        )
+        if count >= CONSECUTIVE_LOSS_LIMIT:
+            until = time.time() + (COOLING_PERIOD_HOURS * 3600)
+            self._state._cooling_until = until
+            reason = (
+                f"{count} consecutive losses restored from DB — "
+                f"cooling {COOLING_PERIOD_HOURS}hr"
+            )
+            self._state._soft_stop = True
+            self._state._soft_stop_reason = reason
+            self._state._soft_stop_until = until
+            logger.warning("COOLING PERIOD TRIGGERED ON RESTART: %s", reason)
+
     def record_win(self):
         """Call when a trade settles as a win."""
         self._state._consecutive_losses = 0

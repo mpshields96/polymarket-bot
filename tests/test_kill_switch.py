@@ -816,3 +816,90 @@ class TestRestoreRealizedLoss:
         status = ks.get_status()
         assert status["total_realized_loss_usd"] == pytest.approx(25.0)
         assert status["daily_loss_usd"] == pytest.approx(10.0)
+
+
+# ── Consecutive loss counter persistence across restarts ────────────
+
+
+class TestRestoreConsecutiveLosses:
+    """
+    Regression: bot restarted mid-losing-streak (trade 85→86 gap = 2200s),
+    consecutive counter reset to 0, allowed 3 extra losing bets (~$14.74 loss).
+
+    restore_consecutive_losses() mirrors restore_daily_loss/restore_realized_loss:
+    - Seeds _consecutive_losses from DB on startup
+    - If count >= CONSECUTIVE_LOSS_LIMIT: immediately starts cooling period
+    - If count < limit: sets counter so fewer losses needed to trigger it
+    """
+
+    @pytest.fixture
+    def ks(self):
+        return KillSwitch(starting_bankroll_usd=100.0)
+
+    def test_restore_seeds_counter(self, ks):
+        """After restore(3), consecutive_losses status reflects 3."""
+        ks.restore_consecutive_losses(3)
+        status = ks.get_status()
+        assert status["consecutive_losses"] == 3
+
+    def test_restore_zero_is_noop(self, ks):
+        """restore_consecutive_losses(0) must not change anything."""
+        ks.restore_consecutive_losses(0)
+        status = ks.get_status()
+        assert status["consecutive_losses"] == 0
+
+    def test_restore_negative_is_noop(self, ks):
+        """Negative values must be ignored."""
+        ks.restore_consecutive_losses(-2)
+        status = ks.get_status()
+        assert status["consecutive_losses"] == 0
+
+    def test_restore_at_limit_triggers_cooling(self, ks):
+        """Restoring count >= CONSECUTIVE_LOSS_LIMIT must block trading immediately."""
+        ks.restore_consecutive_losses(CONSECUTIVE_LOSS_LIMIT)
+        ok, reason = ks.check_order_allowed(trade_usd=2.0, current_bankroll_usd=100.0)
+        assert not ok
+        assert "ooling" in reason
+
+    def test_restore_above_limit_triggers_cooling(self, ks):
+        """Restoring count > limit (e.g. 6) must also block trading."""
+        ks.restore_consecutive_losses(CONSECUTIVE_LOSS_LIMIT + 2)
+        ok, reason = ks.check_order_allowed(trade_usd=2.0, current_bankroll_usd=100.0)
+        assert not ok
+        assert "ooling" in reason
+
+    def test_restore_below_limit_does_not_block(self, ks):
+        """Restoring count < limit must NOT block trading yet."""
+        ks.restore_consecutive_losses(CONSECUTIVE_LOSS_LIMIT - 1)
+        ok, reason = ks.check_order_allowed(trade_usd=2.0, current_bankroll_usd=100.0)
+        assert ok, f"Expected trade allowed but got: {reason}"
+
+    def test_restore_three_then_one_more_loss_triggers_cooling(self, ks):
+        """restore(3) + record_loss → 4th loss → cooling fires."""
+        ks.restore_consecutive_losses(CONSECUTIVE_LOSS_LIMIT - 1)  # 3
+        ks.record_loss(5.0)  # 4th loss — should trigger cooling
+        ok, reason = ks.check_order_allowed(trade_usd=2.0, current_bankroll_usd=100.0)
+        assert not ok
+        assert "ooling" in reason
+
+    def test_restore_does_not_affect_daily_loss(self, ks):
+        """restore_consecutive_losses must not touch _daily_loss_usd."""
+        ks.restore_consecutive_losses(3)
+        status = ks.get_status()
+        assert status["daily_loss_usd"] == pytest.approx(0.0)
+
+    def test_restore_does_not_affect_realized_loss(self, ks):
+        """restore_consecutive_losses must not touch _realized_loss_usd."""
+        ks.restore_consecutive_losses(3)
+        status = ks.get_status()
+        assert status["total_realized_loss_usd"] == pytest.approx(0.0)
+
+    def test_restore_all_three_counters_independent(self, ks):
+        """All three restores are fully independent — no cross-contamination."""
+        ks.restore_realized_loss(10.0)
+        ks.restore_daily_loss(5.0)
+        ks.restore_consecutive_losses(2)
+        status = ks.get_status()
+        assert status["total_realized_loss_usd"] == pytest.approx(10.0)
+        assert status["daily_loss_usd"] == pytest.approx(5.0)
+        assert status["consecutive_losses"] == 2
