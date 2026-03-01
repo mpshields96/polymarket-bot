@@ -195,3 +195,58 @@ Also: avoid writing kill_switch.lock during tests (conftest.py cleans it but bet
 - Required: Cite multiple r/algobetting + r/predictionmarkets + r/Kalshi posts showing comparable strategies work on prediction markets vs traditional sportsbooks
 - Only pursue if Matthew explicitly approves after review of that research
 **Decision gate:** Matthew must explicitly approve after research. Default is NO for sports on Kalshi bot.
+
+---
+
+## [ ] Polymarket US Copy Trading — Future Roadmap Item
+**Added:** 2026-03-01 Session 25
+**Deep research completed:** Session 25 cont (API research agent)
+
+**UPDATED STATUS — Phase 0 is essentially already done:**
+
+**Arc browser fix (immediate):**
+Matthew's $60 account is on the US beta at **`polymarket.us`** (not polymarket.com).
+Open `polymarket.us` in Arc — that's where the US beta lives. polymarket.com is the
+international platform which doesn't know about the US beta account.
+
+**API infrastructure — fully documented, no reverse engineering needed:**
+- Official Python SDK: `py-clob-client` v0.34.6 (pip install py-clob-client), maintained by Polymarket
+- CLOB trading API: `https://clob.polymarket.com` (same endpoint for US and international)
+- Gamma market data: `https://gamma-api.polymarket.com`
+- Data API (public): `https://data-api.polymarket.com` (positions, activity, leaderboard)
+- Runs on Polygon (chain_id=137)
+
+**Authentication (two-level):**
+- L1: EIP-712 wallet signature — for Google/email login use signature_type=1 (Magic wallet)
+- L2: apiKey + secret + passphrase → HMAC-SHA256 signed requests
+- Generate credentials at `polymarket.us/developer` after identity verification
+- Headers: POLY_ADDRESS, POLY_API_KEY, POLY_PASSPHRASE, POLY_SIGNATURE, POLY_TIMESTAMP
+
+**Copy trading data endpoints (public, no auth):**
+- Leaderboard: `GET https://data-api.polymarket.com/v1/builders/leaderboard?timePeriod=MONTH&limit=50`
+- Wallet positions: `GET https://data-api.polymarket.com/positions?user=<wallet_address>`
+- Wallet activity: `GET https://data-api.polymarket.com/activity?user=<wallet_address>`
+- Orderbook: `GET https://clob.polymarket.com/book?token_id=<tokenId>`
+
+**What's needed before building:**
+1. Open `polymarket.us` in Arc, confirm account/balance shows
+2. Go to `polymarket.us/developer` → generate API credentials (apiKey + secret + passphrase)
+3. `pip install py-clob-client` in new repo
+4. Test connection: `ClobClient("https://clob.polymarket.com", key=<wallet_key>, chain_id=137, signature_type=1)`
+5. That's it — no Charles Proxy needed, no API discovery, full docs exist
+
+**Architecture (confirmed from research):**
+```
+polymarket-copytrade/          # SEPARATE REPO from polymarket-bot
+├── src/auth/poly_auth.py      # py-clob-client wrapper (L1→L2 creds)
+├── src/data/leaderboard.py    # data-api.polymarket.com/v1/builders/leaderboard
+├── src/data/positions.py      # data-api.polymarket.com/positions?user=<wallet>
+├── src/data/markets.py        # gamma-api.polymarket.com markets
+├── src/strategies/copy.py     # filter + sizing logic
+├── src/risk/kill_switch.py    # same pattern as Kalshi
+├── src/execution/poly_exec.py # py-clob-client order placement
+└── src/db.py                  # SQLite (copied trades, P&L)
+```
+
+**Decision gate:** Do NOT build until (a) Kalshi btc_drift at 30+ live trades + Brier < 0.30
+and (b) 2-3 weeks of stable live P&L. Until then: credentials setup only (no code).
