@@ -18,6 +18,8 @@ Tables:
 
 from __future__ import annotations
 
+import csv
+import datetime
 import logging
 import sqlite3
 import time
@@ -417,6 +419,67 @@ class DB:
             "days_running": days_running,
             "total_pnl_usd": total_pnl_usd,
         }
+
+    def export_trades_csv(self, output_path: Optional[Path] = None) -> Path:
+        """
+        Export all trades to a CSV file. Overwrites on each call so the file
+        always reflects current DB state.
+
+        Default path: <project_root>/reports/trades.csv
+        Returns the path written.
+        """
+        if output_path is None:
+            output_path = PROJECT_ROOT / "reports" / "trades.csv"
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        rows = self._conn.execute(
+            "SELECT * FROM trades ORDER BY id ASC"
+        ).fetchall()
+
+        fieldnames = [
+            "id", "placed_at", "settled_at", "ticker", "strategy",
+            "side", "action", "price_cents", "count", "cost_usd",
+            "edge_pct", "win_prob", "is_paper", "result", "pnl_usd", "won",
+            "client_order_id", "server_order_id",
+        ]
+
+        def _ts(unix: float) -> str:
+            if not unix:
+                return ""
+            return datetime.datetime.fromtimestamp(unix, tz=datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+        with open(output_path, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            for r in rows:
+                r = dict(r)
+                won = None
+                if r.get("result") and r.get("side"):
+                    won = r["result"] == r["side"]
+                writer.writerow({
+                    "id": r["id"],
+                    "placed_at": _ts(r.get("created_at") or r.get("timestamp")),
+                    "settled_at": _ts(r.get("settled_at")),
+                    "ticker": r["ticker"],
+                    "strategy": r["strategy"],
+                    "side": r["side"],
+                    "action": r["action"],
+                    "price_cents": r["price_cents"],
+                    "count": r["count"],
+                    "cost_usd": r["cost_usd"],
+                    "edge_pct": r.get("edge_pct"),
+                    "win_prob": r.get("win_prob"),
+                    "is_paper": "live" if r["is_paper"] == 0 else "paper",
+                    "result": r.get("result", ""),
+                    "pnl_usd": round(r["pnl_cents"] / 100, 2) if r.get("pnl_cents") is not None else "",
+                    "won": won if won is not None else "",
+                    "client_order_id": r.get("client_order_id", ""),
+                    "server_order_id": r.get("server_order_id", ""),
+                })
+
+        logger.info("Trades exported to %s (%d rows)", output_path, len(rows))
+        return output_path
 
 
 # ── Factory ───────────────────────────────────────────────────────────

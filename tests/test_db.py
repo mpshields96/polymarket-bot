@@ -7,6 +7,7 @@ No mocking of sqlite3 — we test the real SQL.
 
 from __future__ import annotations
 
+import csv
 import tempfile
 import time
 from pathlib import Path
@@ -399,3 +400,84 @@ class TestHasOpenPosition:
         _save_trade(db, ticker="KXBTC15M-TEST")
         _save_trade(db, ticker="KXBTC15M-TEST")
         assert db.has_open_position("KXBTC15M-TEST") is True
+
+
+# ── CSV Export ────────────────────────────────────────────────────
+
+
+class TestExportTradesCsv:
+    def test_creates_file(self, db, tmp_path):
+        _save_trade(db)
+        out = tmp_path / "out.csv"
+        db.export_trades_csv(out)
+        assert out.exists()
+
+    def test_header_row(self, db, tmp_path):
+        _save_trade(db)
+        out = tmp_path / "out.csv"
+        db.export_trades_csv(out)
+        with open(out) as f:
+            reader = csv.DictReader(f)
+            assert "id" in reader.fieldnames
+            assert "placed_at" in reader.fieldnames
+            assert "pnl_usd" in reader.fieldnames
+            assert "is_paper" in reader.fieldnames
+            assert "won" in reader.fieldnames
+
+    def test_row_count_matches_trades(self, db, tmp_path):
+        _save_trade(db, ticker="KXBTC15M-A")
+        _save_trade(db, ticker="KXBTC15M-B")
+        _save_trade(db, ticker="KXBTC15M-C", is_paper=False)
+        out = tmp_path / "out.csv"
+        db.export_trades_csv(out)
+        with open(out) as f:
+            rows = list(csv.DictReader(f))
+        assert len(rows) == 3
+
+    def test_is_paper_label(self, db, tmp_path):
+        _save_trade(db, is_paper=True)
+        _save_trade(db, ticker="KXBTC15M-LIVE", is_paper=False)
+        out = tmp_path / "out.csv"
+        db.export_trades_csv(out)
+        with open(out) as f:
+            rows = list(csv.DictReader(f))
+        labels = {r["is_paper"] for r in rows}
+        assert "paper" in labels
+        assert "live" in labels
+
+    def test_settled_trade_pnl_and_won(self, db, tmp_path):
+        tid = _save_trade(db, side="no", is_paper=False)
+        db.settle_trade(tid, result="no", pnl_cents=350)
+        out = tmp_path / "out.csv"
+        db.export_trades_csv(out)
+        with open(out) as f:
+            rows = list(csv.DictReader(f))
+        row = rows[0]
+        assert row["result"] == "no"
+        assert float(row["pnl_usd"]) == 3.5
+        assert row["won"] == "True"
+
+    def test_open_trade_empty_pnl(self, db, tmp_path):
+        _save_trade(db)
+        out = tmp_path / "out.csv"
+        db.export_trades_csv(out)
+        with open(out) as f:
+            rows = list(csv.DictReader(f))
+        assert rows[0]["pnl_usd"] == ""
+        assert rows[0]["won"] == ""
+
+    def test_overwrites_on_second_call(self, db, tmp_path):
+        _save_trade(db)
+        out = tmp_path / "out.csv"
+        db.export_trades_csv(out)
+        _save_trade(db, ticker="KXBTC15M-B")
+        db.export_trades_csv(out)
+        with open(out) as f:
+            rows = list(csv.DictReader(f))
+        assert len(rows) == 2
+
+    def test_creates_parent_dir(self, db, tmp_path):
+        out = tmp_path / "subdir" / "nested" / "out.csv"
+        _save_trade(db)
+        db.export_trades_csv(out)
+        assert out.exists()

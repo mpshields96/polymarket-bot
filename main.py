@@ -779,6 +779,13 @@ async def settlement_loop(kalshi, db, kill_switch):
                         else:
                             kill_switch.record_loss(abs(pnl_cents) / 100.0)
 
+            # Auto-export CSV after each settlement poll that found settled trades
+            if open_trades:
+                try:
+                    db.export_trades_csv()
+                except Exception as e:
+                    logger.warning("[settle] CSV export failed: %s", e)
+
         except asyncio.CancelledError:
             break
         except Exception as e:
@@ -1182,6 +1189,8 @@ async def main():
                         help="Print graduation progress for all 8 strategies and exit")
     parser.add_argument("--status", action="store_true",
                         help="Print bot status (bankroll, prices, pending bets, recent trades) and exit")
+    parser.add_argument("--export-trades", action="store_true",
+                        help="Export all trades to reports/trades.csv and exit")
     args = parser.parse_args()
 
     # ── --reset-killswitch ────────────────────────────────────────────
@@ -1199,7 +1208,7 @@ async def main():
         sys.exit(result.returncode)
 
     # ── Read-only commands (bypass bot lock — safe while bot is live) ──
-    _read_only_mode = args.status or args.report or args.graduation_status
+    _read_only_mode = args.status or args.report or args.graduation_status or args.export_trades
     if _read_only_mode:
         from src.db import load_from_config as db_load
         db = db_load()
@@ -1210,6 +1219,9 @@ async def main():
             print_report(db)
         elif args.graduation_status:
             print_graduation_status(db)
+        elif args.export_trades:
+            path = db.export_trades_csv()
+            print(f"Exported {path}")
         db.close()
         return
 
