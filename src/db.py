@@ -350,16 +350,21 @@ class DB:
         return float(row[0] or 0.0)
 
     def daily_live_loss_usd(self) -> float:
-        """Return total live losses settled today (UTC) as a positive USD amount.
+        """Return total live losses settled today (CST, UTC-6) as a positive USD amount.
+
+        Uses CST midnight as the day boundary so the daily soft stop resets at
+        midnight New Orleans time rather than midnight UTC.  This prevents early-
+        morning UTC losses (late the previous evening CST) from bleeding into the
+        next CST trading day.
 
         Used by kill_switch on restart to restore the daily loss counter so that
         bot restarts don't reset daily risk limits mid-session.
         """
-        from datetime import datetime, timezone as _tz
-        now_utc = datetime.now(_tz.utc)
-        midnight_utc = now_utc.replace(
-            hour=0, minute=0, second=0, microsecond=0
-        ).timestamp()
+        from datetime import datetime, timezone as _tz, timedelta
+        CST = _tz(timedelta(hours=-6))
+        now_cst = datetime.now(CST)
+        midnight_cst = now_cst.replace(hour=0, minute=0, second=0, microsecond=0)
+        midnight_ts = midnight_cst.timestamp()
         row = self._conn.execute(
             """SELECT COALESCE(-SUM(pnl_cents), 0) / 100.0
                FROM trades
@@ -367,7 +372,7 @@ class DB:
                  AND result IS NOT NULL
                  AND pnl_cents < 0
                  AND settled_at >= ?""",
-            (midnight_utc,),
+            (midnight_ts,),
         ).fetchone()
         return float(row[0] or 0.0)
 

@@ -525,6 +525,45 @@ class TestDailyLiveLossUsd:
         db.settle_trade(t2, result="no", pnl_cents=-480)  # $4.80 loss
         assert db.daily_live_loss_usd() == pytest.approx(9.80, abs=0.01)
 
+    def test_excludes_losses_before_cst_midnight(self, db):
+        """Losses settled before midnight CST (i.e. early UTC morning) must NOT
+        count toward today's daily limit.  This is the real-world scenario where
+        losses occur at e.g. 00:34–02:15 UTC (= 18:34–20:15 CST the previous
+        evening) and should NOT fire the next CST day's soft stop."""
+        from datetime import datetime, timezone, timedelta
+        CST = timezone(timedelta(hours=-6))
+        # Compute a timestamp that is 3 hours before midnight CST today
+        # = late evening CST yesterday = early hours UTC today
+        now_cst = datetime.now(CST)
+        midnight_cst = now_cst.replace(hour=0, minute=0, second=0, microsecond=0)
+        three_hours_before_midnight = (midnight_cst - timedelta(hours=3)).timestamp()
+
+        t = self._live_trade(db)
+        # Manually settle with yesterday-CST timestamp
+        db._conn.execute(
+            "UPDATE trades SET result='no', pnl_cents=-500, settled_at=? WHERE id=?",
+            (three_hours_before_midnight, t),
+        )
+        db._conn.commit()
+        # Should NOT count — it was before CST midnight (previous CST day)
+        assert db.daily_live_loss_usd() == pytest.approx(0.0)
+
+    def test_includes_losses_after_cst_midnight(self, db):
+        """Losses settled after midnight CST today DO count toward today's limit."""
+        from datetime import datetime, timezone, timedelta
+        CST = timezone(timedelta(hours=-6))
+        now_cst = datetime.now(CST)
+        midnight_cst = now_cst.replace(hour=0, minute=0, second=0, microsecond=0)
+        one_hour_after_midnight = (midnight_cst + timedelta(hours=1)).timestamp()
+
+        t = self._live_trade(db)
+        db._conn.execute(
+            "UPDATE trades SET result='no', pnl_cents=-500, settled_at=? WHERE id=?",
+            (one_hour_after_midnight, t),
+        )
+        db._conn.commit()
+        assert db.daily_live_loss_usd() == pytest.approx(5.0)
+
 
 # ── all_time_live_loss_usd ───────────────────────────────────────────
 
