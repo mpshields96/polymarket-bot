@@ -1,3 +1,27 @@
+## [ ] btc_drift: add price extremes filter (min/max price guard)
+**Added:** 2026-02-28 Session 23
+**Problem:** btc_drift fires at any price, including 3¢ NO / 97¢ YES. At those extremes:
+  (1) The sigmoid model was NOT calibrated on extreme-probability signals — accuracy at 3¢ is unknown
+  (2) Market has typically already efficiently priced in certainty; HFTs have pushed it there for a reason
+  (3) 33:1 payout ratio means variance is enormous even with positive expected value
+  (4) late_penalty reduces confidence but NOT edge_pct — late + extreme price still passes filter (gotcha)
+**Fix:** Add `min_signal_price_cents` / `max_signal_price_cents` config params to btc_drift strategy.
+  Suggested range: 10¢–90¢. Signals outside this range are skipped — model not calibrated there.
+  Also consider applying late_penalty to edge_pct (not just confidence) for bets < 5 min remaining.
+**Effort:** ~30 min (add guard in btc_drift.generate_signal(), update config.yaml, write tests)
+**Priority:** Medium — current $5 hard cap limits damage, but this is a calibration gap.
+
+---
+
+## [ ] Update starting_bankroll_usd when bankroll crosses stage thresholds
+**Added:** 2026-02-28 Session 23
+**Problem:** `DAILY_LOSS_LIMIT_PCT × starting_bankroll_usd` is the daily loss cap. `starting_bankroll_usd` is set to $100 in config.yaml but real bankroll is ~$115 and growing. As bankroll grows the limit stays fixed at $20 — becomes increasingly conservative relative to true exposure.
+**Action:** At each stage promotion, update `starting_bankroll_usd` in config.yaml risk section to match actual bankroll. Could also make it dynamic (read from DB at startup).
+**When:** Do before or concurrent with Stage 2 promotion. Not urgent until bankroll > $150.
+**Estimated effort:** 10 min (config.yaml one-liner + update tests that hardcode $100)
+
+---
+
 ## [ ] Volatility-Adaptive Parameters (btc_lag / btc_drift)
 **Added:** 2026-02-28 Session 22
 **Observation:** All strategy parameters are static (config.yaml). On calm days (e.g. weekends), btc_lag fires 0 signals because BTC moves 0.005–0.068% vs 0.40% threshold. On high-vol days, same threshold may be too loose (noise trades). The bot doesn't know what "today's volatility regime" is.
