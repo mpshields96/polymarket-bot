@@ -1,5 +1,17 @@
 # CLAUDE.md — polymarket-bot
 
+## MANDATORY READING — BEFORE ANY STRATEGY OR RISK CHANGE
+Read `.planning/PRINCIPLES.md` before modifying any strategy parameter,
+kill switch threshold, or risk rule. It contains:
+- The mechanical defect vs statistical outcome test
+- Why paper bets continue during live soft stops
+- The anti-bloat principle (no trauma-based rules)
+- Graduation criteria and why they are mandatory
+- When to change vs when to wait for data
+
+If you (Claude) are about to change a threshold, add a filter, or
+adjust a parameter after a losing period — read PRINCIPLES.md first.
+
 ## Commands
 `source venv/bin/activate && python -m pytest tests/ -v` - run tests (use python -m, not pytest directly)
 `source venv/bin/activate && python setup/verify.py` - verify all connections before bot start

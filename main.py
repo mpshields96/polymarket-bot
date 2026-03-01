@@ -1388,7 +1388,7 @@ async def main():
     drift_strategy = drift_strategy_load()
     logger.info("Strategy loaded: %s (LIVE BTC drift)", drift_strategy.name)
     eth_lag_strategy = eth_lag_load()
-    logger.info("Strategy loaded: %s (LIVE ETH lag)", eth_lag_strategy.name)
+    logger.info("Strategy loaded: %s (paper-only ETH lag — returning to calibration)", eth_lag_strategy.name)
     eth_drift_strategy = eth_drift_load()
     logger.info("Strategy loaded: %s (paper-only ETH drift)", eth_drift_strategy.name)
     btc_imbalance_strategy = load_btc_imbalance_from_config()
@@ -1442,7 +1442,10 @@ async def main():
         ),
         name="trading_loop",
     )
-    # ETH lag: LIVE mode as of 2026-02-28 (same path as btc_lag), stagger 7s
+    # ETH lag: PAPER-ONLY — returned to paper 2026-03-01 (graduation criteria not met:
+    # 0/30 paper trades completed before live promotion — process violation).
+    # Re-promote to live only after: 30+ settled paper trades + Brier < 0.25.
+    # See .planning/PRINCIPLES.md — graduation criteria are mandatory, not suggestions.
     eth_lag_task = asyncio.create_task(
         trading_loop(
             kalshi=kalshi,
@@ -1450,14 +1453,14 @@ async def main():
             strategy=eth_lag_strategy,
             kill_switch=kill_switch,
             db=db,
-            live_executor_enabled=live_mode,
+            live_executor_enabled=False,
             live_confirmed=live_confirmed,
             btc_series_ticker=eth_series_ticker,
             loop_name="eth_trading",
             initial_delay_sec=7.0,
-            max_daily_bets=max_daily_bets_live,
+            max_daily_bets=max_daily_bets_paper,
             slippage_ticks=paper_slippage_ticks,
-            trade_lock=_live_trade_lock,
+            trade_lock=None,
         ),
         name="eth_lag_loop",
     )
