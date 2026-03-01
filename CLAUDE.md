@@ -114,7 +114,7 @@ DO NOT: fix symptoms without finding root cause
 - `_STALE_THRESHOLD_SEC = 35.0` in binance.py — Binance.US @bookTicker can be silent 10-30s; 10s threshold causes false stale signals
 - **RESTART PROCEDURE**: `kill $(cat bot.pid)` only kills the most recent instance; use pkill. `echo "CONFIRM" | nohup python main.py` does NOT work — nohup drops piped stdin (EOFError). Always use temp file: `pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session25.log 2>&1 &` — then verify with `ps aux | grep "[m]ain.py"` (should be exactly 1 process).
 - **Paper/live separation** (fixed Session 21): `has_open_position()` and `count_trades_today()` now pass `is_paper` filter. Live daily cap counts live bets only. Paper bets no longer eat into live quota.
-- 540/540 tests must pass before any commit (count updates each session)
+- 599/599 tests must pass before any commit (count updates each session)
 - **`confidence` field in Signal is computed but never consumed** (not used in sizing, kill switch, or main.py). It's a dead field — low priority to wire in or remove.
 - **eth_drift uses BTCDriftStrategy internally** — logs say `[btc_drift]` and "BTC=ETH_price". Cosmetic only. `btc_feed=eth_feed` in main.py call is correct.
 - **settlement_loop uses `paper_exec.settle()` for live trades too** — logs say `[paper] Settled` even for live trades. Cosmetic only; P&L math and DB update are correct.
@@ -163,11 +163,11 @@ DO NOT: fix symptoms without finding root cause
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- 596/596 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
+- 599/599 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
 - 10 trading loops: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
 - **2 strategies LIVE: btc_lag_v1 + btc_drift_v1** ($5 max/bet)
 - **eth_lag_v1 returned to PAPER** (2026-03-01): was promoted live with 0/30 paper trades — process violation. Re-promote after 30 paper trades + Brier < 0.25.
-- Latest commit: 317c04a — fix daily loss counter to CST midnight (598/598 tests)
+- Latest commit: 317c04a — fix daily loss counter to CST midnight (599/599 tests)
 - Kill switch: consecutive loss limit = 4, daily loss limit = 20% ($20 on $100 bankroll)
 - **Daily loss counter is CST-based (UTC-6)** — resets at midnight New Orleans time = 06:00 UTC daily
 - Paper-during-softkill: check_paper_order_allowed() in all paper loops — soft stops block live only
@@ -176,7 +176,8 @@ Current project state (updated each session):
 - `asyncio.Lock` (_live_trade_lock) shared across 3 live loops — check→execute→record is atomic
 - 8 paper strategies → calibration data collection (eth_lag now paper, plus eth_drift, imbalance, weather, fomc, unemployment, sol_lag)
 - Bot running: PID in bot.pid, log at /tmp/polybot_session25.log
-- **NO SOFT STOP** (2026-03-01 16:15 UTC) — live bets active, daily CST counter $0.00
+- **NO SOFT STOP** — live bets active, daily CST counter resets at 06:00 UTC (midnight CST)
+- ⚠️ NOTE: --report "today" uses UTC dates — shows CST-yesterday losses as "today". Ignore it for kill switch state. Check SESSION_HANDOFF.md for true CST daily figure.
 - Restart (MUST use temp file — nohup drops piped stdin → EOFError):
   `pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session25.log 2>&1 &`
 
@@ -187,7 +188,7 @@ Current project state (updated each session):
 - **Security first, always**: never expose .env / API keys / pem files; never run untrusted code; never modify system files outside the project directory
 - **Never break the bot**: before any restart or config change, confirm the current bot is running or stopped; always verify single instance after restart
 - Two parallel Claude Code chats may run simultaneously — keep framework overhead ≤10-15% per chat
-- 540/540 tests must pass before any commit (count updates each session)
+- 599/599 tests must pass before any commit (count updates each session)
 - **Before ANY new live strategy: complete all 6 steps of Development Workflow Protocol above**
 - **Graduation → live promotion**: when `--graduation-status` shows READY FOR LIVE, run the full Step 5 pre-live audit checklist before flipping `live_executor_enabled=True` in main.py. Session 20 lost 2 hours of live bets to silent bugs found only after going live — catch them in Step 5 first.
 - **EXPANSION GATE (Matthew's standing directive)**: Do NOT build new strategy types until current live strategies are producing solid, consistent results. Hard gate: btc_drift at 30+ live trades + Brier < 0.30 + 2-3 weeks of live P&L data + no kill switch events + no silent blockers. Until then: log ideas to .planning/todos.md only. Do not build.

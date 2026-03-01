@@ -58,9 +58,10 @@ On startup (main.py):
 
 ## P&L STATUS (2026-03-01)
 
-- **Bankroll:** ~$95.37
-- **All-time live P&L:** -$3.73 (adjusted for 2 guard-violation bets: +$6.25)
-- **Today live P&L:** -$16.59 (12 settled, bad day — daily soft stop active)
+- **Bankroll:** ~$92.38 available + $2.60 open = ~$95 (Kalshi API confirmed)
+- **All-time live P&L:** -$3.73
+- **Today live P&L (CST March 1):** $0.00 — first live bet of the day just placed (trade_id=110)
+  - NOTE: --report shows -$16.59 "today" because it uses UTC date. Those 12 losses were ALL CST Feb 28.
 - **All-time paper P&L:** +$264.34
 - **All-time win rate:** 62%
 
@@ -74,11 +75,11 @@ On startup (main.py):
 
 ## KEY PRIORITIES FOR NEXT SESSION
 
-1. **Midnight UTC** — daily soft stop clears, btc_lag + btc_drift resume live
-2. **Monitor** — watch first live bets after midnight for correct behavior
-3. **Data collection** — eth_lag, eth_drift, sol_lag accumulating paper calibration
-4. **FOMC March 5** — fomc_rate_v1 paper loop activates automatically
-5. **BLS March 7** — unemployment_rate_v1 paper loop activates automatically
+1. **Monitor** — watch live bets (btc_lag_v1 + btc_drift_v1 active, no kill switch blocks)
+2. **Data collection** — eth_lag, eth_drift, sol_lag accumulating paper calibration
+3. **FOMC March 5** — fomc_rate_v1 paper loop activates automatically
+4. **BLS March 7** — unemployment_rate_v1 paper loop activates automatically
+5. **Polymarket retail API** — Matthew will provide credentials; wire into py-clob-client auth
 
 ## RESTART COMMAND (if bot is stopped)
 
@@ -94,9 +95,9 @@ sleep 8 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep | grep -v zsh
 ## Loop stagger (reference)
 
 ```
-   0s → [trading]        btc_lag_v1                 — LIVE (soft-stopped today)
+   0s → [trading]        btc_lag_v1                 — LIVE
    7s → [eth_trading]    eth_lag_v1                 — PAPER (demoted 2026-03-01)
-  15s → [drift]          btc_drift_v1               — LIVE (soft-stopped today)
+  15s → [drift]          btc_drift_v1               — LIVE
   22s → [eth_drift]      eth_drift_v1               — paper
   29s → [btc_imbalance]  orderbook_imbalance_v1     — paper
   36s → [eth_imbalance]  eth_orderbook_imbalance_v1 — paper
