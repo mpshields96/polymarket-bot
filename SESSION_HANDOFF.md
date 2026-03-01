@@ -10,21 +10,24 @@ Check: `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || e
 
 **2 strategies LIVE** (real money): btc_lag_v1, btc_drift_v1
 **8 strategies paper**: eth_lag_v1 (demoted), eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
-Test count: **601/601 ✅**
+Test count: **603/603 ✅**
 
 Latest commits (most recent first):
+- 14620d0 — fix: count_trades_today uses CST midnight (UTC-6), not UTC midnight
 - 224b320 — feat: raise btc_drift min_edge 5%→8%, min_drift 0.05%→0.10%
 - 1a6c136 — feat: tighten price range guard from 10-90¢ to 35-65¢ on live strategies
 - d5d8568 — docs: clean slate — remove stale soft-stop warnings, fix test counts
 
-## KILL SWITCH STATUS (2026-03-01 17:10 UTC)
+## KILL SWITCH STATUS (2026-03-01 18:05 UTC)
 
 **NO SOFT STOP** — Live bets active. Daily CST counter reset at midnight CST (06:00 UTC).
-- Daily live losses today (CST March 1): **$7.31** / $20.00 limit (36% used)
-- All-time net live P&L: **-$11.04** (11% of $30 hard stop — watch this)
+- Daily live losses today (CST March 1): **$11.27** / $20.00 limit (56% used — $8.73 remaining)
+- All-time net live P&L: **-$15.00** (50% of $30 hard stop — **watch consecutive losses**)
 - No hard stop active.
-- Consecutive loss streak: 2 (limit 4)
+- Consecutive loss streak: **3** (limit 4 — ONE MORE LOSS triggers 2hr soft stop)
 - ⚠️ --report "today" uses UTC dates — will show CST-yesterday losses as "today". Use kill switch logs for true CST daily figure.
+- **btc_drift_v1 live CST March 1: 3/10 bets, 0W, 3L**
+- **btc_lag_v1 live all-time: 2/2, 100% win, +$4.07** (hasn't fired today yet — needs ±0.40% BTC in 60s)
 
 ## WHAT CHANGED IN SESSION 25 cont2 (2026-03-01 17:10 UTC)
 
@@ -71,16 +74,25 @@ On startup (main.py):
   3. db.current_live_consecutive_losses()   → restore_consecutive_losses() [SET + cooling if >=4]
 ```
 
-## P&L STATUS (2026-03-01 17:10 UTC)
+## P&L STATUS (2026-03-01 18:05 UTC)
 
-- **Bankroll:** ~$92.38 available + $2.60 open = ~$95 (Kalshi API confirmed earlier today)
-- **All-time live P&L:** -$11.04 (11% of $30 hard stop — healthy but watch consecutive losses)
-- **Today live P&L (CST March 1):** -$7.31 (trades 110 + 113 both losses; 2 bets only)
+- **Bankroll:** $83.74 (DB-based, down from $100 start)
+- **All-time live P&L:** -$15.00 (15 settled live bets, 5W/10L = 33%)
+- **Today live P&L (CST March 1):** -$11.27 (3 bets, 0W, 3L)
   - Trade 110: btc_drift YES@58¢ -$2.90 (pre-threshold-raise)
-  - Trade 113: btc_drift YES@21¢ -$4.41 (pre-price-range-tighten — would now be BLOCKED)
+  - Trade 113: btc_drift YES@21¢ -$4.41 (pre-price-range-tighten — now BLOCKED)
+  - Trade 118: btc_drift YES@44¢ -$3.96 (post-raise, passed all new filters, BTC reversed)
   - NOTE: --report "today" uses UTC date, shows large losses from CST Feb 28. Ignore it for daily limit.
-- **All-time paper P&L:** +$221.29 (UTC March 1 report)
-- **All-time win rate:** 52% (live), well above 50%
+- **All-time paper P&L:** +$222.00 (growing well)
+- **btc_lag_v1 live all-time: 2W/0L = +$4.07** — best strategy, needs BTC momentum spike
+
+## WHAT CHANGED IN SESSION 25 cont2 (2026-03-01 18:05 UTC)
+
+### Fix 3: count_trades_today() now uses CST midnight (commit 14620d0)
+Same pattern as daily_live_loss_usd(). Daily bet cap now resets at CST midnight, not UTC.
+Effect: btc_drift_v1 regained 8/10 CST March 1 slots (CST-yesterday bets no longer eat cap).
+A 9.4% edge signal at 53¢ was unblocked and trade 118 (14.1% edge, YES@44¢) was placed.
+603/603 tests passing.
 
 ## WHAT NOT TO DO
 
