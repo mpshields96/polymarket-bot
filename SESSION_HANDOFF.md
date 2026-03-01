@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file + POLYBOT_INIT.md to any new Claude session to resume.
-# Last updated: 2026-03-01 (Session 22 end — 504 tests, $107.87 bankroll, 4 bug classes fixed)
+# Last updated: 2026-03-01 (Session 22 end — 507 tests, $125+ bankroll, 5 bug fixes + kill switch fix)
 ═══════════════════════════════════════════════════
 
 ## EXACT CURRENT STATE — READ THIS FIRST
@@ -11,8 +11,9 @@ Log: `tail -f /tmp/polybot.log` (stable symlink → /tmp/polybot_session21.log)
 
 **3 strategies LIVE** (real money): btc_lag_v1, eth_lag_v1, btc_drift_v1
 **6 strategies paper**: eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate
-Test count: **504/504 ✅**
-Latest commit: **4ae55bd** — strategy min_edge_pct propagation fix
+Test count: **507/507 ✅**
+Latest commit: **6ccb040** — scripts/restart_bot.sh (safe restart script)
+Previous key commits: 39fec0d (kill switch test pollution fix), 4ae55bd (min_edge_pct fix)
 
 ## DO NOT restart the bot unless it's stopped
 Check first:
@@ -27,12 +28,12 @@ sleep 6 && ps aux | grep "[m]ain.py" | awk '{print "PID:", $2}' && cat bot.pid
 ```
 Verify exactly ONE PID. If two show up, orphan guard triggered — wait 10s, try again.
 
-## P&L Status (as of 2026-03-01 18:26 UTC)
-- **Bankroll:** ~$116+ (API update pending — trade 78 won +$8.82)
-- **Live P&L today:** +$8.82 (1 settled, 1 open — trade 80 on 1930 BTC window)
-- **All-time live:** +$21.68 (6 settled: 4W 2L)
-- **All-time paper:** +$36.59
-- **All-time win rate:** 71%
+## P&L Status (as of 2026-03-01 18:37 UTC)
+- **Bankroll:** ~$125+ (API snapshot pending)
+- **Live P&L today:** +$12.10 (2 settled wins — trades 78 + 80)
+- **All-time live:** +$24.96 (7 settled: 5W 2L, 71% win rate)
+- **All-time paper:** +$31.75
+- **All-time win rate:** 70%
 
 ### Live bets breakdown (all-time):
 | id | Strategy | Side | Cost | Result | P&L |
@@ -43,7 +44,7 @@ Verify exactly ONE PID. If two show up, orphan guard triggered — wait 10s, try
 | 74 | btc_drift | NO @34¢ | $4.76 | WON | +$8.96 |
 | 75 | btc_drift | NO @26¢ | $4.94 | LOST | -$4.94 |
 | 78 | btc_drift | NO @35¢ | $4.90 | WON | +$8.82 |
-| 80 | btc_drift | NO @57¢ | $4.56 | pending | — |
+| 80 | btc_drift | NO @57¢ | $4.56 | WON | +$3.28 |
 
 ## Graduation Progress (2026-03-01 00:13 UTC)
 | Strategy              | Trades | Status                        |
