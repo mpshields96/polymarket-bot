@@ -6,14 +6,14 @@
 ## CURRENT STATUS — READ THIS FIRST (updated each session)
 ═══════════════════════════════════════════════════
 
-BUILD COMPLETE. 440/440 tests passing. verify.py 18/26 (8 advisory WARNs only).
-Last commit: 188d01c (Session 20 — 4 live bugs fixed, first live bet, live.py strategy_name dynamic)
+BUILD COMPLETE. 507/507 tests passing. verify.py 18/26 (8 advisory WARNs only).
+Last commit: 72317ee (Session 22 — kill switch test pollution fix, restart_bot.sh, 4 bug classes fixed)
 
-🔴 LIVE TRADING: btc_lag_v1 + eth_lag_v1 + btc_drift_v1 are LIVE ($75 bankroll, $5/bet max)
+🔴 LIVE TRADING: btc_lag_v1 + eth_lag_v1 + btc_drift_v1 are LIVE (~$125 bankroll, $5/bet max)
 📋 PAPER: 6 other strategies collecting calibration data
 
-BOT IS RUNNING: PID in bot.pid | Log: /tmp/polybot_session20.log
-Watch: tail -f /tmp/polybot_session20.log
+BOT IS RUNNING: PID 7396 in bot.pid | Log: /tmp/polybot.log (stable symlink → /tmp/polybot_session21.log)
+Watch: tail -f /tmp/polybot.log
 
 WHAT WORKS:
   ✅ Kalshi auth (api.elections.kalshi.com)
@@ -21,42 +21,54 @@ WHAT WORKS:
   ✅ [trading]        btc_lag_v1                 — LIVE, 0s stagger, 77.1% backtest (min_edge=4%)
   ✅ [eth_trading]    eth_lag_v1                 — LIVE, 7s stagger (min_edge=4%)
   ✅ [drift]          btc_drift_v1               — LIVE, 15s stagger, 69.1% backtest, Brier=0.22
-  ✅ [eth_drift]      eth_drift_v1               — paper, 22s stagger
+  ✅ [eth_drift]      eth_drift_v1               — paper, 22s stagger (14/30 toward graduation)
   ✅ [btc_imbalance]  orderbook_imbalance_v1     — paper, 29s stagger
   ✅ [eth_imbalance]  eth_orderbook_imbalance_v1 — paper, 36s stagger
   ✅ [weather]        weather_forecast_v1        — paper, 43s stagger, ENSEMBLE (Open-Meteo+NWS)
   ✅ [fomc]           fomc_rate_v1               — paper, 51s stagger, active March 5-19
-  ✅ [unemployment]   unemployment_rate_v1       — paper, 58s stagger, active NOW (Feb 28 – Mar 7)
+  ✅ [unemployment]   unemployment_rate_v1       — paper, 58s stagger, active Feb 28 – Mar 7
   ✅ sports_game_v1 skeleton built — DISABLED until live results confirmed + ODDS_API_KEY
   ✅ --status / --report / --graduation-status: bypass PID lock, safe while bot live
   ✅ PaperExecutor: 1-tick adverse slippage. Daily caps: live=10/day, paper=35/day per strategy
-  ✅ Kill switch: paper losses excluded from daily limit (fixed Session 20)
-  ✅ Live executor: strategy_name dynamic (fixed Session 20), payout price fix (fixed Session 20)
+  ✅ Paper/live separation: has_open_position + count_trades_today both pass is_paper filter (fixed Session 21)
+  ✅ Kill switch: test pollution fix — _hard_stop() now has PYTEST_CURRENT_TEST guard (fixed Session 22)
+  ✅ Live executor: 33 unit tests written (was ZERO — fixed Session 21)
+  ✅ Orphaned instance guard: _scan_for_duplicate_main_processes() in main.py (Session 21)
+  ✅ scripts/restart_bot.sh: safe restart script with pkill, venv path, single-instance verify (Session 22)
+  ✅ Sizing clamp: trade_usd = min(size_result.recommended_usd, HARD_MAX_TRADE_USD) in main.py
+  ✅ min_edge_pct propagation: trading_loop passes strategy._min_edge_pct to calculate_size (fixed Session 22)
+  ✅ macOS notifications: Reminders app notifier for live bets + midnight P&L summary
 
-SESSION 20 BUGS FIXED (critical — all were silent live-trading failures):
-  Bug 1: Kill switch counted paper losses toward daily limit → only live trades now
-  Bug 2: Live executor double-CONFIRM via input() → _FIRST_RUN_CONFIRMED propagated from main
-  Bug 3: kalshi_payout() got NO price for NO-side bets → convert to YES price first
-  Bug 4: strategy="btc_lag" hardcoded in live.py → now dynamic from strategy.name
-  First live bet: trade_id=64, BUY NO, KXBTC15M-26FEB281700-00, $3.36 @ 48¢
+SESSION 21 BUGS FIXED:
+  Bug 1: Paper/live separation — has_open_position + count_trades_today now filter by is_paper
+  Bug 2: Sizing clamp missing — bankroll >$100 caused all live bets to be blocked (pct_cap > $5 hard cap)
+  Bug 3: _FIRST_RUN_CONFIRMED not set in piped stdin mode — added to main.py after startup confirm
 
-OPEN / IN PROGRESS:
-  btc_lag/eth_lag need ±0.32% move in 60s at 4% threshold (~8/day expected, 0 on calm days)
-  btc_drift fires ~96% of windows — expect 1-3 live bets/day from drift
-  FOMC: active March 5-19, 2026 (next meeting March 19)
-  Unemployment: active NOW (Feb 28 – Mar 7), KXUNRATE markets open ~March 5
-  Weather: weekdays only (HIGHNY markets)
-  CRITICAL DEBT: src/execution/live.py has ZERO unit tests
+SESSION 22 BUGS FIXED (4 classes found — all silent failures):
+  Bug 1: Kill switch wrong kwargs in paper loops (weather/fomc/unemployment) → trade_usd=, current_bankroll_usd=
+  Bug 2: calculate_size() wrong kwargs in paper loops → kalshi_payout() + payout_per_dollar= added
+  Bug 3: SizeResult object passed as float to paper_exec.execute(size_usd=) → .recommended_usd extracted
+  Bug 4: strategy min_edge_pct not propagated to calculate_size → silently blocked all btc_lag (4%) + btc_drift (5%) signals
+  Bug 5: _hard_stop() wrote to KILL_SWITCH_EVENT.log during tests → PYTEST_CURRENT_TEST guard added
+
+P&L STATUS (as of 2026-03-01):
+  All-time live:  +$24.96 (7 settled: 5W 2L, 71% win rate)
+  All-time paper: +$31.75
+  All-time total: +$56.71
 
 NEXT ACTION — IF BOT IS STOPPED, RESTART:
-  rm -f bot.pid && source venv/bin/activate && echo "CONFIRM" | nohup python main.py --live >> /tmp/polybot_session20.log 2>&1 &
+  bash scripts/restart_bot.sh
+  — OR manually:
+  pkill -f "python main.py"; sleep 3; rm -f bot.pid && echo "CONFIRM" | nohup /Users/matthewshields/Projects/polymarket-bot/venv/bin/python /Users/matthewshields/Projects/polymarket-bot/main.py --live >> /tmp/polybot_session21.log 2>&1 &
+  sleep 6 && ps aux | grep "[m]ain.py"  # verify exactly 1 process
 
 NEXT SESSION PRIORITY ORDER:
-  1. Write integration tests for src/execution/live.py (zero coverage on real-money code)
-  2. Monitor live results: python main.py --report + --graduation-status
-  3. Check trade_id=64 settlement result (first live bet)
-  4. NO new strategies, NO new features until live results data is in
-  5. When ready: wire sports_game_v1 (KXNBAGAME/KXNHLGAME) into main.py with ODDS_API_KEY
+  1. Watch for btc_drift live bets — min_edge_pct fix now lets 5%+ signals fire (Bug #4 fixed)
+  2. NO Stage 2 promotion yet — bankroll crossed $100 but Kelly calibration requires 30+ live bets with limiting_factor=="kelly"
+  3. eth_drift approaching graduation (14/30) — Step 5 pre-live audit required before flip
+  4. Weather loop fires weekdays — watch for first weather paper trade Monday
+  5. FOMC active March 5 — KXFEDDECISION markets open, fomc_rate_v1 will fire
+  6. Odds API (FUTURE): document roadmap; 1,000 credit hard cap; implement quota guard FIRST; no credits this session
 
 ═══════════════════════════════════════════════════
 ## STEP 0: ASK MATTHEW THESE QUESTIONS FIRST
@@ -75,10 +87,10 @@ Q5: "Anything else to add before we build?"
 Confirm answers back. Write USER_CONFIG.json. Then begin.
 
 Answers already given (do not re-ask):
-  Bankroll: $50.00
+  Bankroll: $50.00 initial → $125+ current (deposits + live P&L)
   Kalshi: yes, account ready
   API key: yes, created — kalshi_private_key.pem is in project root
-  Exclusions: none
+  Exclusions: none (sports game skeleton disabled pending results)
   Notes: Matthew is a doctor, new baby. Needs this profitable. Conservative, not clever.
 
 ═══════════════════════════════════════════════════
@@ -97,7 +109,10 @@ Answers already given (do not re-ask):
     wss://stream.binance.us:9443/ws           ← BTC/ETH feeds (Binance.US only)
     https://api.open-meteo.com/v1/forecast    ← weather feed (free, no key)
     https://fred.stlouisfed.org/graph/fredgraph.csv  ← FRED economic data (free, no key)
+    api.weather.gov                           ← NWS NDFD feed (free, User-Agent required)
     NOTE: wss://stream.binance.com is blocked in the US (HTTP 451). Use Binance.US only.
+✗ NEVER use Odds API credits until quota guard + kill switch analog are implemented
+✗ NEVER promote to Stage 2 based on bankroll alone — requires Kelly calibration (30+ live bets with limiting_factor=="kelly")
 ✓ All pip installs go into venv/ only
 ✓ Default mode: PAPER (PaperExecutor)
 ✓ Live trading: requires LIVE_TRADING=true in .env AND --live flag AND typing CONFIRM
@@ -111,7 +126,9 @@ Everything below exists and is tested. Read the files, don't rewrite them.
 PHASE 1 — Foundation + Risk
   src/auth/kalshi_auth.py       RSA-PSS signing. load_from_env() loads .env.
   src/risk/kill_switch.py       8 triggers, kill_switch.lock, --reset-killswitch.
+                                PYTEST_CURRENT_TEST guard on _hard_stop() and _write_blockers().
   src/risk/sizing.py            Kelly criterion at 0.25x, stage caps ($5/$10/$15).
+                                Returns SizeResult dataclass — always extract .recommended_usd.
   setup/verify.py               Pre-flight checker. Run: python main.py --verify
 
 PHASE 2 — Data + Strategy + Execution
@@ -123,22 +140,26 @@ PHASE 2 — Data + Strategy + Execution
   src/strategies/orderbook_imbalance.py  VPIN-lite YES/NO bid depth. load_btc_imbalance + load_eth_imbalance
   src/strategies/weather_forecast.py     Open-Meteo GFS vs HIGHNY Kalshi markets. load_from_config()
   src/strategies/fomc_rate.py            FRED yield curve vs KXFEDDECISION markets. load_from_config()
-  src/data/weather.py           Open-Meteo GFS daily max temp (free, no key, 30-min cache)
-  src/data/fred.py              FRED CSV: DFF, DGS2, CPIAUCSL (free, no key, 1-hr cache)
+  src/strategies/unemployment_rate.py    BLS UNRATE vs KXUNRATE markets. load_from_config()
+  src/data/weather.py           EnsembleWeatherFeed (Open-Meteo GFS + NWS NDFD, adaptive std_dev)
+  src/data/fred.py              FRED CSV: DFF, DGS2, CPIAUCSL, UNRATE (free, no key, 1hr cache)
   src/db.py                     SQLite persistence: trades, bankroll, kill events.
   src/execution/paper.py        PaperExecutor: fill + settle simulation.
-  src/execution/live.py         LiveExecutor: real order placement (locked behind flag).
-  main.py                       CLI + 8 async trading loops + settlement loop.
+  src/execution/live.py         LiveExecutor: real order placement (locked behind flag). 33 unit tests.
+  main.py                       CLI + 9 async trading loops + settlement loop.
   scripts/backtest.py           30-day BTC drift calibration via Binance.US klines API.
+  scripts/restart_bot.sh        Safe restart: pkill, clean pid, full venv path, single-instance verify.
+  scripts/notify_midnight.sh    Midnight UTC daily P&L Reminders notifier.
+  scripts/seed_db_from_backtest.py  Populate DB from 30d historical data (graduation bootstrap).
 
 PHASE 3 — Dashboard + Settlement
   src/dashboard.py              Streamlit UI at localhost:8501. Read-only.
   main.py settlement_loop()     Background asyncio task, polls Kalshi every 60s.
 
-TESTS — 257/257 passing
+TESTS — 507/507 passing
   tests/conftest.py             Kill switch lock cleanup fixture (session-scoped).
   tests/test_db.py              DB layer + bankroll + win_rate tests.
-  tests/test_kill_switch.py     Kill switch: all 8 triggers + settlement integration.
+  tests/test_kill_switch.py     Kill switch: all 8 triggers + settlement integration + test pollution guard.
   tests/test_security.py        Security constraint tests.
   tests/test_strategy.py        BTCLagStrategy gate + signal tests.
   tests/test_drift_strategy.py  BTCDriftStrategy: sigmoid gates, signal fields.
@@ -146,6 +167,9 @@ TESTS — 257/257 passing
   tests/test_orderbook_imbalance.py  VPIN-lite: depth gates, factory, signal direction.
   tests/test_weather_strategy.py     WeatherForecastStrategy: bracket parsing, normal CDF, gates.
   tests/test_fomc_strategy.py        FOMCRateStrategy: yield curve model, ticker parsing, calendar.
+  tests/test_unemployment_strategy.py  UnemploymentRateStrategy: normal CDF, FRED UNRATE fields.
+  tests/test_live_executor.py   LiveExecutor: 33 unit tests (was ZERO — added Session 21).
+  tests/test_bot_lock.py        Orphan guard, PID lock, single-instance guard (12 tests).
 
 ═══════════════════════════════════════════════════
 ## KNOWN GOTCHAS — Learned through building (read before touching API code)
@@ -174,14 +198,16 @@ TESTS — 257/257 passing
 
 7. KILL SWITCH ORDER: bankroll floor check runs BEFORE pct cap check.
 
-8. PYTEST GUARD: kill_switch._write_blockers() skips when PYTEST_CURRENT_TEST is set.
-   Prevents test runs from polluting BLOCKERS.md.
+8. PYTEST GUARD: kill_switch._write_blockers() AND _hard_stop() both skip file writes
+   when PYTEST_CURRENT_TEST is set. Prevents test runs from polluting BLOCKERS.md
+   and KILL_SWITCH_EVENT.log. In-memory state (is_hard_stopped) still set during tests.
 
-9. BOT.PID: Written at startup, removed on clean shutdown. If it exists after a crash,
-   delete it before restarting: rm bot.pid
+9. BOT.PID: Written at startup, removed on clean shutdown. Orphan guard uses pgrep to
+   detect duplicate instances and exits. If bot fails to start, check for stale bot.pid.
 
 10. SETTLEMENT LOOP: Must receive kill_switch param and call record_win/record_loss.
     Otherwise consecutive-loss and total-loss hard stops are dead code.
+    Must use `if not trade["is_paper"]:` guard — paper losses must NOT count toward limit.
 
 11. LIVE MODE: Requires --live flag + LIVE_TRADING=true in .env + type CONFIRM at runtime.
     All three gates required. Absence of any one falls back to paper silently.
@@ -192,13 +218,55 @@ TESTS — 257/257 passing
 13. FOMC STRATEGY: Only active in 14-day window before each 2026 meeting.
     Outside that window: timing gate blocks all signals (DEBUG log).
     CME FedWatch is blocked from server IPs. Use FRED CSV instead (free, no key).
-    FRED CSV endpoint: fred.stlouisfed.org/graph/fredgraph.csv?id={SERIES}
 
 14. ETH STRATEGIES: KXETH15M confirmed active. ETH lag/drift use name_override param
     to store eth_lag_v1/eth_drift_v1 in DB (not btc_lag_v1).
 
 15. ALL GENERATE_SIGNAL() SKIP PATHS LOG AT DEBUG: Loop appears silent when no signal.
     Added INFO heartbeat "[trading] Evaluating N market(s)" to confirm loop alive.
+
+16. RESTART — ALWAYS USE pkill NOT kill:
+    `kill $(cat bot.pid)` only kills the most recent instance. Orphaned old instances
+    keep running and place duplicate trades.
+    SAFE: `bash scripts/restart_bot.sh`
+    MANUAL: `pkill -f "python main.py"; sleep 3; rm -f bot.pid && echo "CONFIRM" | nohup /full/venv/path/python main.py --live >> /tmp/polybot_session21.log 2>&1 &`
+    Then verify: `ps aux | grep "[m]ain.py"` — must be exactly 1 process.
+
+17. PAPER/LIVE SEPARATION (fixed Session 21):
+    has_open_position() and count_trades_today() both accept `is_paper=` filter.
+    Live daily cap counts live bets only. Paper bets do NOT eat into live quota.
+
+18. SIZING — calculate_size() API (critical, must never be called wrong):
+    - Returns SizeResult dataclass — extract .recommended_usd (not the object itself)
+    - Always compute: `yes_p = price_cents if side=="yes" else (100 - price_cents)`
+    - Then: `payout = kalshi_payout(yes_p, side)` → pass `payout_per_dollar=payout`
+    - Always pass: `min_edge_pct=getattr(strategy, '_min_edge_pct', 0.08)`
+    - Apply clamp: `trade_usd = min(size_result.recommended_usd, HARD_MAX_TRADE_USD)`
+    - Bug #4 (Session 22): omitting min_edge_pct defaulted to 8% → silently dropped btc_lag (4%) and btc_drift (5%) signals
+
+19. KILL_SWITCH_EVENT.log TEST POLLUTION (fixed Session 22):
+    _hard_stop() previously wrote to the live event log during pytest runs.
+    Tests calling record_loss() 31 times created fake "$31 loss" hard stop entries.
+    Fixed: PYTEST_CURRENT_TEST guard in _hard_stop() skips all file writes.
+    Alarming midnight entries in KILL_SWITCH_EVENT.log before the fix = test artifacts.
+
+20. STAGE 2 PROMOTION (blocked):
+    Bankroll crossed $100 but Stage 2 requires: 30+ live bets with limiting_factor=="kelly"
+    At Stage 1, $5 cap always binds before Kelly → limiting_factor is always "stage_cap".
+    DO NOT raise bet size to $10 based on bankroll alone. Read docs/GRADUATION_CRITERIA.md.
+
+21. ODDS API — 1,000 CREDIT HARD CAP:
+    User has 20,000 credits/month subscription. Max 1,000 for this bot (5% of budget).
+    Sports props/moneyline/totals are a SEPARATE project — NOT for Kalshi bot.
+    Before ANY API credit use: implement OddsApiQuotaGuard + kill switch analog first.
+    See .planning/todos.md for full roadmap item.
+
+22. CONFIG SCOPE: `config` only exists in `main()`, not inside loop functions.
+    Pass needed values as explicit params (e.g., `slippage_ticks: int = 1`).
+    All 6 paper executor paths crashed silently on Session 18 because of this.
+
+23. MACROS NOTIFICATIONS: `osascript display notification` unreliable on newer macOS.
+    Use Reminders app: `tell application "Reminders" to make new reminder`.
 
 ═══════════════════════════════════════════════════
 ## PROJECT STRUCTURE (actual, as built)
@@ -210,16 +278,22 @@ polymarket-bot/
 ├── CLAUDE.md                    ← Claude session startup instructions
 ├── BLOCKERS.md
 ├── config.yaml                  ← All strategy params, risk limits, series tickers
+├── pytest.ini                   ← asyncio_mode=auto (required for async tests)
 ├── .env                         ← REAL credentials (gitignored)
 ├── .env.example                 ← Template (safe to commit)
 ├── .gitignore
 ├── requirements.txt
+├── docs/
+│   ├── GRADUATION_CRITERIA.md   ← Stage 1→2→3 promotion criteria + Kelly calibration requirements
+│   └── SETTLEMENT_MAPPING.md   ← Kalshi result field → win/loss mapping
 ├── setup/
-│   └── verify.py                ← Pre-flight checker (18 checks)
+│   └── verify.py                ← Pre-flight checker (26 checks, 18/26 normal — 8 advisory WARNs)
 ├── scripts/
 │   ├── backtest.py              ← 30-day BTC lag+drift calibration
+│   ├── restart_bot.sh           ← Safe restart: pkill + venv path + single-instance verify
 │   ├── seed_db_from_backtest.py ← Populate DB from 30d historical data (graduation bootstrap)
-│   └── notify_monitor.sh        ← macOS Reminders-based bot monitor (15min→30min alerts)
+│   ├── notify_monitor.sh        ← macOS Reminders-based bot monitor (15min→30min alerts)
+│   └── notify_midnight.sh       ← Midnight UTC daily P&L Reminders notifier
 ├── src/
 │   ├── auth/
 │   │   └── kalshi_auth.py       ← RSA-PSS signing
@@ -227,26 +301,27 @@ polymarket-bot/
 │   │   └── kalshi.py            ← Async REST client, Market/OrderBook types
 │   ├── data/
 │   │   ├── binance.py           ← BTC+ETH WebSocket feeds (Binance.US)
-│   │   ├── weather.py           ← Open-Meteo GFS daily max temp feed
-│   │   └── fred.py              ← FRED CSV: DFF, DGS2, CPIAUCSL
+│   │   ├── weather.py           ← EnsembleWeatherFeed (Open-Meteo GFS + NWS NDFD blend)
+│   │   └── fred.py              ← FRED CSV: DFF, DGS2, CPIAUCSL, UNRATE
 │   ├── strategies/
 │   │   ├── base.py              ← BaseStrategy + Signal dataclass
 │   │   ├── btc_lag.py           ← Primary: 4-gate BTC momentum (+ ETH factory)
 │   │   ├── btc_drift.py         ← Sigmoid drift-from-open (+ ETH factory)
 │   │   ├── orderbook_imbalance.py ← VPIN-lite YES/NO depth ratio (BTC + ETH)
 │   │   ├── weather_forecast.py  ← GFS forecast vs HIGHNY temperature markets
-│   │   └── fomc_rate.py         ← Yield curve vs KXFEDDECISION markets
+│   │   ├── fomc_rate.py         ← Yield curve vs KXFEDDECISION markets
+│   │   └── unemployment_rate.py ← BLS UNRATE vs KXUNRATE markets
 │   ├── execution/
-│   │   ├── paper.py             ← PaperExecutor (fill + settle)
-│   │   └── live.py              ← LiveExecutor (locked behind --live flag)
+│   │   ├── paper.py             ← PaperExecutor (fill + settle, 1-tick slippage)
+│   │   └── live.py              ← LiveExecutor (locked behind --live flag, 33 unit tests)
 │   ├── risk/
-│   │   ├── kill_switch.py       ← 8 triggers + hard stop logic
-│   │   └── sizing.py            ← Kelly 0.25x, stage caps
+│   │   ├── kill_switch.py       ← 8 triggers + hard stop logic + test pollution guard
+│   │   └── sizing.py            ← Kelly 0.25x, stage caps, returns SizeResult dataclass
 │   ├── db.py                    ← SQLite: trades, bankroll, kill events
 │   └── dashboard.py             ← Streamlit app (localhost:8501)
 ├── tests/
 │   ├── conftest.py              ← Kill switch lock cleanup
-│   ├── test_kill_switch.py
+│   ├── test_kill_switch.py      ← + TestHardStopNoPollutionDuringTests (Session 22)
 │   ├── test_security.py
 │   ├── test_db.py
 │   ├── test_strategy.py
@@ -254,32 +329,43 @@ polymarket-bot/
 │   ├── test_eth_support.py
 │   ├── test_orderbook_imbalance.py
 │   ├── test_weather_strategy.py
-│   └── test_fomc_strategy.py
+│   ├── test_fomc_strategy.py
+│   ├── test_unemployment_strategy.py
+│   ├── test_live_executor.py    ← 33 tests added Session 21 (was ZERO)
+│   └── test_bot_lock.py         ← 12 tests: orphan guard, PID lock (Session 21)
+├── .planning/
+│   ├── todos.md                 ← Roadmap: Odds API, copytrade, future ideas
+│   └── quick/                   ← GSD quick-task plans
 ├── logs/
 │   ├── trades/
 │   └── errors/
 ├── data/                        ← Auto-created at startup
 │   └── polybot.db               ← SQLite (gitignored)
-└── main.py                      ← CLI: --verify --live --report --reset-killswitch
+└── main.py                      ← CLI: --verify --live --report --status --reset-killswitch --graduation-status
 
 ═══════════════════════════════════════════════════
 ## COMMANDS
 ═══════════════════════════════════════════════════
 
-python main.py                         → Paper mode (8 strategies, default)
-python main.py --live                  → Live (needs LIVE_TRADING=true in .env + CONFIRM)
-python main.py --graduation-status     → Graduation progress table (offline, instant)
-python main.py --report                → Print P&L summary, exit
-python main.py --reset-killswitch      → Reset after hard stop (pipe RESET)
+# Bot lifecycle
+bash scripts/restart_bot.sh                      → Safe restart (use this, not manual kill)
+python main.py --live                             → Manual start (needs LIVE_TRADING=true + CONFIRM)
+cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"
 
-streamlit run src/dashboard.py         → Dashboard at http://127.0.0.1:8501
+# Monitoring (all safe while bot is live — bypass PID lock)
+tail -f /tmp/polybot.log                         → Watch live bot
+source venv/bin/activate && python main.py --report           → Today's P&L
+source venv/bin/activate && python main.py --status           → Live status snapshot
+source venv/bin/activate && python main.py --graduation-status → Graduation progress table
 
-source venv/bin/activate && python -m pytest tests/ -v  → Run all 346 tests
-python scripts/backtest.py --strategy both   → BTC lag + drift 30-day simulation
-python scripts/seed_db_from_backtest.py      → Seed DB from 30d backtest (graduation bootstrap)
+# Tests
+source venv/bin/activate && python -m pytest tests/ -q        → 507 tests (use -m, not bare pytest)
+source venv/bin/activate && python -m pytest tests/ -v        → Verbose
 
-echo "RESET" | python main.py --reset-killswitch  → Reset kill switch
-kill $(cat /tmp/polybot_notify.pid)           → Stop macOS reminder notifications
+# Other
+streamlit run src/dashboard.py                   → Dashboard at http://127.0.0.1:8501
+echo "RESET" | python main.py --reset-killswitch → Reset kill switch after hard stop
+python scripts/backtest.py --strategy both       → BTC lag + drift 30-day simulation
 
 ═══════════════════════════════════════════════════
 ## KILL SWITCH — 8 triggers
@@ -315,28 +401,36 @@ If auth fails (401): Key ID in .env does not match the .pem file.
 ═══════════════════════════════════════════════════
 
 btc_lag / eth_lag:
-  min_edge_pct: 0.08 — needs ~0.65% BTC move in 60s (binding constraint)
-  To lower bar: reduce min_edge_pct in config.yaml (NOT min_btc_move_pct)
+  min_edge_pct: 0.04 — needs ~0.32% BTC move in 60s (binding constraint)
+  To get more signals: lower min_edge_pct (NOT min_btc_move_pct)
+  30d backtest: 84.1% accuracy, 44 signals/30d, Brier=0.2178
 
 btc_drift / eth_drift:
-  min_drift_pct: 0.05, min_edge_pct: 0.05 — fires at ~0.15-0.3% drift from open
-  30-day backtest: 69% directional accuracy, Brier=0.2330
+  min_edge_pct: 0.05 — fires at ~0.15-0.3% drift from open, ~1-3 live bets/day
+  30-day backtest: 69% directional accuracy, Brier=0.22
+  Late-entry penalty: edge_pct reduced for signals >2 min after window open
+  NOTE: Bug #4 (Session 22) fix means 5%+ edge signals now fire correctly
 
 orderbook_imbalance (BTC + ETH):
   min_imbalance_ratio: 0.65 — VPIN-lite: >65% one side = informed money
   min_total_depth: 50 — skip thin markets
 
 weather_forecast (NYC HIGHNY):
-  Normal distribution model: N(forecast_temp_f, 3.5°F) vs Kalshi YES price
+  Normal distribution model: N(forecast_temp_f, adaptive std_dev) vs Kalshi YES price
+  std_dev: <1°F source diff → 2.5°F; >4°F diff → 5.0°F; else 3.5°F (config)
   min_edge_pct: 0.05, min_minutes_remaining: 30
-  Only weekdays; Open-Meteo API is free, no key
+  Only weekdays; Open-Meteo + NWS ENSEMBLE; free, no key
 
 fomc_rate (KXFEDDECISION):
   Yield curve: DGS2 - DFF → P(hold/cut/hike) model (4 regimes)
   CPI adjustment: ±8% shift on acceleration/deceleration
   Only active 14 days before each 2026 FOMC date
-  Current: DFF=3.64%, DGS2=3.90%, spread=+0.26% → hold-biased
-  Next meeting: March 19, 2026 → active from March 5
+  Next active window: March 5–19, 2026 (March 19 meeting)
+
+unemployment_rate (KXUNRATE):
+  BLS UNRATE vs Kalshi market prices, normal CDF model
+  KXUNRATE markets open ~2 days before BLS release
+  Active Feb 28 – Mar 7, 2026 (next: ~Mar 13 – Apr 3)
 
 ═══════════════════════════════════════════════════
 ## CONTEXT HANDOFF — Paste into new Claude chat
@@ -349,40 +443,47 @@ We are resuming the polymarket-bot project. Read these files first (in order), t
 
 Do NOT ask setup questions. The bot is fully built, tested, and running live.
 
-CURRENT STATE (as of 2026-02-28, Session 20):
-- 440/440 tests passing. verify.py 18/26 (8 advisory graduation WARNs only).
+CURRENT STATE (as of 2026-03-01, end of Session 22):
+- 507/507 tests passing. verify.py 18/26 (8 advisory graduation WARNs only).
 - LIVE_TRADING=true. btc_lag_v1 + eth_lag_v1 + btc_drift_v1 are LIVE. 6 others paper.
-- $75 starting bankroll, $5 max/bet. Daily caps: live=10/day, paper=35/day per strategy.
-- 4 live-trading bugs fixed this session. First live bet placed (trade_id=64, ~$3.36).
-- Bot is running: check bot.pid, log at /tmp/polybot_session20.log
-- 9 loops running (0/7/15/22/29/36/43/51/58s stagger):
-    0s  btc_lag_v1              — LIVE (77.1% backtest, min_edge=4%)
-    7s  eth_lag_v1              — LIVE (same model, min_edge=4%)
-   15s  btc_drift_v1            — LIVE (69.1% backtest, Brier=0.22)
-   22s  eth_drift_v1            — paper
+- ~$125 bankroll. All-time live P&L: +$24.96 (5W 2L, 71% win rate).
+- Bot is running: PID 7396 in bot.pid, log at /tmp/polybot.log (symlink → /tmp/polybot_session21.log)
+- Latest commit: 72317ee
+
+CHECK BOT STATUS FIRST:
+  cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"
+
+IF STOPPED, RESTART:
+  bash scripts/restart_bot.sh
+
+9 loops running (0/7/15/22/29/36/43/51/58s stagger):
+    0s  btc_lag_v1              — LIVE (min_edge=4%, 77.1% backtest)
+    7s  eth_lag_v1              — LIVE (min_edge=4%)
+   15s  btc_drift_v1            — LIVE (min_edge=5%, 69.1% backtest)
+   22s  eth_drift_v1            — paper (14/30 trades, ~16 more to graduate)
    29s  orderbook_imbalance_v1  — paper (VPIN-lite)
    36s  eth_imbalance_v1        — paper
    43s  weather_forecast_v1     — paper (weekdays only, ENSEMBLE model)
    51s  fomc_rate_v1            — paper (active March 5–19)
    58s  unemployment_rate_v1    — paper (active Feb 28 – Mar 7)
 
-RESUME FROM (if bot stopped):
-  rm -f bot.pid && source venv/bin/activate && echo "CONFIRM" | nohup python main.py --live >> /tmp/polybot_session20.log 2>&1 &
-
-NEXT SESSION GOAL:
-  Priority 1: Write integration tests for src/execution/live.py (zero coverage)
-  Priority 2: Monitor live results, check trade_id=64 settlement
-  Priority 3: No new strategies until live P&L data is in
+SESSION 23 PRIORITY ORDER:
+  1. Watch for btc_drift live bets — min_edge_pct fix (Bug #4) means more bets expected
+  2. NO Stage 2 promotion — requires 30+ live bets with limiting_factor=="kelly"
+  3. eth_drift (14/30) — audit Step 5 checklist when it hits 30, then flip to live
+  4. FOMC active March 5 — watch for fomc_rate_v1 paper signals starting March 5
+  5. Odds API: document roadmap only — do NOT use any credits; implement quota guard first
 
 KEY FACTS:
-- Kalshi API: api.elections.kalshi.com | Balance: $75
+- Kalshi API: api.elections.kalshi.com | Balance: ~$125
 - BTC/ETH feeds: Binance.US wss://stream.binance.us:9443 (@bookTicker only)
 - FOMC: FRED CSV free (DFF/DGS2/CPIAUCSL). Active March 5-19.
 - Weather: Open-Meteo + NWS ENSEMBLE. HIGHNY weekdays only.
 - Dashboard: streamlit run src/dashboard.py → localhost:8501
 - Graduation check: python main.py --graduation-status
 - Kill switch reset: echo "RESET" | python main.py --reset-killswitch
-- Sports game skeleton: built but disabled (KXNBAGAME/KXNHLGAME), enable after live results in
+- calculate_size() returns SizeResult — always extract .recommended_usd
+- Odds API: 1,000 credit hard cap; sports props = separate project entirely
 ────────────────────────────────────────
 
 ═══════════════════════════════════════════════════
@@ -527,6 +628,38 @@ Completed:
 - First live bet ever: trade_id=64, BUY NO 7 contracts @ 48¢ = $3.36, KXBTC15M-26FEB281700-00
 - CLAUDE.md updated with 6-step Development Workflow Protocol (proactive debugging standard)
 - 440/440 tests. Commits: 0f6bae7, 891e988, e41b059, 188d01c
+
+### 2026-02-28 — Session 21 (live.py tests + sizing clamp + paper/live separation)
+Completed:
+- src/execution/live.py: 33 unit tests written (was ZERO — highest priority debt cleared)
+- tests/test_bot_lock.py: 12 tests for orphan guard + PID lock + single-instance guard
+- Sizing clamp: bankroll >$100 (Stage 2 threshold) caused pct_cap > $5 hard cap → all live bets blocked
+  Fix: `trade_usd = min(size_result.recommended_usd, HARD_MAX_TRADE_USD)` before kill switch check
+- Paper/live separation: has_open_position + count_trades_today now pass is_paper= filter
+  Paper bets no longer eat into live quota (live daily cap counts live bets only)
+- Orphaned instance guard: _scan_for_duplicate_main_processes() via pgrep, called in _acquire_bot_lock()
+- $25 deposit: bankroll $75 → $103.51 (confirmed via API)
+- pytest.ini created with asyncio_mode=auto (required for async tests)
+- Stable log symlink: /tmp/polybot.log → /tmp/polybot_session21.log
+- 485/485 tests. Commit: a0acfa9
+
+### 2026-02-28 — Session 22 (4 bug classes fixed + kill switch test pollution fix)
+Completed:
+- 4 silent-failure bug classes in paper loops (weather/fomc/unemployment) found and fixed:
+  Bug 1: kill switch wrong kwargs → trade_usd=, current_bankroll_usd= (commit d5204c7)
+  Bug 2: calculate_size wrong kwargs → kalshi_payout() + payout_per_dollar= (commit d3a889e)
+  Bug 3: SizeResult passed as float → extract .recommended_usd (commit 1111e12)
+  Bug 4 (HIGHEST IMPACT): strategy min_edge_pct not propagated → silently blocked all btc_lag+btc_drift signals (commit 4ae55bd)
+- Bug 5: _hard_stop() test pollution fix — PYTEST_CURRENT_TEST guard added (commit 39fec0d)
+  Regression tests: TestHardStopNoPollutionDuringTests (3 tests)
+- scripts/restart_bot.sh: safe restart script with pkill + full venv path + single-instance verify
+- Kill switch event log mystery solved: "$31 loss" midnight entries = test artifacts (not real trades)
+  DB kill_switch_events was empty; bankroll healthy at $107.87; live P&L +$12.86 at discovery
+- GRADUATION_CRITERIA.md v1.1: Stage 1→2→3 promotion criteria + Kelly calibration requirements
+  Explicit: do NOT promote to Stage 2 based on bankroll alone
+- Odds API directives captured: 1,000 credit hard cap; sports = separate project; implement quota guard first
+- All-time live P&L: +$24.96 (5W 2L) — trades 78+80 won (+$8.82+$3.28), trade 81 placed during session
+- 507/507 tests. Latest commit: 72317ee
 
 ═══════════════════════════════════════════════════
 ## THE RULE
