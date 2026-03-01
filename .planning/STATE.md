@@ -50,6 +50,7 @@ None — slippage model and settlement verification complete.
 | 1 | Define formal live graduation criteria | 2026-02-28 | d6b9e21 | .planning/quick/1-define-formal-live-graduation-criteria-f/ |
 | 2 | Commit graduation threshold + build --status command | 2026-02-28 | e999d6c, 74f5dbb, ab72b61 | .planning/quick/2-commit-graduation-threshold-change-and-b/ |
 | 3 | Unemployment rate strategy (9th loop, KXUNRATE, BLS window, FRED UNRATE, TDD) | 2026-02-28 | d38f20d, 15307cf | .planning/quick/3-unemployment-rate-strategy/ |
+| 4 | Build real Kalshi-calibrated backtest from bot logs + Kalshi candlestick API | 2026-03-01 | pending | .planning/quick/4-build-real-kalshi-calibrated-backtest-fr/ |
 
 ## Phase Plans Completed
 
@@ -59,5 +60,5 @@ None — slippage model and settlement verification complete.
 
 ## Last Session
 
-**Stopped at:** Completed quick task 3 — unemployment_rate_v1 (9th loop, TDD, 412/412 tests)
-**Session timestamp:** 2026-02-28T20:15:00Z
+**Stopped at:** Session 26 — Deep research on Kalshi calibration. Key finding: Kalshi has free 1-min candlestick API. Building kalshi_real_backtest.py to get real win rates (not synthetic 84.1%). btc_drift demoted (7W/12L live). btc_lag live (2W/0L — too small to trust). Bankroll $79.76.
+**Session timestamp:** 2026-03-01T19:40:00Z
