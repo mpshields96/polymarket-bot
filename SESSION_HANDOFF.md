@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file + CLAUDE.md to any new Claude session to resume.
-# Last updated: 2026-03-01 19:45 UTC (Session 26 END — research complete, real backtest building)
+# Last updated: 2026-03-01 20:30 UTC (Session 27 — REAL BACKTEST COMPLETE, CRITICAL FINDINGS)
 ═══════════════════════════════════════════════════
 
 ## EXACT CURRENT STATE — READ THIS FIRST
@@ -13,9 +13,58 @@ Check: `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || e
 Test count: **603/603 ✅**
 
 Latest commits (most recent first):
+- ecce5be — feat(quick-4): Kalshi real-price backtest using actual YES candlestick data
+- 0bc9161 — docs: session 26 handoff — research complete, kalshi_real_backtest.py building
 - f3e08ae — research: Kalshi calibration deep-dive + real backtest framework (Session 26)
-- b8f9947 — docs: update POLYBOT_INIT.md — expand with Sessions 23-25 state
-- 9da4941 — feat: demote btc_drift_v1 to paper-only (live record 7W/12L)
+
+## ⚠️ REAL BACKTEST FINDINGS — READ BEFORE ANY LIVE DECISIONS (Session 27)
+
+**Scripts: `scripts/kalshi_real_backtest.py` + `scripts/real_backtest_results.md`**
+
+### What We Tested
+Used Kalshi's free historical candlestick API (1-min YES OHLCV) + Binance.US klines.
+Simulated btc_lag at 30s poll intervals with REAL Kalshi prices (not hardcoded 50¢).
+
+### Results: Two Runs Told Different Stories
+
+**30-day run** (Jan 30 - Mar 1, 300 sampled markets):
+- BTC >= 0.40% in 60s: **6 signals** (2.0% of windows)
+- Directional accuracy: **66.7%**
+- Avg Kalshi YES price at signal time: **49.5¢** (NOT priced in — 50¢ assumption valid)
+- Mean actual edge: **13.5%**
+
+**5-day run** (Feb 24 - Mar 1, 467 markets — most recent):
+- BTC >= 0.40% in 60s: **0 signals** (44 BTC moves, ALL blocked by price guard)
+- Direct investigation: BTC +0.47% at 17:10 UTC → Kalshi jumped to YES=94¢ IN SAME MINUTE
+
+### The Critical Interpretation
+
+**btc_lag worked in January but stopped working in February/March.**
+
+Confirmed mechanism via manual trace (Feb 25 17:10 window):
+- 17:09 UTC: Kalshi YES=51¢ (market neutral)
+- BTC moves +0.473% at 17:10 UTC
+- 17:10 UTC: Kalshi YES IMMEDIATELY jumps to 94¢ — HFTs priced it in within 1 minute
+- Our 30s poll detects the BTC move but Kalshi is already at 94¢ → Gate 2 blocks bet
+
+### What This Means for btc_lag
+
+- The lag that the strategy relies on is **disappearing** as Kalshi matures
+- Jan 2026: some lag existed (6/300 windows = 2% hit rate)
+- Feb 24 - Mar 1 2026: zero detectable lag in 467 windows
+- Our 2 live wins (trades 64, 91) likely happened in early windows before the market tightened
+- Trade 91 (YES@80¢) would be BLOCKED by current 35-65¢ guard anyway
+
+### Decision for Next Session
+
+**Matthew needs to decide**: given only $11.15 before hard stop, should btc_lag be demoted to paper?
+- Arguments FOR demoting: real backtest shows 0 signals in last 5 days; losing $11.15 closes account
+- Arguments AGAINST: 30-day shows some signals exist; 2-hour soft stop still protecting capital
+- Bot is currently in soft stop — no live bets firing regardless
+
+**See `scripts/real_backtest_results.md` for full output.**
+
+═══════════════════════════════════════════════════
 
 ## KILL SWITCH STATUS (2026-03-01 18:50 UTC)
 

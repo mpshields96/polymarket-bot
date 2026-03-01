@@ -123,3 +123,6 @@ id,placed_at,settled_at,ticker,strategy,side,action,price_cents,count,cost_usd,e
 122,2026-03-01 18:40:35,2026-03-01 18:46:59,KXETH15M-26MAR011345-45,eth_drift_v1,no,buy,46,8,3.68,,,paper,no,4.16,True,4201ca71-d225-4512-8dcc-49b8911b5f29,
 123,2026-03-01 18:45:27,2026-03-01 19:02:01,KXBTC15M-26MAR011400-00,orderbook_imbalance_v1,yes,buy,49,8,3.92,,,paper,no,-3.92,False,14ccd2ac-9de7-473f-8a80-2ceb2d6d0f61,
 124,2026-03-01 18:47:51,2026-03-01 19:02:01,KXETH15M-26MAR011400-00,eth_drift_v1,no,buy,40,9,3.6,,,paper,no,5.22,True,f04b9540-b40b-4142-bcca-b1cbe784407a,
+125,2026-03-01 19:16:29,2026-03-01 19:32:02,KXETH15M-26MAR011430-30,eth_drift_v1,no,buy,49,4,1.96,,,paper,no,1.96,True,ffc6adf2-eb7a-46c7-b54e-587b5787cfbf,
+126,2026-03-01 19:31:03,2026-03-01 19:47:03,KXETH15M-26MAR011445-45,eth_drift_v1,yes,buy,50,7,3.5,,,paper,no,-3.5,False,628ce882-7061-45fc-9338-3ba5d8536979,
+127,2026-03-01 20:05:41,,KXETH15M-26MAR011515-15,eth_drift_v1,yes,buy,49,8,3.92,,,paper,,,,29b3e03c-b09e-4809-b41b-0898c63e0818,
