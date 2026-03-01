@@ -282,21 +282,46 @@ class KillSwitch:
     def restore_daily_loss(self, loss_usd: float):
         """Restore today's live loss total from the DB on bot restart.
 
-        Prevents bot restarts from resetting the daily loss counter to 0 mid-session.
-        Adds to _daily_loss_usd (and _realized_loss_usd) without touching consecutive
-        loss count or triggering cooling — those are session-scoped and reset on restart
-        intentionally (restart = manual override of soft stops).
+        Prevents bot restarts from resetting the DAILY loss counter to 0 mid-session.
+        Only touches _daily_loss_usd — NOT _realized_loss_usd (that is the lifetime
+        hard stop counter and is restored separately via restore_realized_loss()).
         """
         if loss_usd <= 0:
             return
         self._state._daily_loss_usd += loss_usd
-        self._state._realized_loss_usd += loss_usd
         logger.info(
             "Daily live loss restored from DB: $%.2f (today's running limit: $%.2f / $%.2f)",
             loss_usd,
             self._state._daily_loss_usd,
             self._state.starting_bankroll * DAILY_LOSS_LIMIT_PCT,
         )
+
+    def restore_realized_loss(self, loss_usd: float):
+        """Restore all-time live loss total from the DB on bot restart.
+
+        Prevents the 30% lifetime hard stop from resetting to 0 on restart.
+        Only touches _realized_loss_usd — NOT _daily_loss_usd (that is restored
+        separately via restore_daily_loss()).
+
+        Called on startup with db.all_time_live_loss_usd() so lifetime losses
+        accumulate correctly across calendar days and session restarts.
+        """
+        if loss_usd <= 0:
+            return
+        self._state._realized_loss_usd = loss_usd  # set, not add — avoids double-count
+        lifetime_pct = loss_usd / self._state.starting_bankroll
+        logger.info(
+            "Lifetime live loss restored from DB: $%.2f (%.1f%% of $%.2f hard stop at 30%%)",
+            loss_usd,
+            lifetime_pct * 100,
+            self._state.starting_bankroll,
+        )
+        # If lifetime losses already exceed hard stop, trigger immediately
+        if lifetime_pct >= HARD_STOP_LOSS_PCT:
+            self._hard_stop(
+                f"Lifetime loss ${loss_usd:.2f} ({lifetime_pct:.1%}) restored from DB "
+                f">= {HARD_STOP_LOSS_PCT:.0%} hard stop limit"
+            )
 
     def record_win(self):
         """Call when a trade settles as a win."""

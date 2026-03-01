@@ -524,3 +524,69 @@ class TestDailyLiveLossUsd:
         db.settle_trade(t1, result="no", pnl_cents=-500)  # $5 loss
         db.settle_trade(t2, result="no", pnl_cents=-480)  # $4.80 loss
         assert db.daily_live_loss_usd() == pytest.approx(9.80, abs=0.01)
+
+
+# ── all_time_live_loss_usd ───────────────────────────────────────────
+
+
+class TestAllTimeLiveLossUsd:
+    """all_time_live_loss_usd() returns total live losses ever, regardless of date."""
+
+    def _live_trade(self, db, ticker="KXBTC15M-T", side="yes", price_cents=50):
+        return db.save_trade(
+            ticker=ticker, side=side, action="buy", price_cents=price_cents,
+            count=100, cost_usd=5.0, is_paper=False,
+            strategy="btc_lag_v1", edge_pct=0.05, win_prob=0.6,
+        )
+
+    def test_returns_zero_if_no_settled_trades(self, db):
+        assert db.all_time_live_loss_usd() == pytest.approx(0.0)
+
+    def test_returns_zero_if_only_paper_losses(self, db):
+        t = db.save_trade(
+            ticker="KXBTC15M-T", side="yes", action="buy", price_cents=50,
+            count=100, cost_usd=5.0, is_paper=True,
+            strategy="btc_lag_v1", edge_pct=0.05, win_prob=0.6,
+        )
+        db.settle_trade(t, result="no", pnl_cents=-500)
+        assert db.all_time_live_loss_usd() == pytest.approx(0.0)
+
+    def test_counts_live_losses(self, db):
+        t = self._live_trade(db)
+        db.settle_trade(t, result="no", pnl_cents=-500)  # $5 loss
+        assert db.all_time_live_loss_usd() == pytest.approx(5.0)
+
+    def test_excludes_live_wins(self, db):
+        t = self._live_trade(db)
+        db.settle_trade(t, result="yes", pnl_cents=560)  # win
+        assert db.all_time_live_loss_usd() == pytest.approx(0.0)
+
+    def test_excludes_unsettled_live_trades(self, db):
+        """Unsettled trades (open positions) must not be counted."""
+        self._live_trade(db)  # no settle_trade call
+        assert db.all_time_live_loss_usd() == pytest.approx(0.0)
+
+    def test_sums_losses_across_multiple_trades(self, db):
+        t1 = self._live_trade(db, ticker="KXBTC15M-A")
+        t2 = self._live_trade(db, ticker="KXBTC15M-B")
+        t3 = self._live_trade(db, ticker="KXBTC15M-C")
+        db.settle_trade(t1, result="no", pnl_cents=-500)   # $5 loss
+        db.settle_trade(t2, result="no", pnl_cents=-480)   # $4.80 loss
+        db.settle_trade(t3, result="yes", pnl_cents=560)   # $5.60 win — excluded
+        assert db.all_time_live_loss_usd() == pytest.approx(9.80, abs=0.01)
+
+    def test_does_not_filter_by_date(self, db):
+        """Unlike daily_live_loss_usd, all_time must include old losses."""
+        import time
+        t = self._live_trade(db, ticker="KXBTC15M-OLD")
+        # Settle first, then backdate settled_at to 30 days ago
+        db.settle_trade(t, result="no", pnl_cents=-500)  # $5 loss
+        db._conn.execute(
+            "UPDATE trades SET settled_at = ? WHERE id = ?",
+            (time.time() - 86400 * 30, t),
+        )
+        db._conn.commit()
+        # daily_live_loss_usd filters by today — should be 0 for old trade
+        assert db.daily_live_loss_usd() == pytest.approx(0.0)
+        # all_time_live_loss_usd has no date filter — must still return $5
+        assert db.all_time_live_loss_usd() == pytest.approx(5.0)

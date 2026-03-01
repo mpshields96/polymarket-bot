@@ -330,6 +330,21 @@ class DB:
         wins = sum(1 for r in rows if dict(r)["result"] == dict(r)["side"])
         return wins / len(rows)
 
+    def all_time_live_loss_usd(self) -> float:
+        """Return total live losses ever settled as a positive USD amount.
+
+        Used by kill_switch on restart to restore _realized_loss_usd so the
+        30% lifetime hard stop persists correctly across calendar days and restarts.
+        """
+        row = self._conn.execute(
+            """SELECT COALESCE(-SUM(pnl_cents), 0) / 100.0
+               FROM trades
+               WHERE is_paper = 0
+                 AND result IS NOT NULL
+                 AND pnl_cents < 0""",
+        ).fetchone()
+        return float(row[0] or 0.0)
+
     def daily_live_loss_usd(self) -> float:
         """Return total live losses settled today (UTC) as a positive USD amount.
 

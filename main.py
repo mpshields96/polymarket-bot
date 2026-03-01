@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import logging
 import os
 import sys
@@ -68,8 +69,15 @@ async def trading_loop(
     initial_delay_sec: float = 0.0,
     max_daily_bets: int = 5,
     slippage_ticks: int = 1,
+    trade_lock: Optional[asyncio.Lock] = None,
 ):
-    """Main async loop: poll markets, generate signals, execute trades."""
+    """Main async loop: poll markets, generate signals, execute trades.
+
+    trade_lock: shared asyncio.Lock passed to all live loops. Ensures that the
+    check_order_allowed() → execute() → record_trade() sequence is atomic,
+    preventing two loops from both passing the hourly rate check before either
+    records a trade. Paper loops pass None (no lock needed).
+    """
     from src.execution import paper as paper_mod
     import time
 
@@ -189,38 +197,56 @@ async def trading_loop(
                 # Kill switch pre-trade check (synchronous)
                 from src.strategies.btc_lag import BTCLagStrategy
                 minutes_remaining = BTCLagStrategy._minutes_remaining(market)
+
                 if live_executor_enabled and live_confirmed:
-                    # Live trade — all checks apply (soft stops block live bets)
-                    ok, reason = kill_switch.check_order_allowed(
-                        trade_usd=trade_usd,
-                        current_bankroll_usd=current_bankroll,
-                        minutes_remaining=minutes_remaining,
-                    )
+                    # ── Live path: check → execute → record_trade is atomic ─────
+                    # trade_lock serializes all live loops so two strategies can't
+                    # both pass check_order_allowed() before either records a trade.
+                    # Without the lock, the hourly rate limit can be exceeded by 1
+                    # if two loops pass the check concurrently.
+                    _lock_ctx = trade_lock if trade_lock is not None else contextlib.nullcontext()
+                    async with _lock_ctx:
+                        ok, reason = kill_switch.check_order_allowed(
+                            trade_usd=trade_usd,
+                            current_bankroll_usd=current_bankroll,
+                            minutes_remaining=minutes_remaining,
+                        )
+                        if not ok:
+                            logger.info("[main] Kill switch blocked trade: %s", reason)
+                            continue
+
+                        from src.execution import live as live_mod
+                        result = await live_mod.execute(
+                            signal=signal,
+                            market=market,
+                            orderbook=orderbook,
+                            trade_usd=trade_usd,
+                            kalshi=kalshi,
+                            db=db,
+                            live_confirmed=live_confirmed,
+                            strategy_name=strategy.name,
+                        )
+                        if result:
+                            kill_switch.record_trade()
+                            logger.info(
+                                "[main] Trade executed: %s %s @ %d¢ $%.2f | trade_id=%s",
+                                result["side"].upper(),
+                                result["ticker"],
+                                result["fill_price_cents"] if "fill_price_cents" in result else result.get("price_cents", 0),
+                                result["cost_usd"],
+                                result.get("trade_id"),
+                            )
+                            _announce_live_bet(result, strategy_name=strategy.name)
                 else:
-                    # Paper trade — only hard stops block (soft stops don't halt calibration)
+                    # ── Paper path: only hard stops block, no locking needed ────
                     ok, reason = kill_switch.check_paper_order_allowed(
                         trade_usd=trade_usd,
                         current_bankroll_usd=current_bankroll,
                     )
+                    if not ok:
+                        logger.info("[main] Kill switch blocked paper trade: %s", reason)
+                        continue
 
-                if not ok:
-                    logger.info("[main] Kill switch blocked trade: %s", reason)
-                    continue
-
-                # Execute (paper or live)
-                if live_executor_enabled and live_confirmed:
-                    from src.execution import live as live_mod
-                    result = await live_mod.execute(
-                        signal=signal,
-                        market=market,
-                        orderbook=orderbook,
-                        trade_usd=trade_usd,
-                        kalshi=kalshi,
-                        db=db,
-                        live_confirmed=live_confirmed,
-                        strategy_name=strategy.name,
-                    )
-                else:
                     _slip = slippage_ticks
                     paper_exec = paper_mod.PaperExecutor(
                         db=db,
@@ -234,19 +260,16 @@ async def trading_loop(
                         size_usd=trade_usd,
                         reason=signal.reason,
                     )
-
-                if result:
-                    kill_switch.record_trade()
-                    logger.info(
-                        "[main] Trade executed: %s %s @ %d¢ $%.2f | trade_id=%s",
-                        result["side"].upper(),
-                        result["ticker"],
-                        result["fill_price_cents"] if "fill_price_cents" in result else result.get("price_cents", 0),
-                        result["cost_usd"],
-                        result.get("trade_id"),
-                    )
-                    if live_executor_enabled and live_confirmed:
-                        _announce_live_bet(result, strategy_name=strategy.name)
+                    if result:
+                        kill_switch.record_trade()
+                        logger.info(
+                            "[main] Trade executed: %s %s @ %d¢ $%.2f | trade_id=%s",
+                            result["side"].upper(),
+                            result["ticker"],
+                            result["fill_price_cents"] if "fill_price_cents" in result else result.get("price_cents", 0),
+                            result["cost_usd"],
+                            result.get("trade_id"),
+                        )
 
         except asyncio.CancelledError:
             break
@@ -1319,8 +1342,13 @@ async def main():
     starting_bankroll = config.get("risk", {}).get("starting_bankroll_usd", 50.0)
     kill_switch = KillSwitch(starting_bankroll_usd=starting_bankroll)
 
-    # Restore today's live loss total so mid-session restarts don't reset daily risk limits.
+    # Restore loss counters from DB so restarts never reset financial risk limits.
+    # _realized_loss_usd (30% hard stop): ALL-TIME live losses — restored first, set not add.
+    # _daily_loss_usd (daily soft stop): TODAY's live losses only.
     # Consecutive loss counter intentionally resets on restart (restart = manual soft-stop override).
+    _all_time_live_loss = db.all_time_live_loss_usd()
+    if _all_time_live_loss > 0:
+        kill_switch.restore_realized_loss(_all_time_live_loss)
     _today_live_loss = db.daily_live_loss_usd()
     if _today_live_loss > 0:
         kill_switch.restore_daily_loss(_today_live_loss)
@@ -1384,6 +1412,11 @@ async def main():
     max_daily_bets_paper = config.get("risk", {}).get("max_daily_bets_paper", 0)
     paper_slippage_ticks = config.get("risk", {}).get("paper_slippage_ticks", 1)
 
+    # Shared lock for live trading loops — serializes check→execute→record_trade so
+    # two loops can't both pass check_order_allowed() before either increments the
+    # hourly counter. Paper loops don't need the lock (no hourly soft stop).
+    _live_trade_lock = asyncio.Lock()
+
     # Stagger the 4 loops by 7-8s each to spread Kalshi API calls evenly:
     #   btc_lag=0s, eth_lag=7s, btc_drift=15s, eth_drift=22s
     trade_task = asyncio.create_task(
@@ -1400,6 +1433,7 @@ async def main():
             initial_delay_sec=0.0,
             max_daily_bets=max_daily_bets_live,
             slippage_ticks=paper_slippage_ticks,
+            trade_lock=_live_trade_lock,
         ),
         name="trading_loop",
     )
@@ -1418,6 +1452,7 @@ async def main():
             initial_delay_sec=7.0,
             max_daily_bets=max_daily_bets_live,
             slippage_ticks=paper_slippage_ticks,
+            trade_lock=_live_trade_lock,
         ),
         name="eth_lag_loop",
     )
@@ -1436,6 +1471,7 @@ async def main():
             initial_delay_sec=15.0,
             max_daily_bets=max_daily_bets_live,
             slippage_ticks=paper_slippage_ticks,
+            trade_lock=_live_trade_lock,
         ),
         name="drift_loop",
     )

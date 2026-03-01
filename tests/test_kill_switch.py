@@ -732,3 +732,87 @@ class TestRestoreDailyLoss:
         ks.restore_daily_loss(10.0)
         status = ks.get_status()
         assert status["consecutive_losses"] == 0
+
+    def test_restore_daily_does_not_touch_realized_loss(self, ks):
+        """restore_daily_loss must NOT modify _realized_loss_usd (separate counter)."""
+        ks.restore_daily_loss(15.0)
+        status = ks.get_status()
+        # Daily counter seeded; lifetime counter untouched (still 0)
+        assert status["daily_loss_usd"] == pytest.approx(15.0)
+        assert status["total_realized_loss_usd"] == pytest.approx(0.0)
+
+
+# ── Lifetime loss counter persistence across restarts ──────────────
+
+
+class TestRestoreRealizedLoss:
+    """
+    Regression tests: restore_realized_loss() seeds the lifetime counter so the
+    30% hard stop persists correctly across calendar days and session restarts.
+
+    Design intent:
+    - Uses SET semantics (not add) to avoid double-counting with restore_daily_loss()
+    - Triggers hard stop immediately if losses already breach 30% on startup
+    - Only touches _realized_loss_usd — not _daily_loss_usd
+    """
+
+    @pytest.fixture
+    def ks(self):
+        return KillSwitch(starting_bankroll_usd=100.0)
+
+    def test_restore_realized_seeds_counter(self, ks):
+        """After restore, lifetime loss counter reflects restored amount."""
+        ks.restore_realized_loss(20.0)
+        status = ks.get_status()
+        assert status["total_realized_loss_usd"] == pytest.approx(20.0)
+
+    def test_restore_realized_zero_is_noop(self, ks):
+        """restore_realized_loss(0) must not change anything."""
+        ks.restore_realized_loss(0.0)
+        status = ks.get_status()
+        assert status["total_realized_loss_usd"] == pytest.approx(0.0)
+
+    def test_restore_realized_negative_is_noop(self, ks):
+        """restore_realized_loss with negative value must be ignored."""
+        ks.restore_realized_loss(-5.0)
+        status = ks.get_status()
+        assert status["total_realized_loss_usd"] == pytest.approx(0.0)
+
+    def test_restore_realized_uses_set_not_add(self, ks):
+        """Calling restore_realized_loss twice must not double-count."""
+        ks.restore_realized_loss(25.0)
+        ks.restore_realized_loss(25.0)  # second call — same amount, not additive
+        status = ks.get_status()
+        assert status["total_realized_loss_usd"] == pytest.approx(25.0)
+
+    def test_restore_realized_triggers_hard_stop_at_30pct(self, ks):
+        """If lifetime losses already exceed 30%, restore must trigger hard stop immediately."""
+        ks.restore_realized_loss(30.0)  # exactly $30 = 30% of $100
+        assert ks.is_hard_stopped
+
+    def test_restore_realized_below_30pct_does_not_hard_stop(self, ks):
+        """29.9% should not trigger hard stop."""
+        ks.restore_realized_loss(29.9)
+        assert not ks.is_hard_stopped
+
+    def test_restore_realized_does_not_touch_daily_loss(self, ks):
+        """restore_realized_loss must NOT modify _daily_loss_usd (separate counter)."""
+        ks.restore_realized_loss(20.0)
+        status = ks.get_status()
+        assert status["total_realized_loss_usd"] == pytest.approx(20.0)
+        assert status["daily_loss_usd"] == pytest.approx(0.0)
+
+    def test_restore_realized_does_not_affect_consecutive_count(self, ks):
+        """restore_realized_loss must not increment consecutive_losses."""
+        ks.restore_realized_loss(15.0)
+        status = ks.get_status()
+        assert status["consecutive_losses"] == 0
+
+    def test_restore_both_independent(self, ks):
+        """restore_daily_loss + restore_realized_loss are fully independent.
+        Together they must not double-count or interfere with each other."""
+        ks.restore_realized_loss(25.0)   # all-time: $25
+        ks.restore_daily_loss(10.0)      # today: $10 (subset of all-time)
+        status = ks.get_status()
+        assert status["total_realized_loss_usd"] == pytest.approx(25.0)
+        assert status["daily_loss_usd"] == pytest.approx(10.0)
