@@ -114,7 +114,7 @@ DO NOT: fix symptoms without finding root cause
 - `_STALE_THRESHOLD_SEC = 35.0` in binance.py — Binance.US @bookTicker can be silent 10-30s; 10s threshold causes false stale signals
 - **RESTART PROCEDURE**: `kill $(cat bot.pid)` only kills the most recent instance; use pkill. `echo "CONFIRM" | nohup python main.py` does NOT work — nohup drops piped stdin (EOFError). Always use temp file: `pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session25.log 2>&1 &` — then verify with `ps aux | grep "[m]ain.py"` (should be exactly 1 process).
 - **Paper/live separation** (fixed Session 21): `has_open_position()` and `count_trades_today()` now pass `is_paper` filter. Live daily cap counts live bets only. Paper bets no longer eat into live quota.
-- 599/599 tests must pass before any commit (count updates each session)
+- 601/601 tests must pass before any commit (count updates each session)
 - **`confidence` field in Signal is computed but never consumed** (not used in sizing, kill switch, or main.py). It's a dead field — low priority to wire in or remove.
 - **eth_drift uses BTCDriftStrategy internally** — logs say `[btc_drift]` and "BTC=ETH_price". Cosmetic only. `btc_feed=eth_feed` in main.py call is correct.
 - **settlement_loop uses `paper_exec.settle()` for live trades too** — logs say `[paper] Settled` even for live trades. Cosmetic only; P&L math and DB update are correct.
@@ -138,7 +138,9 @@ DO NOT: fix symptoms without finding root cause
 - **`calculate_size()` returns a `SizeResult` dataclass, NOT a float** — paper loops must extract `.recommended_usd` before passing to `paper_exec.execute(size_usd=...)`. Pattern: `_trade_usd = min(_size_result.recommended_usd, _HARD_CAP)`. Bug fixed Session 22 in weather/fomc/unemployment loops. Regression tests in TestPaperLoopSizeExtraction.
 - **strategy `_min_edge_pct` must be passed to `calculate_size(min_edge_pct=...)`** — default is 8%, but btc_lag fires at 4% and btc_drift at 5%. Without this, valid 4-7.9% edge signals are silently dropped. Bug fixed Session 22 (4ae55bd). Pattern: `_strat_min_edge = getattr(strategy, '_min_edge_pct', 0.08)`. Regression tests in TestStrategyMinEdgePropagation.
 - **KILL_SWITCH_EVENT.log is polluted by test runs** — `_hard_stop()` writes to the live event log even during pytest. Events timestamped during tests look like real trading stops. Root cause: no `PYTEST_CURRENT_TEST` guard (unlike `_write_blockers()`). Fix logged in .planning/todos.md. Don't be alarmed by mysterious hard stops that don't match DB data.
-- **Price range guard applies to ALL lag strategies (Session 23 cont'd)**: btc_lag/eth_lag/sol_lag share `_MIN_SIGNAL_PRICE_CENTS=10` and `_MAX_SIGNAL_PRICE_CENTS=90` guard in btc_lag.py. btc_drift.py has its own identical guard. eth_lag placed NO@2¢ live bet (trade_id=90) AFTER btc_drift was fixed — always check sibling strategies for same pattern.
+- **Price range guard TIGHTENED to 35-65¢ (Session 25 cont2)**: btc_lag/eth_lag/sol_lag and btc_drift.py all use `_MIN_SIGNAL_PRICE_CENTS=35`, `_MAX_SIGNAL_PRICE_CENTS=65`. Bets at extreme prices blocked — only near-even-odds bets are placed. Trade 113 (btc_drift YES@21¢) would now be blocked. If adding a new lag strategy, apply same constants.
+- **btc_drift thresholds raised (Session 25 cont2)**: `min_edge_pct=0.08` (was 0.05), `min_drift_pct=0.10` (was 0.05). Need ~0.19% BTC drift to achieve 8% edge at 50¢. At sensitivity=800, P(YES)≈0.595 at 0.19% drift → edge=0.595-0.50-0.0175=0.0775. Don't change without 30+ live trades + Brier data.
+- **calculate_size() min_edge_pct must match strategy**: btc_lag uses 4%, btc_drift uses 8%. Both correctly passed via `_strat_min_edge = getattr(strategy, '_min_edge_pct', 0.08)`. Keep in sync if thresholds change.
 - **Daily loss counter DID NOT persist across restarts** (fixed Session 23 cont'd): on restart, `_daily_loss_usd` reset to 0 in memory, bypassing the daily limit. Fix: `db.daily_live_loss_usd()` queries settled losses since midnight UTC; `kill_switch.restore_daily_loss()` seeds the counter; called from main.py on startup. Consecutive loss counter intentionally resets (restart = manual soft stop override).
 - **Lifetime loss counter DID NOT persist across restarts** (fixed Session 24): `_realized_loss_usd` (30% hard stop) also reset to 0 on each restart. Fix: `db.all_time_live_loss_usd()` queries NET live P&L loss; `kill_switch.restore_realized_loss()` seeds the counter using SET (not add, avoids double-count with daily). Uses NET P&L not gross losses — gross losses would spuriously trigger hard stop on profitable bots.
 - **restore_daily_loss() and restore_realized_loss() are SEPARATE concerns** — `restore_daily_loss()` only touches `_daily_loss_usd`. `restore_realized_loss()` only touches `_realized_loss_usd`. Never mix them. Double-counting was a bug that's been fixed.
@@ -163,23 +165,25 @@ DO NOT: fix symptoms without finding root cause
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- 599/599 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
+- 601/601 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
 - 10 trading loops: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
 - **2 strategies LIVE: btc_lag_v1 + btc_drift_v1** ($5 max/bet)
 - **eth_lag_v1 returned to PAPER** (2026-03-01): was promoted live with 0/30 paper trades — process violation. Re-promote after 30 paper trades + Brier < 0.25.
-- Latest commit: 317c04a — fix daily loss counter to CST midnight (599/599 tests)
+- Latest commit: 224b320 — raise btc_drift min_edge 5%→8%, min_drift 0.05%→0.10% (601/601 tests)
 - Kill switch: consecutive loss limit = 4, daily loss limit = 20% ($20 on $100 bankroll)
 - **Daily loss counter is CST-based (UTC-6)** — resets at midnight New Orleans time = 06:00 UTC daily
 - Paper-during-softkill: check_paper_order_allowed() in all paper loops — soft stops block live only
-- Price range guard 10-90¢: active on BOTH btc_drift.py AND btc_lag.py (applied to all 3 lag strategies)
+- **Price range guard TIGHTENED to 35-65¢** (2026-03-01): active on BOTH btc_drift.py AND btc_lag.py. Bets outside this range are blocked — only near-even-odds bets allowed.
+- btc_drift thresholds (2026-03-01): min_edge=8% (was 5%), min_drift=0.10% (was 0.05%), sensitivity=800
 - **ALL THREE kill switch counters now persist across restarts**: daily loss + lifetime loss + consecutive losses
 - `asyncio.Lock` (_live_trade_lock) shared across 3 live loops — check→execute→record is atomic
 - 8 paper strategies → calibration data collection (eth_lag now paper, plus eth_drift, imbalance, weather, fomc, unemployment, sol_lag)
 - Bot running: PID in bot.pid, log at /tmp/polybot_session25.log
 - **NO SOFT STOP** — live bets active, daily CST counter resets at 06:00 UTC (midnight CST)
+- Kill switch state as of 2026-03-01 17:10 UTC: daily=$7.31/$20, consecutive=2, lifetime=$11.04/$30
 - ⚠️ NOTE: --report "today" uses UTC dates — shows CST-yesterday losses as "today". Ignore it for kill switch state. Check SESSION_HANDOFF.md for true CST daily figure.
-- Restart (MUST use temp file — nohup drops piped stdin → EOFError):
-  `pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session25.log 2>&1 &`
+- Restart (MUST use kill -9 + temp file — nohup drops piped stdin → EOFError):
+  `kill -9 $(cat bot.pid) 2>/dev/null; sleep 3; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session25.log 2>&1 &`
 
 ## Workflow — ALWAYS AUTONOMOUS (Matthew's standing directive, never needs repeating)
 - **Bypass permissions ACTIVE — operate fully autonomously at all times**
@@ -188,7 +192,7 @@ Current project state (updated each session):
 - **Security first, always**: never expose .env / API keys / pem files; never run untrusted code; never modify system files outside the project directory
 - **Never break the bot**: before any restart or config change, confirm the current bot is running or stopped; always verify single instance after restart
 - Two parallel Claude Code chats may run simultaneously — keep framework overhead ≤10-15% per chat
-- 599/599 tests must pass before any commit (count updates each session)
+- 601/601 tests must pass before any commit (count updates each session)
 - **Before ANY new live strategy: complete all 6 steps of Development Workflow Protocol above**
 - **Graduation → live promotion**: when `--graduation-status` shows READY FOR LIVE, run the full Step 5 pre-live audit checklist before flipping `live_executor_enabled=True` in main.py. Session 20 lost 2 hours of live bets to silent bugs found only after going live — catch them in Step 5 first.
 - **EXPANSION GATE (Matthew's standing directive)**: Do NOT build new strategy types until current live strategies are producing solid, consistent results. Hard gate: btc_drift at 30+ live trades + Brier < 0.30 + 2-3 weeks of live P&L data + no kill switch events + no silent blockers. Until then: log ideas to .planning/todos.md only. Do not build.

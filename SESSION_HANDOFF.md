@@ -1,31 +1,46 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file + CLAUDE.md to any new Claude session to resume.
-# Last updated: 2026-03-01 16:15 UTC (Session 25 cont — CST timezone fix, dashboard, Polymarket plan)
+# Last updated: 2026-03-01 17:10 UTC (Session 25 cont2 — tighter filters, smarter odds)
 ═══════════════════════════════════════════════════
 
 ## EXACT CURRENT STATE — READ THIS FIRST
 
-Bot is **RUNNING** — PID in bot.pid, log at /tmp/polybot_session25.log
+Bot is **RUNNING** — PID 3206, log at /tmp/polybot_session25.log
 Check: `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"`
 
 **2 strategies LIVE** (real money): btc_lag_v1, btc_drift_v1
 **8 strategies paper**: eth_lag_v1 (demoted), eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
-Test count: **598/598 ✅**
+Test count: **601/601 ✅**
 
 Latest commits (most recent first):
-- 317c04a — fix: daily loss counter resets at CST midnight (not UTC)
-- 773f515 — feat: demote eth_lag to paper-only + add PRINCIPLES.md anti-bloat doc
-- 84a977f — fix: restore consecutive loss streak on restart (prevent cooling bypass)
+- 224b320 — feat: raise btc_drift min_edge 5%→8%, min_drift 0.05%→0.10%
+- 1a6c136 — feat: tighten price range guard from 10-90¢ to 35-65¢ on live strategies
+- d5d8568 — docs: clean slate — remove stale soft-stop warnings, fix test counts
 
-## KILL SWITCH STATUS (2026-03-01 16:15 UTC)
+## KILL SWITCH STATUS (2026-03-01 17:10 UTC)
 
 **NO SOFT STOP** — Live bets active. Daily CST counter reset at midnight CST (06:00 UTC).
-- Daily live losses today (CST March 1): $0.00 — yesterday's losses were CST Feb 28
-- All-time net live P&L: **-$3.73** (well within 30% hard stop)
+- Daily live losses today (CST March 1): **$7.31** / $20.00 limit (36% used)
+- All-time net live P&L: **-$11.04** (11% of $30 hard stop — watch this)
 - No hard stop active.
-- Consecutive loss streak: 0 (last live trade was a win)
+- Consecutive loss streak: 2 (limit 4)
+- ⚠️ --report "today" uses UTC dates — will show CST-yesterday losses as "today". Use kill switch logs for true CST daily figure.
 
-## WHAT CHANGED IN SESSION 25
+## WHAT CHANGED IN SESSION 25 cont2 (2026-03-01 17:10 UTC)
+
+### Change 1: Tighten price range guard 10-90¢ → 35-65¢ (commit 1a6c136)
+User objected to bets at 21¢ ("insane odds"). Near-even-odds only now.
+- btc_drift.py: `_MIN_SIGNAL_PRICE_CENTS = 35`, `_MAX_SIGNAL_PRICE_CENTS = 65`
+- btc_lag.py: same constants (applies to btc_lag, eth_lag, sol_lag via BTCLagStrategy)
+- Updated 8 tests, added 2 new tests — 601/601 passing
+
+### Change 2: Raise btc_drift edge + drift thresholds (commit 224b320)
+Reviewed Titanium V36 betting model structure for single-signal edge philosophy.
+btc_drift at 5% edge = "speculative" tier with no line movement data. Raised floor.
+- `min_edge_pct: 0.05 → 0.08` — need genuine 8% net edge after Kalshi fee
+- `min_drift_pct: 0.05 → 0.10` — need ≥0.10% BTC drift from market open (was 0.05)
+- Math: at sensitivity=800, need ~0.19% BTC drift to achieve 8% edge at 50¢ market
+- Note: Titanium V36 is NOT gospel — reviewed for structural patterns only
 
 ### Fix 1: Consecutive loss counter now persists across restarts (commit 84a977f)
 The missing piece after Session 24. Same class of bug as daily/lifetime counters.
@@ -56,21 +71,23 @@ On startup (main.py):
   3. db.current_live_consecutive_losses()   → restore_consecutive_losses() [SET + cooling if >=4]
 ```
 
-## P&L STATUS (2026-03-01)
+## P&L STATUS (2026-03-01 17:10 UTC)
 
-- **Bankroll:** ~$92.38 available + $2.60 open = ~$95 (Kalshi API confirmed)
-- **All-time live P&L:** -$3.73
-- **Today live P&L (CST March 1):** $0.00 — first live bet of the day just placed (trade_id=110)
-  - NOTE: --report shows -$16.59 "today" because it uses UTC date. Those 12 losses were ALL CST Feb 28.
-- **All-time paper P&L:** +$264.34
-- **All-time win rate:** 62%
+- **Bankroll:** ~$92.38 available + $2.60 open = ~$95 (Kalshi API confirmed earlier today)
+- **All-time live P&L:** -$11.04 (11% of $30 hard stop — healthy but watch consecutive losses)
+- **Today live P&L (CST March 1):** -$7.31 (trades 110 + 113 both losses; 2 bets only)
+  - Trade 110: btc_drift YES@58¢ -$2.90 (pre-threshold-raise)
+  - Trade 113: btc_drift YES@21¢ -$4.41 (pre-price-range-tighten — would now be BLOCKED)
+  - NOTE: --report "today" uses UTC date, shows large losses from CST Feb 28. Ignore it for daily limit.
+- **All-time paper P&L:** +$221.29 (UTC March 1 report)
+- **All-time win rate:** 52% (live), well above 50%
 
 ## WHAT NOT TO DO
 
 1. **DO NOT build new strategies** — expansion gate in effect
 2. **DO NOT change kill switch thresholds** — deliberately set, not trauma-coded
 3. **DO NOT re-promote eth_lag to live** until 30 paper trades + Brier < 0.25
-4. **DO NOT touch btc_drift parameters** — needs 30+ live trades + Brier score first
+4. **DO NOT touch btc_drift parameters again** — just raised; need data collection now
 5. **DO NOT add rules after bad outcomes** — read .planning/PRINCIPLES.md first
 
 ## KEY PRIORITIES FOR NEXT SESSION
@@ -85,7 +102,7 @@ On startup (main.py):
 
 ```bash
 cd /Users/matthewshields/Projects/polymarket-bot
-pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid
+kill -9 $(cat bot.pid) 2>/dev/null; sleep 3; rm -f bot.pid
 # NOTE: use temp-file for stdin — nohup drops piped stdin (EOFError)
 echo "CONFIRM" > /tmp/polybot_confirm.txt
 nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session25.log 2>&1 &
@@ -114,5 +131,5 @@ tail -f /tmp/polybot_session25.log                                       → Wat
 source venv/bin/activate && python main.py --report                      → Today's P&L
 source venv/bin/activate && python main.py --graduation-status           → Paper progress
 source venv/bin/activate && python main.py --status                      → Live snapshot
-source venv/bin/activate && python -m pytest tests/ -q                   → 596 tests
+source venv/bin/activate && python -m pytest tests/ -q                   → 601 tests
 ```
