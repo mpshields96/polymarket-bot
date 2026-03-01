@@ -27,6 +27,8 @@ feeds:
   btc_window_seconds: 60               # Rolling window for move detection
   eth_ws_url: wss://stream.binance.us:9443/ws/ethusdt@bookTicker      # ETH feed — same bookTicker approach
   eth_window_seconds: 60               # Rolling window for ETH move detection
+  sol_ws_url: wss://stream.binance.us:9443/ws/solusdt@bookTicker      # SOL feed — confirmed on Binance.US
+  sol_window_seconds: 60               # Rolling window for SOL move detection
   reconnect_delay: 5                   # Seconds before reconnecting on disconnect
 
 # ── Strategy ────────────────────────────────────────────────────
@@ -135,6 +137,17 @@ strategy:
     min_minutes_remaining: 60.0      # Don't enter with < 60 min left in market window
     uncertainty_band: 0.2            # ±0.2pp normal distribution width for forecast
     fred_refresh_interval_seconds: 3600   # Reuse shared FRED feed interval
+
+  sol_lag:
+    # SOL 15-min lag strategy — paper-only, KXSOL15M series.
+    # SOL is ~3x more volatile than BTC — higher move threshold to avoid noise.
+    # Uses same BTCLagStrategy class, CF Benchmarks SOLUSD_RTI for settlement.
+    # Parameters are conservative starting points; recalibrate after 30+ paper trades.
+    min_btc_move_pct: 0.8              # SOL must move this % in 60s (higher than BTC's 0.4%)
+    min_kalshi_lag_cents: 5
+    min_minutes_remaining: 5
+    min_edge_pct: 0.04                 # Same 4% edge threshold as btc_lag
+    lag_sensitivity: 15.0              # Calibrate after paper data collected
 
   sports_game:
     # NBA + NHL game-winner vs bookmaker consensus — paper-only until ODDS_API_KEY is set.

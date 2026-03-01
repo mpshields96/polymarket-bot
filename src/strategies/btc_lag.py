@@ -249,3 +249,35 @@ def load_eth_lag_from_config() -> BTCLagStrategy:
         lag_sensitivity=s.get("lag_sensitivity", _DEFAULT_LAG_SENSITIVITY),
         name_override="eth_lag_v1",
     )
+
+
+def load_sol_lag_from_config() -> BTCLagStrategy:
+    """Build BTCLagStrategy for SOL markets from config.yaml strategy.sol_lag section.
+
+    SOL is more volatile than BTC/ETH — uses a higher min move threshold (0.8%)
+    to avoid excessive false signals. All other params start at BTC defaults.
+    Paper-only: KXSOL15M series, collects calibration data before any live promotion.
+    """
+    import yaml
+
+    config_path = PROJECT_ROOT / "config.yaml"
+    if not config_path.exists():
+        logger.warning("config.yaml not found, using SOL lag defaults")
+        return BTCLagStrategy(
+            min_btc_move_pct=0.8,
+            min_edge_pct=0.04,
+            name_override="sol_lag_v1",
+        )
+
+    with open(config_path) as f:
+        cfg = yaml.safe_load(f)
+
+    s = cfg.get("strategy", {}).get("sol_lag", {})
+    return BTCLagStrategy(
+        min_btc_move_pct=s.get("min_btc_move_pct", 0.8),
+        min_kalshi_lag_cents=s.get("min_kalshi_lag_cents", _DEFAULT_MIN_LAG_CENTS),
+        min_minutes_remaining=s.get("min_minutes_remaining", _DEFAULT_MIN_MINUTES_REMAINING),
+        min_edge_pct=s.get("min_edge_pct", 0.04),
+        lag_sensitivity=s.get("lag_sensitivity", _DEFAULT_LAG_SENSITIVITY),
+        name_override="sol_lag_v1",
+    )

@@ -8,7 +8,7 @@ Triggers:
   SOFT (auto-reset):
     1. Single trade would exceed $5 OR 5% of bankroll (lower applies)
     2. Daily P&L loss > 15% of starting bankroll  → resets at midnight
-    3. 5 consecutive losses → 2hr cooling period
+    3. 4 consecutive losses → 2hr cooling period
     4. Hourly trade count > 15 → rate-limit pause
 
   HARD (manual reset required):
@@ -40,8 +40,8 @@ EVENT_LOG = PROJECT_ROOT / "KILL_SWITCH_EVENT.log"
 HARD_MAX_TRADE_USD = 5.00         # Absolute ceiling per trade
 HARD_STOP_LOSS_PCT = 0.30         # 30% total bankroll loss = hard stop
 HARD_MIN_BANKROLL_USD = 20.00     # Below $20 = hard stop
-DAILY_LOSS_LIMIT_PCT = 0.15       # 15% daily loss = soft kill (resets midnight)
-CONSECUTIVE_LOSS_LIMIT = 5        # Losses before cooling period
+DAILY_LOSS_LIMIT_PCT = 0.20       # 20% daily loss = soft kill (resets midnight)
+CONSECUTIVE_LOSS_LIMIT = 4        # Losses before cooling period
 COOLING_PERIOD_HOURS = 2          # Hours to pause after CONSECUTIVE_LOSS_LIMIT
 MAX_HOURLY_TRADES = 15            # Trades per hour before rate-limit pause
 MAX_AUTH_FAILURES = 3             # Consecutive auth failures before halt
@@ -201,6 +201,46 @@ class KillSwitch:
         # ── Time remaining in market window ───────────────────────
         if minutes_remaining is not None and minutes_remaining <= 5:
             return False, f"Only {minutes_remaining:.1f}min remaining in market window (min 5)"
+
+        return True, "OK"
+
+    def check_paper_order_allowed(
+        self,
+        trade_usd: float,
+        current_bankroll_usd: float,
+    ) -> tuple[bool, str]:
+        """
+        Kill switch check for paper trades. Only hard stops block paper trades.
+
+        Soft stops (daily loss, consecutive losses, hourly rate) do NOT block
+        paper bets — paper data collection must continue during soft kills.
+        Paper losses aren't real money; stopping paper during a soft kill wastes
+        calibration data that's needed to evaluate strategy performance.
+
+        Still blocks on:
+          - kill_switch.lock (manual hard stop)
+          - in-memory hard stop (30% bankroll loss, auth failures)
+          - Bankroll below $20 floor (always hard stop regardless of paper/live)
+
+        Does NOT block on:
+          - Daily loss soft stop
+          - Consecutive loss cooling period
+          - Hourly rate limit
+        """
+        state = self._state
+        state._rotate_daily()
+
+        if LOCK_FILE.exists():
+            return False, "kill_switch.lock exists — run: python main.py --reset-killswitch"
+
+        if state._hard_stop:
+            return False, f"HARD STOP: {state._hard_stop_reason}"
+
+        if current_bankroll_usd <= HARD_MIN_BANKROLL_USD:
+            self._hard_stop(
+                f"Bankroll ${current_bankroll_usd:.2f} at or below minimum ${HARD_MIN_BANKROLL_USD:.2f}"
+            )
+            return False, state._hard_stop_reason
 
         return True, "OK"
 

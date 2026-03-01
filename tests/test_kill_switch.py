@@ -3,7 +3,7 @@ Kill switch tests — must pass 100%.
 
 Tests every trigger condition from POLYBOT_INIT.md:
 1. Single trade size cap ($5 hard cap, 5% bankroll)
-2. Daily loss limit (15%)
+2. Daily loss limit (20%)
 3. Consecutive loss cooling (5 losses → 2hr pause)
 4. Hourly rate limit (15 trades/hr)
 5. Auth failure hard stop (3 consecutive)
@@ -88,45 +88,45 @@ class TestTradeSizeCaps:
 
 class TestDailyLossLimit:
     def test_under_daily_limit_allowed(self, ks):
-        ks.record_loss(14.0)  # 14% of $100
-        ok, _ = ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=86.0)
+        ks.record_loss(19.0)  # 19% of $100 — under new 20% limit
+        ok, _ = ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=81.0)
         assert ok
 
     def test_at_daily_limit_blocked(self, ks):
-        ks.record_loss(15.0)  # exactly 15%
-        ok, reason = ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=85.0)
+        ks.record_loss(20.0)  # exactly 20%
+        ok, reason = ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=80.0)
         assert not ok
         assert "daily" in reason.lower() or "loss" in reason.lower()
 
     def test_over_daily_limit_blocked(self, ks):
-        ks.record_loss(20.0)
-        ok, _ = ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=80.0)
+        ks.record_loss(25.0)
+        ok, _ = ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=75.0)
         assert not ok
 
     def test_daily_loss_soft_stop_recorded(self, ks):
-        ks.record_loss(15.0)
-        ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=85.0)
+        ks.record_loss(20.0)
+        ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=80.0)
         assert ks.is_soft_stopped
 
 
 # ── 3. Consecutive loss cooling ────────────────────────────────────
 
 class TestConsecutiveLossCooling:
-    def test_four_losses_still_allowed(self, ks):
-        for _ in range(4):
+    def test_three_losses_still_allowed(self, ks):
+        for _ in range(3):
             ks.record_loss(1.0)
-        ok, _ = ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=96.0)
+        ok, _ = ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=97.0)
         assert ok
 
-    def test_five_losses_triggers_cooling(self, ks):
-        for _ in range(5):
+    def test_four_losses_triggers_cooling(self, ks):
+        for _ in range(4):
             ks.record_loss(1.0)
-        ok, reason = ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=95.0)
+        ok, reason = ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=96.0)
         assert not ok
         assert "consecutive" in reason.lower() or "cooling" in reason.lower()
 
     def test_cooling_period_is_two_hours(self, ks):
-        for _ in range(5):
+        for _ in range(4):
             ks.record_loss(1.0)
         # Verify cooling_until is ~2 hours from now
         cooling_until = ks._state._cooling_until
@@ -558,6 +558,66 @@ class TestStrategyMinEdgePropagation:
         )
         assert result is not None, "Kelly is positive at 4% edge — should produce a bet"
         assert result.kelly_raw_usd > 0
+
+
+class TestPaperOrderAllowed:
+    """
+    check_paper_order_allowed() only blocks on hard stops.
+    Soft stops (daily loss, consecutive losses, hourly rate) do NOT block paper trades.
+    Paper losses aren't real money — paper bets continue during soft kills for calibration.
+    """
+
+    def test_paper_allowed_when_clean(self, ks):
+        ok, reason = ks.check_paper_order_allowed(trade_usd=1.0, current_bankroll_usd=100.0)
+        assert ok
+        assert reason == "OK"
+
+    def test_paper_not_blocked_by_daily_loss_limit(self, ks):
+        """Daily loss soft stop must NOT block paper trades."""
+        ks.record_loss(20.0)  # exceeds $20 daily limit
+        ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=80.0)  # trigger soft stop
+        assert ks.is_soft_stopped  # confirm soft stop is set
+        ok, _ = ks.check_paper_order_allowed(trade_usd=1.0, current_bankroll_usd=80.0)
+        assert ok, "Paper trade must not be blocked by daily loss soft stop"
+
+    def test_paper_not_blocked_by_consecutive_loss_cooling(self, ks):
+        """Consecutive loss cooling period must NOT block paper trades."""
+        for _ in range(4):
+            ks.record_loss(1.0)  # triggers cooling
+        assert ks._state._cooling_until is not None  # cooling is active
+        ok, _ = ks.check_paper_order_allowed(trade_usd=1.0, current_bankroll_usd=96.0)
+        assert ok, "Paper trade must not be blocked by consecutive loss cooling"
+
+    def test_paper_not_blocked_by_hourly_rate_limit(self, ks):
+        """Hourly rate limit must NOT block paper trades."""
+        from src.risk.kill_switch import MAX_HOURLY_TRADES
+        for _ in range(MAX_HOURLY_TRADES):
+            ks.record_trade()
+        ok, _ = ks.check_paper_order_allowed(trade_usd=1.0, current_bankroll_usd=100.0)
+        assert ok, "Paper trade must not be blocked by hourly rate limit"
+
+    def test_paper_blocked_by_hard_stop(self, ks):
+        """Hard stops MUST still block paper trades."""
+        for _ in range(31):
+            ks.record_loss(1.0)  # triggers hard stop (30% total loss)
+        assert ks.is_hard_stopped
+        ok, _ = ks.check_paper_order_allowed(trade_usd=1.0, current_bankroll_usd=69.0)
+        assert not ok, "Hard stop must still block paper trades"
+
+    def test_paper_blocked_by_lock_file(self, ks, tmp_path, monkeypatch):
+        """kill_switch.lock must still block paper trades."""
+        from src.risk import kill_switch as ks_mod
+        fake_lock = tmp_path / "kill_switch.lock"
+        fake_lock.write_text("{}")
+        monkeypatch.setattr(ks_mod, "LOCK_FILE", fake_lock)
+        ok, reason = ks.check_paper_order_allowed(trade_usd=1.0, current_bankroll_usd=100.0)
+        assert not ok
+        assert "lock" in reason.lower()
+
+    def test_paper_blocked_below_bankroll_floor(self, ks):
+        """Bankroll below hard floor must still block paper trades."""
+        ok, _ = ks.check_paper_order_allowed(trade_usd=1.0, current_bankroll_usd=15.0)
+        assert not ok
 
 
 class TestHardStopNoPollutionDuringTests:

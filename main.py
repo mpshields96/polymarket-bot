@@ -189,11 +189,19 @@ async def trading_loop(
                 # Kill switch pre-trade check (synchronous)
                 from src.strategies.btc_lag import BTCLagStrategy
                 minutes_remaining = BTCLagStrategy._minutes_remaining(market)
-                ok, reason = kill_switch.check_order_allowed(
-                    trade_usd=trade_usd,
-                    current_bankroll_usd=current_bankroll,
-                    minutes_remaining=minutes_remaining,
-                )
+                if live_executor_enabled and live_confirmed:
+                    # Live trade — all checks apply (soft stops block live bets)
+                    ok, reason = kill_switch.check_order_allowed(
+                        trade_usd=trade_usd,
+                        current_bankroll_usd=current_bankroll,
+                        minutes_remaining=minutes_remaining,
+                    )
+                else:
+                    # Paper trade — only hard stops block (soft stops don't halt calibration)
+                    ok, reason = kill_switch.check_paper_order_allowed(
+                        trade_usd=trade_usd,
+                        current_bankroll_usd=current_bankroll,
+                    )
 
                 if not ok:
                     logger.info("[main] Kill switch blocked trade: %s", reason)
@@ -346,7 +354,8 @@ async def weather_loop(
 
                 # ── Execute (paper only) ──────────────────────────────
                 current_bankroll = db.latest_bankroll() or 50.0
-                ok, reason = kill_switch.check_order_allowed(
+                # Paper-only loop: soft stops do not halt calibration data collection
+                ok, reason = kill_switch.check_paper_order_allowed(
                     trade_usd=1.0,   # placeholder; sizing is paper-only
                     current_bankroll_usd=current_bankroll,
                 )
@@ -500,7 +509,8 @@ async def fomc_loop(
                     continue
 
                 current_bankroll = db.latest_bankroll() or 50.0
-                ok, reason = kill_switch.check_order_allowed(
+                # Paper-only loop: soft stops do not halt calibration data collection
+                ok, reason = kill_switch.check_paper_order_allowed(
                     trade_usd=1.0,
                     current_bankroll_usd=current_bankroll,
                 )
@@ -657,7 +667,8 @@ async def unemployment_loop(
                     continue
 
                 current_bankroll = db.latest_bankroll() or 50.0
-                ok, reason = kill_switch.check_order_allowed(
+                # Paper-only loop: soft stops do not halt calibration data collection
+                ok, reason = kill_switch.check_paper_order_allowed(
                     trade_usd=1.0,
                     current_bankroll_usd=current_bankroll,
                 )
@@ -1288,8 +1299,10 @@ async def main():
     from src.platforms.kalshi import load_from_env as kalshi_load
     from src.data.binance import load_from_config as binance_load
     from src.data.binance import load_eth_from_config as eth_binance_load
+    from src.data.binance import load_sol_from_config as sol_binance_load
     from src.strategies.btc_lag import load_from_config as strategy_load
     from src.strategies.btc_lag import load_eth_lag_from_config as eth_lag_load
+    from src.strategies.btc_lag import load_sol_lag_from_config as sol_lag_load
     from src.strategies.btc_drift import load_from_config as drift_strategy_load
     from src.strategies.btc_drift import load_eth_drift_from_config as eth_drift_load
     from src.strategies.orderbook_imbalance import (
@@ -1326,6 +1339,10 @@ async def main():
     eth_feed = eth_binance_load()
     await eth_feed.start()
 
+    logger.info("Starting Binance SOL feed...")
+    sol_feed = sol_binance_load()
+    await sol_feed.start()
+
     # ── Load strategies ───────────────────────────────────────────────
     strategy = strategy_load()
     logger.info("Strategy loaded: %s", strategy.name)
@@ -1347,6 +1364,8 @@ async def main():
     logger.info("Strategy loaded: %s (paper-only FOMC yield curve, fires ~8x/year)", fomc_strategy.name)
     unemployment_strategy = unemployment_strategy_load()
     logger.info("Strategy loaded: %s (paper-only BLS unemployment, fires ~12x/year)", unemployment_strategy.name)
+    sol_lag_strategy = sol_lag_load()
+    logger.info("Strategy loaded: %s (paper-only SOL 15-min lag, KXSOL15M)", sol_lag_strategy.name)
 
     # ── Run ───────────────────────────────────────────────────────────
     _configured_markets = config.get("strategy", {}).get("markets", ["KXBTC15M"])
@@ -1515,6 +1534,24 @@ async def main():
         ),
         name="unemployment_loop",
     )
+    # SOL lag: paper-only, KXSOL15M series, stagger 65s
+    sol_task = asyncio.create_task(
+        trading_loop(
+            kalshi=kalshi,
+            btc_feed=sol_feed,
+            strategy=sol_lag_strategy,
+            kill_switch=kill_switch,
+            db=db,
+            live_executor_enabled=False,
+            live_confirmed=False,
+            btc_series_ticker="KXSOL15M",
+            loop_name="sol_lag",
+            initial_delay_sec=65.0,
+            max_daily_bets=max_daily_bets_paper,
+            slippage_ticks=paper_slippage_ticks,
+        ),
+        name="sol_lag_loop",
+    )
     settle_task = asyncio.create_task(
         settlement_loop(kalshi=kalshi, db=db, kill_switch=kill_switch),
         name="settlement_loop",
@@ -1535,6 +1572,7 @@ async def main():
         weather_task.cancel()
         fomc_task.cancel()
         unemployment_task.cancel()
+        sol_task.cancel()
         settle_task.cancel()
 
     for _sig, _sname in ((_signal.SIGTERM, "SIGTERM"), (_signal.SIGHUP, "SIGHUP")):
@@ -1544,7 +1582,7 @@ async def main():
         await asyncio.gather(
             trade_task, eth_lag_task, drift_task, eth_drift_task,
             btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task,
-            unemployment_task, settle_task,
+            unemployment_task, sol_task, settle_task,
         )
     except (KeyboardInterrupt, asyncio.CancelledError):
         pass  # Normal shutdown — SIGTERM or Ctrl+C; finally block handles cleanup
@@ -1558,16 +1596,18 @@ async def main():
         weather_task.cancel()
         fomc_task.cancel()
         unemployment_task.cancel()
+        sol_task.cancel()
         settle_task.cancel()
         await asyncio.gather(
             trade_task, eth_lag_task, drift_task, eth_drift_task,
             btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task,
-            unemployment_task, settle_task,
+            unemployment_task, sol_task, settle_task,
             return_exceptions=True,
         )
         logger.info("Stopping feeds and connections...")
         await btc_feed.stop()
         await eth_feed.stop()
+        await sol_feed.stop()
         await kalshi.close()
         db.close()
         _release_bot_lock()

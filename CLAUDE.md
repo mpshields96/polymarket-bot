@@ -9,7 +9,8 @@
 ## Architecture rules (non-negotiable)
 - One file, one job. If the job has "and" in it, split it.
 - No `await` in `src/risk/` — kill switch and sizing are strictly synchronous
-- `kill_switch.check_order_allowed()` is the LAST gate before every order
+- `kill_switch.check_order_allowed()` is the LAST gate before every LIVE order
+- `kill_switch.check_paper_order_allowed()` is the LAST gate before every PAPER order (skips soft stops)
 - Auth lives in `kalshi_auth.py` only — never inline signing anywhere else
 - Never write files outside `/Users/matthewshields/Projects/polymarket-bot/`
 
@@ -101,7 +102,7 @@ DO NOT: fix symptoms without finding root cause
 - `_STALE_THRESHOLD_SEC = 35.0` in binance.py — Binance.US @bookTicker can be silent 10-30s; 10s threshold causes false stale signals
 - **RESTART PROCEDURE — use pkill not kill**: `kill $(cat bot.pid)` only kills the most recent instance; orphaned old instances keep running and place duplicate trades. Always restart with: `pkill -f "python main.py"; sleep 3; rm -f bot.pid; echo "CONFIRM" | nohup python main.py --live >> /tmp/polybot_session21.log 2>&1 &` — then verify with `ps aux | grep "[m]ain.py"` (should be exactly 1 process).
 - **Paper/live separation** (fixed Session 21): `has_open_position()` and `count_trades_today()` now pass `is_paper` filter. Live daily cap counts live bets only. Paper bets no longer eat into live quota.
-- 507/507 tests must pass before any commit (count updates each session)
+- 540/540 tests must pass before any commit (count updates each session)
 - **`confidence` field in Signal is computed but never consumed** (not used in sizing, kill switch, or main.py). It's a dead field — low priority to wire in or remove.
 - **eth_drift uses BTCDriftStrategy internally** — logs say `[btc_drift]` and "BTC=ETH_price". Cosmetic only. `btc_feed=eth_feed` in main.py call is correct.
 - **settlement_loop uses `paper_exec.settle()` for live trades too** — logs say `[paper] Settled` even for live trades. Cosmetic only; P&L math and DB update are correct.
@@ -124,6 +125,10 @@ DO NOT: fix symptoms without finding root cause
 - **`calculate_size()` returns a `SizeResult` dataclass, NOT a float** — paper loops must extract `.recommended_usd` before passing to `paper_exec.execute(size_usd=...)`. Pattern: `_trade_usd = min(_size_result.recommended_usd, _HARD_CAP)`. Bug fixed Session 22 in weather/fomc/unemployment loops. Regression tests in TestPaperLoopSizeExtraction.
 - **strategy `_min_edge_pct` must be passed to `calculate_size(min_edge_pct=...)`** — default is 8%, but btc_lag fires at 4% and btc_drift at 5%. Without this, valid 4-7.9% edge signals are silently dropped. Bug fixed Session 22 (4ae55bd). Pattern: `_strat_min_edge = getattr(strategy, '_min_edge_pct', 0.08)`. Regression tests in TestStrategyMinEdgePropagation.
 - **KILL_SWITCH_EVENT.log is polluted by test runs** — `_hard_stop()` writes to the live event log even during pytest. Events timestamped during tests look like real trading stops. Root cause: no `PYTEST_CURRENT_TEST` guard (unlike `_write_blockers()`). Fix logged in .planning/todos.md. Don't be alarmed by mysterious hard stops that don't match DB data.
+- **Paper-during-softkill (Session 23)**: Soft stops (daily loss, consecutive losses, hourly rate) block LIVE bets only. Paper data collection continues uninterrupted during soft kills. `check_paper_order_allowed()` is used in all paper paths; only hard stops + bankroll floor block paper trades. btc_lag/eth_lag/btc_drift live paths still use `check_order_allowed()` (all stops apply).
+- **Kill switch thresholds (Session 23)**: consecutive_loss_limit=4 (was 5), daily_loss_limit=20% ($20 on $100 bankroll, was 15%). Both updated in `src/risk/kill_switch.py` constants.
+- **KXBTC1H does NOT exist** — Kalshi has no hourly BTC/ETH price-direction markets. Only 15-min series: KXBTC15M, KXETH15M, KXSOL15M, KXXRP15M, KXBNB15M, KXBCH15M. Confirmed by probing all 8,719 Kalshi series (Session 23).
+- **sol_lag_v1** (Session 23): paper-only KXSOL15M loop, SOL feed at `wss://stream.binance.us:9443/ws/solusdt@bookTicker`, min_btc_move_pct=0.8 (SOL ~3x more volatile than BTC). Reuses BTCLagStrategy with name_override="sol_lag_v1".
 - **Odds API — 1,000 credit hard cap for this bot** — Matthew has 20,000/month total (renewed March 1). polymarket-bot is capped at 5% (1,000 credits). Implement OddsApiQuotaGuard before ANY API call. Sports props/moneyline/spreads are for a SEPARATE system (see .planning/todos.md). Do not mix.
 
 ## Code patterns
@@ -138,13 +143,13 @@ DO NOT: fix symptoms without finding root cause
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- 507/507 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
-- 9 trading loops: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate
-- **3 strategies LIVE: btc_lag_v1 + eth_lag_v1 + btc_drift_v1** ($107.87 bankroll, $5 max/bet)
-- Latest commit: 6ccb040 — restart_bot.sh (safe restart) + kill switch test pollution fix (39fec0d) + min_edge_pct fix (4ae55bd)
-- 6 other strategies → paper mode collecting calibration data
-- Session 22: 5 bug fixes + kill switch test pollution fix; scripts/restart_bot.sh; bankroll ~$125+; all-time live P&L +$24.96 (7 settled, 5W 2L); 507 tests
-- GitHub: main branch, latest commit: 4ae55bd
+- 540/540 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
+- 10 trading loops: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
+- **3 strategies LIVE: btc_lag_v1 + eth_lag_v1 + btc_drift_v1** ($5 max/bet)
+- Latest commit: 637809c — Session 23 handoff (prev session); current session adds sol_lag + paper-during-softkill
+- Kill switch: consecutive loss limit = 4 (was 5), daily loss limit = 20% ($20, was 15%)
+- Paper-during-softkill: check_paper_order_allowed() in all paper loops — soft stops block live only
+- 7 paper strategies → calibration data collection (including new sol_lag_v1 paper loop)
 - Bot running: PID in bot.pid, log at /tmp/polybot.log (stable symlink) or /tmp/polybot_session21.log
 - Restart: `pkill -f "python main.py"; sleep 3; rm -f bot.pid && echo "CONFIRM" | nohup /Users/matthewshields/Projects/polymarket-bot/venv/bin/python main.py --live >> /tmp/polybot_session21.log 2>&1 &`
   (ALWAYS use full venv python path + pkill — never `kill $(cat bot.pid)` and never bare `python`)
@@ -156,7 +161,7 @@ Current project state (updated each session):
 - **Security first, always**: never expose .env / API keys / pem files; never run untrusted code; never modify system files outside the project directory
 - **Never break the bot**: before any restart or config change, confirm the current bot is running or stopped; always verify single instance after restart
 - Two parallel Claude Code chats may run simultaneously — keep framework overhead ≤10-15% per chat
-- 507/507 tests must pass before any commit (count updates each session)
+- 540/540 tests must pass before any commit (count updates each session)
 - **Before ANY new live strategy: complete all 6 steps of Development Workflow Protocol above**
 - **Graduation → live promotion**: when `--graduation-status` shows READY FOR LIVE, run the full Step 5 pre-live audit checklist before flipping `live_executor_enabled=True` in main.py. Session 20 lost 2 hours of live bets to silent bugs found only after going live — catch them in Step 5 first.
 - **EXPANSION GATE (Matthew's standing directive)**: Do NOT build new strategy types until current live strategies are producing solid, consistent results. Hard gate: btc_drift at 30+ live trades + Brier < 0.30 + 2-3 weeks of live P&L data + no kill switch events + no silent blockers. Until then: log ideas to .planning/todos.md only. Do not build.
