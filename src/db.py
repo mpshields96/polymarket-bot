@@ -291,14 +291,20 @@ class DB:
     # ── Stats ─────────────────────────────────────────────────────────
 
     def count_trades_today(self, strategy: str, is_paper: Optional[bool] = None) -> int:
-        """Return number of bets placed today for a given strategy (UTC day)."""
-        from datetime import datetime, timezone as _tz
-        now_utc = datetime.now(_tz.utc)
-        midnight_utc = now_utc.replace(
+        """Return number of bets placed today for a given strategy (CST day, UTC-6).
+
+        Uses CST midnight as the day boundary, consistent with daily_live_loss_usd().
+        This prevents CST-evening bets (early UTC morning of the next day) from eating
+        into the next CST day's bet cap — the same fix applied to the daily loss counter.
+        """
+        from datetime import datetime, timezone as _tz, timedelta
+        CST = _tz(timedelta(hours=-6))
+        now_cst = datetime.now(CST)
+        midnight_cst = now_cst.replace(
             hour=0, minute=0, second=0, microsecond=0
         ).timestamp()
         query = "SELECT COUNT(*) FROM trades WHERE strategy = ? AND timestamp >= ?"
-        params: list = [strategy, midnight_utc]
+        params: list = [strategy, midnight_cst]
         if is_paper is not None:
             query += " AND is_paper = ?"
             params.append(int(is_paper))

@@ -358,6 +358,34 @@ class TestCountTradesToday:
         db.settle_trade(trade_id, result="yes", pnl_cents=560)
         assert db.count_trades_today("btc_lag") == 1
 
+    def test_cst_yesterday_evening_not_counted(self, db):
+        """A trade placed CST 'yesterday' evening (UTC early today) should NOT count.
+
+        Example: CST 8 PM Feb 28 = UTC 2 AM March 1 (before UTC midnight but after
+        CST midnight). With CST-based counting, this belongs to CST Feb 28, not today.
+        """
+        from datetime import datetime, timezone as _tz, timedelta
+        CST = _tz(timedelta(hours=-6))
+        now_cst = datetime.now(CST)
+        # Yesterday CST midnight minus 6 hours puts us firmly in CST yesterday evening
+        # Use a timestamp that is between UTC midnight and CST midnight (i.e., UTC today
+        # 01:00 AM = CST yesterday 7:00 PM)
+        cst_midnight_today = now_cst.replace(hour=0, minute=0, second=0, microsecond=0)
+        cst_yesterday_8pm = cst_midnight_today - timedelta(hours=4)  # 8 PM CST yesterday
+        self._save_with_ts(db, cst_yesterday_8pm.timestamp(), strategy="btc_lag")
+        # Should NOT count — belongs to CST yesterday
+        assert db.count_trades_today("btc_lag") == 0
+
+    def test_cst_today_early_morning_counted(self, db):
+        """A trade placed just after CST midnight SHOULD count as today."""
+        from datetime import datetime, timezone as _tz, timedelta
+        CST = _tz(timedelta(hours=-6))
+        now_cst = datetime.now(CST)
+        cst_midnight_today = now_cst.replace(hour=0, minute=0, second=0, microsecond=0)
+        cst_today_1am = cst_midnight_today + timedelta(hours=1)  # 1 AM CST today
+        self._save_with_ts(db, cst_today_1am.timestamp(), strategy="btc_lag")
+        assert db.count_trades_today("btc_lag") == 1
+
 
 # ── has_open_position ─────────────────────────────────────────────
 
