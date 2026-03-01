@@ -107,6 +107,7 @@ DO NOT: fix symptoms without finding root cause
 - **eth_drift uses BTCDriftStrategy internally** — logs say `[btc_drift]` and "BTC=ETH_price". Cosmetic only. `btc_feed=eth_feed` in main.py call is correct.
 - **settlement_loop uses `paper_exec.settle()` for live trades too** — logs say `[paper] Settled` even for live trades. Cosmetic only; P&L math and DB update are correct.
 - **late_penalty in btc_drift reduces `confidence` but NOT `edge_pct`** — so late-reference signals still show high edge_pct. Capped at $5 hard max anyway, so no real money impact.
+- **btc_drift has no price extremes filter** — fires at 3¢/97¢ even though sigmoid was calibrated on near-50¢ data. At extremes the model is extrapolating; HFTs have usually priced in certainty for good reason. Fix: add min_signal_price_cents=10 / max_signal_price_cents=90. See .planning/todos.md.
 - **`--status`, `--report`, `--graduation-status`** all bypass bot PID lock — safe while live
 - **`--report`**: now shows per-strategy breakdown (bets, W/L, P&L, live/paper emoji)
 - **`scripts/notify_midnight.sh`**: midnight UTC daily P&L Reminders notifier — start once with `& echo $! > /tmp/polybot_midnight.pid`
@@ -125,6 +126,8 @@ DO NOT: fix symptoms without finding root cause
 - **`calculate_size()` returns a `SizeResult` dataclass, NOT a float** — paper loops must extract `.recommended_usd` before passing to `paper_exec.execute(size_usd=...)`. Pattern: `_trade_usd = min(_size_result.recommended_usd, _HARD_CAP)`. Bug fixed Session 22 in weather/fomc/unemployment loops. Regression tests in TestPaperLoopSizeExtraction.
 - **strategy `_min_edge_pct` must be passed to `calculate_size(min_edge_pct=...)`** — default is 8%, but btc_lag fires at 4% and btc_drift at 5%. Without this, valid 4-7.9% edge signals are silently dropped. Bug fixed Session 22 (4ae55bd). Pattern: `_strat_min_edge = getattr(strategy, '_min_edge_pct', 0.08)`. Regression tests in TestStrategyMinEdgePropagation.
 - **KILL_SWITCH_EVENT.log is polluted by test runs** — `_hard_stop()` writes to the live event log even during pytest. Events timestamped during tests look like real trading stops. Root cause: no `PYTEST_CURRENT_TEST` guard (unlike `_write_blockers()`). Fix logged in .planning/todos.md. Don't be alarmed by mysterious hard stops that don't match DB data.
+- **Price range guard applies to ALL lag strategies (Session 23 cont'd)**: btc_lag/eth_lag/sol_lag share `_MIN_SIGNAL_PRICE_CENTS=10` and `_MAX_SIGNAL_PRICE_CENTS=90` guard in btc_lag.py. btc_drift.py has its own identical guard. eth_lag placed NO@2¢ live bet (trade_id=90) AFTER btc_drift was fixed — always check sibling strategies for same pattern.
+- **Daily loss counter DID NOT persist across restarts** (fixed Session 23 cont'd): on restart, `_daily_loss_usd` reset to 0 in memory, bypassing the daily limit. Fix: `db.daily_live_loss_usd()` queries settled losses since midnight UTC; `kill_switch.restore_daily_loss()` seeds the counter; called from main.py on startup. Consecutive loss counter intentionally resets (restart = manual soft stop override).
 - **Paper-during-softkill (Session 23)**: Soft stops (daily loss, consecutive losses, hourly rate) block LIVE bets only. Paper data collection continues uninterrupted during soft kills. `check_paper_order_allowed()` is used in all paper paths; only hard stops + bankroll floor block paper trades. btc_lag/eth_lag/btc_drift live paths still use `check_order_allowed()` (all stops apply).
 - **Kill switch thresholds (Session 23)**: consecutive_loss_limit=4 (was 5), daily_loss_limit=20% ($20 on $100 bankroll, was 15%). Both updated in `src/risk/kill_switch.py` constants.
 - **KXBTC1H does NOT exist** — Kalshi has no hourly BTC/ETH price-direction markets. Only 15-min series: KXBTC15M, KXETH15M, KXSOL15M, KXXRP15M, KXBNB15M, KXBCH15M. Confirmed by probing all 8,719 Kalshi series (Session 23).
@@ -143,15 +146,17 @@ DO NOT: fix symptoms without finding root cause
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- 540/540 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
+- 559/559 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
 - 10 trading loops: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
 - **3 strategies LIVE: btc_lag_v1 + eth_lag_v1 + btc_drift_v1** ($5 max/bet)
-- Latest commit: 637809c — Session 23 handoff (prev session); current session adds sol_lag + paper-during-softkill
+- Latest commit: a43a1cf — daily loss persistence fix
 - Kill switch: consecutive loss limit = 4 (was 5), daily loss limit = 20% ($20, was 15%)
 - Paper-during-softkill: check_paper_order_allowed() in all paper loops — soft stops block live only
+- Price range guard 10-90¢: active on BOTH btc_drift.py AND btc_lag.py (applied to all 3 lag strategies)
+- Daily loss counter restored from DB on restart — prevents mid-session restart from bypassing daily limit
 - 7 paper strategies → calibration data collection (including new sol_lag_v1 paper loop)
 - Bot running: PID in bot.pid, log at /tmp/polybot.log (stable symlink) or /tmp/polybot_session21.log
-- Restart: `pkill -f "python main.py"; sleep 3; rm -f bot.pid && echo "CONFIRM" | nohup /Users/matthewshields/Projects/polymarket-bot/venv/bin/python main.py --live >> /tmp/polybot_session21.log 2>&1 &`
+- Restart: `kill -9 $(cat bot.pid); sleep 2; rm -f bot.pid && echo "CONFIRM" | nohup /Users/matthewshields/Projects/polymarket-bot/venv/bin/python main.py --live >> /tmp/polybot_session21.log 2>&1 &`
   (ALWAYS use full venv python path + pkill — never `kill $(cat bot.pid)` and never bare `python`)
 
 ## Workflow — ALWAYS AUTONOMOUS (Matthew's standing directive, never needs repeating)

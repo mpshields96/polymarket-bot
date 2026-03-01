@@ -1,18 +1,18 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file + POLYBOT_INIT.md to any new Claude session to resume.
-# Last updated: 2026-02-28 (Session 23 cont'd — 540 tests, sol_lag + paper-during-softkill complete)
+# Last updated: 2026-03-01 (Session 23 cont'd — 559 tests, price guard + daily loss persistence)
 ═══════════════════════════════════════════════════
 
 ## EXACT CURRENT STATE — READ THIS FIRST
 
-The bot is **stopped** — restart it before checking in.
-PID: check `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"`
+The bot is **running** — PID 40106 (check before restarting)
+Check: `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"`
 Log: `tail -f /tmp/polybot.log` (stable symlink → /tmp/polybot_session21.log)
 
 **3 strategies LIVE** (real money): btc_lag_v1, eth_lag_v1, btc_drift_v1
-**7 strategies paper**: eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, **sol_lag (NEW)**
-Test count: **540/540 ✅**
-Latest commit: pending this session's work (sol_lag + paper-during-softkill + kill switch threshold changes)
+**7 strategies paper**: eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
+Test count: **559/559 ✅**
+Latest commit: a43a1cf — daily loss persistence fix
 
 ## DO NOT restart the bot unless it's stopped
 Check first:
@@ -25,13 +25,14 @@ If stopped, restart:
 bash scripts/restart_bot.sh
 ```
 
-## P&L Status (as of 2026-02-28 session)
-- **Bankroll:** ~$115 (check `python main.py --report`)
-- **All-time live P&L:** +$15.15 (9 settled: 5W 4L) — may have updated since
-- **All-time win rate:** 67%
+## P&L Status (as of 2026-03-01 session 23 cont'd)
+- **Bankroll:** $90.37 (significant drawdown from +$24.96 peak)
+- **All-time live P&L:** -$2.58 (today alone: -$15.44, 10 settled)
+- **Win rate today (live):** low — bad day, all strategy bets lost on extreme prices
 - **Kill switch thresholds (UPDATED Session 23)**:
   - consecutive_loss_limit = **4** (was 5)
   - daily_loss_limit = **20%** ($20 on $100 bankroll, was 15%)
+- **SOFT STOP active**: daily live loss restored to $34.30 > $20 limit. No new live bets until midnight UTC. Paper bets continuing.
 
 ## What changed in Session 23 (continued — 2026-02-28)
 
@@ -61,21 +62,45 @@ bash scripts/restart_bot.sh
 - Only 15-min crypto series exist: KXBTC15M, KXETH15M, KXSOL15M, KXXRP15M, KXBNB15M, KXBCH15M
 - Pivot: SOL 15-min (KXSOL15M confirmed open, SOLUSDT on Binance.US confirmed)
 
+### New (session 23 cont'd, 2026-03-01): 3 more bug fixes
+**1. Price range guard extended to btc_lag** (commit bced652)
+- eth_lag_v1 placed NO@2¢ on KXETH15M [LIVE] — same structural gap as btc_drift
+- Added `_MIN_SIGNAL_PRICE_CENTS=10` / `_MAX_SIGNAL_PRICE_CENTS=90` to btc_lag.py
+- Applies to btc_lag_v1, eth_lag_v1, sol_lag_v1 (all use BTCLagStrategy)
+- 4 new tests in TestPriceExtremesFilter (test_strategy.py)
+
+**2. Daily loss counter now persists across restarts** (commit a43a1cf)
+- On restart, _daily_loss_usd reset to 0, bypassing daily limit mid-session
+- Fix: db.daily_live_loss_usd() + kill_switch.restore_daily_loss() + main.py wiring
+- Bot now restores $34.30 today's losses → daily soft stop correctly firing
+- 11 new tests: TestDailyLiveLossUsd (5) + TestRestoreDailyLoss (6)
+
+**3. btc_drift price guard** (commit 819c2ce, previous)
+- Added same 10-90¢ guard to btc_drift.py (was missing)
+
+**Tests: 540 → 559 (+19)**
+
 ## KEY PRIORITIES FOR NEXT SESSION
 
-**#1 — Monitor: SOL lag is now running paper**
+**#1 — Daily soft stop will clear at midnight UTC (02:00 AM Eastern)**
+- Until then: live bets are soft-blocked ($34.30 loss restored > $20 limit)
+- Paper bets continue on all 7 paper strategies
+- Bankroll: $90.37. If the 3 pending bets (YES@56¢ ETH LIVE, NO@65¢ BTC LIVE, NO@33¢ ETH PAPER) win, bankroll recovers slightly
+
+**#2 — Monitor: SOL lag is now running paper**
 - KXSOL15M markets, solusdt@bookTicker feed, min_btc_move_pct=0.8
 - Watch for signals in log: `grep "\[sol_lag\]" /tmp/polybot.log`
 - Paper data needed for 30 trades before any live consideration
 
-**#2 — NO Stage 2 promotion yet**
-- Bankroll ~$115, but Kelly calibration requires 30+ live bets with limiting_factor=="kelly"
-- Do NOT raise bet size to $10
+**#3 — NO Stage 2 promotion yet**
+- Bankroll $90.37 (below Stage 2 $100 threshold anyway)
+- Kelly calibration still needs 30+ live settled bets. Do NOT raise bet size.
 
-**#3 — eth_drift approaching graduation (14/30)**
+**#4 — eth_drift approaching graduation**
+- Run `python main.py --graduation-status` to check current count
 - Run Step 5 pre-live audit when it hits 30 trades
 
-**#4 — FOMC active March 5**
+**#5 — FOMC active March 5**
 - KXFEDDECISION markets open ~March 5 for March 19 meeting
 
 ## Loop stagger (after restart)
@@ -99,7 +124,7 @@ source venv/bin/activate && python main.py --report          → Today's P&L
 source venv/bin/activate && python main.py --graduation-status → Graduation progress
 source venv/bin/activate && python main.py --status          → Live status snapshot
 source venv/bin/activate && python main.py --export-trades   → Refresh reports/trades.csv
-source venv/bin/activate && python -m pytest tests/ -q       → 540 tests
+source venv/bin/activate && python -m pytest tests/ -q       → 559 tests
 bash scripts/restart_bot.sh                                  → Safe restart
 cat reports/trades.csv                                       → All trades (committed to git)
 ```
