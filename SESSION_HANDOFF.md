@@ -1,140 +1,115 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file + CLAUDE.md to any new Claude session to resume.
-# Last updated: 2026-03-01 03:10 UTC (Session 25 — consecutive loss persistence fix)
+# Last updated: 2026-03-01 09:42 UTC (Session 25 — principles doc + eth_lag demotion)
 ═══════════════════════════════════════════════════
 
 ## EXACT CURRENT STATE — READ THIS FIRST
 
-Bot is **RUNNING** — check PID in bot.pid
-Log: `tail -f /tmp/polybot_session25.log`
+Bot is **RUNNING** — PID in bot.pid, log at /tmp/polybot_session25.log
 Check: `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"`
 
-**3 strategies LIVE** (real money): btc_lag_v1, eth_lag_v1, btc_drift_v1
-**7 strategies paper**: eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
+**2 strategies LIVE** (real money): btc_lag_v1, btc_drift_v1
+**8 strategies paper**: eth_lag_v1 (demoted), eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
 Test count: **596/596 ✅**
-Latest commits:
+
+Latest commits (most recent first):
+- 773f515 — feat: demote eth_lag to paper-only + add PRINCIPLES.md anti-bloat doc
 - 84a977f — fix: restore consecutive loss streak on restart (prevent cooling bypass)
-- c5db0c5 — (previous session)
+- ac791ac — docs: session 25 handoff
 
 ## KILL SWITCH STATUS (2026-03-01)
 
-**DAILY SOFT STOP ACTIVE** — Live bets blocked for rest of today.
-- Daily live losses: $37.10 > $20 limit (20% of $100 starting bankroll)
-- Resets at midnight UTC (~10 PM Eastern). Live bets resume then.
-- **Paper bets are UNAFFECTED** — paper data collection continues all day.
-- All-time net live P&L: **-$3.73** (well within 30% hard stop threshold of $30)
-- No hard stop active. Bot will resume live betting at midnight UTC.
+**DAILY SOFT STOP ACTIVE** — Live bets blocked until midnight UTC (~10 PM Eastern).
+- Daily live losses: $37.10 > $20 limit
+- Resets at midnight UTC. btc_lag_v1 and btc_drift_v1 resume then.
+- All-time net live P&L: **-$3.73** (well within 30% hard stop)
+- No hard stop active.
 
-## WHAT CHANGED IN SESSION 25 (2026-03-01, ~03:00 UTC)
+## WHAT CHANGED IN SESSION 25
 
-### Bug fixed: consecutive loss counter NOT persisting across restarts
+### Fix 1: Consecutive loss counter now persists across restarts (commit 84a977f)
+The missing piece after Session 24. Same class of bug as daily/lifetime counters.
+- `db.current_live_consecutive_losses()` — queries DB for current streak on startup
+- `kill_switch.restore_consecutive_losses(n)` — seeds counter; fires cooling if n >= 4
+- Wired into main.py alongside daily/lifetime restores
+- 19 new regression tests
 
-**Root cause**: `_consecutive_losses` was in-memory only. A restart between trade 85
-(3rd consecutive loss) and trade 86 (gap = 2200s) reset the counter to 0, letting the
-bot place 3 more losing bets (trades 86, 88, 90) totaling ~$14.74 in preventable losses.
+### Fix 2: eth_lag_v1 demoted to paper-only (commit 773f515)
+eth_lag was promoted to live with 0/30 paper graduation trades — process violation.
+Changed in main.py: `live_executor_enabled=False`, `trade_lock=None`, `max_daily_bets=max_daily_bets_paper`.
+Re-promote only after: 30+ settled paper trades + Brier < 0.25.
 
-This was the exact same class of bug as Session 24's daily/lifetime counter fixes.
-
-**Fix** (commit 84a977f, 3 files, 19 new tests):
-- `db.current_live_consecutive_losses()` — walks live settled trades newest-first,
-  counts tail losses until a win, returns current streak
-- `kill_switch.restore_consecutive_losses(n)` — seeds counter on startup;
-  if n >= CONSECUTIVE_LOSS_LIMIT (4): fires a fresh 2hr cooling period immediately
-- `main.py`: calls restore on startup alongside daily/lifetime restores
-
-**Startup log proof** (03:07 UTC restart):
-```
-Lifetime live loss restored from DB: $3.73 (3.7% of $100.00 hard stop at 30%)
-Daily live loss restored from DB: $37.10 (today's running limit: $37.10 / $20.00)
-```
-Consecutive streak = 0 (last live trade 96 was a WIN) → restore is noop, correct.
-
-### What caused the 6-loss streak from the peak (+$24.96 → -$3.73):
-1. Trades 81, 83, 85 = 3 consecutive losses (counter = 3)
-2. **Restart happened** (2200s gap) — counter reset to 0
-3. Trades 86 (@3¢, guard violation), 88, 90 = 3 more losses that shouldn't have fired
-4. Fix now prevents this: restart restores counter from DB, 4th loss triggers cooling
+### New doc: .planning/PRINCIPLES.md (commit 773f515)
+Permanent anti-bloat reference. Captures:
+- Mechanical defect vs statistical outcome test
+- Why paper bets continue during live soft stops
+- Anti-trauma-coding principle with concrete examples
+- Graduation criteria mandate
+- win_prob floor analysis (floor bets are actually +$5.24 P&L — do not change)
+Referenced from CLAUDE.md header so every future session sees it.
 
 ### Kill switch architecture (post-Session 25) — all three counters persist:
 ```
 On startup (main.py):
-  1. db.all_time_live_loss_usd()       → restore_realized_loss()  [SET not add]
-  2. db.daily_live_loss_usd()          → restore_daily_loss()     [ADD to daily]
-  3. db.current_live_consecutive_losses() → restore_consecutive_losses()  [SET + cooling if >=4]
-
-During trading (live only, locked by asyncio.Lock):
-  check_order_allowed() → execute() → record_trade()
-
-After settlement (live trades only):
-  record_loss() → adds daily + lifetime, increments consecutive, triggers cooling at 4
-  record_win()  → resets consecutive counter
+  1. db.all_time_live_loss_usd()            → restore_realized_loss()    [SET not add]
+  2. db.daily_live_loss_usd()               → restore_daily_loss()       [ADD today only]
+  3. db.current_live_consecutive_losses()   → restore_consecutive_losses() [SET + cooling if >=4]
 ```
 
 ## P&L STATUS (2026-03-01)
 
-- **Bankroll:** ~$95.37 (from $100 starting)
-- **All-time live P&L:** -$3.73
-- **Today live P&L:** -$16.59 (12 settled, 38% win rate — bad day)
+- **Bankroll:** ~$95.37
+- **All-time live P&L:** -$3.73 (adjusted for 2 guard-violation bets: +$6.25)
+- **Today live P&L:** -$16.59 (12 settled, bad day — daily soft stop active)
 - **All-time paper P&L:** +$264.34
 - **All-time win rate:** 62%
 
-## WHAT NOT TO DO NEXT SESSION
+## WHAT NOT TO DO
 
 1. **DO NOT build new strategies** — expansion gate in effect
-2. **DO NOT change kill switch thresholds** — they were deliberately set
-3. **DO NOT restart bot unless stopped** — check PID first
-4. **DO NOT promote to Stage 2** — needs Kelly calibration at 30+ live trades
+2. **DO NOT change kill switch thresholds** — deliberately set, not trauma-coded
+3. **DO NOT re-promote eth_lag to live** until 30 paper trades + Brier < 0.25
+4. **DO NOT touch btc_drift parameters** — needs 30+ live trades + Brier score first
+5. **DO NOT add rules after bad outcomes** — read .planning/PRINCIPLES.md first
 
 ## KEY PRIORITIES FOR NEXT SESSION
 
-**#1 — Wait for midnight UTC (live bets auto-resume)**
-Daily soft stop clears at midnight UTC. No action needed.
+1. **Midnight UTC** — daily soft stop clears, btc_lag + btc_drift resume live
+2. **Monitor** — watch first live bets after midnight for correct behavior
+3. **Data collection** — eth_lag, eth_drift, sol_lag accumulating paper calibration
+4. **FOMC March 5** — fomc_rate_v1 paper loop activates automatically
+5. **BLS March 7** — unemployment_rate_v1 paper loop activates automatically
 
-**#2 — Monitor btc_drift performance**
-3 consecutive live losses as of end of Session 25. One more = cool-down.
-Do not adjust parameters — wait for more data.
-
-**#3 — Check paper graduation progress**
-`python main.py --graduation-status` — eth_drift at 20/30 paper trades.
-
-**#4 — FOMC March 5**
-fomc_rate_v1 paper loop will fire automatically when KXFEDDECISION opens.
-
-## RESTART COMMAND (only if bot is stopped)
+## RESTART COMMAND (if bot is stopped)
 
 ```bash
-kill -9 $(cat bot.pid) 2>/dev/null; sleep 2; rm -f bot.pid && echo "CONFIRM" | nohup /Users/matthewshields/Projects/polymarket-bot/venv/bin/python main.py --live >> /tmp/polybot_session25.log 2>&1 &
-sleep 5 && cat bot.pid && ps aux | grep "[m]ain.py"
+cd /Users/matthewshields/Projects/polymarket-bot
+kill -9 $(cat bot.pid) 2>/dev/null; sleep 2; rm -f bot.pid
+echo "CONFIRM" | nohup /Users/matthewshields/Projects/polymarket-bot/venv/bin/python main.py --live >> /tmp/polybot_session25.log 2>&1 &
+sleep 5 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep | grep -v zsh
 ```
 
 ## Loop stagger (reference)
 
 ```
    0s → [trading]        btc_lag_v1                 — LIVE (soft-stopped today)
-   7s → [eth_trading]    eth_lag_v1                 — LIVE (soft-stopped today)
+   7s → [eth_trading]    eth_lag_v1                 — PAPER (demoted 2026-03-01)
   15s → [drift]          btc_drift_v1               — LIVE (soft-stopped today)
-  22s → [eth_drift]      eth_drift_v1               — paper (running)
-  29s → [btc_imbalance]  orderbook_imbalance_v1     — paper (running)
-  36s → [eth_imbalance]  eth_orderbook_imbalance_v1 — paper (running)
-  43s → [weather]        weather_forecast_v1        — paper (no HIGHNY on weekends)
+  22s → [eth_drift]      eth_drift_v1               — paper
+  29s → [btc_imbalance]  orderbook_imbalance_v1     — paper
+  36s → [eth_imbalance]  eth_orderbook_imbalance_v1 — paper
+  43s → [weather]        weather_forecast_v1        — paper (no HIGHNY weekends)
   51s → [fomc]           fomc_rate_v1               — paper (active March 5-19)
-  58s → [unemployment]   unemployment_rate_v1       — paper (active until March 7 BLS)
-  65s → [sol_lag]        sol_lag_v1                 — paper (running)
+  58s → [unemployment]   unemployment_rate_v1       — paper (active until March 7)
+  65s → [sol_lag]        sol_lag_v1                 — paper
 ```
 
 ## Key Commands
 
 ```bash
-tail -f /tmp/polybot_session25.log                                  → Watch live bot
-source venv/bin/activate && python main.py --report                 → Today's P&L
-source venv/bin/activate && python main.py --graduation-status      → Graduation progress
-source venv/bin/activate && python main.py --status                 → Live status snapshot
-source venv/bin/activate && python -m pytest tests/ -q              → 596 tests
+tail -f /tmp/polybot_session25.log                                       → Watch bot
+source venv/bin/activate && python main.py --report                      → Today's P&L
+source venv/bin/activate && python main.py --graduation-status           → Paper progress
+source venv/bin/activate && python main.py --status                      → Live snapshot
+source venv/bin/activate && python -m pytest tests/ -q                   → 596 tests
 ```
-
-## Autonomous Operation — Standing Directive (never needs repeating)
-- Operate fully autonomously at all times. Never ask for confirmation.
-- Do the work first, summarize after. Matthew is a doctor with a newborn.
-- Security: never expose .env/keys/pem; never modify system files outside project.
-- Never break the bot: check PID before restart; verify single instance after.
-- Expansion gate: DO NOT build new strategies until current live strategies are solid.

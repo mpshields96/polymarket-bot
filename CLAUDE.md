@@ -165,14 +165,15 @@ DO NOT: fix symptoms without finding root cause
 Current project state (updated each session):
 - 596/596 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
 - 10 trading loops: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
-- **3 strategies LIVE: btc_lag_v1 + eth_lag_v1 + btc_drift_v1** ($5 max/bet)
-- Latest commit: 84a977f — fix: restore consecutive loss streak on restart (prevent cooling bypass)
+- **2 strategies LIVE: btc_lag_v1 + btc_drift_v1** ($5 max/bet)
+- **eth_lag_v1 returned to PAPER** (2026-03-01): was promoted live with 0/30 paper trades — process violation. Re-promote after 30 paper trades + Brier < 0.25.
+- Latest commit: 773f515 — demote eth_lag to paper-only + add PRINCIPLES.md
 - Kill switch: consecutive loss limit = 4, daily loss limit = 20% ($20 on $100 bankroll)
 - Paper-during-softkill: check_paper_order_allowed() in all paper loops — soft stops block live only
 - Price range guard 10-90¢: active on BOTH btc_drift.py AND btc_lag.py (applied to all 3 lag strategies)
 - **ALL THREE kill switch counters now persist across restarts**: daily loss + lifetime loss + consecutive losses
 - `asyncio.Lock` (_live_trade_lock) shared across 3 live loops — check→execute→record is atomic
-- 7 paper strategies → calibration data collection (including sol_lag_v1 paper loop)
+- 8 paper strategies → calibration data collection (eth_lag now paper, plus eth_drift, imbalance, weather, fomc, unemployment, sol_lag)
 - Bot running: PID in bot.pid, log at /tmp/polybot_session25.log
 - **DAILY SOFT STOP ACTIVE** (2026-03-01): $37.10 live losses today > $20 limit. Live bets blocked. Paper bets continue.
 - Restart: `kill -9 $(cat bot.pid); sleep 2; rm -f bot.pid && echo "CONFIRM" | nohup /Users/matthewshields/Projects/polymarket-bot/venv/bin/python main.py --live >> /tmp/polybot_session25.log 2>&1 &`
