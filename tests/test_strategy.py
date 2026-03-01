@@ -295,3 +295,60 @@ class TestEdgeCases:
             _make_btc_feed(btc_move_pct=1.0),
         )
         assert signal is None
+
+
+# ── Price extremes filter (10¢–90¢ calibrated range) ─────────────
+
+
+class TestPriceExtremesFilter:
+    """btc_lag should skip any signal where the selected price is outside 10–90¢.
+
+    Markets near 1¢/99¢ have already priced in near-certainty.
+    The lag model extrapolates outside its calibrated range at those odds.
+    """
+
+    def test_no_signal_blocked_below_10_cents(self):
+        """BTC down → BUY NO, but NO price 3¢ → outside calibrated range → skip.
+        Use btc_move_pct=1.0 so edge gate is NOT the blocking factor."""
+        s = _default_strategy()
+        signal = s.generate_signal(
+            _make_market(yes_price=97, no_price=3, minutes_remaining=10.0),
+            _make_orderbook(),
+            _make_btc_feed(btc_move_pct=-1.0),  # BTC down hard → BUY NO, edge clears
+        )
+        assert signal is None
+
+    def test_yes_signal_blocked_above_90_cents(self):
+        """BTC up → BUY YES, but YES price 97¢ → outside calibrated range → skip.
+        Use btc_move_pct=1.0 so edge gate is NOT the blocking factor."""
+        s = _default_strategy()
+        signal = s.generate_signal(
+            _make_market(yes_price=97, no_price=3, minutes_remaining=10.0),
+            _make_orderbook(),
+            _make_btc_feed(btc_move_pct=1.0),  # BTC up hard → BUY YES, edge clears
+        )
+        assert signal is None
+
+    def test_no_signal_allowed_at_10_cents_boundary(self):
+        """NO price exactly 10¢ is within calibrated range → should generate signal."""
+        s = _default_strategy()
+        signal = s.generate_signal(
+            _make_market(yes_price=90, no_price=10, minutes_remaining=10.0),
+            _make_orderbook(),
+            _make_btc_feed(btc_move_pct=-1.0),  # BTC down → BUY NO at 10¢
+        )
+        assert signal is not None
+        assert signal.side == "no"
+        assert signal.price_cents == 10
+
+    def test_yes_signal_allowed_at_90_cents_boundary(self):
+        """YES price exactly 90¢ is within calibrated range → should generate signal."""
+        s = _default_strategy()
+        signal = s.generate_signal(
+            _make_market(yes_price=90, no_price=10, minutes_remaining=10.0),
+            _make_orderbook(),
+            _make_btc_feed(btc_move_pct=1.0),  # BTC up → BUY YES at 90¢
+        )
+        assert signal is not None
+        assert signal.side == "yes"
+        assert signal.price_cents == 90

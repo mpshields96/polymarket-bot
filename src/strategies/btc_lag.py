@@ -43,6 +43,11 @@ _DEFAULT_MIN_EDGE_PCT = 0.08         # Minimum edge after fees (8%)
 _DEFAULT_LAG_SENSITIVITY = 15.0      # Cents of YES price implied per 1% BTC move
                                       # 0.4% BTC → 6¢ implied lag (tunable)
 
+# Price range guard — model was calibrated on near-50¢ markets.
+# Outside 10–90¢, HFTs have priced in near-certainty; model has no informational edge.
+_MIN_SIGNAL_PRICE_CENTS = 10
+_MAX_SIGNAL_PRICE_CENTS = 90
+
 # Kalshi fee formula: 0.07 × P × (1 - P), where P is price in [0, 1]
 # Source: https://kalshi.com/blog/fees
 
@@ -121,6 +126,15 @@ class BTCLagStrategy(BaseStrategy):
 
         if price_cents <= 0 or price_cents >= 100:
             logger.debug("[btc_lag] Invalid %s price %d¢ — skip", side, price_cents)
+            return None
+
+        if price_cents < _MIN_SIGNAL_PRICE_CENTS or price_cents > _MAX_SIGNAL_PRICE_CENTS:
+            logger.info(
+                "[%s] Price %d¢ outside calibrated range (%d–%d¢) — skip %s",
+                self.name, price_cents,
+                _MIN_SIGNAL_PRICE_CENTS, _MAX_SIGNAL_PRICE_CENTS,
+                market.ticker,
+            )
             return None
 
         # ── 3. Check Kalshi lag ────────────────────────────────────
