@@ -6,27 +6,34 @@
 ## CURRENT STATUS — READ THIS FIRST (updated each session)
 ═══════════════════════════════════════════════════
 
-BUILD COMPLETE. 507/507 tests passing. verify.py 18/26 (8 advisory WARNs only).
-Last commit: 72317ee (Session 22 — kill switch test pollution fix, restart_bot.sh, 4 bug classes fixed)
+BUILD COMPLETE. 603/603 tests passing. verify.py 18/26 (8 advisory WARNs only).
+Last commit: 6824c31 (Session 25 end — btc_drift demoted to paper, btc_lag only live)
 
-🔴 LIVE TRADING: btc_lag_v1 + eth_lag_v1 + btc_drift_v1 are LIVE (~$125 bankroll, $5/bet max)
-📋 PAPER: 6 other strategies collecting calibration data
+🔴 LIVE TRADING: btc_lag_v1 ONLY ($79.76 bankroll, $5/bet max)
+⚠️  btc_drift_v1 — PAPER ONLY (demoted 2026-03-01 — live record 7W/12L, drift-continuation thesis failed vs Kalshi market makers)
+⚠️  eth_lag_v1   — PAPER ONLY (demoted 2026-03-01 — had been live but was demoted same session)
+📋 PAPER: 9 strategies total collecting calibration data
 
-BOT IS RUNNING: PID 7396 in bot.pid | Log: /tmp/polybot.log (stable symlink → /tmp/polybot_session21.log)
-Watch: tail -f /tmp/polybot.log
+BOT IS RUNNING: PID 6225 in bot.pid | Log: /tmp/polybot_session25.log
+Watch: tail -f /tmp/polybot_session25.log
+
+⛔ 2-HOUR SOFT STOP ACTIVE as of 18:44 UTC 2026-03-01 (4 consecutive live losses).
+   Cooling ends ~20:44 UTC (14:44 CST). Only btc_lag_v1 fires live after that.
+   Live bets blocked during cooling. Paper bets continue uninterrupted.
 
 WHAT WORKS:
   ✅ Kalshi auth (api.elections.kalshi.com)
-  ✅ BTC + ETH feeds — Binance.US @bookTicker, ~100 ticks/min
-  ✅ [trading]        btc_lag_v1                 — LIVE, 0s stagger, 77.1% backtest (min_edge=4%)
-  ✅ [eth_trading]    eth_lag_v1                 — LIVE, 7s stagger (min_edge=4%)
-  ✅ [drift]          btc_drift_v1               — LIVE, 15s stagger, 69.1% backtest, Brier=0.22
-  ✅ [eth_drift]      eth_drift_v1               — paper, 22s stagger (14/30 toward graduation)
+  ✅ BTC + ETH + SOL feeds — Binance.US @bookTicker, ~100 ticks/min
+  ✅ [trading]        btc_lag_v1                 — LIVE, 0s stagger (min_edge=4%, needs ±0.40% BTC in 60s)
+  ⚠️ [eth_trading]    eth_lag_v1                 — PAPER (demoted 2026-03-01)
+  ⚠️ [drift]          btc_drift_v1               — PAPER (demoted 2026-03-01 — 7W/12L live, mean-reversion failure)
+  ✅ [eth_drift]      eth_drift_v1               — paper, 22s stagger
   ✅ [btc_imbalance]  orderbook_imbalance_v1     — paper, 29s stagger
   ✅ [eth_imbalance]  eth_orderbook_imbalance_v1 — paper, 36s stagger
   ✅ [weather]        weather_forecast_v1        — paper, 43s stagger, ENSEMBLE (Open-Meteo+NWS)
   ✅ [fomc]           fomc_rate_v1               — paper, 51s stagger, active March 5-19
-  ✅ [unemployment]   unemployment_rate_v1       — paper, 58s stagger, active Feb 28 – Mar 7
+  ✅ [unemployment]   unemployment_rate_v1       — paper, 58s stagger, active until March 7
+  ✅ [sol_lag]        sol_lag_v1                 — paper, 65s stagger (added Session 23)
   ✅ sports_game_v1 skeleton built — DISABLED until live results confirmed + ODDS_API_KEY
   ✅ --status / --report / --graduation-status: bypass PID lock, safe while bot live
   ✅ PaperExecutor: 1-tick adverse slippage. Daily caps: live=10/day, paper=35/day per strategy
@@ -38,6 +45,12 @@ WHAT WORKS:
   ✅ Sizing clamp: trade_usd = min(size_result.recommended_usd, HARD_MAX_TRADE_USD) in main.py
   ✅ min_edge_pct propagation: trading_loop passes strategy._min_edge_pct to calculate_size (fixed Session 22)
   ✅ macOS notifications: Reminders app notifier for live bets + midnight P&L summary
+  ✅ Kill switch: all 3 counters persist across restarts (daily loss + lifetime loss + consecutive losses)
+  ✅ count_trades_today() uses CST midnight (UTC-6) — matches daily_live_loss_usd() (fixed Session 25)
+  ✅ Price range guard 35-65¢ on btc_drift.py + btc_lag.py — only near-even-odds bets allowed
+  ✅ asyncio.Lock (_live_trade_lock) for btc_lag_v1 live loop — check→execute→record is atomic
+  ✅ Paper-during-softkill: check_paper_order_allowed() in all paper loops — soft stops block live only
+  ✅ .planning/PRINCIPLES.md — read before any parameter change
 
 SESSION 21 BUGS FIXED:
   Bug 1: Paper/live separation — has_open_position + count_trades_today now filter by is_paper
@@ -51,24 +64,41 @@ SESSION 22 BUGS FIXED (4 classes found — all silent failures):
   Bug 4: strategy min_edge_pct not propagated to calculate_size → silently blocked all btc_lag (4%) + btc_drift (5%) signals
   Bug 5: _hard_stop() wrote to KILL_SWITCH_EVENT.log during tests → PYTEST_CURRENT_TEST guard added
 
-P&L STATUS (as of 2026-03-01):
-  All-time live:  +$24.96 (7 settled: 5W 2L, 71% win rate)
-  All-time paper: +$31.75
-  All-time total: +$56.71
+SESSION 23-25 BUGS FIXED:
+  Session 23: Price range guard was 10-90¢ but btc_lag still fired at 2¢ (trade_id=90, $4.98 loss) — tightened to 35-65¢ on ALL lag strategies
+  Session 23: Paper-during-softkill missing — soft stops were blocking paper data collection; check_paper_order_allowed() added
+  Session 23: sol_lag_v1 added (paper-only, SOL feed at wss://stream.binance.us:9443/ws/solusdt@bookTicker)
+  Session 24: Lifetime loss counter (_realized_loss_usd) reset to 0 on every restart — now seeded from db.all_time_live_loss_usd() on startup
+  Session 24: asyncio race condition on hourly limit — two live loops could both pass check before either records → asyncio.Lock added
+  Session 25: Consecutive loss counter (_consecutive_losses) reset to 0 on every restart — now seeded from db.current_live_consecutive_losses() on startup
+  Session 25: count_trades_today() used UTC midnight, daily_live_loss_usd() used CST midnight → both now CST (UTC-6)
+  Session 25: btc_drift_v1 demoted — live record 7W/12L (38%), core signal not valid at 15-min Kalshi timescale
+  Session 25: eth_lag_v1 demoted — was promoted live but performance was not validated at promotion time
+
+P&L STATUS (as of 2026-03-01 18:50 UTC — Session 25 end):
+  All-time live:  -$18.85 (21 settled: 8W 13L, 38% win rate) ← DOWN FROM $100 START
+  All-time paper: +$233.59
+  Bankroll:       $79.76 (hard stop triggers at -$30 lifetime = $70 floor → only $9.76 more loss allowed)
+
+  ⚠️ btc_lag_v1 live record: 2W/0L (+$4.07) — ONLY 2 TRADES. Audit skeptically before trusting.
+  ⚠️ btc_drift_v1 live record: 7W/12L (-$22.92) — DEMOTED. Drift-continuation thesis invalid.
 
 NEXT ACTION — IF BOT IS STOPPED, RESTART:
+  cd /Users/matthewshields/Projects/polymarket-bot
+  kill -9 $(cat bot.pid) 2>/dev/null; sleep 3; rm -f bot.pid
+  echo "CONFIRM" > /tmp/polybot_confirm.txt
+  nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session26.log 2>&1 &
+  sleep 8 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
+  — OR via script (also safe):
   bash scripts/restart_bot.sh
-  — OR manually:
-  pkill -f "python main.py"; sleep 3; rm -f bot.pid && echo "CONFIRM" | nohup /Users/matthewshields/Projects/polymarket-bot/venv/bin/python /Users/matthewshields/Projects/polymarket-bot/main.py --live >> /tmp/polybot_session21.log 2>&1 &
-  sleep 6 && ps aux | grep "[m]ain.py"  # verify exactly 1 process
 
-NEXT SESSION PRIORITY ORDER:
-  1. Watch for btc_drift live bets — min_edge_pct fix now lets 5%+ signals fire (Bug #4 fixed)
-  2. NO Stage 2 promotion yet — bankroll crossed $100 but Kelly calibration requires 30+ live bets with limiting_factor=="kelly"
-  3. eth_drift approaching graduation (14/30) — Step 5 pre-live audit required before flip
-  4. Weather loop fires weekdays — watch for first weather paper trade Monday
-  5. FOMC active March 5 — KXFEDDECISION markets open, fomc_rate_v1 will fire
-  6. Odds API (FUTURE): document roadmap; 1,000 credit hard cap; implement quota guard FIRST; no credits this session
+NEXT SESSION PRIORITY ORDER (as of end of Session 25):
+  1. DO NOT touch btc_drift — paper-only, collecting data. Don't adjust parameters.
+  2. btc_lag_v1 is the only live strategy. After soft stop clears (~20:44 UTC), monitor it closely.
+  3. Audit btc_lag signal skeptically: is 60-sec momentum continuation really different from 15-min drift continuation at Kalshi timescale? 2W/0L is not proof of edge.
+  4. Watch bankroll carefully: $9.76 before hard stop. Only 2-3 more losses at $3-4/bet allowed.
+  5. Polymarket retail API (pending from Matthew — wire into py-clob-client auth when credentials provided)
+  6. DO NOT build new strategies — expansion gate in effect (bankroll shrinking, live signal unvalidated)
 
 ═══════════════════════════════════════════════════
 ## STEP 0: ASK MATTHEW THESE QUESTIONS FIRST
@@ -372,13 +402,17 @@ python scripts/backtest.py --strategy both       → BTC lag + drift 30-day simu
 ═══════════════════════════════════════════════════
 
 1. Any single trade would exceed $5 OR 5% of current bankroll
-2. Today's P&L loss > 15% of starting bankroll (soft stop, resets midnight)
-3. 5 consecutive losses → 2-hour cooling off period
+2. Today's live P&L loss > 20% of starting bankroll (soft stop, resets midnight CST) ← was 15%, raised Session 23
+3. 4 consecutive live losses → 2-hour cooling off period ← was 5, lowered Session 23
 4. Total bankroll loss > 30% → HARD STOP (requires manual reset)
 5. Bankroll drops below $20 → HARD STOP
 6. kill_switch.lock file exists at startup → refuse to start
 7. 3 consecutive auth failures → halt
 8. Rate limit exceeded → pause
+
+NOTE (Session 23+): Soft stops (triggers 2, 3, hourly rate) block LIVE bets only.
+Paper data collection continues during soft stops. Hard stops (4, 5) block everything.
+All 3 counters (daily loss, lifetime loss, consecutive losses) now persist across restarts (Sessions 24-25).
 
 Hard stop recovery: echo "RESET" | python main.py --reset-killswitch
 
@@ -441,49 +475,63 @@ We are resuming the polymarket-bot project. Read these files first (in order), t
 1. POLYBOT_INIT.md — build spec, current status, all known gotchas
 2. SESSION_HANDOFF.md — current state and exact next action
 
+⚠️  TOKEN BUDGET WARNING: The Claude session that last updated these files (Session 25) was running
+    for 2-3 hours and had likely exceeded its context budget by the end. Treat its recent work —
+    specifically the btc_drift demotion code change, kill switch state, and any edits to main.py —
+    with healthy skepticism. Verify the actual code matches the described intent before trusting it.
+
 Do NOT ask setup questions. The bot is fully built, tested, and running live.
 
-CURRENT STATE (as of 2026-03-01, end of Session 22):
-- 507/507 tests passing. verify.py 18/26 (8 advisory graduation WARNs only).
-- LIVE_TRADING=true. btc_lag_v1 + eth_lag_v1 + btc_drift_v1 are LIVE. 6 others paper.
-- ~$125 bankroll. All-time live P&L: +$24.96 (5W 2L, 71% win rate).
-- Bot is running: PID 7396 in bot.pid, log at /tmp/polybot.log (symlink → /tmp/polybot_session21.log)
-- Latest commit: 72317ee
+CURRENT STATE (as of 2026-03-01, end of Session 25):
+- 603/603 tests passing. verify.py 18/26 (8 advisory graduation WARNs only).
+- LIVE_TRADING=true. btc_lag_v1 ONLY is LIVE. btc_drift + eth_lag DEMOTED to paper.
+- $79.76 bankroll. All-time live P&L: -$18.85 (8W 13L, 38% win rate — net loss since start).
+- ⛔ 2-HOUR SOFT STOP ACTIVE (consecutive losses=4). Cooling ends ~20:44 UTC.
+- Bot is running: PID 6225 in bot.pid, log at /tmp/polybot_session25.log
+- Latest commit: 6824c31
 
 CHECK BOT STATUS FIRST:
   cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"
 
 IF STOPPED, RESTART:
-  bash scripts/restart_bot.sh
+  cd /Users/matthewshields/Projects/polymarket-bot
+  kill -9 $(cat bot.pid) 2>/dev/null; sleep 3; rm -f bot.pid
+  echo "CONFIRM" > /tmp/polybot_confirm.txt
+  nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session26.log 2>&1 &
+  sleep 8 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
 
-9 loops running (0/7/15/22/29/36/43/51/58s stagger):
-    0s  btc_lag_v1              — LIVE (min_edge=4%, 77.1% backtest)
-    7s  eth_lag_v1              — LIVE (min_edge=4%)
-   15s  btc_drift_v1            — LIVE (min_edge=5%, 69.1% backtest)
-   22s  eth_drift_v1            — paper (14/30 trades, ~16 more to graduate)
+10 loops running (0/7/15/22/29/36/43/51/58/65s stagger):
+    0s  btc_lag_v1              — LIVE (min_edge=4%, 2W/0L live — ONLY LIVE STRATEGY)
+    7s  eth_lag_v1              — PAPER (demoted 2026-03-01)
+   15s  btc_drift_v1            — PAPER (demoted 2026-03-01 — 7W/12L, mean-reversion failure)
+   22s  eth_drift_v1            — paper
    29s  orderbook_imbalance_v1  — paper (VPIN-lite)
    36s  eth_imbalance_v1        — paper
    43s  weather_forecast_v1     — paper (weekdays only, ENSEMBLE model)
    51s  fomc_rate_v1            — paper (active March 5–19)
-   58s  unemployment_rate_v1    — paper (active Feb 28 – Mar 7)
+   58s  unemployment_rate_v1    — paper (active until March 7)
+   65s  sol_lag_v1              — paper (added Session 23)
 
-SESSION 23 PRIORITY ORDER:
-  1. Watch for btc_drift live bets — min_edge_pct fix (Bug #4) means more bets expected
-  2. NO Stage 2 promotion — requires 30+ live bets with limiting_factor=="kelly"
-  3. eth_drift (14/30) — audit Step 5 checklist when it hits 30, then flip to live
-  4. FOMC active March 5 — watch for fomc_rate_v1 paper signals starting March 5
-  5. Odds API: document roadmap only — do NOT use any credits; implement quota guard first
+SESSION 26 PRIORITY ORDER:
+  1. START FROM SKEPTICISM — audit btc_drift demotion code (main.py) is correct and not a subtle bug
+  2. Verify kill switch state: all 3 counters (daily, lifetime, consecutive) are correct after restart
+  3. btc_lag 2W/0L is NOT proof of edge — audit whether 60-sec momentum has same mean-reversion risk as 15-min drift
+  4. Watch bankroll: $9.76 before hard stop ($70 floor). 2-3 more max-size losses = hard stop.
+  5. Do NOT promote btc_drift until: 30+ paper trades, Brier < 0.25, no soft stops
+  6. EXPANSION GATE ACTIVE: do not build new strategies while bankroll is shrinking
+  7. Polymarket retail API: wire py-clob-client when Matthew provides credentials
 
 KEY FACTS:
-- Kalshi API: api.elections.kalshi.com | Balance: ~$125
-- BTC/ETH feeds: Binance.US wss://stream.binance.us:9443 (@bookTicker only)
+- Kalshi API: api.elections.kalshi.com | Balance: $79.76
+- BTC/ETH/SOL feeds: Binance.US wss://stream.binance.us:9443 (@bookTicker only)
 - FOMC: FRED CSV free (DFF/DGS2/CPIAUCSL). Active March 5-19.
 - Weather: Open-Meteo + NWS ENSEMBLE. HIGHNY weekdays only.
 - Dashboard: streamlit run src/dashboard.py → localhost:8501
-- Graduation check: python main.py --graduation-status
+- Graduation check: source venv/bin/activate && python main.py --graduation-status
 - Kill switch reset: echo "RESET" | python main.py --reset-killswitch
 - calculate_size() returns SizeResult — always extract .recommended_usd
 - Odds API: 1,000 credit hard cap; sports props = separate project entirely
+- Kill switch: consecutive_loss_limit=4, daily_loss_limit_pct=0.20 (20% = $20 on $100 bankroll)
 ────────────────────────────────────────
 
 ═══════════════════════════════════════════════════
@@ -660,6 +708,38 @@ Completed:
 - Odds API directives captured: 1,000 credit hard cap; sports = separate project; implement quota guard first
 - All-time live P&L: +$24.96 (5W 2L) — trades 78+80 won (+$8.82+$3.28), trade 81 placed during session
 - 507/507 tests. Latest commit: 72317ee
+
+### 2026-03-01 — Session 23 (price guard tightening + paper-during-softkill + sol_lag)
+Completed:
+- Price range guard 10-90¢ → 35-65¢: after eth_lag placed NO@2¢ live bet (trade_id=90, $4.98 loss) despite btc_drift already having the guard. Applied to btc_lag.py (shared by all 3 lag strategies via name_override).
+- Paper-during-softkill: check_paper_order_allowed() added to KillSwitch. Soft stops (daily loss, consecutive, hourly) block LIVE bets only. Paper data collection continues. Hard stops + bankroll floor still block paper.
+- Kill switch thresholds tightened: consecutive_loss_limit 5→4, daily_loss_limit_pct 0.15→0.20
+- sol_lag_v1 paper loop: SOL feed at wss://stream.binance.us:9443/ws/solusdt@bookTicker, min_btc_move_pct=0.8 (SOL ~3x more volatile). Reuses BTCLagStrategy with name_override="sol_lag_v1". 65s stagger.
+- PRINCIPLES.md added at .planning/PRINCIPLES.md — read before any parameter change
+- Tests: ~540/540 passing.
+
+### 2026-03-01 — Session 24 (lifetime loss counter + asyncio race condition fix)
+Completed:
+- Lifetime loss counter bug: _realized_loss_usd reset to 0 on every restart. Fix: db.all_time_live_loss_usd() queries MAX(0, -SUM(pnl_cents)) for all settled live trades; kill_switch.restore_realized_loss() seeds on startup. Uses NET P&L (not gross) so profitable bots don't spuriously trigger.
+- asyncio race condition: two live loops could both pass check_order_allowed() before either called record_trade(), exceeding hourly limit by 1. Fix: _live_trade_lock = asyncio.Lock() in main(), passed to all live loops as trade_lock= param. Paper loops use None (no lock needed).
+- Both restore_daily_loss() and restore_realized_loss() are SEPARATE concerns — never mix them.
+- All-time live P&L trending negative. btc_drift consecutive loss streak beginning.
+- Tests: ~540/540 passing.
+
+### 2026-03-01 — Session 25 (btc_drift demoted + consecutive counter fix + eth_lag demoted)
+Completed:
+- Consecutive loss counter bug: _consecutive_losses reset to 0 on every restart. This caused 3 extra losing trades (86, 88, 90 = $14.74) after a streak-in-progress bot restart. Fix: db.current_live_consecutive_losses() walks newest live settled trades counting tail losses; kill_switch.restore_consecutive_losses(n) seeds on startup; if n >= 4 it fires a fresh 2hr cooling period immediately.
+- count_trades_today() UTC→CST midnight: aligned with daily_live_loss_usd() which already used CST. Bug meant bets placed before midnight UTC (6pm CST) could double-count toward both days.
+- btc_drift_v1 demoted to paper-only: live record 7W/12L (38%). Root cause analysis: drift-continuation thesis invalid at 15-min Kalshi timescale. Market makers (Jane St, Jump, Susquehanna) already price in expected BTC mean-reversion. "Drift exists → drift continues" is NOT valid at this timescale.
+  - Early wins (trades 70, 74, 78) were at extreme odds (NO@33-34¢) = lottery tickets. Now blocked by 35-65¢ guard.
+  - After extreme-price bets blocked, remaining bets are near-coin-flip. Model never had real edge.
+  - Re-promote condition: 30+ paper trades with Brier < 0.25. Not before.
+- eth_lag_v1 also demoted: had been promoted to live with insufficient validation.
+- btc_lag_v1 now the ONLY live strategy: 2W/0L, +$4.07. But 2 trades is not a sample.
+- builder bias acknowledged: Session 25 spent time tuning btc_drift parameters instead of questioning the signal.
+- 2-hour soft stop fired at 12:31 CST after trade 121 (btc_drift NO@55¢) = 4th consecutive loss.
+- Bankroll: $79.76 (started $100). Hard stop floor = $70. Only $9.76 more loss allowed.
+- 603/603 tests. Latest commit: 6824c31
 
 ═══════════════════════════════════════════════════
 ## THE RULE
