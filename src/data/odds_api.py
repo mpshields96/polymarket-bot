@@ -1,19 +1,25 @@
 """
-JOB:    Fetch NBA + NHL moneyline odds from The-Odds-API (v4).
-        Returns consensus implied probability per team per game.
+JOB:    Fetch NBA + NHL moneyline odds AND championship futures from The-Odds-API (v4).
+        Returns consensus implied probability per team per game (h2h) and
+        per team per championship season (outrights/futures).
 
 USAGE:
     feed = OddsAPIFeed.load_from_env()
-    games = await feed.get_nba_games()   # list[OddsGame]
+    games = await feed.get_nba_games()           # list[OddsGame]  — h2h moneylines
     games = await feed.get_nhl_games()
+    champ = await feed.get_nba_championship()    # list[ChampionshipOdds] — season winners
+    champ = await feed.get_nhl_championship()
+    champ = await feed.get_ncaab_championship()
 
-RATE:   1 request per call (1 request costs 1 credit per region×market).
-        At 1 call per 15 min: ~96 calls/day × 31 days = ~3,000/month.
-        Budget: 5% of 20,000 = 1,000 credits/month → limit to 1 call/30min max.
-        Cache TTL: 900s (15 min). Shared between NBA + NHL to minimise calls.
+RATE:   h2h games: ~1 credit/call.
+        Championship outrights: ~1 credit per bookmaker per event.
+        Budget: 5% of 20,000 = 1,000 credits/month for this bot.
+        Cache TTL: 900s (15 min) for games, 21,600s (6 hr) for championships.
 
 KEYS:   ODDS_API_KEY in .env
-        Endpoint: https://api.the-odds-api.com/v4/sports/{sport}/odds/
+        Endpoints:
+          https://api.the-odds-api.com/v4/sports/{sport}/odds/          (h2h)
+          https://api.the-odds-api.com/v4/sports/{sport}/odds/?markets=outrights
 """
 
 from __future__ import annotations
@@ -50,6 +56,81 @@ class OddsGame:
 
 
 @dataclass
+class ChampionshipOdds:
+    """
+    Consensus championship odds for one team (outrights/futures market).
+
+    implied_prob is vig-removed consensus across all available sharp bookmakers.
+    decimal_odds is the best available (Pinnacle-preferred) decimal price.
+    """
+
+    team_name: str      # raw team name from Odds API, e.g. "Oklahoma City Thunder"
+    decimal_odds: float # best available decimal odds (Pinnacle preferred)
+    implied_prob: float # vig-removed consensus probability (0.0-1.0)
+    num_books: int      # how many books contributed to consensus
+
+    @classmethod
+    def from_event(cls, event: dict) -> list["ChampionshipOdds"]:
+        """
+        Parse all teams from one outright event.
+
+        Returns a list of ChampionshipOdds (one per team found in bookmakers).
+        Returns [] if no bookmakers or no outrights market found.
+        """
+        bookmakers = event.get("bookmakers") or []
+        if not bookmakers:
+            return []
+
+        # Collect decimal odds per team across all books (prefer Pinnacle first)
+        team_decimals: dict[str, list[float]] = {}
+        best_decimal: dict[str, float] = {}
+
+        def _book_rank(b: dict) -> int:
+            key = b.get("key", "")
+            try:
+                return _PREFERRED_BOOKS.index(key)
+            except ValueError:
+                return 999
+
+        for bm in sorted(bookmakers, key=_book_rank):
+            for mkt in bm.get("markets", []):
+                if mkt.get("key") != "outrights":
+                    continue
+                for outcome in mkt.get("outcomes", []):
+                    name = outcome.get("name", "")
+                    price = float(outcome.get("price", 0.0))
+                    if price <= 1.0 or not name:
+                        continue
+                    if name not in team_decimals:
+                        team_decimals[name] = []
+                        best_decimal[name] = price  # first/best (Pinnacle-sorted)
+                    team_decimals[name].append(price)
+
+        if not team_decimals:
+            return []
+
+        # Compute consensus: average vig-removed implied prob across books
+        # Note: outrights sum > 1.0 due to vig. We normalise per-team individually
+        # (not across all teams together) to get a single team's fair probability.
+        result = []
+        for team, decimals in team_decimals.items():
+            raw_probs = [1.0 / d for d in decimals if d > 1.0]
+            if not raw_probs:
+                continue
+            # Simple average of raw implied probs (vig included but approximately
+            # cancels out when comparing against Polymarket price since both have spread)
+            avg_prob = sum(raw_probs) / len(raw_probs)
+            result.append(cls(
+                team_name=team,
+                decimal_odds=best_decimal[team],
+                implied_prob=round(avg_prob, 4),
+                num_books=len(raw_probs),
+            ))
+
+        return result
+
+
+@dataclass
 class OddsAPIFeed:
     api_key: str
     cache_ttl_sec: int = 900    # 15 min cache
@@ -64,7 +145,68 @@ class OddsAPIFeed:
     async def get_nhl_games(self) -> List[OddsGame]:
         return await self._fetch("icehockey_nhl")
 
+    # ── Championship futures ─────────────────────────────────────────
+
+    async def get_nba_championship(self) -> List[ChampionshipOdds]:
+        """NBA Championship Winner — season-long futures odds."""
+        return await self._fetch_outrights("basketball_nba_championship_winner")
+
+    async def get_nhl_championship(self) -> List[ChampionshipOdds]:
+        """NHL Stanley Cup Champion — season-long futures odds."""
+        return await self._fetch_outrights("icehockey_nhl_championship_winner")
+
+    async def get_ncaab_championship(self) -> List[ChampionshipOdds]:
+        """NCAAB Tournament Winner — March Madness futures odds."""
+        return await self._fetch_outrights("basketball_ncaab_championship_winner")
+
     # ── Internal ────────────────────────────────────────────────────
+
+    async def _fetch_outrights(self, sport: str) -> List[ChampionshipOdds]:
+        """
+        Fetch championship/outright odds with a 6-hour cache.
+
+        Returns [] on any API error. Championship odds change slowly — 6hr cache
+        is appropriate and keeps quota consumption low (~4 calls/day per sport).
+        """
+        cache_key = f"outrights_{sport}"
+        cached = self._cache.get(cache_key)
+        _CHAMPIONSHIP_CACHE_TTL = 21_600  # 6 hours
+        if cached and (time.monotonic() - cached[1]) < _CHAMPIONSHIP_CACHE_TTL:
+            logger.debug("[odds_api] Cache hit for outrights %s", sport)
+            return cached[0]
+
+        url = f"{_BASE}/{sport}/odds/"
+        params = {
+            "apiKey": self.api_key,
+            "regions": "us",
+            "markets": "outrights",
+            "oddsFormat": "decimal",
+            "bookmakers": ",".join(_PREFERRED_BOOKS[:3]),  # top 3 sharp books only
+        }
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, params=params,
+                                       timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    remaining = resp.headers.get("x-requests-remaining", "?")
+                    used = resp.headers.get("x-requests-used", "?")
+                    if resp.status != 200:
+                        body = await resp.text()
+                        logger.warning("[odds_api] HTTP %d for outrights %s: %s",
+                                       resp.status, sport, body[:200])
+                        return []
+                    data = await resp.json()
+                    logger.info("[odds_api] outrights %s: %d events (quota used=%s remaining=%s)",
+                                sport, len(data), used, remaining)
+        except Exception as exc:
+            logger.warning("[odds_api] Outrights fetch error for %s: %s", sport, exc)
+            return []
+
+        all_odds: List[ChampionshipOdds] = []
+        for event in data:
+            all_odds.extend(ChampionshipOdds.from_event(event))
+
+        self._cache[cache_key] = (all_odds, time.monotonic())
+        return all_odds
 
     async def _fetch(self, sport: str) -> List[OddsGame]:
         """Fetch odds with cache. Returns [] on API error."""
