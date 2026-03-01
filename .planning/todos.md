@@ -77,6 +77,56 @@
 
 ---
 
+## [DECISION GATE] Phase 5.2 — Polymarket Copy Trading Architecture
+**Added:** 2026-03-01 Session 29
+**Status:** BLOCKED — one decision required before any code is written
+
+### Confirmed facts (live API probing, Session 29):
+- `data-api.polymarket.com` — 100% public, zero auth, no meaningful rate limit
+  - `/trades?user={proxy_wallet}` — full trade history per wallet
+  - `/positions?user={proxy_wallet}` — open positions with avg price, P&L, endDate
+  - `/trades` (no user param) — last N global trades across all markets
+  - Fields for decoy filter all present: size, price, timestamp, endDate, cashPnl
+- `gamma-api.polymarket.com` — 100% public, full market catalog (crypto + politics + sports)
+  - BTC Up/Down 5-min AND 15-min markets CONFIRMED LIVE on polymarket.com
+  - SOL, ETH, XRP Up/Down also active
+- `predicting.top/api/leaderboard?limit=179` — 100% public, returns 144 whale proxy addresses
+  - Proxy wallet format matches data-api exactly — no scraping needed
+  - Fields: name, wallet, additional_wallets, smart_score, twitter, stats
+- `polymarket.com` vs `polymarket.us` — COMPLETELY SEPARATE SYSTEMS
+  - polymarket.us: Ed25519 auth (our existing keys) — sports-only for US iOS users
+  - polymarket.com: ECDSA secp256k1 (Ethereum) auth via py-clob-client — full platform
+
+### The single gate question: polymarket.com account with Polygon wallet?
+**Path A (RECOMMENDED): Create polymarket.com account**
+  - Full crypto + politics platform (BTC/ETH/SOL 15-min markets, elections, geopolitics)
+  - New auth: ECDSA via `Polymarket/py-clob-client` (Python, MIT licensed)
+  - New file: `src/auth/polymarket_clob_auth.py`
+  - Capital requirement: USDC deposit to Polygon wallet
+  - Order safety: FOK/IOC only — NEVER GTC (hardcoded constant prevents liquidity provision)
+  - Effort: 1-2 sessions for auth + copy_trader_v1 strategy (paper first)
+
+**Path B: Cross-platform signal filtering (no new account)**
+  - Use .com whale data as a confirmation filter for .us sports bets
+  - Mismatched execution context — whale trades .com, we execute .us, prices differ
+  - No new credentials needed but signal quality is degraded
+
+**Path C: Intelligence-only (read only, no new execution)**
+  - Build whale poll loop, feed confidence score as gate on existing strategies
+  - Kalshi KXBTC15M near-zero signals regardless of filtering — unblocks nothing
+
+**Decision needed from Matthew:** "Do you want to create a polymarket.com account + Polygon wallet?"
+  If yes → Path A: 1-2 sessions, new auth, copy_trader_v1, paper-first
+  If no  → Path C for now, revisit when .us expands beyond sports
+
+### What can be built NOW regardless of decision (zero risk):
+- `src/data/whale_watcher.py` — poll loop for data-api.polymarket.com (reads only, no trading)
+- `src/data/predicting_top.py` — fetch/cache whale watchlist from predicting.top API
+- DB schema: `whale_trades` table (log all whale activity for replay/backtesting)
+This is pure read infrastructure. No execution. No credentials needed. Safe to build immediately.
+
+---
+
 ## [ ] Cross-Market Arbitrage (Kalshi ↔ Polymarket)
 **Added:** 2026-02-28 Session 21
 **Source:** Prediction market research — same event priced on two markets with different liquidity = temporary spread opportunities
