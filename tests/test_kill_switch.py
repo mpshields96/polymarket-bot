@@ -13,6 +13,7 @@ Tests every trigger condition from POLYBOT_INIT.md:
 """
 
 import json
+import os
 import time
 from pathlib import Path
 from unittest.mock import patch
@@ -170,10 +171,12 @@ class TestAuthFailureHardStop:
             ks.record_auth_failure()
         assert ks.is_hard_stopped
 
-    def test_auth_failure_writes_lock_file(self, ks):
+    def test_auth_failure_hard_stop_sets_state(self, ks):
+        # Lock file is NOT written during tests (PYTEST_CURRENT_TEST guard).
+        # Verify in-memory state is set instead.
         for _ in range(MAX_AUTH_FAILURES):
             ks.record_auth_failure()
-        assert LOCK_FILE.exists()
+        assert ks.is_hard_stopped
 
     def test_auth_success_resets_failure_counter(self, ks):
         ks.record_auth_failure()
@@ -201,9 +204,11 @@ class TestTotalBankrollHardStop:
         ks.record_loss(30.0)
         assert ks.is_hard_stopped
 
-    def test_hard_stop_writes_lock_file(self, ks):
+    def test_hard_stop_sets_in_memory_state(self, ks):
+        # Lock file is NOT written during tests (PYTEST_CURRENT_TEST guard).
+        # Verify in-memory hard stop state is set instead.
         ks.record_loss(31.0)
-        assert LOCK_FILE.exists()
+        assert ks.is_hard_stopped
 
     def test_hard_stop_blocks_all_trades(self, ks):
         ks.record_loss(31.0)
@@ -553,3 +558,58 @@ class TestStrategyMinEdgePropagation:
         )
         assert result is not None, "Kelly is positive at 4% edge — should produce a bet"
         assert result.kelly_raw_usd > 0
+
+
+class TestHardStopNoPollutionDuringTests:
+    """
+    Regression tests: _hard_stop() must NOT write to KILL_SWITCH_EVENT.log
+    or create kill_switch.lock during pytest runs.
+
+    Without this guard, tests that trigger hard stops pollute the live event log
+    with false entries (e.g. '31% bankroll loss') that look like real trading events.
+
+    Root cause: _hard_stop() had no PYTEST_CURRENT_TEST guard, unlike _write_blockers().
+    Fix: same os.environ.get("PYTEST_CURRENT_TEST") guard added to _hard_stop().
+    """
+
+    def test_hard_stop_does_not_write_event_log_during_tests(self, tmp_path, monkeypatch):
+        """EVENT_LOG must not be written during pytest (PYTEST_CURRENT_TEST is set)."""
+        from src.risk.kill_switch import KillSwitch, EVENT_LOG
+        # Confirm we ARE in a test (PYTEST_CURRENT_TEST is set by pytest)
+        assert os.environ.get("PYTEST_CURRENT_TEST"), "This test requires PYTEST env var"
+        # Record event log size before
+        size_before = EVENT_LOG.stat().st_size if EVENT_LOG.exists() else 0
+        ks = KillSwitch(starting_bankroll_usd=100.0)
+        # Trigger hard stop via bankroll loss (record 31 consecutive $1 losses)
+        for _ in range(31):
+            ks.record_loss(1.0)
+        # Event log must NOT have grown
+        size_after = EVENT_LOG.stat().st_size if EVENT_LOG.exists() else 0
+        assert size_after == size_before, (
+            f"KILL_SWITCH_EVENT.log grew by {size_after - size_before} bytes during test. "
+            "This pollutes the live event log with test-triggered hard stops."
+        )
+
+    def test_hard_stop_does_not_create_lock_file_during_tests(self, monkeypatch):
+        """kill_switch.lock must not be created during pytest runs."""
+        from src.risk.kill_switch import KillSwitch, LOCK_FILE
+        assert os.environ.get("PYTEST_CURRENT_TEST"), "This test requires PYTEST env var"
+        # Remove any existing lock file
+        if LOCK_FILE.exists():
+            LOCK_FILE.unlink()
+        ks = KillSwitch(starting_bankroll_usd=100.0)
+        for _ in range(31):
+            ks.record_loss(1.0)
+        assert not LOCK_FILE.exists(), (
+            "kill_switch.lock was created during a test run. "
+            "This can block bot startup after pytest if conftest cleanup doesn't run."
+        )
+
+    def test_hard_stop_state_still_set_during_tests(self):
+        """In-memory hard stop state SHOULD still be set — tests need to assert it."""
+        from src.risk.kill_switch import KillSwitch
+        ks = KillSwitch(starting_bankroll_usd=100.0)
+        for _ in range(31):
+            ks.record_loss(1.0)
+        # State should be set even though files are not written
+        assert ks.is_hard_stopped, "Hard stop in-memory state must still be set during tests"

@@ -274,6 +274,12 @@ class KillSwitch:
 
         logger.critical("🚨 HARD STOP TRIGGERED: %s", reason)
 
+        # Skip file writes during tests — same guard as _write_blockers()
+        # Prevents KILL_SWITCH_EVENT.log and kill_switch.lock from being polluted
+        # by test-triggered hard stops (TestHardStopNoPollutionDuringTests)
+        if os.environ.get("PYTEST_CURRENT_TEST"):
+            return
+
         # Write lock file
         try:
             LOCK_FILE.write_text(json.dumps({
