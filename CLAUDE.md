@@ -167,25 +167,26 @@ DO NOT: fix symptoms without finding root cause
 Current project state (updated each session):
 - 603/603 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
 - 10 trading loops: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
-- **2 strategies LIVE: btc_lag_v1 + btc_drift_v1** ($5 max/bet)
-- **eth_lag_v1 returned to PAPER** (2026-03-01): was promoted live with 0/30 paper trades — process violation. Re-promote after 30 paper trades + Brier < 0.25.
-- Latest commit: 14620d0 — fix count_trades_today to CST midnight (603/603 tests)
+- **1 strategy LIVE: btc_lag_v1 ONLY** ($5 max/bet) — btc_drift and eth_lag both DEMOTED to paper
+- **btc_drift_v1 DEMOTED to PAPER** (2026-03-01, commit 9da4941): 7W/12L live. Core problem: drift-continuation fails vs live Kalshi market makers who price in expected mean reversion. Backtest 69% was overfitted. Re-promote after 30+ paper trades + Brier < 0.25.
+- **eth_lag_v1 PAPER** (demoted 2026-03-01): promoted live with 0/30 paper trades — process violation.
+- Latest commit: 9da4941 — demote btc_drift to paper (603/603 tests)
 - Kill switch: consecutive loss limit = 4, daily loss limit = 20% ($20 on $100 bankroll)
-- **Daily loss counter is CST-based (UTC-6)** — resets at midnight New Orleans time = 06:00 UTC daily
+- **Daily loss counter is CST-based (UTC-6)** — resets at midnight CST = 06:00 UTC daily
 - Paper-during-softkill: check_paper_order_allowed() in all paper loops — soft stops block live only
-- **Price range guard TIGHTENED to 35-65¢** (2026-03-01): active on BOTH btc_drift.py AND btc_lag.py. Bets outside this range are blocked — only near-even-odds bets allowed.
-- btc_drift thresholds (2026-03-01): min_edge=8% (was 5%), min_drift=0.10% (was 0.05%), sensitivity=800
-- **count_trades_today() uses CST midnight (2026-03-01, commit 14620d0)**: same timezone as daily_live_loss_usd(). Prevents CST-evening bets from eating into next CST day's cap.
-- **ALL THREE kill switch counters now persist across restarts**: daily loss + lifetime loss + consecutive losses
-- `asyncio.Lock` (_live_trade_lock) shared across 3 live loops — check→execute→record is atomic
-- 8 paper strategies → calibration data collection (eth_lag now paper, plus eth_drift, imbalance, weather, fomc, unemployment, sol_lag)
-- Bot running: PID 4408, log at /tmp/polybot_session25.log
-- **⛔ 2-HOUR SOFT STOP ACTIVE** — triggered 2026-03-01 18:31 UTC (4 consecutive losses). Cooling ends ~20:31 UTC (14:31 CST). Paper bets continue.
-- Kill switch state as of 2026-03-01 18:33 UTC: daily=$15.12/$20, consecutive=4 (soft stop), lifetime=$18.85/$30
-- Bankroll: $79.76 | All-time live P&L: -$18.85 (16 bets, 5W/11L) | All-time paper: +$229.43
-- ⚠️ NOTE: --report "today" uses UTC dates — shows CST-yesterday losses as "today". Ignore it for kill switch state. Check SESSION_HANDOFF.md for true CST daily figure.
-- Restart (MUST use kill -9 + temp file — nohup drops piped stdin → EOFError):
-  `kill -9 $(cat bot.pid) 2>/dev/null; sleep 3; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session25.log 2>&1 &`
+- **Price range guard 35-65¢** on btc_drift.py and btc_lag.py — only near-even-odds bets
+- btc_drift thresholds: min_edge=8%, min_drift=0.10%, sensitivity=800 — moot while paper-only
+- count_trades_today() uses CST midnight (commit 14620d0) — consistent with daily_live_loss_usd()
+- **ALL THREE kill switch counters persist across restarts**: daily loss + lifetime loss + consecutive losses
+- asyncio.Lock shared across btc_lag_v1 live loop only (other live loops demoted)
+- 9 paper strategies collecting calibration data
+- Bot running: PID 6225, log at /tmp/polybot_session25.log
+- **⛔ 2-HOUR SOFT STOP ACTIVE** — restarted 18:44 UTC 2026-03-01, cooling ends ~20:44 UTC (14:44 CST)
+- Kill switch state as of 2026-03-01 18:50 UTC: daily=$15.12/$20, consecutive=4, lifetime=$18.85/$30
+- Bankroll: $79.76 | All-time live P&L: -$18.85 (21 bets, 8W/13L=38%) | All-time paper: +$233.59
+- ⚠️ --report "today" uses UTC — shows CST-yesterday losses. Use SESSION_HANDOFF.md for true CST daily.
+- ⚠️ OPEN QUESTION FOR NEXT SESSION: Audit btc_lag_v1 rigorously. 2/2 live is tiny sample. Does it have the same mean-reversion risk as btc_drift? Is 60-sec momentum continuation actually a different/better signal?
+- Restart: `kill -9 $(cat bot.pid) 2>/dev/null; sleep 3; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session26.log 2>&1 &`
 
 ## Workflow — ALWAYS AUTONOMOUS (Matthew's standing directive, never needs repeating)
 - **Bypass permissions ACTIVE — operate fully autonomously at all times**
