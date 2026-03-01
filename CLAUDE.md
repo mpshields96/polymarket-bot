@@ -165,7 +165,7 @@ DO NOT: fix symptoms without finding root cause
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- 601/601 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
+- 603/603 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
 - 10 trading loops: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
 - **2 strategies LIVE: btc_lag_v1 + btc_drift_v1** ($5 max/bet)
 - **eth_lag_v1 returned to PAPER** (2026-03-01): was promoted live with 0/30 paper trades — process violation. Re-promote after 30 paper trades + Brier < 0.25.
@@ -179,9 +179,10 @@ Current project state (updated each session):
 - **ALL THREE kill switch counters now persist across restarts**: daily loss + lifetime loss + consecutive losses
 - `asyncio.Lock` (_live_trade_lock) shared across 3 live loops — check→execute→record is atomic
 - 8 paper strategies → calibration data collection (eth_lag now paper, plus eth_drift, imbalance, weather, fomc, unemployment, sol_lag)
-- Bot running: PID in bot.pid, log at /tmp/polybot_session25.log
-- **NO SOFT STOP** — live bets active, daily CST counter resets at 06:00 UTC (midnight CST)
-- Kill switch state as of 2026-03-01 18:05 UTC: daily=$11.27/$20, consecutive=3/4, lifetime=$15.00/$30
+- Bot running: PID 4408, log at /tmp/polybot_session25.log
+- **⛔ 2-HOUR SOFT STOP ACTIVE** — triggered 2026-03-01 18:31 UTC (4 consecutive losses). Cooling ends ~20:31 UTC (14:31 CST). Paper bets continue.
+- Kill switch state as of 2026-03-01 18:33 UTC: daily=$15.12/$20, consecutive=4 (soft stop), lifetime=$18.85/$30
+- Bankroll: $79.76 | All-time live P&L: -$18.85 (16 bets, 5W/11L) | All-time paper: +$229.43
 - ⚠️ NOTE: --report "today" uses UTC dates — shows CST-yesterday losses as "today". Ignore it for kill switch state. Check SESSION_HANDOFF.md for true CST daily figure.
 - Restart (MUST use kill -9 + temp file — nohup drops piped stdin → EOFError):
   `kill -9 $(cat bot.pid) 2>/dev/null; sleep 3; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session25.log 2>&1 &`

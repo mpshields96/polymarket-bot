@@ -1,11 +1,11 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file + CLAUDE.md to any new Claude session to resume.
-# Last updated: 2026-03-01 17:10 UTC (Session 25 cont2 — tighter filters, smarter odds)
+# Last updated: 2026-03-01 18:33 UTC (Session 25 cont3 — soft stop active, cooling 2hr)
 ═══════════════════════════════════════════════════
 
 ## EXACT CURRENT STATE — READ THIS FIRST
 
-Bot is **RUNNING** — PID 3206, log at /tmp/polybot_session25.log
+Bot is **RUNNING** — PID 4408, log at /tmp/polybot_session25.log
 Check: `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"`
 
 **2 strategies LIVE** (real money): btc_lag_v1, btc_drift_v1
@@ -18,53 +18,46 @@ Latest commits (most recent first):
 - 1a6c136 — feat: tighten price range guard from 10-90¢ to 35-65¢ on live strategies
 - d5d8568 — docs: clean slate — remove stale soft-stop warnings, fix test counts
 
-## KILL SWITCH STATUS (2026-03-01 18:05 UTC)
+## KILL SWITCH STATUS (2026-03-01 18:33 UTC)
 
-**NO SOFT STOP** — Live bets active. Daily CST counter reset at midnight CST (06:00 UTC).
-- Daily live losses today (CST March 1): **$11.27** / $20.00 limit (56% used — $8.73 remaining)
-- All-time net live P&L: **-$15.00** (50% of $30 hard stop — **watch consecutive losses**)
-- No hard stop active.
-- Consecutive loss streak: **3** (limit 4 — ONE MORE LOSS triggers 2hr soft stop)
-- ⚠️ --report "today" uses UTC dates — will show CST-yesterday losses as "today". Use kill switch logs for true CST daily figure.
-- **btc_drift_v1 live CST March 1: 3/10 bets, 0W, 3L**
-- **btc_lag_v1 live all-time: 2/2, 100% win, +$4.07** (hasn't fired today yet — needs ±0.40% BTC in 60s)
+⛔ **2-HOUR SOFT STOP ACTIVE** — triggered at 12:31 CST (18:31 UTC) by 4th consecutive loss.
+- Live bets BLOCKED until ~14:31 CST (20:31 UTC)
+- Paper bets CONTINUE uninterrupted
+- Daily live losses today (CST March 1): **$15.12** / $20.00 limit (75.6% used — $4.88 remaining)
+- All-time net live P&L: **-$18.85** (62.8% of $30 hard stop — ⚠️ watch closely)
+- Consecutive loss streak: **4** (limit 4 — soft stop active, resets when cooling ends)
+- ⚠️ --report "today" uses UTC dates — will show CST-yesterday losses as "today". Use kill switch logs.
+- **btc_drift_v1 live CST March 1: 4/10 bets, 0W, 4L** (all lost to BTC mean reversion)
+- **btc_lag_v1 live all-time: 2/2, 100% win, +$4.07** — best strategy, hasn't fired today
 
-## WHAT CHANGED IN SESSION 25 cont2 (2026-03-01 17:10 UTC)
+## P&L STATUS (2026-03-01 18:33 UTC)
 
-### Change 1: Tighten price range guard 10-90¢ → 35-65¢ (commit 1a6c136)
-User objected to bets at 21¢ ("insane odds"). Near-even-odds only now.
-- btc_drift.py: `_MIN_SIGNAL_PRICE_CENTS = 35`, `_MAX_SIGNAL_PRICE_CENTS = 65`
-- btc_lag.py: same constants (applies to btc_lag, eth_lag, sol_lag via BTCLagStrategy)
-- Updated 8 tests, added 2 new tests — 601/601 passing
+- **Bankroll:** $79.76 (DB-based, down from $100 start)
+- **All-time live P&L:** -$18.85 (16 settled live bets, 5W/11L = 31%)
+- **Today live P&L (CST March 1):** -$15.12 (4 bets, 0W, 4L)
+  - Trade 110: btc_drift YES@58¢ -$2.90 (pre-threshold-raise)
+  - Trade 113: btc_drift YES@21¢ -$4.41 (pre-price-range-tighten — now BLOCKED)
+  - Trade 118: btc_drift YES@44¢ -$3.96 (post-raise, +0.109% drift, BTC reversed)
+  - Trade 121: btc_drift NO@55¢ -$3.85 (post-raise, -0.125% drift, BTC reversed at window close)
+  - NOTE: --report "today" uses UTC date, shows large losses from CST Feb 28. Ignore for daily limit.
+- **All-time paper P&L:** +$229.43 (paper is profitable — model logic is sound)
+- **btc_lag_v1 live all-time: 2W/0L = +$4.07** — signals need ±0.40% BTC in 60s (rare in calm markets)
 
-### Change 2: Raise btc_drift edge + drift thresholds (commit 224b320)
-Reviewed Titanium V36 betting model structure for single-signal edge philosophy.
-btc_drift at 5% edge = "speculative" tier with no line movement data. Raised floor.
-- `min_edge_pct: 0.05 → 0.08` — need genuine 8% net edge after Kalshi fee
-- `min_drift_pct: 0.05 → 0.10` — need ≥0.10% BTC drift from market open (was 0.05)
-- Math: at sensitivity=800, need ~0.19% BTC drift to achieve 8% edge at 50¢ market
-- Note: Titanium V36 is NOT gospel — reviewed for structural patterns only
+## btc_drift_v1 pattern analysis (DO NOT change parameters — observation only)
+All 4 CST March 1 live losses are the same failure mode: BTC drifts in one direction during
+the 15-min window, triggers the model, then MEAN REVERTS before settlement. The drift signal
+is detecting real moves but they're reversing, not continuing. This is a statistical pattern —
+NOT a mechanical bug. Per PRINCIPLES.md: do NOT change anything based on 4-trade sample.
+Need 30+ live trades minimum. The 2hr cooling period is the correct response.
 
-### Fix 1: Consecutive loss counter now persists across restarts (commit 84a977f)
-The missing piece after Session 24. Same class of bug as daily/lifetime counters.
-- `db.current_live_consecutive_losses()` — queries DB for current streak on startup
-- `kill_switch.restore_consecutive_losses(n)` — seeds counter; fires cooling if n >= 4
-- Wired into main.py alongside daily/lifetime restores
-- 19 new regression tests
+## WHAT CHANGED IN SESSION 25 cont3 (2026-03-01 18:33 UTC)
 
-### Fix 2: eth_lag_v1 demoted to paper-only (commit 773f515)
-eth_lag was promoted to live with 0/30 paper graduation trades — process violation.
-Changed in main.py: `live_executor_enabled=False`, `trade_lock=None`, `max_daily_bets=max_daily_bets_paper`.
-Re-promote only after: 30+ settled paper trades + Brier < 0.25.
-
-### New doc: .planning/PRINCIPLES.md (commit 773f515)
-Permanent anti-bloat reference. Captures:
-- Mechanical defect vs statistical outcome test
-- Why paper bets continue during live soft stops
-- Anti-trauma-coding principle with concrete examples
-- Graduation criteria mandate
-- win_prob floor analysis (floor bets are actually +$5.24 P&L — do not change)
-Referenced from CLAUDE.md header so every future session sees it.
+### Sequence of events:
+1. Raised btc_drift thresholds (min_edge 5→8%, min_drift 0.05→0.10%) — commit 224b320
+2. Tightened price range guard 10-90¢ → 35-65¢ — commit 1a6c136
+3. Fixed count_trades_today() UTC→CST — commit 14620d0
+4. Trade 121 placed at 12:19 CST: btc_drift NO@55¢, -0.125% drift, 23.6% edge — BTC reversed in final minute → LOSS
+5. Consecutive=4 triggered 2hr soft stop at 12:31 CST
 
 ### Kill switch architecture (post-Session 25) — all three counters persist:
 ```
@@ -74,26 +67,6 @@ On startup (main.py):
   3. db.current_live_consecutive_losses()   → restore_consecutive_losses() [SET + cooling if >=4]
 ```
 
-## P&L STATUS (2026-03-01 18:05 UTC)
-
-- **Bankroll:** $83.74 (DB-based, down from $100 start)
-- **All-time live P&L:** -$15.00 (15 settled live bets, 5W/10L = 33%)
-- **Today live P&L (CST March 1):** -$11.27 (3 bets, 0W, 3L)
-  - Trade 110: btc_drift YES@58¢ -$2.90 (pre-threshold-raise)
-  - Trade 113: btc_drift YES@21¢ -$4.41 (pre-price-range-tighten — now BLOCKED)
-  - Trade 118: btc_drift YES@44¢ -$3.96 (post-raise, passed all new filters, BTC reversed)
-  - NOTE: --report "today" uses UTC date, shows large losses from CST Feb 28. Ignore it for daily limit.
-- **All-time paper P&L:** +$222.00 (growing well)
-- **btc_lag_v1 live all-time: 2W/0L = +$4.07** — best strategy, needs BTC momentum spike
-
-## WHAT CHANGED IN SESSION 25 cont2 (2026-03-01 18:05 UTC)
-
-### Fix 3: count_trades_today() now uses CST midnight (commit 14620d0)
-Same pattern as daily_live_loss_usd(). Daily bet cap now resets at CST midnight, not UTC.
-Effect: btc_drift_v1 regained 8/10 CST March 1 slots (CST-yesterday bets no longer eat cap).
-A 9.4% edge signal at 53¢ was unblocked and trade 118 (14.1% edge, YES@44¢) was placed.
-603/603 tests passing.
-
 ## WHAT NOT TO DO
 
 1. **DO NOT build new strategies** — expansion gate in effect
@@ -101,14 +74,16 @@ A 9.4% edge signal at 53¢ was unblocked and trade 118 (14.1% edge, YES@44¢) wa
 3. **DO NOT re-promote eth_lag to live** until 30 paper trades + Brier < 0.25
 4. **DO NOT touch btc_drift parameters again** — just raised; need data collection now
 5. **DO NOT add rules after bad outcomes** — read .planning/PRINCIPLES.md first
+6. **DO NOT panic about btc_drift 4L streak** — 4 trades is statistically meaningless (need 30+)
 
 ## KEY PRIORITIES FOR NEXT SESSION
 
-1. **Monitor** — watch live bets (btc_lag_v1 + btc_drift_v1 active, no kill switch blocks)
+1. **Monitor** — cooling ends ~14:31 CST (20:31 UTC). Watch first few bets after cooling.
 2. **Data collection** — eth_lag, eth_drift, sol_lag accumulating paper calibration
 3. **FOMC March 5** — fomc_rate_v1 paper loop activates automatically
 4. **BLS March 7** — unemployment_rate_v1 paper loop activates automatically
 5. **Polymarket retail API** — Matthew will provide credentials; wire into py-clob-client auth
+6. **btc_lag_v1 focus** — this is the winning strategy (2/2, +$4.07). Needs ±0.40% BTC spike.
 
 ## RESTART COMMAND (if bot is stopped)
 
@@ -143,5 +118,5 @@ tail -f /tmp/polybot_session25.log                                       → Wat
 source venv/bin/activate && python main.py --report                      → Today's P&L
 source venv/bin/activate && python main.py --graduation-status           → Paper progress
 source venv/bin/activate && python main.py --status                      → Live snapshot
-source venv/bin/activate && python -m pytest tests/ -q                   → 601 tests
+source venv/bin/activate && python -m pytest tests/ -q                   → 603 tests
 ```
