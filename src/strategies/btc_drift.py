@@ -58,6 +58,11 @@ _DEFAULT_MIN_MINUTES_REMAINING = 3.0  # Don't enter with ≤ 3 min left
 _DEFAULT_TIME_WEIGHT = 0.7          # How much time remaining adjusts confidence
 _DEFAULT_MIN_DRIFT_PCT = 0.05       # BTC must have drifted ≥ 0.05% from open
 
+# Price range guard — model was calibrated on near-50¢ markets.
+# Outside 10–90¢, HFTs have priced in certainty; model has no informational edge.
+_MIN_SIGNAL_PRICE_CENTS = 10
+_MAX_SIGNAL_PRICE_CENTS = 90
+
 # Kalshi fee formula: 0.07 × P × (1 - P), where P is price in [0, 1]
 # Source: https://kalshi.com/blog/fees
 
@@ -218,6 +223,11 @@ class BTCDriftStrategy(BaseStrategy):
         if price_cents <= 0 or price_cents >= 100:
             logger.debug("[btc_drift] Invalid %s price %d¢ for %s — skip",
                          side, price_cents, market.ticker)
+            return None
+
+        if price_cents < _MIN_SIGNAL_PRICE_CENTS or price_cents > _MAX_SIGNAL_PRICE_CENTS:
+            logger.info("[btc_drift] Price %d¢ outside calibrated range (%d–%d¢) — skip %s",
+                        price_cents, _MIN_SIGNAL_PRICE_CENTS, _MAX_SIGNAL_PRICE_CENTS, market.ticker)
             return None
 
         # win_prob must be above coin flip for a valid signal

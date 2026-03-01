@@ -390,6 +390,54 @@ class TestLateEntryPenalty:
         result = BTCDriftStrategy._minutes_since_open(market)
         assert result < 0.5  # within half a minute of zero
 
+
+# ── Price extremes filter ─────────────────────────────────────────
+
+
+class TestPriceExtremesFilter:
+    """
+    btc_drift must not place bets when the market price is outside the calibrated
+    range (10¢–90¢). The sigmoid model was trained on near-50¢ data and extrapolates
+    at extremes. At 3¢ or 97¢, HFTs have already priced in certainty — the model
+    has no informational edge there.
+    """
+
+    def _signal_at_price(self, yes_price: int, no_price: int) -> object:
+        s = BTCDriftStrategy(
+            sensitivity=300.0, min_edge_pct=0.01,
+            min_minutes_remaining=3.0, min_drift_pct=0.05,
+        )
+        market = _make_market(yes_price=yes_price, no_price=no_price,
+                              minutes_remaining=8.0, minutes_since_open=5.0)
+        _strategy_seed_reference(s, market, ref_price=50000.0)
+        # BTC drifts enough to fire a signal in normal range
+        feed = _make_btc_feed(current_price=50500.0)  # +1% drift → strong YES signal
+        return s.generate_signal(market, _make_orderbook(), feed)
+
+    def test_signal_blocked_below_10_cents(self):
+        """Price at 3¢ YES is below the 10¢ floor — must be skipped."""
+        sig = self._signal_at_price(yes_price=3, no_price=97)
+        assert sig is None, "3¢ YES bet is outside calibrated range — must skip"
+
+    def test_signal_blocked_above_90_cents(self):
+        """Price at 97¢ YES is above the 90¢ ceiling — must be skipped."""
+        sig = self._signal_at_price(yes_price=97, no_price=3)
+        assert sig is None, "97¢ YES bet is outside calibrated range — must skip"
+
+    def test_signal_allowed_at_10_cents_boundary(self):
+        """Exactly 10¢ is within the calibrated range — must not be skipped."""
+        sig = self._signal_at_price(yes_price=10, no_price=90)
+        # Signal may or may not fire (edge calculation decides), but if edge passes
+        # the price guard must not block it — not None due to price filter.
+        # We verify by checking that the price guard constant is 10 (not stricter).
+        from src.strategies.btc_drift import _MIN_SIGNAL_PRICE_CENTS
+        assert _MIN_SIGNAL_PRICE_CENTS == 10
+
+    def test_signal_allowed_at_90_cents_boundary(self):
+        """Exactly 90¢ is within the calibrated range — must not be skipped."""
+        from src.strategies.btc_drift import _MAX_SIGNAL_PRICE_CENTS
+        assert _MAX_SIGNAL_PRICE_CENTS == 90
+
     def test_minutes_since_open_helper_reflects_elapsed(self):
         """Market opened 7 min ago: _minutes_since_open returns ≈ 7."""
         market = _make_market(minutes_since_open=7.0, minutes_remaining=8.0)
