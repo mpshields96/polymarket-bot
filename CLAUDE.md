@@ -1,5 +1,37 @@
 # CLAUDE.md — polymarket-bot
 
+## ══════════════════════════════════════════════════════════════
+## THIS BOT HAS TWO COMPLETELY SEPARATE HALVES — NEVER CONFUSE THEM
+## ══════════════════════════════════════════════════════════════
+##
+## HALF 1 — KALSHI BOT (systematic prediction market strategies)
+##   Platform:   Kalshi (kalshi.com) — CFTC-regulated US exchange
+##   Auth:       RSA-PSS (src/auth/kalshi_auth.py)
+##   Strategies: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance,
+##               eth_imbalance, weather, fomc, unemployment_rate, sol_lag
+##   Approach:   Statistical signals (BTC price lag, sentiment, weather, macro)
+##   Status:     All 10 paper-only as of Session 27 (live demoted due to
+##               market maturation — HFTs now price in same minute as BTC moves)
+##   Goal:       Live trading on Kalshi when signal edge is confirmed by Brier
+##
+## HALF 2 — POLYMARKET COPYTRADE BOT (PRIMARY GOAL)
+##   Platform:   Polymarket.us (api.polymarket.us/v1) — CFTC-approved US iOS beta
+##   Auth:       Ed25519 (src/auth/polymarket_auth.py)
+##   PRIMARY:    Copy trading — follow top whale accounts from predicting.top,
+##               filter decoy trades, copy genuine buys (src/strategies/copy_trader_v1.py)
+##   SUPPLEMENTAL: Sports futures mispricing vs Odds API sharp consensus
+##               (src/strategies/sports_futures_v1.py) — only useful insofar as
+##               it SUPPORTS or SUPPLEMENTS the copy trading mission
+##   Whale data: data-api.polymarket.com (public, no auth) via whale_watcher.py
+##   Whale list: predicting.top/api/leaderboard (public) via predicting_top.py
+##   Status:     Paper-only — POST /v1/orders protobuf format not yet confirmed
+##   Goal:       Live copy trading once order format is confirmed + 30 paper trades
+##
+## STANDING RULE: Any new Polymarket feature, strategy, or research task must
+## directly serve the copy trading goal. If it doesn't help copy trades succeed,
+## it is OUT OF SCOPE for this bot. Log it to .planning/todos.md and move on.
+## ══════════════════════════════════════════════════════════════
+
 ## MANDATORY READING — BEFORE ANY STRATEGY OR RISK CHANGE
 Read `.planning/PRINCIPLES.md` before modifying any strategy parameter,
 kill switch threshold, or risk rule. It contains:
@@ -165,17 +197,17 @@ DO NOT: fix symptoms without finding root cause
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- 713/713 tests passing, verify.py 21/29 (8 graduation WARNs — advisory, non-critical)
+- 742/742 tests passing, verify.py 21/29 (8 graduation WARNs — advisory, non-critical)
 - 10 Kalshi trading loops (all PAPER): btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
 - **ALL STRATEGIES PAPER-ONLY** — btc_lag demoted Session 27 (real backtest: 0 signals last 5 days, HFTs price same minute)
-- **Phase 5.2 PARTIAL** (Session 29): read infrastructure + sports futures signal generator built
-  - src/data/predicting_top.py — WhaleAccount + PredictingTopClient (15 tests)
-  - src/data/whale_watcher.py — WhaleTrade + WhalePosition + WhaleDataClient (28 tests)
-  - src/data/odds_api.py — Extended with ChampionshipOdds + championship futures methods
-  - src/strategies/sports_futures_v1.py — normalize_team_name() + SportsFuturesStrategy (25 tests)
-  - NEXT: Wire sports_futures_v1 into a paper loop in main.py + OddsApiQuotaGuard
+- **POLYMARKET PRIMARY MISSION: COPY TRADING**
+  - src/data/predicting_top.py — fetch whale wallet list from predicting.top (15 tests)
+  - src/data/whale_watcher.py — read whale trades + positions from data-api.polymarket.com (28 tests)
+  - src/strategies/copy_trader_v1.py — decoy filters + Signal generation (29 tests) ← PRIMARY STRATEGY
+  - src/strategies/sports_futures_v1.py — mispricing vs Odds API (25 tests) ← SUPPLEMENTAL ONLY
+  - NEXT: Wire copy_trader_v1 polling loop into main.py + OddsApiQuotaGuard for sports_futures
   - BLOCKED for live: POST /v1/orders protobuf format not yet confirmed (paper-only until resolved)
-- Latest commit: 5749ce9 — feat: Phase 5.2 sports_futures_v1 (713 tests)
+- Latest commit: 6a2ec37 — feat: copy_trader_v1 — whale decoy filter + signal generator (742 tests)
 - Kill switch: consecutive loss limit = 4, daily loss limit = 20% (~$15.95 on $79.76 bankroll)
 - **Daily loss counter is CST-based (UTC-6)** — resets at midnight CST = 06:00 UTC daily
 - Paper-during-softkill: check_paper_order_allowed() in all paper loops — soft stops block live only
