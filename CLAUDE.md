@@ -165,17 +165,17 @@ DO NOT: fix symptoms without finding root cause
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- 645/645 tests passing, verify.py 21/29 (8 graduation WARNs — advisory, non-critical)
+- 713/713 tests passing, verify.py 21/29 (8 graduation WARNs — advisory, non-critical)
 - 10 Kalshi trading loops (all PAPER): btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
 - **ALL STRATEGIES PAPER-ONLY** — btc_lag demoted Session 27 (real backtest: 0 signals last 5 days, HFTs price same minute)
-- **btc_drift_v1 PAPER** (demoted Session 25): 7W/12L live, drift-continuation fails vs Kalshi market makers
-- **eth_lag_v1 PAPER** (demoted Session 25): insufficient paper validation at promotion
-- **Phase 5.1 COMPLETE** (Session 28, commit 5f338bb): Polymarket.us auth + REST client built and tested
-  - src/auth/polymarket_auth.py — Ed25519 signing
-  - src/platforms/polymarket.py — REST client
-  - CRITICAL: Polymarket.us is SPORTS-ONLY. No BTC/crypto markets. Original btc_lag plan blocked.
-  - Phase 5.2 architecture decision pending (sports strategy vs wait for crypto markets)
-- Latest commit: 5f338bb — feat: Phase 5.1 Polymarket auth + REST client (645 tests)
+- **Phase 5.2 PARTIAL** (Session 29): read infrastructure + sports futures signal generator built
+  - src/data/predicting_top.py — WhaleAccount + PredictingTopClient (15 tests)
+  - src/data/whale_watcher.py — WhaleTrade + WhalePosition + WhaleDataClient (28 tests)
+  - src/data/odds_api.py — Extended with ChampionshipOdds + championship futures methods
+  - src/strategies/sports_futures_v1.py — normalize_team_name() + SportsFuturesStrategy (25 tests)
+  - NEXT: Wire sports_futures_v1 into a paper loop in main.py + OddsApiQuotaGuard
+  - BLOCKED for live: POST /v1/orders protobuf format not yet confirmed (paper-only until resolved)
+- Latest commit: 5749ce9 — feat: Phase 5.2 sports_futures_v1 (713 tests)
 - Kill switch: consecutive loss limit = 4, daily loss limit = 20% (~$15.95 on $79.76 bankroll)
 - **Daily loss counter is CST-based (UTC-6)** — resets at midnight CST = 06:00 UTC daily
 - Paper-during-softkill: check_paper_order_allowed() in all paper loops — soft stops block live only

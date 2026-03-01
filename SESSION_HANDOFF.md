@@ -1,44 +1,50 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file + CLAUDE.md to any new Claude session to resume.
-# Last updated: 2026-03-01 (Session 28 — PHASE 5.1 COMPLETE, POLYMARKET WIRED)
+# Last updated: 2026-03-01 (Session 29 — Phase 5.2 sports_futures_v1 built)
 ═══════════════════════════════════════════════════
 
 ## EXACT CURRENT STATE — READ THIS FIRST
 
-Bot is **RUNNING** — PID 9282, log at /tmp/polybot_session27.log
+Bot is **RUNNING** — PID 9282, log at /tmp/polybot_session27.log (was running at session start, verify)
 Check: `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"`
 
 **ALL 10 strategies PAPER-ONLY** — no live bets firing
-Test count: **645/645 ✅**
-Last commit: **5f338bb** — feat: Phase 5.1 Polymarket auth + REST client (645 tests)
+Test count: **713/713 ✅**
+Last commit: **5749ce9** — feat: Phase 5.2 sports_futures_v1 — Odds API championship futures + signal generator (713 tests)
 
 Latest commits (most recent first):
+- 5749ce9 — feat: Phase 5.2 sports_futures_v1 — Odds API championship futures + signal generator (713 tests)
+- cb9ebc8 — feat: Phase 5.2 read infrastructure — whale watcher + predicting.top client (688 tests)
 - 5f338bb — feat: Phase 5.1 Polymarket auth + REST client (645 tests)
-- b8f9947 — docs: update POLYBOT_INIT.md (Sessions 23-25)
-- 6824c31 — docs: session 25 final handoff — btc_drift demoted, btc_lag only live
-- 9da4941 — feat: demote btc_drift_v1 to paper-only (live record 7W/12L)
+- c1f43d3 — docs: session 28 final handoff
 
 ═══════════════════════════════════════════════════
 
-## SESSION 28 WORK COMPLETED
+## SESSION 29 WORK COMPLETED
 
-### Phase 5.1 — Polymarket.us Auth + REST Client
-Everything built and tested. 42 new tests written (TDD, all passing).
+### Phase 5.2 read infrastructure + sports_futures_v1 signal generator
 
-**Files created:**
-- `src/auth/polymarket_auth.py` — Ed25519 signing module (19 tests)
-- `src/platforms/polymarket.py` — Async REST client (23 tests)
-- `tests/test_polymarket_auth.py` — Auth unit tests
-- `tests/test_polymarket_client.py` — REST client unit tests
+**Files created (Session 29, two commits):**
+- `src/data/predicting_top.py` — WhaleAccount + PredictingTopClient (predicting.top public API)
+- `src/data/whale_watcher.py` — WhaleTrade + WhalePosition + WhaleDataClient (data-api.polymarket.com)
+- `src/data/odds_api.py` — Extended with ChampionshipOdds dataclass + _fetch_outrights() + get_nba/nhl/ncaab_championship()
+- `src/strategies/sports_futures_v1.py` — normalize_team_name() + SportsFuturesStrategy.scan_for_signals()
+- Tests: test_predicting_top.py (15), test_whale_watcher.py (28), test_sports_futures.py (25) = 68 new tests
 
-**verify.py additions:**
-- Check [12]: Polymarket auth headers (Ed25519 key loads + signs correctly)
-- Check [13]: Polymarket API live connectivity (GET /v1/markets returns data)
-- Both pass as ⚠️ WARN (non-critical) — correct, Polymarket is secondary platform
+**Key architecture facts confirmed via live probing:**
+- data-api.polymarket.com: fully public (no auth), returns trades + positions for any wallet
+- predicting.top/api/leaderboard: public, returns 144 whale wallets in proxy address format
+- Polymarket.us /v1/markets: 200 open markets — ALL season-winner futures (NBA Champion, NHL Hart, NCAA)
+- Game-by-game markets NOT available on .us yet — copy trading deferred until .us expands
+- Odds API: basketball_nba_championship_winner, icehockey_nhl_championship_winner, basketball_ncaab_championship_winner all working
 
-**Credentials wired in .env:**
-- POLYMARKET_KEY_ID=2cc84e44-f5f6-44dc-9bc7-15ff7ebc517c
-- POLYMARKET_SECRET_KEY=64-byte Ed25519 key (base64, confirmed working)
+**Sports futures strategy logic:**
+- Compare PM yes_price to Odds API sharp consensus (vig-removed avg across Pinnacle/DraftKings/FanDuel)
+- BUY YES if PM < odds_prob - 5% | BUY NO if PM > odds_prob + 5%
+- normalize_team_name() bridges "Thunder" (PM) ↔ "Oklahoma City Thunder" (Odds API)
+- PAPER ONLY until POST /v1/orders protobuf format confirmed
+
+**Odds API key added to .env** (1,000 credit hard cap enforced — see CLAUDE.md)
 
 ═══════════════════════════════════════════════════
 
@@ -139,38 +145,33 @@ Hard stop threshold: 30% lifetime = $30 total loss → $18.85 lost → $11.15 re
 
 ## NEXT SESSION PRIORITY ORDER
 
-### Priority 1: Architecture Decision on Phase 5.2
+### Priority 1: Wire sports_futures_v1 into a paper loop in main.py
 
-Before writing any code, decide: Option A (wait for crypto) or Option B/C (build sports strategy).
+sports_futures_v1 signal generator is complete and tested. Next: add a paper loop that:
+1. Polls Polymarket.us GET /v1/markets (filtered to futures, active, not closed)
+2. Polls Odds API get_nba/nhl/ncaab_championship() (6-hr cache, low quota)
+3. Calls strategy.scan_for_signals() and paper-executes any signals
+4. Logs signals to DB with is_paper=True, strategy="sports_futures_v1"
+5. DO NOT attempt live execution until POST /v1/orders format is confirmed
 
-**If Option B/C (sports):**
-- Read `.planning/ROADMAP.md` Phase 5.2 spec
-- `src/strategies/sports_moneyline.py` using The-Odds-API vs Polymarket.us
-- MUST implement OddsApiQuotaGuard first (1,000 credit hard cap for this bot)
-- Paper-first: 30+ settled trades + Brier < 0.25 before live
-- See CLAUDE.md Gotchas: "Odds API — 1,000 credit hard cap for this bot"
+**QUOTA GUARD: Implement OddsApiQuotaGuard BEFORE wiring into main.py loop**
+Hard cap: 1,000 credits/month for this bot. Protect the global quota.
 
-**If Option A (wait):**
-- No code to write
-- Let Kalshi paper loops collect Brier data passively
-- Monitor Polymarket.us for new market categories
+### Priority 2: Confirm POST /v1/orders format on Polymarket.us
+- iOS app network capture (Proxyman/Charles on iPhone) is the most reliable path
+- Fields needed: marketSideId/identifier, amount (proto format), order type (FOK/IOC)
+- Until confirmed: ALL Polymarket execution stays paper-only
+- **NEVER use GTC orders** — becomes liquidity provider, risk of adverse fill
 
-### Priority 2: DO NOT re-promote any live strategies yet
-- Bankroll $79.76 — too close to hard stop for experimental live trades
-- btc_lag Kalshi signal frequency is near-zero right now
+### Priority 3: Copy trading infrastructure (deferred until .us expands)
+- predicting.top + whale_watcher are built and tested
+- Game-by-game markets NOT on .us yet — polling data-api.polymarket.com has no execution venue
+- Re-evaluate when .us adds NBA game markets
+
+### Priority 4: DO NOT re-promote any Kalshi live strategies
+- Bankroll $79.76 — close to hard stop ($11 remaining margin before 30% lifetime stop)
+- btc_lag signal frequency near-zero
 - Wait for bankroll > $90 before any live promotion
-
-### Priority 3: Watch eth_orderbook_imbalance_v1
-It has +$236 paper P&L across 13 trades in 1.1 days. That's suspiciously high.
-Before trusting it: audit whether the paper executor is simulating fills correctly.
-$236 on $65 bankroll-equivalent paper sizing suggests something is off with fill simulation.
-
-### Priority 4: Real backtest findings context
-(Keep in mind for every decision)
-- btc_lag: 0 signals in last 5 days (Jan-Feb had lag; Mar has near-zero lag)
-- HFTs price KXBTC15M within same 1-min candle as BTC moves
-- The signal is valid but the execution venue (Kalshi) has matured to near-zero alpha
-- Polymarket.us could be better — if/when crypto markets launch
 
 ═══════════════════════════════════════════════════
 
