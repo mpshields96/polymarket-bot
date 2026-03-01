@@ -128,6 +128,10 @@ DO NOT: fix symptoms without finding root cause
 - **KILL_SWITCH_EVENT.log is polluted by test runs** — `_hard_stop()` writes to the live event log even during pytest. Events timestamped during tests look like real trading stops. Root cause: no `PYTEST_CURRENT_TEST` guard (unlike `_write_blockers()`). Fix logged in .planning/todos.md. Don't be alarmed by mysterious hard stops that don't match DB data.
 - **Price range guard applies to ALL lag strategies (Session 23 cont'd)**: btc_lag/eth_lag/sol_lag share `_MIN_SIGNAL_PRICE_CENTS=10` and `_MAX_SIGNAL_PRICE_CENTS=90` guard in btc_lag.py. btc_drift.py has its own identical guard. eth_lag placed NO@2¢ live bet (trade_id=90) AFTER btc_drift was fixed — always check sibling strategies for same pattern.
 - **Daily loss counter DID NOT persist across restarts** (fixed Session 23 cont'd): on restart, `_daily_loss_usd` reset to 0 in memory, bypassing the daily limit. Fix: `db.daily_live_loss_usd()` queries settled losses since midnight UTC; `kill_switch.restore_daily_loss()` seeds the counter; called from main.py on startup. Consecutive loss counter intentionally resets (restart = manual soft stop override).
+- **Lifetime loss counter DID NOT persist across restarts** (fixed Session 24): `_realized_loss_usd` (30% hard stop) also reset to 0 on each restart. Fix: `db.all_time_live_loss_usd()` queries NET live P&L loss; `kill_switch.restore_realized_loss()` seeds the counter using SET (not add, avoids double-count with daily). Uses NET P&L not gross losses — gross losses would spuriously trigger hard stop on profitable bots.
+- **restore_daily_loss() and restore_realized_loss() are SEPARATE concerns** — `restore_daily_loss()` only touches `_daily_loss_usd`. `restore_realized_loss()` only touches `_realized_loss_usd`. Never mix them. Double-counting was a bug that's been fixed.
+- **`all_time_live_loss_usd()` returns NET P&L loss** — `MAX(0, -SUM(pnl_cents))` across all settled live trades. Returns 0 if live trading is profitable overall. Uses net so profitable bots with high gross losses don't trigger spurious hard stops.
+- **asyncio race condition on hourly limit fixed (Session 24)**: Two live loops could both pass `check_order_allowed()` before either called `record_trade()`, exceeding hourly limit by 1. Fix: `_live_trade_lock = asyncio.Lock()` created in `main()`, passed to all 3 live loops via `trade_lock=` param. Wraps check→execute→record_trade atomically. Paper loops use `None` (no lock needed, no hourly rate limit in paper path).
 - **Paper-during-softkill (Session 23)**: Soft stops (daily loss, consecutive losses, hourly rate) block LIVE bets only. Paper data collection continues uninterrupted during soft kills. `check_paper_order_allowed()` is used in all paper paths; only hard stops + bankroll floor block paper trades. btc_lag/eth_lag/btc_drift live paths still use `check_order_allowed()` (all stops apply).
 - **Kill switch thresholds (Session 23)**: consecutive_loss_limit=4 (was 5), daily_loss_limit=20% ($20 on $100 bankroll, was 15%). Both updated in `src/risk/kill_switch.py` constants.
 - **KXBTC1H does NOT exist** — Kalshi has no hourly BTC/ETH price-direction markets. Only 15-min series: KXBTC15M, KXETH15M, KXSOL15M, KXXRP15M, KXBNB15M, KXBCH15M. Confirmed by probing all 8,719 Kalshi series (Session 23).
@@ -146,18 +150,20 @@ DO NOT: fix symptoms without finding root cause
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- 559/559 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
+- 577/577 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
 - 10 trading loops: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
 - **3 strategies LIVE: btc_lag_v1 + eth_lag_v1 + btc_drift_v1** ($5 max/bet)
-- Latest commit: a43a1cf — daily loss persistence fix
-- Kill switch: consecutive loss limit = 4 (was 5), daily loss limit = 20% ($20, was 15%)
+- Latest commit: b31d63b — kill switch persistence + asyncio race + net P&L fix
+- Kill switch: consecutive loss limit = 4, daily loss limit = 20% ($20 on $100 bankroll)
 - Paper-during-softkill: check_paper_order_allowed() in all paper loops — soft stops block live only
 - Price range guard 10-90¢: active on BOTH btc_drift.py AND btc_lag.py (applied to all 3 lag strategies)
-- Daily loss counter restored from DB on restart — prevents mid-session restart from bypassing daily limit
-- 7 paper strategies → calibration data collection (including new sol_lag_v1 paper loop)
-- Bot running: PID in bot.pid, log at /tmp/polybot.log (stable symlink) or /tmp/polybot_session21.log
-- Restart: `kill -9 $(cat bot.pid); sleep 2; rm -f bot.pid && echo "CONFIRM" | nohup /Users/matthewshields/Projects/polymarket-bot/venv/bin/python main.py --live >> /tmp/polybot_session21.log 2>&1 &`
-  (ALWAYS use full venv python path + pkill — never `kill $(cat bot.pid)` and never bare `python`)
+- Daily loss counter + lifetime loss counter both restored from DB on restart
+- `asyncio.Lock` (_live_trade_lock) shared across 3 live loops — check→execute→record is atomic
+- 7 paper strategies → calibration data collection (including sol_lag_v1 paper loop)
+- Bot running: PID in bot.pid, log at /tmp/polybot_session24.log
+- **DAILY SOFT STOP ACTIVE** (2026-03-01): $37.10 live losses today > $20 limit. Live bets blocked. Paper bets continue.
+- Restart: `kill -9 $(cat bot.pid); sleep 2; rm -f bot.pid && echo "CONFIRM" | nohup /Users/matthewshields/Projects/polymarket-bot/venv/bin/python main.py --live >> /tmp/polybot_session24.log 2>&1 &`
+  (ALWAYS use full venv python path + kill -9 — never `pkill -f "python main.py"` alone, it may not catch all instances)
 
 ## Workflow — ALWAYS AUTONOMOUS (Matthew's standing directive, never needs repeating)
 - **Bypass permissions ACTIVE — operate fully autonomously at all times**
