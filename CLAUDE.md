@@ -165,28 +165,31 @@ DO NOT: fix symptoms without finding root cause
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- 603/603 tests passing, verify.py 18/26 (8 graduation WARNs — advisory, non-critical)
-- 10 trading loops: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
-- **1 strategy LIVE: btc_lag_v1 ONLY** ($5 max/bet) — btc_drift and eth_lag both DEMOTED to paper
-- **btc_drift_v1 DEMOTED to PAPER** (2026-03-01, commit 9da4941): 7W/12L live. Core problem: drift-continuation fails vs live Kalshi market makers who price in expected mean reversion. Backtest 69% was overfitted. Re-promote after 30+ paper trades + Brier < 0.25.
-- **eth_lag_v1 PAPER** (demoted 2026-03-01): promoted live with 0/30 paper trades — process violation.
-- Latest commit: 9da4941 — demote btc_drift to paper (603/603 tests)
-- Kill switch: consecutive loss limit = 4, daily loss limit = 20% ($20 on $100 bankroll)
+- 645/645 tests passing, verify.py 21/29 (8 graduation WARNs — advisory, non-critical)
+- 10 Kalshi trading loops (all PAPER): btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
+- **ALL STRATEGIES PAPER-ONLY** — btc_lag demoted Session 27 (real backtest: 0 signals last 5 days, HFTs price same minute)
+- **btc_drift_v1 PAPER** (demoted Session 25): 7W/12L live, drift-continuation fails vs Kalshi market makers
+- **eth_lag_v1 PAPER** (demoted Session 25): insufficient paper validation at promotion
+- **Phase 5.1 COMPLETE** (Session 28, commit 5f338bb): Polymarket.us auth + REST client built and tested
+  - src/auth/polymarket_auth.py — Ed25519 signing
+  - src/platforms/polymarket.py — REST client
+  - CRITICAL: Polymarket.us is SPORTS-ONLY. No BTC/crypto markets. Original btc_lag plan blocked.
+  - Phase 5.2 architecture decision pending (sports strategy vs wait for crypto markets)
+- Latest commit: 5f338bb — feat: Phase 5.1 Polymarket auth + REST client (645 tests)
+- Kill switch: consecutive loss limit = 4, daily loss limit = 20% (~$15.95 on $79.76 bankroll)
 - **Daily loss counter is CST-based (UTC-6)** — resets at midnight CST = 06:00 UTC daily
 - Paper-during-softkill: check_paper_order_allowed() in all paper loops — soft stops block live only
 - **Price range guard 35-65¢** on btc_drift.py and btc_lag.py — only near-even-odds bets
-- btc_drift thresholds: min_edge=8%, min_drift=0.10%, sensitivity=800 — moot while paper-only
-- count_trades_today() uses CST midnight (commit 14620d0) — consistent with daily_live_loss_usd()
 - **ALL THREE kill switch counters persist across restarts**: daily loss + lifetime loss + consecutive losses
-- asyncio.Lock shared across btc_lag_v1 live loop only (other live loops demoted)
-- 9 paper strategies collecting calibration data
-- Bot running: PID 6225, log at /tmp/polybot_session25.log
-- **⛔ 2-HOUR SOFT STOP ACTIVE** — restarted 18:44 UTC 2026-03-01, cooling ends ~20:44 UTC (14:44 CST)
-- Kill switch state as of 2026-03-01 18:50 UTC: daily=$15.12/$20, consecutive=4, lifetime=$18.85/$30
-- Bankroll: $79.76 | All-time live P&L: -$18.85 (21 bets, 8W/13L=38%) | All-time paper: +$233.59
-- ⚠️ --report "today" uses UTC — shows CST-yesterday losses. Use SESSION_HANDOFF.md for true CST daily.
-- ⚠️ OPEN QUESTION FOR NEXT SESSION: Audit btc_lag_v1 rigorously. 2/2 live is tiny sample. Does it have the same mean-reversion risk as btc_drift? Is 60-sec momentum continuation actually a different/better signal?
-- Restart: `kill -9 $(cat bot.pid) 2>/dev/null; sleep 3; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session26.log 2>&1 &`
+- asyncio.Lock created in main() for live loops only — currently unused (all paper)
+- 10 paper strategies collecting calibration data
+- Bot running: PID 9282, log at /tmp/polybot_session27.log
+- Bankroll: $79.76 | All-time live P&L: -$18.85 (21 bets, 8W/13L=38%) | All-time paper: +$217.90
+- btc_lag_v1 graduation: Brier 0.191 (STRONG) — 43 trades, 30.8 days — READY but signal frequency near-zero on Kalshi
+- eth_drift_v1: shows "READY" (41 trades) but paper P&L -$27.15 and only 1.1 days data — DO NOT PROMOTE
+- ⚠️ Polymarket.us APPROVED URL added: https://api.polymarket.us (Ed25519 auth, /v1 prefix)
+- Paper restart: `pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid; nohup ./venv/bin/python main.py >> /tmp/polybot_session29.log 2>&1 &`
+- Live restart (only after explicit decision + bankroll > $90): `pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session29.log 2>&1 &`
 
 ## Workflow — ALWAYS AUTONOMOUS (Matthew's standing directive, never needs repeating)
 - **Bypass permissions ACTIVE — operate fully autonomously at all times**

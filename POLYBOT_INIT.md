@@ -6,27 +6,39 @@
 ## CURRENT STATUS — READ THIS FIRST (updated each session)
 ═══════════════════════════════════════════════════
 
-BUILD COMPLETE. 603/603 tests passing. verify.py 18/26 (8 advisory WARNs only).
-Last commit: 6824c31 (Session 25 end — btc_drift demoted to paper, btc_lag only live)
+BUILD COMPLETE. 645/645 tests passing. verify.py 21/29 (8 advisory WARNs — non-critical).
+Last commit: 5f338bb (Session 28 — Phase 5.1 complete: Polymarket auth + REST client)
 
-🔴 LIVE TRADING: btc_lag_v1 ONLY ($79.76 bankroll, $5/bet max)
-⚠️  btc_drift_v1 — PAPER ONLY (demoted 2026-03-01 — live record 7W/12L, drift-continuation thesis failed vs Kalshi market makers)
-⚠️  eth_lag_v1   — PAPER ONLY (demoted 2026-03-01 — had been live but was demoted same session)
-📋 PAPER: 9 strategies total collecting calibration data
+📋 ALL 10 STRATEGIES PAPER-ONLY — no live bets firing
+   btc_lag_v1 demoted to paper (Session 27 — real backtest: 0 signals in last 5 days, HFTs pricing Kalshi within same minute)
+   btc_drift_v1 PAPER (Session 25 — live record 7W/12L, drift-continuation thesis invalid)
+   eth_lag_v1 PAPER (Session 25 — process violation: promoted live without paper validation)
+   All other 7 strategies always paper
 
-BOT IS RUNNING: PID 6225 in bot.pid | Log: /tmp/polybot_session25.log
-Watch: tail -f /tmp/polybot_session25.log
+BOT IS RUNNING: PID 9282 in bot.pid | Log: /tmp/polybot_session27.log
+Watch: tail -f /tmp/polybot_session27.log
 
-⛔ 2-HOUR SOFT STOP ACTIVE as of 18:44 UTC 2026-03-01 (4 consecutive live losses).
-   Cooling ends ~20:44 UTC (14:44 CST). Only btc_lag_v1 fires live after that.
-   Live bets blocked during cooling. Paper bets continue uninterrupted.
+All-time live P&L: -$18.85 (21 bets, 8W/13L = 38%)
+Bankroll: $79.76 | Hard stop at -$30 lifetime → $11.15 remaining before forced shutdown
+
+PHASE 5.1 COMPLETE (Session 28):
+  ✅ src/auth/polymarket_auth.py — Ed25519 signing (19 tests, 100% pass)
+  ✅ src/platforms/polymarket.py — REST client: markets/orderbook/positions/activities (23 tests)
+  ✅ POLYMARKET_KEY_ID + POLYMARKET_SECRET_KEY wired in .env and verified working
+  ✅ setup/verify.py: Polymarket auth [12] + API connectivity [13] checks added
+  ⚠️  CRITICAL: Polymarket.us is SPORTS-ONLY (5032 markets, all NBA/NFL/NHL/NCAA)
+      NO crypto prediction markets exist. Original btc_lag-on-Polymarket plan BLOCKED.
+      Architecture decision needed: wait for crypto OR build sports strategy.
+      See ROADMAP.md Phase 5.2 for Option A/B/C spec.
 
 WHAT WORKS:
   ✅ Kalshi auth (api.elections.kalshi.com)
   ✅ BTC + ETH + SOL feeds — Binance.US @bookTicker, ~100 ticks/min
-  ✅ [trading]        btc_lag_v1                 — LIVE, 0s stagger (min_edge=4%, needs ±0.40% BTC in 60s)
-  ⚠️ [eth_trading]    eth_lag_v1                 — PAPER (demoted 2026-03-01)
-  ⚠️ [drift]          btc_drift_v1               — PAPER (demoted 2026-03-01 — 7W/12L live, mean-reversion failure)
+  ✅ Polymarket.us auth — Ed25519 signing, X-PM-Access-Key/Timestamp/Signature headers
+  ✅ Polymarket.us REST — GET /v1/markets, /v1/markets/{id}/book, /v1/portfolio/positions, /v1/portfolio/activities
+  📋 [trading]        btc_lag_v1                 — PAPER (was live, demoted Session 27)
+  📋 [eth_trading]    eth_lag_v1                 — PAPER (demoted Session 25)
+  📋 [drift]          btc_drift_v1               — PAPER (demoted Session 25)
   ✅ [eth_drift]      eth_drift_v1               — paper, 22s stagger
   ✅ [btc_imbalance]  orderbook_imbalance_v1     — paper, 29s stagger
   ✅ [eth_imbalance]  eth_orderbook_imbalance_v1 — paper, 36s stagger
@@ -75,30 +87,141 @@ SESSION 23-25 BUGS FIXED:
   Session 25: btc_drift_v1 demoted — live record 7W/12L (38%), core signal not valid at 15-min Kalshi timescale
   Session 25: eth_lag_v1 demoted — was promoted live but performance was not validated at promotion time
 
-P&L STATUS (as of 2026-03-01 18:50 UTC — Session 25 end):
+P&L STATUS (as of 2026-03-01 21:05 UTC — Session 28 end):
   All-time live:  -$18.85 (21 settled: 8W 13L, 38% win rate) ← DOWN FROM $100 START
-  All-time paper: +$233.59
-  Bankroll:       $79.76 (hard stop triggers at -$30 lifetime = $70 floor → only $9.76 more loss allowed)
+  All-time paper: +$217.90
+  Bankroll:       $79.76 (hard stop triggers at -$30 lifetime → only $11.15 more loss allowed)
 
-  ⚠️ btc_lag_v1 live record: 2W/0L (+$4.07) — ONLY 2 TRADES. Audit skeptically before trusting.
+  ⚠️ btc_lag_v1 live record: 2W/0L (+$4.07) — ONLY 2 TRADES. Audit skeptically.
   ⚠️ btc_drift_v1 live record: 7W/12L (-$22.92) — DEMOTED. Drift-continuation thesis invalid.
+  ⚠️ eth_lag_v1 live record: 1W/3L (-$6.53) — DEMOTED. Insufficient paper validation at promotion.
 
-NEXT ACTION — IF BOT IS STOPPED, RESTART:
+  btc_lag_v1 graduation: 43 paper trades, Brier 0.191 ← STRONG signal quality
+  eth_drift_v1 "graduation" in 1.1 days: DO NOT TRUST. Only 1 day of paper data.
+
+NEXT ACTION — IF BOT IS STOPPED, RESTART (paper mode — no --live flag):
   cd /Users/matthewshields/Projects/polymarket-bot
-  kill -9 $(cat bot.pid) 2>/dev/null; sleep 3; rm -f bot.pid
-  echo "CONFIRM" > /tmp/polybot_confirm.txt
-  nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session26.log 2>&1 &
-  sleep 8 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
-  — OR via script (also safe):
-  bash scripts/restart_bot.sh
+  pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid
+  nohup ./venv/bin/python main.py >> /tmp/polybot_session29.log 2>&1 &
+  sleep 5 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
 
-NEXT SESSION PRIORITY ORDER (as of end of Session 25):
-  1. DO NOT touch btc_drift — paper-only, collecting data. Don't adjust parameters.
-  2. btc_lag_v1 is the only live strategy. After soft stop clears (~20:44 UTC), monitor it closely.
-  3. Audit btc_lag signal skeptically: is 60-sec momentum continuation really different from 15-min drift continuation at Kalshi timescale? 2W/0L is not proof of edge.
-  4. Watch bankroll carefully: $9.76 before hard stop. Only 2-3 more losses at $3-4/bet allowed.
-  5. Polymarket retail API (pending from Matthew — wire into py-clob-client auth when credentials provided)
-  6. DO NOT build new strategies — expansion gate in effect (bankroll shrinking, live signal unvalidated)
+NEXT ACTION — IF RESTARTING LIVE (only after bankroll > $90 AND explicit decision):
+  pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid
+  echo "CONFIRM" > /tmp/polybot_confirm.txt
+  nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session29.log 2>&1 &
+  sleep 8 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
+
+NEXT SESSION PRIORITY ORDER (as of end of Session 28):
+  1. ARCHITECTURE DECISION FIRST: Phase 5.2 — Option A (wait for Polymarket crypto) or Option C (build sports moneyline strategy now). See ROADMAP.md Phase 5.2. This is a strategic decision, not a code decision.
+  2. DO NOT re-promote any strategy live. Bankroll $79.76 ($11.15 before hard stop). No live bets until bankroll > $90.
+  3. btc_lag_v1 is READY FOR LIVE by graduation criteria (Brier 0.191, 43 trades) BUT signal frequency near-zero on Kalshi. Do not re-enable until 30-day rolling signal count > 5/month.
+  4. eth_drift_v1 "READY" by criteria but paper P&L is -$27.15 and only 1.1 days running. DO NOT PROMOTE.
+  5. Monitor eth_orderbook_imbalance_v1 paper P&L (+$236 in 1.1 days, 13 trades) — suspiciously high, audit fill simulation.
+  6. Let all 10 paper loops run. Kalshi paper data collection is the only productive activity right now.
+
+SECURITY RULES UPDATED FOR POLYMARKET (Session 28):
+  ✅ APPROVED URLs added: https://api.polymarket.us (all /v1 endpoints)
+  ✗ NEVER contact polymarket.com (global, requires ETH wallet, not US-legal via this auth)
+  ✗ The 1,000 Odds API credit cap still applies — DO NOT call Odds API without quota guard
+
+═══════════════════════════════════════════════════
+## PHASE 5 — POLYMARKET.US INTEGRATION (Session 28)
+═══════════════════════════════════════════════════
+
+### What Was Built
+
+Phase 5.1 is complete. The following files are production-ready:
+
+src/auth/polymarket_auth.py
+  - Ed25519 signing: PolymarketAuth(key_id, secret_key_b64)
+  - Message: f"{timestamp_ms}{METHOD.upper()}{path_without_query}"
+  - Headers: X-PM-Access-Key, X-PM-Timestamp, X-PM-Signature, Content-Type: application/json
+  - Secret key format: base64-encoded 64-byte (seed+pub) or 32-byte (seed only) Ed25519 key
+  - load_from_env() factory reads POLYMARKET_KEY_ID + POLYMARKET_SECRET_KEY from .env
+  - 19 unit tests — all auth properties verified including signature correctness
+
+src/platforms/polymarket.py
+  - PolymarketClient(auth) — async aiohttp client, matches KalshiClient pattern
+  - get_markets(closed=None, limit=100, offset=0) → List[PolymarketMarket]
+  - get_orderbook(identifier) → Optional[PolymarketOrderBook]  (GET /v1/markets/{id}/book)
+  - get_positions() → dict
+  - get_activities(limit=50) → list
+  - connectivity_check() → bool  (for verify.py, doesn't raise)
+  - load_from_env() factory
+  - 23 unit tests — all network calls mocked
+
+### Critical Platform Reality
+
+Polymarket.us is NOT what we assumed. Key facts:
+  - Platform launched Dec 2025 (CFTC approval) in sports-only mode
+  - 5,032 total markets as of 2026-03-01 — 100% sports (NBA/NFL/NHL/NCAA)
+  - No BTC "up or down" markets. No ETH markets. No crypto at all.
+  - The original Phase 5 plan (btc_lag on Polymarket.us) is BLOCKED by the platform itself
+  - Timeline for crypto markets: unknown. Could be months. Could never happen on .us
+
+### API Facts You Need When Building Phase 5.2
+
+Base URL: https://api.polymarket.us/v1
+Rate limit: 60 req/min (confirmed — do not exceed 1 call/sec on average)
+Price scale: 0.0-1.0 (NOT cents like Kalshi — to compare: Polymarket 0.65 = Kalshi 65¢)
+Market sides: long=True → YES side, long=False → NO side
+Identifier field: marketSides[i].identifier — used as path param for orderbook endpoint
+
+Confirmed working endpoint patterns:
+  GET /v1/markets                           → { markets: [...] }  (100 per page, paginated)
+  GET /v1/markets?closed=false              → open markets only
+  GET /v1/markets?limit=100&offset=0        → pagination
+  GET /v1/markets/{identifier}/book         → { marketData: { bids: [...], asks: [...] } }
+  GET /v1/portfolio/positions               → { positions: {}, availablePositions: [] }
+  GET /v1/portfolio/activities              → { activities: [...], nextCursor, eof }
+  POST /v1/orders                           → order creation (exact body format TBD)
+
+Endpoints confirmed 404 (do NOT call):
+  /markets/{integer_id}/*, /v2/*, /balance, /account, /orders (GET), /portfolio/balance
+
+### Dual-Platform Architecture (for when Phase 5.2 is built)
+
+One asyncio process handles both platforms. This is the correct design.
+
+main.py event loop:
+  ├── Kalshi loops (10 existing — all paper, collecting Brier data)
+  │   ├── btc_lag_loop()          stagger 0s
+  │   ├── eth_lag_loop()          stagger 7s
+  │   └── ... (8 more)
+  └── Polymarket loops (Phase 5.2+ — start paper)
+      └── polymarket_sports_loop()   stagger 73s  ← new
+
+Why one process:
+  - Single kill switch covers ALL bets (Kalshi + Polymarket combined daily loss limit)
+  - Single bankroll tracking (Kelly sizing needs full picture)
+  - One SQLite DB, one restart command, one log file
+  - asyncio concurrency is zero-overhead for I/O-bound loops
+
+Risk management: each new loop must be wrapped in try/except at the top level
+(same pattern as existing Kalshi loops). A crash in one loop must not kill the others.
+Rate budgets tracked separately per platform — Polymarket has its own 60/min limit.
+
+### Phase 5.2 Options (DECISION NEEDED)
+
+Before any code is written, Matthew needs to decide:
+
+Option A — Wait for crypto markets on Polymarket.us
+  Cost: zero
+  Benefit: btc_lag signal is already validated (Brier 0.191) — just need the market to exist
+  Risk: timeline unknown. Could be months. Platform may never add crypto.
+  Action: nothing to build. Let paper loops run passively.
+
+Option B — Build sports moneyline strategy on Polymarket.us now
+  Signal: Polymarket.us price deviates from The-Odds-API sharp consensus by >5pp
+  Data: The-Odds-API h2h endpoint (Pinnacle + Bet365 as reference books)
+  Constraint: 1,000 Odds API credit cap — MUST implement OddsApiQuotaGuard first
+  Cost: 1-2 sessions to build + paper validation period
+  Risk: new signal type, no prior validation, different edge thesis
+
+Option C — Both A and B (recommended)
+  Build Option B while infrastructure waits for Option A crypto markets
+  When Polymarket.us launches crypto: add a separate polymarket_btc_loop() alongside sports loop
+  Zero conflict — asyncio handles both concurrently
 
 ═══════════════════════════════════════════════════
 ## STEP 0: ASK MATTHEW THESE QUESTIONS FIRST
