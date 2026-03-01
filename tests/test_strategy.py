@@ -297,58 +297,58 @@ class TestEdgeCases:
         assert signal is None
 
 
-# ── Price extremes filter (10¢–90¢ calibrated range) ─────────────
+# ── Price extremes filter (35¢–65¢ calibrated range) ─────────────
 
 
 class TestPriceExtremesFilter:
-    """btc_lag should skip any signal where the selected price is outside 10–90¢.
+    """btc_lag should skip any signal where the selected price is outside 35–65¢.
 
-    Markets near 1¢/99¢ have already priced in near-certainty.
-    The lag model extrapolates outside its calibrated range at those odds.
+    Only bet near even odds. Outside this range the market has strong conviction
+    and we have no informational edge against HFTs. Tightened from 10–90 2026-03-01.
     """
 
-    def test_no_signal_blocked_below_10_cents(self):
-        """BTC down → BUY NO, but NO price 3¢ → outside calibrated range → skip.
-        Use btc_move_pct=1.0 so edge gate is NOT the blocking factor."""
+    def test_no_signal_blocked_below_35_cents(self):
+        """BTC down → BUY NO, but NO price 3¢ → outside 35¢ floor → skip."""
         s = _default_strategy()
         signal = s.generate_signal(
             _make_market(yes_price=97, no_price=3, minutes_remaining=10.0),
             _make_orderbook(),
-            _make_btc_feed(btc_move_pct=-1.0),  # BTC down hard → BUY NO, edge clears
+            _make_btc_feed(btc_move_pct=-1.0),
         )
         assert signal is None
 
-    def test_yes_signal_blocked_above_90_cents(self):
-        """BTC up → BUY YES, but YES price 97¢ → outside calibrated range → skip.
-        Use btc_move_pct=1.0 so edge gate is NOT the blocking factor."""
+    def test_yes_signal_blocked_above_65_cents(self):
+        """BTC up → BUY YES, but YES price 97¢ → outside 65¢ ceiling → skip."""
         s = _default_strategy()
         signal = s.generate_signal(
             _make_market(yes_price=97, no_price=3, minutes_remaining=10.0),
             _make_orderbook(),
-            _make_btc_feed(btc_move_pct=1.0),  # BTC up hard → BUY YES, edge clears
+            _make_btc_feed(btc_move_pct=1.0),
         )
         assert signal is None
 
-    def test_no_signal_allowed_at_10_cents_boundary(self):
-        """NO price exactly 10¢ is within calibrated range → should generate signal."""
+    def test_signal_blocked_at_old_10_cent_boundary(self):
+        """10¢ was previously the floor — now it is outside the 35¢ floor → skip."""
         s = _default_strategy()
         signal = s.generate_signal(
             _make_market(yes_price=90, no_price=10, minutes_remaining=10.0),
             _make_orderbook(),
-            _make_btc_feed(btc_move_pct=-1.0),  # BTC down → BUY NO at 10¢
+            _make_btc_feed(btc_move_pct=-1.0),  # BTC down → BUY NO at 10¢ — now blocked
         )
-        assert signal is not None
-        assert signal.side == "no"
-        assert signal.price_cents == 10
+        assert signal is None, "10¢ NO is outside new 35¢ floor — must skip"
 
-    def test_yes_signal_allowed_at_90_cents_boundary(self):
-        """YES price exactly 90¢ is within calibrated range → should generate signal."""
+    def test_signal_blocked_at_old_90_cent_boundary(self):
+        """90¢ was previously the ceiling — now it is outside the 65¢ ceiling → skip."""
         s = _default_strategy()
         signal = s.generate_signal(
             _make_market(yes_price=90, no_price=10, minutes_remaining=10.0),
             _make_orderbook(),
-            _make_btc_feed(btc_move_pct=1.0),  # BTC up → BUY YES at 90¢
+            _make_btc_feed(btc_move_pct=1.0),  # BTC up → BUY YES at 90¢ — now blocked
         )
-        assert signal is not None
-        assert signal.side == "yes"
-        assert signal.price_cents == 90
+        assert signal is None, "90¢ YES is outside new 65¢ ceiling — must skip"
+
+    def test_signal_allowed_in_35_65_range(self):
+        """Price at 50¢ is well within the 35–65¢ range → signal may fire."""
+        from src.strategies.btc_lag import _MIN_SIGNAL_PRICE_CENTS, _MAX_SIGNAL_PRICE_CENTS
+        assert _MIN_SIGNAL_PRICE_CENTS == 35
+        assert _MAX_SIGNAL_PRICE_CENTS == 65

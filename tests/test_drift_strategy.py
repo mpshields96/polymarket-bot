@@ -397,9 +397,8 @@ class TestLateEntryPenalty:
 class TestPriceExtremesFilter:
     """
     btc_drift must not place bets when the market price is outside the calibrated
-    range (10¢–90¢). The sigmoid model was trained on near-50¢ data and extrapolates
-    at extremes. At 3¢ or 97¢, HFTs have already priced in certainty — the model
-    has no informational edge there.
+    range (35¢–65¢). Only bet near even odds; outside that the market has conviction
+    and we have no edge. Tightened from 10–90 on 2026-03-01.
     """
 
     def _signal_at_price(self, yes_price: int, no_price: int) -> object:
@@ -424,19 +423,21 @@ class TestPriceExtremesFilter:
         sig = self._signal_at_price(yes_price=97, no_price=3)
         assert sig is None, "97¢ YES bet is outside calibrated range — must skip"
 
-    def test_signal_allowed_at_10_cents_boundary(self):
-        """Exactly 10¢ is within the calibrated range — must not be skipped."""
+    def test_signal_blocked_at_old_10_cent_boundary(self):
+        """10¢ was the old floor — now outside the new 35¢ floor → must be skipped."""
         sig = self._signal_at_price(yes_price=10, no_price=90)
-        # Signal may or may not fire (edge calculation decides), but if edge passes
-        # the price guard must not block it — not None due to price filter.
-        # We verify by checking that the price guard constant is 10 (not stricter).
-        from src.strategies.btc_drift import _MIN_SIGNAL_PRICE_CENTS
-        assert _MIN_SIGNAL_PRICE_CENTS == 10
+        assert sig is None, "10¢ YES is outside new 35¢ floor — must skip"
 
-    def test_signal_allowed_at_90_cents_boundary(self):
-        """Exactly 90¢ is within the calibrated range — must not be skipped."""
-        from src.strategies.btc_drift import _MAX_SIGNAL_PRICE_CENTS
-        assert _MAX_SIGNAL_PRICE_CENTS == 90
+    def test_signal_blocked_at_old_90_cent_boundary(self):
+        """90¢ was the old ceiling — now outside the new 65¢ ceiling → must be skipped."""
+        sig = self._signal_at_price(yes_price=90, no_price=10)
+        assert sig is None, "90¢ YES is outside new 65¢ ceiling — must skip"
+
+    def test_price_range_constants_are_35_65(self):
+        """Range tightened from 10–90 to 35–65 on 2026-03-01 — verify constants."""
+        from src.strategies.btc_drift import _MIN_SIGNAL_PRICE_CENTS, _MAX_SIGNAL_PRICE_CENTS
+        assert _MIN_SIGNAL_PRICE_CENTS == 35
+        assert _MAX_SIGNAL_PRICE_CENTS == 65
 
     def test_minutes_since_open_helper_reflects_elapsed(self):
         """Market opened 7 min ago: _minutes_since_open returns ≈ 7."""

@@ -44,9 +44,10 @@ _DEFAULT_LAG_SENSITIVITY = 15.0      # Cents of YES price implied per 1% BTC mov
                                       # 0.4% BTC → 6¢ implied lag (tunable)
 
 # Price range guard — model was calibrated on near-50¢ markets.
-# Outside 10–90¢, HFTs have priced in near-certainty; model has no informational edge.
-_MIN_SIGNAL_PRICE_CENTS = 10
-_MAX_SIGNAL_PRICE_CENTS = 90
+# Outside 35–65¢, the market has priced in significant conviction; our edge shrinks.
+# Tightened from 10–90 per Matthew 2026-03-01 — only bet near even odds.
+_MIN_SIGNAL_PRICE_CENTS = 35
+_MAX_SIGNAL_PRICE_CENTS = 65
 
 # Kalshi fee formula: 0.07 × P × (1 - P), where P is price in [0, 1]
 # Source: https://kalshi.com/blog/fees

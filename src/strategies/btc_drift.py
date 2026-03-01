@@ -59,9 +59,10 @@ _DEFAULT_TIME_WEIGHT = 0.7          # How much time remaining adjusts confidence
 _DEFAULT_MIN_DRIFT_PCT = 0.05       # BTC must have drifted ≥ 0.05% from open
 
 # Price range guard — model was calibrated on near-50¢ markets.
-# Outside 10–90¢, HFTs have priced in certainty; model has no informational edge.
-_MIN_SIGNAL_PRICE_CENTS = 10
-_MAX_SIGNAL_PRICE_CENTS = 90
+# Outside 35–65¢, the market has priced in significant conviction; our edge shrinks
+# and we're fighting HFT certainty. Tightened from 10–90 per Matthew 2026-03-01.
+_MIN_SIGNAL_PRICE_CENTS = 35
+_MAX_SIGNAL_PRICE_CENTS = 65
 
 # Kalshi fee formula: 0.07 × P × (1 - P), where P is price in [0, 1]
 # Source: https://kalshi.com/blog/fees
