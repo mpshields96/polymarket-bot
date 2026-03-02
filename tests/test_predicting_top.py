@@ -133,6 +133,15 @@ class TestWhaleAccount:
         assert isinstance(acct.smart_score, float)
         assert abs(acct.smart_score - 87.5) < 1e-6
 
+    def test_from_dict_smart_score_nested_dict(self):
+        """API changed smart_score from float to nested dict — extract .score."""
+        from src.data.predicting_top import WhaleAccount
+        trader = dict(SAMPLE_TRADER_FULL)
+        trader["smart_score"] = {"tier": "Great", "score": 79.2, "winRate": 0.606}
+        acct = WhaleAccount.from_dict(trader)
+        assert isinstance(acct.smart_score, float)
+        assert abs(acct.smart_score - 79.2) < 1e-6
+
     def test_from_dict_twitter_present(self):
         from src.data.predicting_top import WhaleAccount
         acct = WhaleAccount.from_dict(SAMPLE_TRADER_FULL)
@@ -227,6 +236,31 @@ class TestPredictingTopClient:
         with patch("aiohttp.ClientSession") as mock_cls:
             mock_cls.return_value = _make_mock_session(
                 [_make_mock_response(200, [])]
+            )
+            result = await client.get_leaderboard(limit=10)
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_get_leaderboard_wrapped_traders_key(self):
+        """API now returns {"traders": [...]} instead of bare list — must unwrap."""
+        client = self._make_client()
+        body = {"traders": [SAMPLE_TRADER_FULL, SAMPLE_TRADER_NO_TWITTER]}
+        with patch("aiohttp.ClientSession") as mock_cls:
+            mock_cls.return_value = _make_mock_session(
+                [_make_mock_response(200, body)]
+            )
+            result = await client.get_leaderboard(limit=10)
+        assert len(result) == 2
+        assert result[0].name == "aenews"
+
+    @pytest.mark.asyncio
+    async def test_get_leaderboard_unexpected_dict_no_traders_key(self):
+        """Dict without 'traders' key → empty list, no crash."""
+        client = self._make_client()
+        body = {"error": "rate limited"}
+        with patch("aiohttp.ClientSession") as mock_cls:
+            mock_cls.return_value = _make_mock_session(
+                [_make_mock_response(200, body)]
             )
             result = await client.get_leaderboard(limit=10)
         assert result == []

@@ -57,11 +57,17 @@ class WhaleAccount:
 
         twitter = d.get("twitter") or None  # normalise empty string to None
 
+        raw_score = d.get("smart_score", 0.0)
+        if isinstance(raw_score, dict):
+            smart_score = float(raw_score.get("score", 0.0))
+        else:
+            smart_score = float(raw_score)
+
         return cls(
             name=str(d.get("name", "")),
             proxy_wallet=primary,
             all_wallets=all_wallets,
-            smart_score=float(d.get("smart_score", 0.0)),
+            smart_score=smart_score,
             twitter=twitter,
             raw=d,
         )
@@ -104,6 +110,8 @@ class PredictingTopClient:
             logger.warning("[predicting_top] Fetch error: %s", exc)
             return []
 
+        if isinstance(data, dict) and "traders" in data:
+            data = data["traders"]
         if not isinstance(data, list):
             logger.warning("[predicting_top] Unexpected response type: %s", type(data))
             return []

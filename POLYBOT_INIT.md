@@ -6,17 +6,22 @@
 ## CURRENT STATUS — READ THIS FIRST (updated each session)
 ═══════════════════════════════════════════════════
 
-BUILD COMPLETE. 645/645 tests passing. verify.py 21/29 (8 advisory WARNs — non-critical).
-Last commit: 5f338bb (Session 28 — Phase 5.1 complete: Polymarket auth + REST client)
+BUILD COMPLETE. 751/751 tests passing. verify.py 21/29 (8 advisory WARNs — non-critical).
+Last commit: a3714ee (Session 29/30 — copy_trade_loop wired into main.py, predicting.top bugs fixed)
 
-📋 ALL 10 STRATEGIES PAPER-ONLY — no live bets firing
+📋 ALL 10 KALSHI STRATEGIES PAPER-ONLY — no live bets firing
    btc_lag_v1 demoted to paper (Session 27 — real backtest: 0 signals in last 5 days, HFTs pricing Kalshi within same minute)
    btc_drift_v1 PAPER (Session 25 — live record 7W/12L, drift-continuation thesis invalid)
    eth_lag_v1 PAPER (Session 25 — process violation: promoted live without paper validation)
    All other 7 strategies always paper
 
-BOT IS RUNNING: PID 9282 in bot.pid | Log: /tmp/polybot_session27.log
-Watch: tail -f /tmp/polybot_session27.log
+📋 COPY-TRADE LOOP RUNNING — paper-only (post /v1/orders format not yet confirmed)
+   Polls top 50 whale wallets from predicting.top every 5 min
+   Applies 6 decoy filters (copy_trader_v1.py), generates copy-trade Signals
+   Logs signals to DB (is_paper=True) when matching .us market found
+
+BOT IS RUNNING: PID 14417 in bot.pid | Log: /tmp/polybot_session30.log
+Watch: tail -f /tmp/polybot_session30.log | grep --line-buffered copy_trade
 
 All-time live P&L: -$18.85 (21 bets, 8W/13L = 38%)
 Bankroll: $79.76 | Hard stop at -$30 lifetime → $11.15 remaining before forced shutdown
@@ -26,10 +31,17 @@ PHASE 5.1 COMPLETE (Session 28):
   ✅ src/platforms/polymarket.py — REST client: markets/orderbook/positions/activities (23 tests)
   ✅ POLYMARKET_KEY_ID + POLYMARKET_SECRET_KEY wired in .env and verified working
   ✅ setup/verify.py: Polymarket auth [12] + API connectivity [13] checks added
-  ⚠️  CRITICAL: Polymarket.us is SPORTS-ONLY (5032 markets, all NBA/NFL/NHL/NCAA)
-      NO crypto prediction markets exist. Original btc_lag-on-Polymarket plan BLOCKED.
-      Architecture decision needed: wait for crypto OR build sports strategy.
-      See ROADMAP.md Phase 5.2 for Option A/B/C spec.
+
+PHASE 5.2 PARTIAL (Sessions 29-30):
+  ✅ src/data/predicting_top.py — WhaleAccount + PredictingTopClient (18 tests)
+     FIXED Session 30: API changed format — response now {"traders":[...]} not bare list
+     FIXED Session 30: smart_score is now a nested dict — was silently skipping ALL 179 traders
+  ✅ src/data/whale_watcher.py — WhaleTrade + WhalePosition + WhaleDataClient (28 tests)
+  ✅ src/strategies/copy_trader_v1.py — decoy filters + Signal generator (29 tests)
+  ✅ src/strategies/sports_futures_v1.py — mispricing vs Odds API (25 tests) [SUPPLEMENTAL]
+  ✅ copy_trade_loop wired into main.py — polls every 5 min, 80s startup delay
+  ⏳ BLOCKED for live: POST /v1/orders protobuf format not confirmed
+  ⏳ PENDING: polymarket.COM architecture (ECDSA/ETH wallet auth, full market suite)
 
 WHAT WORKS:
   ✅ Kalshi auth (api.elections.kalshi.com)
@@ -102,27 +114,38 @@ P&L STATUS (as of 2026-03-01 21:05 UTC — Session 28 end):
 NEXT ACTION — IF BOT IS STOPPED, RESTART (paper mode — no --live flag):
   cd /Users/matthewshields/Projects/polymarket-bot
   pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid
-  nohup ./venv/bin/python main.py >> /tmp/polybot_session29.log 2>&1 &
+  nohup ./venv/bin/python main.py >> /tmp/polybot_session30.log 2>&1 &
   sleep 5 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
 
 NEXT ACTION — IF RESTARTING LIVE (only after bankroll > $90 AND explicit decision):
   pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid
   echo "CONFIRM" > /tmp/polybot_confirm.txt
-  nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session29.log 2>&1 &
+  nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session30.log 2>&1 &
   sleep 8 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
 
-NEXT SESSION PRIORITY ORDER (as of end of Session 28):
-  1. ARCHITECTURE DECISION FIRST: Phase 5.2 — Option A (wait for Polymarket crypto) or Option C (build sports moneyline strategy now). See ROADMAP.md Phase 5.2. This is a strategic decision, not a code decision.
-  2. DO NOT re-promote any strategy live. Bankroll $79.76 ($11.15 before hard stop). No live bets until bankroll > $90.
-  3. btc_lag_v1 is READY FOR LIVE by graduation criteria (Brier 0.191, 43 trades) BUT signal frequency near-zero on Kalshi. Do not re-enable until 30-day rolling signal count > 5/month.
-  4. eth_drift_v1 "READY" by criteria but paper P&L is -$27.15 and only 1.1 days running. DO NOT PROMOTE.
-  5. Monitor eth_orderbook_imbalance_v1 paper P&L (+$236 in 1.1 days, 13 trades) — suspiciously high, audit fill simulation.
-  6. Let all 10 paper loops run. Kalshi paper data collection is the only productive activity right now.
+NEXT SESSION PRIORITY ORDER (as of Session 30):
+  1. ARCHITECTURE DECISION — polymarket.COM path:
+     polymarket.com (global) has FULL market suite: politics, crypto, sports, culture, economics, geopolitical events.
+     This is the REAL target for copy trading. polymarket.us is sports-only (our existing .us auth).
+     Path: ECDSA secp256k1 (Ethereum wallet) auth + py-clob-client. Matthew must decide if he wants .com account.
+  2. Reddit intelligence gathering — find top Polymarket traders/bots:
+     Search r/polymarket, r/predictionmarkets, r/Kalshi for known top accounts and open-source bots.
+     Look for GitHub repos shared by top traders. Evaluate strategies to adopt/adapt.
+  3. Kalshi copy trading research:
+     Kalshi has a leaderboard (top earners visible). Evaluate whether same copy-trade approach works.
+     data-api equivalent for Kalshi? Public trade history? This is an open research question.
+  4. Confirm copy_trade_loop is generating signals. Watch:
+     tail -f /tmp/polybot_session30.log | grep --line-buffered "copy_trade\|predicting_top"
+     Should see "Loaded X whale accounts" every 5 min.
+  5. POST /v1/orders format — confirm via iOS Proxyman capture when ready.
+  6. DO NOT re-promote any Kalshi strategy live. Bankroll $79.76 ($11.15 before hard stop).
 
-SECURITY RULES UPDATED FOR POLYMARKET (Session 28):
-  ✅ APPROVED URLs added: https://api.polymarket.us (all /v1 endpoints)
-  ✗ NEVER contact polymarket.com (global, requires ETH wallet, not US-legal via this auth)
-  ✗ The 1,000 Odds API credit cap still applies — DO NOT call Odds API without quota guard
+SECURITY RULES UPDATED FOR POLYMARKET (Sessions 28-30):
+  ✅ APPROVED URLs: https://api.polymarket.us (all /v1 endpoints), https://data-api.polymarket.com (public reads)
+  ✅ APPROVED: https://predicting.top/api/leaderboard (public leaderboard, no auth)
+  ✅ APPROVED: https://gamma-api.polymarket.com/markets (public market catalog)
+  ⚠️ polymarket.com CLOB/trading requires ETH wallet auth — NOT covered by existing .us credentials
+  ✗ The 1,000 Odds API credit cap still applies — DO NOT call Odds API without OddsApiQuotaGuard
 
 ═══════════════════════════════════════════════════
 ## PHASE 5 — POLYMARKET.US INTEGRATION (Session 28)
@@ -150,14 +173,30 @@ src/platforms/polymarket.py
   - load_from_env() factory
   - 23 unit tests — all network calls mocked
 
-### Critical Platform Reality
+### Critical Platform Reality — TWO SEPARATE PLATFORMS
 
-Polymarket.us is NOT what we assumed. Key facts:
-  - Platform launched Dec 2025 (CFTC approval) in sports-only mode
-  - 5,032 total markets as of 2026-03-01 — 100% sports (NBA/NFL/NHL/NCAA)
-  - No BTC "up or down" markets. No ETH markets. No crypto at all.
-  - The original Phase 5 plan (btc_lag on Polymarket.us) is BLOCKED by the platform itself
-  - Timeline for crypto markets: unknown. Could be months. Could never happen on .us
+polymarket.US (existing .us auth — Ed25519):
+  - Launched Dec 2025 (CFTC approval), US iOS users only
+  - Sports-only: 5,032 markets, 100% NBA/NFL/NHL/NCAA
+  - No crypto, no politics, no culture markets — sports-only launch phase
+  - Our existing Ed25519 credentials (.env POLYMARKET_KEY_ID/SECRET_KEY) work here only
+  - Timeline for expansion to full market suite: unknown
+
+polymarket.COM (global platform — separate auth needed):
+  - Full market suite: crypto, politics, sports, culture, economics, geopolitical events
+  - Has BTC/ETH/SOL 15-min up/down markets, US election markets, everything
+  - Auth: ECDSA secp256k1 (Ethereum wallet) — completely different from Ed25519
+  - Python client: py-clob-client (Polymarket/py-clob-client, MIT licensed)
+  - WHERE THE WHALES ARE — predicting.top leaderboard traders are all on .com
+  - WHERE THE COPY TRADING HAPPENS — data-api.polymarket.com returns .com trades
+  - Requires Matthew to create a .com account + Polygon wallet
+
+IMPLICATION: Our whale watcher (data-api.polymarket.com) reads .COM trades.
+  Our copy_trader_v1 generates signals from .COM whale activity.
+  But we can only execute on .US today. Mismatch!
+  A whale buying BTC/ETH on .COM has no matching market on .US.
+  A whale buying NBA futures on .COM has a matching market on .US (limited overlap).
+  Full copy trading requires .COM account + ECDSA auth.
 
 ### API Facts You Need When Building Phase 5.2
 
