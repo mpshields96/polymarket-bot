@@ -864,6 +864,165 @@ def _announce_live_bet(result: dict, strategy_name: str) -> None:
         pass  # notification is best-effort; never block the trading loop
 
 
+# ── Polymarket copy-trade polling loop ────────────────────────────────
+
+async def copy_trade_loop(
+    pm_client,
+    db,
+    kill_switch,
+    initial_delay_sec: float = 72.0,
+    poll_interval_sec: int = 300,
+    whale_refresh_sec: int = 21_600,
+    paper_slippage_ticks: int = 1,
+):
+    """
+    Polls top whale wallets, applies decoy filters, and paper-executes
+    genuine copy-trade signals on Polymarket.us.
+
+    Paper-only until POST /v1/orders protobuf format is confirmed.
+    Execution targets: season-winner futures currently on api.polymarket.us.
+    Game-by-game whale trades are logged but not executed (no .us venue yet).
+
+    Whale list refreshed every 6 hours from predicting.top (public API).
+    Trade poll interval: 5 min. Window: last 2 hours per wallet.
+    Seen trades deduped by transaction_hash to prevent double copies.
+    """
+    import time
+    from src.data.predicting_top import PredictingTopClient
+    from src.data.whale_watcher import WhaleDataClient
+    from src.strategies.copy_trader_v1 import CopyTraderStrategy, find_market_for_trade
+    from src.execution.paper import PaperExecutor
+
+    _PAPER_SIZE_USD = 5.0          # fixed $5 paper bets — real sizing not yet wired for PM
+    _TRADE_LOOKBACK_SEC = 7_200    # look at last 2 hours of whale trades per poll
+    _MAX_WHALES_PER_POLL = 30      # cap to control API load per poll cycle
+
+    predicting_top = PredictingTopClient()
+    whale_data = WhaleDataClient()
+    strategy = CopyTraderStrategy()
+    paper_exec = PaperExecutor(db=db, strategy_name=strategy.name,
+                               slippage_ticks=paper_slippage_ticks)
+
+    whales: list = []
+    last_whale_refresh: float = 0.0
+    seen_trade_ids: set = set()     # transaction_hash — dedup across polls
+
+    logger.info("[copy_trade] Startup — waiting %.0fs before first poll", initial_delay_sec)
+    await asyncio.sleep(initial_delay_sec)
+
+    while True:
+        try:
+            now_ts = int(time.time())
+
+            # ── Refresh whale list every 6 hours ─────────────────────
+            if now_ts - last_whale_refresh > whale_refresh_sec:
+                new_whales = await predicting_top.get_leaderboard(limit=50)
+                if new_whales:
+                    whales = new_whales
+                    last_whale_refresh = now_ts
+                    logger.info("[copy_trade] Whale list refreshed: %d wallets (top %d polled)",
+                                len(whales), min(len(whales), _MAX_WHALES_PER_POLL))
+                else:
+                    logger.warning("[copy_trade] predicting.top returned empty list — retrying next cycle")
+
+            if not whales:
+                logger.warning("[copy_trade] No whale list yet — sleeping 60s")
+                await asyncio.sleep(60)
+                continue
+
+            # ── Fetch open .us markets for matching ──────────────────
+            try:
+                pm_markets = await pm_client.get_markets(closed=False, limit=200)
+            except Exception as exc:
+                logger.warning("[copy_trade] Failed to fetch PM markets: %s", exc)
+                pm_markets = []
+
+            # ── Poll each whale ───────────────────────────────────────
+            for whale in whales[:_MAX_WHALES_PER_POLL]:
+                try:
+                    trades = await whale_data.get_trades(
+                        whale.proxy_wallet,
+                        limit=20,
+                        since_ts=now_ts - _TRADE_LOOKBACK_SEC,
+                    )
+                    if not trades:
+                        continue
+
+                    positions = await whale_data.get_positions(whale.proxy_wallet)
+
+                    for trade in trades:
+                        # Dedup — skip already-seen transaction hashes
+                        trade_key = trade.transaction_hash or (
+                            f"{trade.condition_id}_{trade.outcome}_{trade.timestamp}"
+                        )
+                        if trade_key in seen_trade_ids:
+                            continue
+
+                        # Find matching .us market (semantic title match)
+                        pm_market = find_market_for_trade(trade, pm_markets)
+                        current_price = pm_market.yes_price if pm_market else trade.price
+
+                        sig = strategy.generate_signal(
+                            trade, positions, now_ts,
+                            current_market_price=current_price,
+                            smart_score=whale.smart_score,
+                        )
+
+                        if sig is None:
+                            continue
+
+                        # Mark seen whether or not we execute (avoid re-evaluating)
+                        seen_trade_ids.add(trade_key)
+                        # Prune seen set to avoid unbounded growth (keep last 10k)
+                        if len(seen_trade_ids) > 10_000:
+                            seen_trade_ids = set(list(seen_trade_ids)[-5_000:])
+
+                        if pm_market:
+                            logger.info(
+                                "[copy_trade] %s %s %s@%d¢ | whale=%s smart=%.0f edge=%.0f%%",
+                                sig.side.upper(), trade.title, trade.outcome,
+                                sig.price_cents, whale.name, whale.smart_score,
+                                sig.edge_pct * 100,
+                            )
+                            if kill_switch.check_paper_order_allowed():
+                                result = paper_exec.execute(
+                                    ticker=sig.ticker,
+                                    side=sig.side,
+                                    price_cents=sig.price_cents,
+                                    size_usd=_PAPER_SIZE_USD,
+                                    reason=sig.reason,
+                                )
+                                if result:
+                                    logger.info(
+                                        "[copy_trade] [paper] Executed: %s %s@%d¢ $%.2f trade_id=%s",
+                                        sig.side.upper(), trade.title, sig.price_cents,
+                                        result.get("cost_usd", 0), result.get("trade_id", "?"),
+                                    )
+                            else:
+                                logger.info("[copy_trade] Kill switch blocked paper order")
+                        else:
+                            # No matching .us market — log signal for intelligence only
+                            logger.info(
+                                "[copy_trade] Signal (no .us venue, log only): %s %s %s",
+                                sig.side.upper(), trade.title, trade.outcome,
+                            )
+
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    logger.warning("[copy_trade] Error processing whale %s: %s",
+                                   whale.name, exc)
+                    continue
+
+        except asyncio.CancelledError:
+            logger.info("[copy_trade] Loop cancelled — shutting down")
+            raise
+        except Exception as exc:
+            logger.error("[copy_trade] Unexpected loop error: %s", exc, exc_info=True)
+
+        await asyncio.sleep(poll_interval_sec)
+
+
 # ── PID lock — prevent two bot instances running at the same time ─────
 
 _PID_FILE = PROJECT_ROOT / "bot.pid"
@@ -1406,6 +1565,16 @@ async def main():
     sol_lag_strategy = sol_lag_load()
     logger.info("Strategy loaded: %s (paper-only SOL 15-min lag, KXSOL15M)", sol_lag_strategy.name)
 
+    # ── Polymarket copy-trade client ──────────────────────────────────
+    # Ed25519 auth, api.polymarket.us/v1, sports-only US iOS beta platform
+    try:
+        from src.platforms.polymarket import load_from_env as polymarket_load
+        pm_client = polymarket_load()
+        logger.info("Polymarket client loaded (api.polymarket.us, Ed25519 auth)")
+    except Exception as _pm_err:
+        pm_client = None
+        logger.warning("Polymarket client unavailable — copy_trade_loop will be skipped: %s", _pm_err)
+
     # ── Run ───────────────────────────────────────────────────────────
     _configured_markets = config.get("strategy", {}).get("markets", ["KXBTC15M"])
     if not _configured_markets:
@@ -1614,6 +1783,28 @@ async def main():
         name="settlement_loop",
     )
 
+    # ── Copy-trade loop (Polymarket PRIMARY strategy) ─────────────────
+    # Paper-only. Polls top whale wallets every 5 min, applies decoy filters,
+    # paper-executes genuine signals on api.polymarket.us markets.
+    # Skipped gracefully if PM client failed to load.
+    if pm_client is not None:
+        copy_task = asyncio.create_task(
+            copy_trade_loop(
+                pm_client=pm_client,
+                db=db,
+                kill_switch=kill_switch,
+                initial_delay_sec=80.0,     # stagger after Kalshi loops
+                poll_interval_sec=300,       # 5-min poll cadence
+                whale_refresh_sec=21_600,    # refresh whale list every 6 hours
+                paper_slippage_ticks=paper_slippage_ticks,
+            ),
+            name="copy_trade_loop",
+        )
+        logger.info("Copy-trade loop started (paper, 5-min poll, 50 whale wallets)")
+    else:
+        copy_task = asyncio.create_task(asyncio.sleep(0), name="copy_trade_noop")
+        logger.warning("Copy-trade loop SKIPPED — PM client unavailable")
+
     # ── Signal handlers (clean shutdown on SIGTERM/SIGHUP) ───────────
     import signal as _signal
     _loop = asyncio.get_running_loop()
@@ -1631,6 +1822,7 @@ async def main():
         unemployment_task.cancel()
         sol_task.cancel()
         settle_task.cancel()
+        copy_task.cancel()
 
     for _sig, _sname in ((_signal.SIGTERM, "SIGTERM"), (_signal.SIGHUP, "SIGHUP")):
         _loop.add_signal_handler(_sig, lambda n=_sname: _on_signal(n))
@@ -1639,7 +1831,7 @@ async def main():
         await asyncio.gather(
             trade_task, eth_lag_task, drift_task, eth_drift_task,
             btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task,
-            unemployment_task, sol_task, settle_task,
+            unemployment_task, sol_task, settle_task, copy_task,
         )
     except (KeyboardInterrupt, asyncio.CancelledError):
         pass  # Normal shutdown — SIGTERM or Ctrl+C; finally block handles cleanup
@@ -1655,10 +1847,11 @@ async def main():
         unemployment_task.cancel()
         sol_task.cancel()
         settle_task.cancel()
+        copy_task.cancel()
         await asyncio.gather(
             trade_task, eth_lag_task, drift_task, eth_drift_task,
             btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task,
-            unemployment_task, sol_task, settle_task,
+            unemployment_task, sol_task, settle_task, copy_task,
             return_exceptions=True,
         )
         logger.info("Stopping feeds and connections...")

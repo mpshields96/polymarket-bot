@@ -311,3 +311,85 @@ class TestCopyTraderStrategy:
                                     current_market_price=0.44, smart_score=82.0)
         assert sig.reason != ""
         assert "0xabc123" in sig.reason or "Thunder" in sig.reason
+
+
+# ── find_market_for_trade tests ───────────────────────────────────
+
+
+def _make_pm_market_raw(title: str, market_id: str = "pm001",
+                        slug: str = "nba-2026-thunder") -> "PolymarketMarket":
+    from src.platforms.polymarket import PolymarketMarket
+    return PolymarketMarket.from_dict({
+        "id": market_id,
+        "question": "2026 NBA Champion",
+        "slug": slug,
+        "endDate": "2026-07-01T00:00:00Z",
+        "startDate": "2026-01-01T00:00:00Z",
+        "category": "sports",
+        "active": True,
+        "closed": False,
+        "marketType": "futures",
+        "sportsMarketType": "futures",
+        "sportsMarketTypeV2": "SPORTS_MARKET_TYPE_FUTURE",
+        "orderPriceMinTickSize": 0.001,
+        "marketSides": [
+            {"id": "1001", "identifier": f"{slug}-yes", "description": "Yes",
+             "price": "0.40", "long": True,
+             "team": {"id": 1, "name": title, "abbreviation": "okc", "league": "nba"}},
+            {"id": "1002", "identifier": f"{slug}-no", "description": "No",
+             "price": "0.60", "long": False,
+             "team": {"id": 1, "name": title, "abbreviation": "okc", "league": "nba"}},
+        ],
+        "outcomes": '["No","Yes"]',
+        "outcomePrices": "[0.60,0.40]",
+        "title": title,
+    })
+
+
+class TestFindMarketForTrade:
+    def test_matches_by_title_in_trade_title(self):
+        """PM market title "Thunder" found in whale trade title."""
+        from src.strategies.copy_trader_v1 import find_market_for_trade
+        trade = _make_trade(title="Will Thunder Win the 2026 NBA Championship?")
+        markets = [_make_pm_market_raw("Thunder")]
+        assert find_market_for_trade(trade, markets) is not None
+
+    def test_matches_by_title_in_trade_slug(self):
+        """PM market title "thunder" found in whale trade slug."""
+        from src.strategies.copy_trader_v1 import find_market_for_trade
+        trade = _make_trade(title="NBA 2026", slug="will-thunder-win-2026-nba")
+        markets = [_make_pm_market_raw("Thunder")]
+        assert find_market_for_trade(trade, markets) is not None
+
+    def test_no_match_when_title_absent(self):
+        """Trade about Celtics, market is Thunder → no match."""
+        from src.strategies.copy_trader_v1 import find_market_for_trade
+        trade = _make_trade(title="Celtics to win 2026 NBA Championship", slug="celtics-nba-2026")
+        markets = [_make_pm_market_raw("Thunder")]
+        assert find_market_for_trade(trade, markets) is None
+
+    def test_returns_none_for_empty_markets(self):
+        from src.strategies.copy_trader_v1 import find_market_for_trade
+        trade = _make_trade(title="Thunder NBA 2026")
+        assert find_market_for_trade(trade, []) is None
+
+    def test_skips_closed_market(self):
+        """Closed markets should not be matched."""
+        from src.strategies.copy_trader_v1 import find_market_for_trade
+        from src.platforms.polymarket import PolymarketMarket
+        trade = _make_trade(title="Thunder NBA 2026")
+        closed_market = _make_pm_market_raw("Thunder")
+        # Manually override closed flag on raw then re-parse
+        raw = dict(closed_market.raw, closed=True, active=False)
+        closed = PolymarketMarket.from_dict(raw)
+        assert find_market_for_trade(trade, [closed]) is None
+
+    def test_returns_first_match(self):
+        """When multiple markets match, return first one."""
+        from src.strategies.copy_trader_v1 import find_market_for_trade
+        trade = _make_trade(title="Thunder will win NBA 2026")
+        m1 = _make_pm_market_raw("Thunder", market_id="first", slug="nba-thunder-first")
+        m2 = _make_pm_market_raw("Thunder", market_id="second", slug="nba-thunder-second")
+        result = find_market_for_trade(trade, [m1, m2])
+        assert result is not None
+        assert result.market_id == "first"

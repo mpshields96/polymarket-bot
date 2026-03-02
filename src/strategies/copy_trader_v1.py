@@ -33,6 +33,7 @@ import logging
 from typing import List, Optional
 
 from src.data.whale_watcher import WhaleTrade, WhalePosition
+from src.platforms.polymarket import PolymarketMarket
 from src.strategies.base import Signal
 
 logger = logging.getLogger(__name__)
@@ -213,3 +214,43 @@ class CopyTraderStrategy:
         if smart_score >= _MID_SMART_SCORE:
             return _EDGE_MID
         return _EDGE_LOW
+
+
+def find_market_for_trade(
+    trade: WhaleTrade,
+    pm_markets: List[PolymarketMarket],
+) -> Optional[PolymarketMarket]:
+    """
+    Find a Polymarket.us market that corresponds to a whale's trade.
+
+    Whales trade on polymarket.com; we execute on api.polymarket.us — different
+    platforms with different condition IDs. Matching is semantic via title/slug.
+
+    Strategy:
+      1. Direct condition_id match (rare cross-platform but handle it)
+      2. PM market short title appears in whale trade title/slug (e.g. "Thunder")
+
+    Args:
+        trade:      Whale trade from data-api.polymarket.com.
+        pm_markets: Open markets from api.polymarket.us/v1/markets.
+
+    Returns:
+        First matching PolymarketMarket, or None if no match found.
+    """
+    # Build combined search text from whale trade's title + slug (lowercased)
+    trade_text = (trade.title + " " + trade.slug).lower()
+
+    for market in pm_markets:
+        if not market.active or market.closed:
+            continue
+
+        # 1. Direct condition_id match
+        if trade.condition_id and trade.condition_id == market.market_id:
+            return market
+
+        # 2. PM short title (e.g. "Thunder") appears in whale trade text
+        market_title = market.raw.get("title", "").lower().strip()
+        if market_title and market_title in trade_text:
+            return market
+
+    return None
