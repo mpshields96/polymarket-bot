@@ -5,9 +5,9 @@
 
 ## EXACT CURRENT STATE — READ THIS FIRST
 
-Bot is RUNNING — PID 65654, live mode, log: /tmp/polybot_session35.log
+Bot is RUNNING — PID 67702, live mode, log: /tmp/polybot_session35.log
 Check: `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"`
-Watch: `tail -f /tmp/polybot_session35.log | grep --line-buffered "daily\|drift\|LIVE\|Kill switch"`
+Watch: `tail -f /tmp/polybot_session35.log | grep --line-buffered "daily\|drift\|LIVE\|Kill switch\|sports_futures"`
 
 btc_drift MICRO-LIVE (1 contract/bet ~$0.35-0.65, UNLIMITED/day) — active (12/30 live bets so far)
 All other strategies: PAPER-ONLY
@@ -77,7 +77,7 @@ Daily loss limit: 20% = ~$15.95 on current bankroll
 
 ## CURRENT BOT ARCHITECTURE (14 loops — sports_futures_loop active on next restart)
 
-main.py asyncio event loop [LIVE MODE] — PID 63094
+main.py asyncio event loop [LIVE MODE] — PID 67702
   Kalshi 15-min loops:
     [trading]       btc_lag_v1           PAPER-ONLY (0 signals/week, market mature)
     [eth_trading]   eth_lag_v1           PAPER-ONLY
@@ -95,7 +95,7 @@ main.py asyncio event loop [LIVE MODE] — PID 63094
     [sol_daily]     sol_daily_v1         PAPER-ONLY (KXSOLD, 24 hourly slots)
   Polymarket:
     [copy_trade]    copy_trader_v1       PAPER-ONLY (5-min poll, 144 whales, 0 .us matches so far)
-    [sports_futures] sports_futures_v1   PAPER-ONLY (30-min poll, NBA/NHL/NCAAB futures, NOT YET ACTIVE — needs restart)
+    [sports_futures] sports_futures_v1   PAPER-ONLY (30-min poll, NBA/NHL/NCAAB futures, ACTIVE — team name bug fixed)
 
 ═══════════════════════════════════════════════════
 
@@ -146,10 +146,9 @@ main.py asyncio event loop [LIVE MODE] — PID 63094
    Currently at 12/30. With unlimited/day, should reach 30 within ~2-3 days.
    Do NOT change calibration_max_usd until 30+ settled bets.
 
-2. *** RESTART NEEDED to activate sports_futures_loop ***
-   The loop code is written and tested but the running bot (PID 65654) doesn't
-   have it yet. Next restart will pick it up automatically.
-   Restart command (see below). Paper-only — no risk.
+2. sports_futures_loop is NOW ACTIVE (PID 67702) — monitor first polls
+   First poll fires ~95s after restart. Watch for signals in log:
+   `tail -f /tmp/polybot_session35.log | grep sports_futures`
 
 3. copy trading still blocked (platform mismatch)
    All whale signals from predicting.top are .COM politics/crypto markets.
