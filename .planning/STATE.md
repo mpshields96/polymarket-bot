@@ -29,6 +29,7 @@ None — slippage model and settlement verification complete.
 
 ## Key Decisions
 
+- POST /v1/orders on polymarket.us uses protobuf body format (not JSON) — confirmed by probe responses with explicit "proto: syntax error" messages. polymarket.COM path (py-clob-client) remains unblocked.
 - Kalshi API status=settled (not 'finalized') for settled markets — confirmed correct filter
 - Candlestick end_period_ts in seconds (not ms), yes_bid.close/yes_ask.close in cents
 - At 0.40% BTC move threshold: YES avg 49.5c (50c assumption largely valid), accuracy 66.7%, edge 13.5%
@@ -54,6 +55,7 @@ None — slippage model and settlement verification complete.
 | 2 | Commit graduation threshold + build --status command | 2026-02-28 | e999d6c, 74f5dbb, ab72b61 | .planning/quick/2-commit-graduation-threshold-change-and-b/ |
 | 3 | Unemployment rate strategy (9th loop, KXUNRATE, BLS window, FRED UNRATE, TDD) | 2026-02-28 | d38f20d, 15307cf | .planning/quick/3-unemployment-rate-strategy/ |
 | 4 | Build real Kalshi-calibrated backtest using Kalshi candlestick API | 2026-03-01 | ecce5be | .planning/quick/4-build-real-kalshi-calibrated-backtest-fr/ |
+| 5 | Probe POST /v1/orders format on polymarket.us — found protobuf (not JSON) | 2026-03-08 | f3a3fef, b0added | .planning/quick/5-probe-post-v1-orders-format-on-polymarke/ |
 
 ## Phase Plans Completed
 
@@ -63,5 +65,5 @@ None — slippage model and settlement verification complete.
 
 ## Last Session
 
-**Stopped at:** Completed quick task 4 — kalshi_real_backtest.py built and run. Key result: at 0.40% threshold, YES price avg 49.5c (50c assumption valid), accuracy 66.7%, edge 13.5% (vs 14.9% assumed, -1.5pp delta). 603/603 tests pass.
-**Session timestamp:** 2026-03-01T20:10:00Z
+**Stopped at:** Completed quick task 5 — probed POST /v1/orders on polymarket.us. Found protobuf body format (not JSON). polymarket.us path blocked by missing .proto schema. polymarket.COM path (py-clob-client) unblocked and recommended.
+**Session timestamp:** 2026-03-08T14:00:00Z
