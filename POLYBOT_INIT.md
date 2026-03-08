@@ -62,7 +62,7 @@ PHASE 5.2 PARTIAL (Sessions 29-31):
      FIXED Session 30: smart_score is now a nested dict — was silently skipping ALL 179 traders
   ✅ src/data/whale_watcher.py — WhaleTrade + WhalePosition + WhaleDataClient (28 tests)
   ✅ src/strategies/copy_trader_v1.py — decoy filters + Signal generator (29 tests)
-  ✅ src/strategies/sports_futures_v1.py — mispricing vs Odds API (25 tests) [SUPPLEMENTAL]
+  ✅ src/strategies/sports_futures_v1.py — mispricing vs sports data feed (25 tests) [SUPPLEMENTAL]
   ✅ copy_trade_loop wired into main.py — polls every 5 min, 80s startup delay
   ⏳ BLOCKED for .COM live: Matthew must create polymarket.com account + Polygon wallet
   ⏳ PENDING: ECDSA auth + py-clob-client integration (after Matthew has .com account)
@@ -82,7 +82,7 @@ WHAT WORKS:
   ✅ [fomc]           fomc_rate_v1               — paper, 51s stagger, active March 5-19
   ✅ [unemployment]   unemployment_rate_v1       — paper, 58s stagger, active until March 7
   ✅ [sol_lag]        sol_lag_v1                 — paper, 65s stagger (added Session 23)
-  ✅ sports_game_v1 skeleton built — DISABLED until live results confirmed + ODDS_API_KEY
+  ✅ sports_game_v1 skeleton built — DISABLED until live results confirmed + SDATA_KEY
   ✅ --status / --report / --graduation-status: bypass PID lock, safe while bot live
   ✅ PaperExecutor: 1-tick adverse slippage. Daily caps: live=10/day, paper=35/day per strategy
   ✅ Paper/live separation: has_open_position + count_trades_today both pass is_paper filter (fixed Session 21)
@@ -165,7 +165,7 @@ SECURITY RULES UPDATED FOR POLYMARKET (Sessions 28-30):
   ✅ APPROVED: https://predicting.top/api/leaderboard (public leaderboard, no auth)
   ✅ APPROVED: https://gamma-api.polymarket.com/markets (public market catalog)
   ⚠️ polymarket.com CLOB/trading requires ETH wallet auth — NOT covered by existing .us credentials
-  ✗ The 1,000 Odds API credit cap still applies — DO NOT call Odds API without OddsApiQuotaGuard
+  ✗ The 1,000 sports data feed credit cap still applies — DO NOT call sports data feed without QuotaGuard
 
 ═══════════════════════════════════════════════════
 ## PHASE 5 — POLYMARKET.US INTEGRATION (Session 28)
@@ -271,9 +271,9 @@ Option A — Wait for crypto markets on Polymarket.us
   Action: nothing to build. Let paper loops run passively.
 
 Option B — Build sports moneyline strategy on Polymarket.us now
-  Signal: Polymarket.us price deviates from The-Odds-API sharp consensus by >5pp
-  Data: The-Odds-API h2h endpoint (Pinnacle + Bet365 as reference books)
-  Constraint: 1,000 Odds API credit cap — MUST implement OddsApiQuotaGuard first
+  Signal: Polymarket.us price deviates from sports data feed sharp consensus by >5pp
+  Data: sports data feed h2h endpoint (Pinnacle + Bet365 as reference books)
+  Constraint: 1,000 sports data feed credit cap — MUST implement QuotaGuard first
   Cost: 1-2 sessions to build + paper validation period
   Risk: new signal type, no prior validation, different edge thesis
 
@@ -323,7 +323,7 @@ Answers already given (do not re-ask):
     https://fred.stlouisfed.org/graph/fredgraph.csv  ← FRED economic data (free, no key)
     api.weather.gov                           ← NWS NDFD feed (free, User-Agent required)
     NOTE: wss://stream.binance.com is blocked in the US (HTTP 451). Use Binance.US only.
-✗ NEVER use Odds API credits until quota guard + kill switch analog are implemented
+✗ NEVER use sports data feed credits until quota guard + kill switch analog are implemented
 ✗ NEVER promote to Stage 2 based on bankroll alone — requires Kelly calibration (30+ live bets with limiting_factor=="kelly")
 ✓ All pip installs go into venv/ only
 ✓ Default mode: PAPER (PaperExecutor)
@@ -470,7 +470,7 @@ TESTS — 507/507 passing
 21. ODDS API — 1,000 CREDIT HARD CAP:
     User has 20,000 credits/month subscription. Max 1,000 for this bot (5% of budget).
     Sports props/moneyline/totals are a SEPARATE project — NOT for Kalshi bot.
-    Before ANY API credit use: implement OddsApiQuotaGuard + kill switch analog first.
+    Before ANY API credit use: implement QuotaGuard + kill switch analog first.
     See .planning/todos.md for full roadmap item.
 
 22. CONFIG SCOPE: `config` only exists in `main()`, not inside loop functions.
@@ -546,7 +546,7 @@ polymarket-bot/
 │   ├── test_live_executor.py    ← 33 tests added Session 21 (was ZERO)
 │   └── test_bot_lock.py         ← 12 tests: orphan guard, PID lock (Session 21)
 ├── .planning/
-│   ├── todos.md                 ← Roadmap: Odds API, copytrade, future ideas
+│   ├── todos.md                 ← Roadmap: sports data feed, copytrade, future ideas
 │   └── quick/                   ← GSD quick-task plans
 ├── logs/
 │   ├── trades/
@@ -730,9 +730,9 @@ HALF 2 — POLYMARKET COPYTRADE BOT (PRIMARY GOAL)
       Decoy filter: some top traders run multiple wallets to confuse copiers
     copy_trade_loop in main.py — polls every 5 min, 80s startup delay
 
-  SUPPLEMENTAL: sports_futures_v1.py (25 tests) — Kalshi sports vs Odds API sharp consensus
+  SUPPLEMENTAL: sports_futures_v1.py (25 tests) — Kalshi sports vs sports data feed sharp consensus
     Only useful insofar as it supports copy trading. Not the primary mission.
-    Requires OddsApiQuotaGuard before ANY call (1,000 credit hard cap for this bot).
+    Requires QuotaGuard before ANY call (500 credit hard cap for this bot).
 
   Kalshi copy trading: CONFIRMED INFEASIBLE — public trade API has ZERO user attribution.
     GET /market/get-trades returns trade_id, ticker, count, prices, taker_side, time.
@@ -802,7 +802,7 @@ Phase 5.2 (Sessions 29-30):
     FIXED Session 30: smart_score changed from float to nested dict — was silently skipping ALL traders
   src/data/whale_watcher.py (28 tests) — WhaleTrade + WhalePosition + WhaleDataClient
   src/strategies/copy_trader_v1.py (29 tests) — 6 decoy filters + Signal generator (PRIMARY)
-  src/strategies/sports_futures_v1.py (25 tests) — Kalshi sports vs Odds API (SUPPLEMENTAL)
+  src/strategies/sports_futures_v1.py (25 tests) — Kalshi sports vs sports data feed (SUPPLEMENTAL)
   copy_trade_loop wired into main.py — polls every 5 min, 80s startup delay
 
 ═══════════════════════════════════════════════════════════════
@@ -885,8 +885,8 @@ in real money from silent bugs (Session 20). These concerns are serious and non-
    with real keys. Adapt patterns only. December 2025: key theft from popular GitHub bots.
 
 6. ODDS API QUOTA IS SACRED — DO NOT BURN IT
-   OddsApiQuotaGuard must be implemented BEFORE the first API call.
-   1,000 credits max for this bot (5% of Matthew's 20,000/month). A polling loop without
+   QuotaGuard must be implemented BEFORE the first API call.
+   500 credits max for this bot (5% of Matthew's 20,000/month). A polling loop without
    a guard burns the entire quota in hours. Hard requirement, not optional.
 
 7. TDD IS MANDATORY — EVERY TIME
@@ -948,7 +948,7 @@ KEY OPERATIONAL FACTS
 - Report: source venv/bin/activate && python3 main.py --report
 - Kill switch reset: echo "RESET" | python3 main.py --reset-killswitch
 - calculate_size() returns SizeResult — always extract .recommended_usd
-- Odds API: 1,000 credit hard cap; sports props = separate project entirely
+- sports data feed: 500 credit hard cap; sports props = separate project entirely
 - Kill switch: consecutive_loss_limit=4, daily_loss_limit_pct=0.20 (= $15.95 on $79.76 bankroll)
 - All 3 kill switch counters persist across restarts: daily + lifetime + consecutive
 
@@ -1178,7 +1178,7 @@ Completed:
   DB kill_switch_events was empty; bankroll healthy at $107.87; live P&L +$12.86 at discovery
 - GRADUATION_CRITERIA.md v1.1: Stage 1→2→3 promotion criteria + Kelly calibration requirements
   Explicit: do NOT promote to Stage 2 based on bankroll alone
-- Odds API directives captured: 1,000 credit hard cap; sports = separate project; implement quota guard first
+- sports data feed directives captured: 500 credit hard cap; sports = separate project; implement quota guard first
 - All-time live P&L: +$24.96 (5W 2L) — trades 78+80 won (+$8.82+$3.28), trade 81 placed during session
 - 507/507 tests. Latest commit: 72317ee
 

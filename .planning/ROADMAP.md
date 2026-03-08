@@ -58,7 +58,7 @@ Key lesson: btc_lag signal is valid. Kalshi execution (market orders, maturing m
 
 ### Phase 5.2 — Sports Strategy on Polymarket
 **Status:** Not started (blocked on architecture decision — see below)
-**Goal:** Build a sports edge strategy using The-Odds-API vs Polymarket.us game lines.
+**Goal:** Build a sports edge strategy using sports data feed vs Polymarket.us game lines.
 
 ⚠️  ARCHITECTURE DECISION NEEDED before building:
 Option A — Wait for crypto markets on Polymarket.us (timeline unknown)
@@ -68,13 +68,13 @@ Option C — One bot, two platforms (Kalshi crypto + Polymarket sports running c
 Option C is the recommended architecture (see DUAL-PLATFORM ARCHITECTURE section below).
 
 **If proceeding with Option C (sports on Polymarket):**
-- [ ] `src/strategies/sports_moneyline.py` — compare Polymarket odds vs The-Odds-API sharp lines
+- [ ] `src/strategies/sports_moneyline.py` — compare Polymarket odds vs sports data feed sharp lines
       Signal: Polymarket price deviates >5pp from sharp consensus → fade/follow
-      Data: The-Odds-API (h2h, pinnacle + bet365 as reference) — 1000 credit cap
+      Data: sports data feed (h2h, pinnacle + bet365 as reference) — 500 credit cap
 - [ ] `src/execution/polymarket_paper.py` — paper executor for Polymarket orders
 - [ ] `polymarket_sports_loop()` in main.py — polls open Polymarket game markets
 - [ ] Paper first: 30+ settled trades + Brier < 0.25 before any live orders
-- Odds API quota guard: MUST be implemented before any API call (1000 credit max for this bot)
+- sports data feed quota guard: MUST be implemented before any API call (500 credit max for this bot)
 
 **If waiting for crypto markets:**
 - Monitor Polymarket.us product updates
@@ -153,7 +153,7 @@ Requires both platforms live simultaneously. Note: Polymarket taker fee eats mar
 > Unlock: Phase 6 complete + bankroll > $150 + 60+ live trades across both platforms
 
 ### Phase 7.1 — Sports Game Strategy (NBA/NHL)
-Kalshi KXNBAGAME/KXNHLGAME vs The-Odds-API moneyline. See todos.md for full spec.
+Kalshi KXNBAGAME/KXNHLGAME vs sports data feed moneyline. See todos.md for full spec.
 
 ### Phase 7.2 — Tail Mispricing Strategy
 Short <15¢ contracts via limit orders. Well-documented academic edge: markets overprice tails.

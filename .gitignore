@@ -56,3 +56,4 @@ Thumbs.db
 *.swp
 *.swo
 *~
+data/sdata_quota.json

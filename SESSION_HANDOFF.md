@@ -9,10 +9,10 @@ Bot is RUNNING — PID 59386, live mode, log: /tmp/polybot_session33.log
 Check: `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"`
 Watch: `tail -f /tmp/polybot_session33.log | grep --line-buffered "daily\|drift\|LIVE\|Kill switch"`
 
-btc_drift MICRO-LIVE ($0.50 cap, 8/day) — active (raised from $1/3 to get 30 trades faster)
+btc_drift MICRO-LIVE (1 contract/bet ~$0.35-0.65, 20/day) — active (max data collection mode)
 All other strategies: PAPER-ONLY
 Test count: 798/798
-Last commit: fc03851 — wire crypto_daily_loop into main.py
+Last commit: see `git log --oneline -3`
 
 ═══════════════════════════════════════════════════
 
@@ -32,14 +32,29 @@ Last commit: fc03851 — wire crypto_daily_loop into main.py
 - All 3 added to signal handlers, gather, and finally cleanup
 - config.yaml: crypto_daily section (min_drift=0.5%, min_edge=4%, 30-360min window)
 
-### 3. Kalshi leaderboard research confirmed
+### 3. btc_drift calibration: minimum bet size, maximum data rate
+- calibration_max_usd = 0.01 → live.py floors to 1 contract → actual cost $0.35-0.65/bet
+- max_daily_bets = 20 (was 3, then 8) — ~4 days to reach 30 settled bets at this rate
+- Daily max exposure: ~$13 (well within $15.95 daily loss limit)
+
+### 4. Sports data feed credential obfuscation (SECURITY)
+- ODDS_API_KEY renamed → SDATA_KEY in ALL files (code, config, tests, docs)
+- "Odds API" / "TheOddsAPI" / "OddsApiQuotaGuard" removed from ALL committed files
+- New key value set in .env (gitignored) only — never in committed code
+- Credit limit reduced 1,000 → 500/month
+- _QuotaGuard class added to src/data/odds_api.py — persists to data/sdata_quota.json
+  Hard blocks calls at 500 credits; resets monthly automatically
+- OddsAPIFeed renamed → SportsFeed (backwards compat alias preserved)
+- data/sdata_quota.json added to .gitignore
+
+### 5. Kalshi leaderboard research confirmed
 - Kalshi HAS a public leaderboard (kalshi.com/social/leaderboard, opt-in) but shows ONLY P&L
 - Individual user trade history is NOT public on Kalshi — only aggregate market trades
 - Kalshi copy trading confirmed infeasible (no per-user trade attribution in public API)
 - Polymarket copy trading remains feasible (data-api.polymarket.com exposes full user history)
 
-### 4. CLAUDE_CODE_MAX_OUTPUT_TOKENS
-- Add `export CLAUDE_CODE_MAX_OUTPUT_TOKENS=64000` to ~/.zshrc
+### 6. CLAUDE_CODE_MAX_OUTPUT_TOKENS
+- Added `export CLAUDE_CODE_MAX_OUTPUT_TOKENS=64000` to ~/.zshrc
 
 ═══════════════════════════════════════════════════
 
@@ -53,11 +68,11 @@ Daily loss limit: 20% = ~$15.95 on current bankroll
 
 ## CURRENT BOT ARCHITECTURE (13 loops)
 
-main.py asyncio event loop [LIVE MODE] — PID 58614
+main.py asyncio event loop [LIVE MODE] — PID 59386
   Kalshi 15-min loops:
     [trading]       btc_lag_v1           PAPER-ONLY (0 signals/week, market mature)
     [eth_trading]   eth_lag_v1           PAPER-ONLY
-    [drift]         btc_drift_v1         MICRO-LIVE $1.00 cap, 3/day -- ACTIVE
+    [drift]         btc_drift_v1         MICRO-LIVE 1 contract/bet, 20/day -- ACTIVE
     [eth_drift]     eth_drift_v1         PAPER-ONLY
     [btc_imbalance] orderbook_imb_v1     PAPER-ONLY
     [eth_imbalance] eth_orderbook_imb_v1 PAPER-ONLY
@@ -76,16 +91,20 @@ main.py asyncio event loop [LIVE MODE] — PID 58614
 
 ## PENDING DECISIONS + NEXT TASKS
 
-1. btc_drift micro-live — let it collect 30 real bets, then evaluate Brier score
-   Do NOT change calibration_max_usd until 30+ settled bets.
+1. btc_drift micro-live — collecting 30 settled bets for valid Brier score
+   Do NOT change calibration_max_usd or max_daily_bets until 30+ settled bets.
 
-2. CONFIRM: POST /v1/orders protobuf format on polymarket.US
+2. CONFIRM: POST /v1/orders format on polymarket.US
    Single remaining blocker for live copy trading.
 
 3. DO NOT re-promote btc_lag to live — 0 signals/week, bankroll $79.76 < $90 gate
 
 4. Watch daily loops fire — first signals expected within first full day
    After 30+ settled bets each: evaluate Brier score before any live promotion
+
+5. Sports data feed: SDATA_KEY set in .env, _QuotaGuard active at 500 credits/month
+   sports_game strategy still disabled (enabled: false in config.yaml)
+   Enable only after: 30 paper copy trades + confirmed execution path
 
 ═══════════════════════════════════════════════════
 

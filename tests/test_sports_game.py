@@ -256,15 +256,15 @@ def test_load_defaults():
     assert s.min_volume == 100
 
 
-# ── OddsAPIFeed factory ───────────────────────────────────────────────────────
+# ── SportsFeed factory ───────────────────────────────────────────────────────
 
 def test_odds_api_feed_requires_key(monkeypatch):
-    monkeypatch.delenv("ODDS_API_KEY", raising=False)
-    with pytest.raises(RuntimeError, match="ODDS_API_KEY"):
+    monkeypatch.delenv("SDATA_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="SDATA_KEY"):
         OddsAPIFeed.load_from_env()
 
 
 def test_odds_api_feed_loads_key(monkeypatch):
-    monkeypatch.setenv("ODDS_API_KEY", "test-key-123")
+    monkeypatch.setenv("SDATA_KEY", "test-key-123")
     feed = OddsAPIFeed.load_from_env()
     assert feed.api_key == "test-key-123"

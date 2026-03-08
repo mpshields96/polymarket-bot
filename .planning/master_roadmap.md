@@ -148,8 +148,8 @@ These are ideas waiting for the expansion gate to clear (btc_drift 30+ live + Br
    - Stage 2 ($10 cap) lets Kelly actually influence sizing
    - Don't evaluate Kelly performance until Stage 2 + 30+ live bets
 
-7. OddsApiQuotaGuard for sports_futures_v1
-   - 1,000 credit hard cap (5% of Matthew's 20,000/month total)
+7. QuotaGuard for sports_futures_v1
+   - 500 credit hard cap (5% of Matthew's 20,000/month total)
    - sports_futures_v1 is supplemental — implement guard before enabling
 
 ═══════════════════════════════════════════════════════════════
@@ -185,9 +185,9 @@ These are ideas waiting for the expansion gate to clear (btc_drift 30+ live + Br
   Malicious GitHub repos exist that steal private keys (Dec 2025 incident documented in copy_trading_research.md)
   Study reference repos, adapt patterns — never run third-party code with real keys
 
-### Risk 6: Odds API credit burn
+### Risk 6: sports data feed credit burn
   sports_futures_v1 is built but not enabled
-  1,000 credit hard cap — add OddsApiQuotaGuard before ANY call to Odds API
+  500 credit hard cap — add QuotaGuard before ANY call to sports data feed
   Violation = wasting Matthew's quota on a supplemental strategy
 
 ### Risk 7: predicting.top API format changes

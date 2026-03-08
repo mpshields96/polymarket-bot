@@ -1,7 +1,7 @@
 """
 Sports futures mispricing strategy for Polymarket.us.
 
-JOB:    Compare Polymarket.us season-winner futures prices to Odds API sharp
+JOB:    Compare Polymarket.us season-winner futures prices to sports feed sharp
         consensus (Pinnacle / DraftKings) and signal when edge > min_edge_pct.
 
 DOES NOT: Execute trades, know about sizing, risk decisions, or API calls.
@@ -73,7 +73,7 @@ class SportsFuturesStrategy:
     """
     Compare Polymarket.us futures prices to sharp bookmaker consensus.
 
-    Signals when the gap between PM implied probability and Odds API
+    Signals when the gap between PM implied probability and sports feed
     consensus exceeds min_edge_pct (default 5%).
 
     Paper-only until POST /v1/orders protobuf format is confirmed.
@@ -92,11 +92,11 @@ class SportsFuturesStrategy:
         odds: List[ChampionshipOdds],
     ) -> List[Signal]:
         """
-        Compare PM futures prices to Odds API consensus and emit signals.
+        Compare PM futures prices to sports feed consensus and emit signals.
 
         Args:
             pm_markets: Open Polymarket.us futures markets (from PolymarketClient.get_markets)
-            odds:       Championship odds from OddsAPIFeed.get_nba/nhl/ncaab_championship
+            odds:       Championship odds from SportsFeed.get_nba/nhl/ncaab_championship
 
         Returns:
             List of Signal objects (may be empty). Never raises.

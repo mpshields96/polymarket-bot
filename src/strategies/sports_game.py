@@ -5,7 +5,7 @@ JOB:    Compare Kalshi NBA/NHL game-winner prices to bookmaker consensus odds.
 SIGNAL LOGIC:
     1. Fetch open Kalshi KXNBAGAME / KXNHLGAME markets
     2. Parse each market title → "Away at Home Winner?" → team names
-    3. Match to Odds API game by team name similarity
+    3. Match to sports feed game by team name similarity
     4. For each side (YES/NO): edge = consensus_prob - kalshi_price
     5. If edge > min_edge_pct: emit Signal
 
@@ -14,8 +14,8 @@ TICKER FORMAT:
     KXNHLGAME-26FEB28EDMSJ-EDM   →  "Edmonton at San Jose Winner?" YES side = EDM wins
 
 DATA SOURCE:
-    The-Odds-API v4 (api.the-odds-api.com) — requires ODDS_API_KEY in .env
-    Budget: 1,000 credits/month (5% of 20k subscription)
+    External sports feed v4 — requires SDATA_KEY in .env
+    Budget: 500 credits/month hard cap (enforced by _QuotaGuard)
     Cache: 15 min (feed level) — so this strategy never burns quota itself
 
 REFERENCE: nikhilnd/kalshi-market-making (Avellaneda-Stoikov)
@@ -35,8 +35,8 @@ logger = logging.getLogger(__name__)
 
 
 # ── Team name normalisation ──────────────────────────────────────────────────
-# Kalshi titles use city/short names. Odds API uses full franchise names.
-# Map common Kalshi city patterns → words that appear in Odds API team name.
+# Kalshi titles use city/short names. Sports feed uses full franchise names.
+# Map common Kalshi city patterns → words that appear in sports feed team name.
 
 _NBA_CITY_MAP = {
     "Atlanta": "Atlanta Hawks",
@@ -108,7 +108,7 @@ _NHL_CITY_MAP = {
 
 
 def _resolve_team(kalshi_name: str, sport: str) -> Optional[str]:
-    """Map Kalshi city/short name → Odds API full team name."""
+    """Map Kalshi city/short name → sports feed full team name."""
     mapping = _NBA_CITY_MAP if sport == "basketball_nba" else _NHL_CITY_MAP
     # Exact match first
     if kalshi_name in mapping:
@@ -153,12 +153,12 @@ class SportsGameStrategy(BaseStrategy):
     def generate_signal(
         self,
         market: Market,
-        odds_games: list,               # list[OddsGame] from OddsAPIFeed
+        odds_games: list,               # list[OddsGame] from SportsFeed
         yes_side_team: Optional[str] = None,  # parsed from ticker suffix
     ) -> Optional[Signal]:
         """
         market: a Kalshi KXNBAGAME or KXNHLGAME market
-        odds_games: current odds from OddsAPIFeed.get_nba_games() or get_nhl_games()
+        odds_games: current odds from SportsFeed.get_nba_games() or get_nhl_games()
         yes_side_team: Kalshi city name for the YES side (parsed from ticker)
         """
         if not odds_games or not yes_side_team:
@@ -171,7 +171,7 @@ class SportsGameStrategy(BaseStrategy):
             return None
         away_kalshi, home_kalshi = parsed
 
-        # Resolve to Odds API names
+        # Resolve to sports feed names
         away_odds_name = _resolve_team(away_kalshi, self.sport)
         home_odds_name = _resolve_team(home_kalshi, self.sport)
         if not away_odds_name or not home_odds_name:
@@ -184,7 +184,7 @@ class SportsGameStrategy(BaseStrategy):
             logger.debug("[sports_game] No mapping for YES team: %s", yes_side_team)
             return None
 
-        # Find matching Odds API game
+        # Find matching sports feed game
         game = _match_game(odds_games, home_odds_name, away_odds_name)
         if not game:
             logger.debug("[sports_game] No odds match for %s vs %s", away_odds_name, home_odds_name)
@@ -265,7 +265,7 @@ class SportsGameStrategy(BaseStrategy):
 
 
 def _match_game(games: list, home: str, away: str) -> Optional[object]:
-    """Find the Odds API game matching home+away team names (case-insensitive partial)."""
+    """Find the sports feed game matching home+away team names (case-insensitive partial)."""
     home_l, away_l = home.lower(), away.lower()
     for g in games:
         if home_l in g.home_team.lower() and away_l in g.away_team.lower():

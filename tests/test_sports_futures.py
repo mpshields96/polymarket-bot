@@ -1,12 +1,12 @@
 """
 Tests for sports futures strategy components:
   - ChampionshipOdds dataclass and parsing
-  - OddsAPIFeed championship methods (get_nba_championship etc.)
+  - SportsFeed championship methods (get_nba_championship etc.)
   - SportsFuturesStrategy signal generation
   - Team name normalizer
 
 API facts confirmed via live probing 2026-03-01:
-  Odds API: basketball_nba_championship_winner, icehockey_nhl_championship_winner,
+  Sports feed: basketball_nba_championship_winner, icehockey_nhl_championship_winner,
             basketball_ncaab_championship_winner all return outrights data.
   Polymarket.us: 30 NBA Champion, 19 NHL Stanley Cup, 30 NCAA Tournament winner markets.
   All are futures (season-winner) — no game-by-game markets yet on .us.
@@ -22,7 +22,7 @@ import pytest
 
 # ── fixtures ─────────────────────────────────────────────────────────
 
-# Odds API outright event structure (confirmed via live probe 2026-03-01)
+# Sports feed outright event structure (confirmed via live probe 2026-03-01)
 SAMPLE_OUTRIGHT_EVENT = {
     "id": "abc123",
     "sport_key": "basketball_nba_championship_winner",
@@ -213,9 +213,9 @@ class TestChampionshipOdds:
         assert odds == []
 
 
-# ── OddsAPIFeed championship methods ─────────────────────────────────
+# ── SportsFeed championship methods ─────────────────────────────────
 
-class TestOddsAPIFeedChampionship:
+class TestSportsFeedChampionship:
     def _make_feed(self):
         from src.data.odds_api import OddsAPIFeed
         return OddsAPIFeed(api_key="test-key", cache_ttl_sec=900)
@@ -299,7 +299,7 @@ class TestTeamNameNormalizer:
 
     def test_seventy_sixers(self):
         from src.strategies.sports_futures_v1 import normalize_team_name
-        # Polymarket uses "76ers", Odds API uses "Philadelphia 76ers"
+        # Polymarket uses "76ers", sports feed uses "Philadelphia 76ers"
         assert normalize_team_name("Philadelphia 76ers") == "76ers"
         assert normalize_team_name("76ers") == "76ers"
 
@@ -365,7 +365,7 @@ class TestSportsFuturesSignal:
         )
 
     def test_buy_yes_signal_when_pm_underpriced(self):
-        """PM has Thunder at 30¢, Odds API says 41% → 11pp edge → BUY YES."""
+        """PM has Thunder at 30¢, sports feed says 41% → 11pp edge → BUY YES."""
         strategy = self._make_strategy(min_edge_pct=0.05)
         pm_market = self._make_pm_market("Thunder", 0.30)
         odds = [self._make_odds("Oklahoma City Thunder", 0.41)]
@@ -375,7 +375,7 @@ class TestSportsFuturesSignal:
         assert signals[0].side == "yes"
 
     def test_buy_no_signal_when_pm_overpriced(self):
-        """PM has Thunder at 55¢, Odds API says 41% → 14pp overpriced → BUY NO."""
+        """PM has Thunder at 55¢, sports feed says 41% → 14pp overpriced → BUY NO."""
         strategy = self._make_strategy(min_edge_pct=0.05)
         pm_market = self._make_pm_market("Thunder", 0.55)
         odds = [self._make_odds("Oklahoma City Thunder", 0.41)]
@@ -385,7 +385,7 @@ class TestSportsFuturesSignal:
         assert signals[0].side == "no"
 
     def test_no_signal_when_edge_below_threshold(self):
-        """PM at 40¢, Odds API says 41% → 1pp edge < 5% threshold → no signal."""
+        """PM at 40¢, sports feed says 41% → 1pp edge < 5% threshold → no signal."""
         strategy = self._make_strategy(min_edge_pct=0.05)
         pm_market = self._make_pm_market("Thunder", 0.40)
         odds = [self._make_odds("Oklahoma City Thunder", 0.41)]
@@ -394,7 +394,7 @@ class TestSportsFuturesSignal:
         assert signals == []
 
     def test_no_signal_when_no_odds_match(self):
-        """PM has Thunder market but Odds API only has Celtics → no match → no signal."""
+        """PM has Thunder market but sports feed only has Celtics → no match → no signal."""
         strategy = self._make_strategy(min_edge_pct=0.05)
         pm_market = self._make_pm_market("Thunder", 0.30)
         odds = [self._make_odds("Boston Celtics", 0.08)]

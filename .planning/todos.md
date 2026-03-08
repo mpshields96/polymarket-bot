@@ -55,10 +55,10 @@
 ## [ ] Sports Game Strategy (KXNBAGAME / KXNHLGAME)
 **Added:** 2026-02-28 Session 20
 **Series:** KXNBAGAME (38 markets, up to 1.35M vol, 1-2¢ spread), KXNHLGAME (48 markets, up to 108K vol, 1-4¢ spread). KXMLBGAME unusable pre-season (54¢ spread).
-**Approach:** Compare Kalshi implied probability vs The-Odds-API moneyline (free tier, 500 req/month). If edge > 5%, bet the underpriced side.
+**Approach:** Compare Kalshi implied probability vs sports data feed moneyline (free tier, 500 req/month). If edge > 5%, bet the underpriced side.
 **Files to create:** src/data/odds_api.py, src/strategies/sports_game.py, new loop in main.py
 **Signal rate:** ~2 bets/day in NBA season, closes at tip-off (clean settlement)
-**Data source:** https://the-odds-api.com/ (free tier covers NBA + NHL)
+**Data source:** https://sports-data-feed.com/ (free tier covers NBA + NHL)
 **Estimated effort:** 1 session (new data feed + strategy + loop)
 **Unlock condition:** 30 live trades collected on current 3 live strategies
 
@@ -141,9 +141,9 @@ This is pure read infrastructure. No execution. No credentials needed. Safe to b
 **Added:** 2026-02-28 Session 21
 **Source:** Reddit research — Kalshi has in-play markets (re-entry/exit on score changes)
 **Note:** sports_game_v1 skeleton already built (Session 20) but disabled. Expand to support live score feeds.
-**Data source:** Odds API live scores feed (within current 20k/month budget)
+**Data source:** sports data feed live scores feed (within current 20k/month budget)
 **Estimated effort:** 1 session (extend existing skeleton)
-**Unlock condition:** Enable sports_game_v1 first (30 live trades threshold + ODDS_API_KEY)
+**Unlock condition:** Enable sports_game_v1 first (30 live trades threshold + SDATA_KEY)
 
 ---
 
@@ -194,11 +194,11 @@ This is pure read infrastructure. No execution. No credentials needed. Safe to b
 
 ---
 
-## [ ] Odds API Integration — Quota Guard + Kill Switch (FUTURE — next session)
+## [ ] sports data feed Integration — Quota Guard + Kill Switch (FUTURE — next session)
 **Added:** 2026-03-01 Session 22
-**Context:** Matthew obtained The Odds API subscription (20,000 credits/month, renewed March 1 2026).
+**Context:** Matthew obtained sports data feed subscription (20,000 credits/month, renewed March 1 2026).
 **Standing directives from Matthew:**
-- **HARD CAP: 1,000 credits max for polymarket-bot** (5% of 20,000 monthly budget)
+- **HARD CAP: 500 credits max for polymarket-bot** (5% of 20,000 monthly budget)
 - Before ANY API call: implement a quota counter + hard stop (like kill_switch but for API credits)
 - Sports props / moneyline / spreads / totals are NOT for Kalshi bot (different system)
 - Do NOT confuse with titanium-v36 / agentic-sandbox-rd project (entirely separate sports betting system)
@@ -209,11 +209,11 @@ This is pure read infrastructure. No execution. No credentials needed. Safe to b
 - NOT: sports game props, moneyline, spreads — those are separate system
 **Implementation requirements (before first API call):**
 1. `src/data/odds_api.py` — OddsApiClient with rate counter and quota enforcement
-2. `OddsApiQuotaGuard`: tracks credits used, raises if > 1,000 credits
+2. `QuotaGuard`: tracks credits used, raises if > 500 credits
 3. Config: `odds_api.max_monthly_credits: 1000` in config.yaml
 4. Tests: test_odds_api.py with quota guard tests
 5. Manual review of first 10 API responses before wiring into strategy
-**API info:** https://the-odds-api.com/ | Key in .env as ODDS_API_KEY
+**API info:** https://sports-data-feed.com/ | Key in .env as SDATA_KEY
 **Estimated effort:** 0.5 session (quota guard only) + 1 session (FOMC calibration feature)
 **Unlock condition:** After expansion gate clears (30+ live trades on btc_drift, ~4-6 weeks)
 
@@ -254,7 +254,7 @@ Also: avoid writing kill_switch.lock during tests (conftest.py cleans it but bet
 **Standing directive from Matthew:** Sports props / moneyline / spreads / totals are NOT for this bot.
 - Entirely separate system from Kalshi/polymarket-bot
 - Reference code: ~/ClaudeCode/agentic-sandbox-rd and titanium-v36 subdirectory
-- Odds API (20,000 credits/month) is the primary data source for that system
+- sports data feed (20,000 credits/month) is the primary data source for that system
 - Do NOT mix sports betting logic into polymarket-bot
 **What this means for polymarket-bot:**
 - KXNBAGAME / KXNHLGAME market types: potentially still viable (these are prediction markets on game outcomes, not traditional sportsbook bets) — but Matthew wants a very solid argument before pursuing
