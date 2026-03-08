@@ -6,25 +6,49 @@
 ## CURRENT STATUS — READ THIS FIRST (updated each session)
 ═══════════════════════════════════════════════════
 
-BUILD COMPLETE. 751/751 tests passing. verify.py 21/29 (8 advisory WARNs — non-critical).
-Last commit: a3714ee (Session 29/30 — copy_trade_loop wired into main.py, predicting.top bugs fixed)
+BUILD COMPLETE. 758/758 tests passing. verify.py 21/29 (8 advisory WARNs — non-critical).
+Last commit: ed87261 (Session 31 — micro-live calibration phase for btc_drift, $1.00 cap, 3/day)
 
-📋 ALL 10 KALSHI STRATEGIES PAPER-ONLY — no live bets firing
-   btc_lag_v1 demoted to paper (Session 27 — real backtest: 0 signals in last 5 days, HFTs pricing Kalshi within same minute)
-   btc_drift_v1 PAPER (Session 25 — live record 7W/12L, drift-continuation thesis invalid)
-   eth_lag_v1 PAPER (Session 25 — process violation: promoted live without paper validation)
-   All other 7 strategies always paper
+📋 btc_drift_v1 MICRO-LIVE — $1.00 cap, max 3/day, kill switch applies
+   2hr cooling active on restart (consecutive_losses=4 restored from DB)
+   After cooling: real $1.00 bets fire normally on btc_drift signals
+   Goal: 30 real settled bets + Brier < 0.30 to graduate to Stage 1 ($5 cap)
 
-📋 COPY-TRADE LOOP RUNNING — paper-only (post /v1/orders format not yet confirmed)
-   Polls top 50 whale wallets from predicting.top every 5 min
-   Applies 6 decoy filters (copy_trader_v1.py), generates copy-trade Signals
-   Logs signals to DB (is_paper=True) when matching .us market found
+📋 ALL OTHER 9 KALSHI STRATEGIES PAPER-ONLY
+   btc_lag_v1: paper (0 signals last 5+ days — HFTs pricing Kalshi same minute)
+   eth_lag_v1: paper (process violation promotion — needs 30 paper trades)
+   eth_drift_v1: paper (41 trades, looks "ready" but only 1.1 days data — DO NOT PROMOTE)
+   All others: always paper, collecting calibration data
 
-BOT IS RUNNING: PID 14417 in bot.pid | Log: /tmp/polybot_session30.log
-Watch: tail -f /tmp/polybot_session30.log | grep --line-buffered copy_trade
+📋 COPY-TRADE LOOP RUNNING — paper-only (POST /v1/orders protobuf format not confirmed)
+   Polls 144 whale wallets from predicting.top every 5 min
+   6 decoy filters applied (copy_trader_v1.py)
+   BLOCKED for .COM live: Matthew needs polymarket.com account + Polygon wallet
+
+BOT IS RUNNING: PID 53490 in bot.pid | Log: /tmp/polybot_session31.log
+Watch drift bets: tail -f /tmp/polybot_session31.log | grep --line-buffered "drift\|LIVE\|Trade executed"
+Watch copy trade: tail -f /tmp/polybot_session31.log | grep --line-buffered copy_trade
 
 All-time live P&L: -$18.85 (21 bets, 8W/13L = 38%)
 Bankroll: $79.76 | Hard stop at -$30 lifetime → $11.15 remaining before forced shutdown
+Max btc_drift spend: ~$3/day, ~$20/week (Matthew's standing directive)
+
+SESSION 31 COMPLETED (2026-03-08):
+  ✅ eth_orderbook_imbalance: $233 paper P&L anomaly diagnosed and fixed
+     Root cause: missing 35-65¢ price range guard (NO@2¢ bet won $233 on $4.76 spend)
+     Fix: _MIN_SIGNAL_PRICE_CENTS=35, _MAX_SIGNAL_PRICE_CENTS=65 added to orderbook_imbalance.py
+     Regression tests: TestPriceRangeGuard (3 tests)
+  ✅ Paper P&L discrepancy explained: structural paper optimism (slippage, fill timing, counterparty)
+     paper_slippage_ticks raised 1→2 (Kalshi BTC spreads avg 2-3¢; 1¢ was over-optimistic)
+  ✅ Micro-live calibration phase implemented for btc_drift_v1
+     calibration_max_usd=1.00 param added to trading_loop()
+     btc_drift loop: live_executor_enabled=True, $1.00 cap, max 3/day
+     PRINCIPLES.md updated with micro-live phase rules
+  ✅ Copy trading research completed (see .planning/research/copy_trading_research.md)
+     Kalshi: CONFIRMED INFEASIBLE (no public user attribution — centralized exchange)
+     Polymarket.COM: full platform, whales trade here, py-clob-client for ECDSA auth
+     Top traders: HyperLiquid0xb $1.4M, Erasmus $1.3M, BAdiosB 90.8% win rate
+  ✅ master_roadmap.md created (.planning/master_roadmap.md) — self-contained handoff doc
 
 PHASE 5.1 COMPLETE (Session 28):
   ✅ src/auth/polymarket_auth.py — Ed25519 signing (19 tests, 100% pass)
@@ -32,7 +56,7 @@ PHASE 5.1 COMPLETE (Session 28):
   ✅ POLYMARKET_KEY_ID + POLYMARKET_SECRET_KEY wired in .env and verified working
   ✅ setup/verify.py: Polymarket auth [12] + API connectivity [13] checks added
 
-PHASE 5.2 PARTIAL (Sessions 29-30):
+PHASE 5.2 PARTIAL (Sessions 29-31):
   ✅ src/data/predicting_top.py — WhaleAccount + PredictingTopClient (18 tests)
      FIXED Session 30: API changed format — response now {"traders":[...]} not bare list
      FIXED Session 30: smart_score is now a nested dict — was silently skipping ALL 179 traders
@@ -40,17 +64,17 @@ PHASE 5.2 PARTIAL (Sessions 29-30):
   ✅ src/strategies/copy_trader_v1.py — decoy filters + Signal generator (29 tests)
   ✅ src/strategies/sports_futures_v1.py — mispricing vs Odds API (25 tests) [SUPPLEMENTAL]
   ✅ copy_trade_loop wired into main.py — polls every 5 min, 80s startup delay
-  ⏳ BLOCKED for live: POST /v1/orders protobuf format not confirmed
-  ⏳ PENDING: polymarket.COM architecture (ECDSA/ETH wallet auth, full market suite)
+  ⏳ BLOCKED for .COM live: Matthew must create polymarket.com account + Polygon wallet
+  ⏳ PENDING: ECDSA auth + py-clob-client integration (after Matthew has .com account)
 
 WHAT WORKS:
   ✅ Kalshi auth (api.elections.kalshi.com)
   ✅ BTC + ETH + SOL feeds — Binance.US @bookTicker, ~100 ticks/min
   ✅ Polymarket.us auth — Ed25519 signing, X-PM-Access-Key/Timestamp/Signature headers
   ✅ Polymarket.us REST — GET /v1/markets, /v1/markets/{id}/book, /v1/portfolio/positions, /v1/portfolio/activities
-  📋 [trading]        btc_lag_v1                 — PAPER (was live, demoted Session 27)
+  📋 [trading]        btc_lag_v1                 — PAPER (demoted Session 27, 0 signals/week)
   📋 [eth_trading]    eth_lag_v1                 — PAPER (demoted Session 25)
-  📋 [drift]          btc_drift_v1               — PAPER (demoted Session 25)
+  🔴 [drift]          btc_drift_v1               — MICRO-LIVE $1.00/bet, max 3/day (Session 31)
   ✅ [eth_drift]      eth_drift_v1               — paper, 22s stagger
   ✅ [btc_imbalance]  orderbook_imbalance_v1     — paper, 29s stagger
   ✅ [eth_imbalance]  eth_orderbook_imbalance_v1 — paper, 36s stagger
@@ -99,17 +123,18 @@ SESSION 23-25 BUGS FIXED:
   Session 25: btc_drift_v1 demoted — live record 7W/12L (38%), core signal not valid at 15-min Kalshi timescale
   Session 25: eth_lag_v1 demoted — was promoted live but performance was not validated at promotion time
 
-P&L STATUS (as of 2026-03-01 21:05 UTC — Session 28 end):
-  All-time live:  -$18.85 (21 settled: 8W 13L, 38% win rate) ← DOWN FROM $100 START
-  All-time paper: +$217.90
+P&L STATUS (as of 2026-03-08 13:19 UTC — Session 31):
+  All-time live:  -$18.85 (21 settled: 8W 13L, 38% win rate) — btc_drift now micro-live ($1.00 cap)
+  All-time paper: ~$7 corrected (eth_orderbook_imbalance $233 anomaly removed — was NO@2¢ bet)
   Bankroll:       $79.76 (hard stop triggers at -$30 lifetime → only $11.15 more loss allowed)
 
   ⚠️ btc_lag_v1 live record: 2W/0L (+$4.07) — ONLY 2 TRADES. Audit skeptically.
-  ⚠️ btc_drift_v1 live record: 7W/12L (-$22.92) — DEMOTED. Drift-continuation thesis invalid.
-  ⚠️ eth_lag_v1 live record: 1W/3L (-$6.53) — DEMOTED. Insufficient paper validation at promotion.
+  ⚠️ btc_drift_v1 live record: 7W/12L (-$22.92) — now MICRO-LIVE at $1.00 cap to get real data.
+  ⚠️ eth_lag_v1 live record: 1W/3L (-$6.53) — PAPER. Insufficient paper validation at promotion.
 
-  btc_lag_v1 graduation: 43 paper trades, Brier 0.191 ← STRONG signal quality
-  eth_drift_v1 "graduation" in 1.1 days: DO NOT TRUST. Only 1 day of paper data.
+  btc_lag_v1 graduation: 43 paper trades, Brier 0.191 ← STRONG signal but 0 signals/week
+  eth_drift_v1 "graduation": DO NOT TRUST. Only 1.1 days paper data. -$35.47 paper P&L.
+  eth_orderbook_imbalance: paper P&L anomaly FIXED (Session 31). Real paper P&L ~$7 not $233.
 
 NEXT ACTION — IF BOT IS STOPPED, RESTART (paper mode — no --live flag):
   cd /Users/matthewshields/Projects/polymarket-bot
@@ -123,22 +148,17 @@ NEXT ACTION — IF RESTARTING LIVE (only after bankroll > $90 AND explicit decis
   nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session30.log 2>&1 &
   sleep 8 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
 
-NEXT SESSION PRIORITY ORDER (as of Session 30):
-  1. ARCHITECTURE DECISION — polymarket.COM path:
-     polymarket.com (global) has FULL market suite: politics, crypto, sports, culture, economics, geopolitical events.
-     This is the REAL target for copy trading. polymarket.us is sports-only (our existing .us auth).
-     Path: ECDSA secp256k1 (Ethereum wallet) auth + py-clob-client. Matthew must decide if he wants .com account.
-  2. Reddit intelligence gathering — find top Polymarket traders/bots:
-     Search r/polymarket, r/predictionmarkets, r/Kalshi for known top accounts and open-source bots.
-     Look for GitHub repos shared by top traders. Evaluate strategies to adopt/adapt.
-  3. Kalshi copy trading research:
-     Kalshi has a leaderboard (top earners visible). Evaluate whether same copy-trade approach works.
-     data-api equivalent for Kalshi? Public trade history? This is an open research question.
-  4. Confirm copy_trade_loop is generating signals. Watch:
-     tail -f /tmp/polybot_session30.log | grep --line-buffered "copy_trade\|predicting_top"
-     Should see "Loaded X whale accounts" every 5 min.
-  5. POST /v1/orders format — confirm via iOS Proxyman capture when ready.
-  6. DO NOT re-promote any Kalshi strategy live. Bankroll $79.76 ($11.15 before hard stop).
+NEXT SESSION PRIORITY ORDER (as of Session 31):
+  1. WAIT: 2hr cooling expires ~15:19 UTC — watch for first micro-live btc_drift bet
+     tail -f /tmp/polybot_session31.log | grep --line-buffered "LIVE\|drift\|Trade executed"
+  2. GATE: Matthew — polymarket.COM account + Polygon wallet?
+     This is the SINGLE blocker for real copy trading where all whales actually trade.
+     YES → Claude adds ECDSA auth (src/auth/polymarket_com_auth.py) + py-clob-client integration
+  3. btc_drift micro-live — collect 30 real bets, then evaluate Brier score
+     DO NOT change calibration_max_usd until 30+ settled bets
+  4. DO NOT re-promote btc_lag to live — 0 signals/week, bankroll $79.76 < $90 gate
+  5. DO NOT promote eth_drift — 1.1 days paper data is statistically meaningless
+  6. See .planning/master_roadmap.md for full goal hierarchy and issues to monitor
 
 SECURITY RULES UPDATED FOR POLYMARKET (Sessions 28-30):
   ✅ APPROVED URLs: https://api.polymarket.us (all /v1 endpoints), https://data-api.polymarket.com (public reads)
