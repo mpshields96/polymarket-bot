@@ -70,6 +70,7 @@ async def trading_loop(
     max_daily_bets: int = 5,
     slippage_ticks: int = 1,
     trade_lock: Optional[asyncio.Lock] = None,
+    calibration_max_usd: Optional[float] = None,
 ):
     """Main async loop: poll markets, generate signals, execute trades.
 
@@ -193,6 +194,10 @@ async def trading_loop(
                 # 5% pct_cap ($5.18) exceeds $5.00 and the kill switch blocks every trade.
                 from src.risk.kill_switch import HARD_MAX_TRADE_USD as _HARD_CAP
                 trade_usd = min(size_result.recommended_usd, _HARD_CAP)
+                # Calibration cap: micro-live phase uses $1.00 max to collect real data
+                # cheaply. Set calibration_max_usd on the loop call to activate.
+                if calibration_max_usd is not None:
+                    trade_usd = min(trade_usd, calibration_max_usd)
 
                 # Kill switch pre-trade check (synchronous)
                 from src.strategies.btc_lag import BTCLagStrategy
@@ -1639,10 +1644,12 @@ async def main():
         ),
         name="eth_lag_loop",
     )
-    # BTC drift: PAPER-ONLY — demoted 2026-03-01.
-    # Live record: 7W/12L, persistent losing streak after tighter filters.
-    # Drift-continuation thesis not validated vs live Kalshi market makers.
-    # Re-promote only after: 30+ paper trades with Brier < 0.25.
+    # BTC drift: MICRO-LIVE calibration phase (Session 31, 2026-03-08).
+    # Paper data structurally unreliable (no slippage, no fill timing).
+    # Micro-live: $1.00 hard cap per bet — ~$10/week at current signal frequency.
+    # Purpose: collect 30 real settled trades for valid Brier score.
+    # Do NOT raise cap until: 30+ live trades + Brier < 0.30.
+    _DRIFT_CALIBRATION_CAP_USD = 1.00
     drift_task = asyncio.create_task(
         trading_loop(
             kalshi=kalshi,
@@ -1650,14 +1657,15 @@ async def main():
             strategy=drift_strategy,
             kill_switch=kill_switch,
             db=db,
-            live_executor_enabled=False,
-            live_confirmed=False,
+            live_executor_enabled=live_mode,
+            live_confirmed=live_confirmed,
             btc_series_ticker=btc_series_ticker,
             loop_name="drift",
             initial_delay_sec=15.0,
-            max_daily_bets=max_daily_bets_paper,
+            max_daily_bets=3,
             slippage_ticks=paper_slippage_ticks,
-            trade_lock=None,
+            trade_lock=_live_trade_lock,
+            calibration_max_usd=_DRIFT_CALIBRATION_CAP_USD,
         ),
         name="drift_loop",
     )

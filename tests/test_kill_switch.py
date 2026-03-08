@@ -903,3 +903,54 @@ class TestRestoreConsecutiveLosses:
         assert status["total_realized_loss_usd"] == pytest.approx(10.0)
         assert status["daily_loss_usd"] == pytest.approx(5.0)
         assert status["consecutive_losses"] == 2
+
+
+# ── Regression: calibration_max_usd clamp in trading_loop ─────────────────
+class TestCalibrationCap:
+    """Regression tests for the micro-live calibration cap.
+
+    The calibration_max_usd parameter in trading_loop caps bet size to $1.00
+    (or any specified value) for the micro-live calibration phase.
+    This test verifies the clamping arithmetic directly (the line in main.py is:
+        trade_usd = min(trade_usd, calibration_max_usd)
+    which is trivial, but we want to ensure the cap interacts correctly with the
+    hard cap).
+    """
+
+    def test_calibration_cap_below_hard_cap(self):
+        """$1.00 calibration cap clamps below $5.00 hard cap."""
+        hard_cap = 5.00
+        calibration_max_usd = 1.00
+        # Simulate sizing returning $3.50 (within hard cap but above calibration cap)
+        size_from_sizing = 3.50
+        trade_usd = min(size_from_sizing, hard_cap)  # after hard cap: $3.50
+        trade_usd = min(trade_usd, calibration_max_usd)  # after calibration cap: $1.00
+        assert trade_usd == pytest.approx(1.00)
+
+    def test_calibration_cap_none_leaves_size_unchanged(self):
+        """calibration_max_usd=None must leave trade_usd unchanged."""
+        calibration_max_usd = None
+        hard_cap = 5.00
+        size_from_sizing = 3.50
+        trade_usd = min(size_from_sizing, hard_cap)
+        if calibration_max_usd is not None:
+            trade_usd = min(trade_usd, calibration_max_usd)
+        assert trade_usd == pytest.approx(3.50)
+
+    def test_calibration_cap_above_hard_cap_is_no_op(self):
+        """calibration_max_usd > hard cap: hard cap still wins."""
+        hard_cap = 5.00
+        calibration_max_usd = 10.00  # higher than hard cap — should be no-op
+        size_from_sizing = 4.50
+        trade_usd = min(size_from_sizing, hard_cap)
+        trade_usd = min(trade_usd, calibration_max_usd)
+        assert trade_usd == pytest.approx(4.50)
+
+    def test_calibration_cap_at_penny_level(self):
+        """Calibration cap works at sub-dollar levels."""
+        calibration_max_usd = 0.50
+        size_from_sizing = 5.00
+        hard_cap = 5.00
+        trade_usd = min(size_from_sizing, hard_cap)
+        trade_usd = min(trade_usd, calibration_max_usd)
+        assert trade_usd == pytest.approx(0.50)

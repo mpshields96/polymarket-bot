@@ -196,6 +196,33 @@ Revisit at 30+ trades with Brier score.
 
 ═══════════════════════════════════════════════════════════════
 
+## MICRO-LIVE CALIBRATION PHASE (added Session 31, 2026-03-08)
+
+Paper trading has three structural accuracy problems that cannot be fully fixed:
+1. **Slippage** — paper can simulate adverse fill pricing, but real Kalshi spreads vary
+2. **Fill timing** — paper assumes instant fill; real orders queue behind market makers
+3. **Counterparty reality** — Jane Street / Susquehanna adjust within seconds; paper ignores this
+
+**Decision (Matthew, 2026-03-08):** Replace paper graduation with micro-live calibration for active strategies.
+
+**Rules:**
+- Micro-live cap: $1.00 per bet (set via `calibration_max_usd=1.00` in loop call)
+- Max 3 bets per day per strategy in calibration phase
+- Kill switch applies normally — daily/lifetime/consecutive limits still enforced
+- Max spend ~$20/week (Matthew's standing directive)
+- Graduation from micro-live to Stage 1 ($5 cap): 30+ real settled bets + Brier < 0.30
+
+**What this is NOT:**
+- Not a decision made after a loss
+- Not lowering risk thresholds — it's replacing fake data with real data at tiny stakes
+- The $1.00 cap is MORE conservative than the previous $5 paper bets in terms of dollar exposure
+
+**Current status (2026-03-08):**
+- btc_drift: Micro-live enabled. $1.00 cap, max 3/day.
+- All other strategies: remain paper-only until btc_drift completes micro-live graduation.
+
+═══════════════════════════════════════════════════════════════
+
 ## EXPANSION GATE (Matthew's standing directive)
 
 Do NOT build new strategy types until current live strategies
