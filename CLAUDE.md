@@ -174,7 +174,7 @@ DO NOT: fix symptoms without finding root cause
 - **btc_drift thresholds raised (Session 25 cont2)**: `min_edge_pct=0.08` (was 0.05), `min_drift_pct=0.10` (was 0.05). Need ~0.19% BTC drift to achieve 8% edge at 50¢. At sensitivity=800, P(YES)≈0.595 at 0.19% drift → edge=0.595-0.50-0.0175=0.0775. Don't change without 30+ live trades + Brier data.
 - **calculate_size() min_edge_pct must match strategy**: btc_lag uses 4%, btc_drift uses 8%. Both correctly passed via `_strat_min_edge = getattr(strategy, '_min_edge_pct', 0.08)`. Keep in sync if thresholds change.
 - **Daily loss counter DID NOT persist across restarts** (fixed Session 23 cont'd): on restart, `_daily_loss_usd` reset to 0 in memory, bypassing the daily limit. Fix: `db.daily_live_loss_usd()` queries settled losses since midnight UTC; `kill_switch.restore_daily_loss()` seeds the counter; called from main.py on startup. Consecutive loss counter intentionally resets (restart = manual soft stop override).
-- **Lifetime loss counter DID NOT persist across restarts** (fixed Session 24): `_realized_loss_usd` (30% hard stop) also reset to 0 on each restart. Fix: `db.all_time_live_loss_usd()` queries NET live P&L loss; `kill_switch.restore_realized_loss()` seeds the counter using SET (not add, avoids double-count with daily). Uses NET P&L not gross losses — gross losses would spuriously trigger hard stop on profitable bots.
+- **`_realized_loss_usd` is display-only (Session 34)**: The 30% lifetime hard stop was removed. `restore_realized_loss()` still seeds the counter for status display but triggers no stop. Protection = daily loss limit (20%) + $20 bankroll floor.
 - **restore_daily_loss() and restore_realized_loss() are SEPARATE concerns** — `restore_daily_loss()` only touches `_daily_loss_usd`. `restore_realized_loss()` only touches `_realized_loss_usd`. Never mix them. Double-counting was a bug that's been fixed.
 - **`all_time_live_loss_usd()` returns NET P&L loss** — `MAX(0, -SUM(pnl_cents))` across all settled live trades. Returns 0 if live trading is profitable overall. Uses net so profitable bots with high gross losses don't trigger spurious hard stops.
 - **Consecutive loss counter now persists across restarts (Session 25)**: `_consecutive_losses` was in-memory only — a restart mid-streak reset the counter to 0, letting the bot place extra losing bets (trades 86, 88, 90 = $14.74 loss after counter reset). Fix: `db.current_live_consecutive_losses()` walks live settled trades newest-first counting tail losses; `kill_switch.restore_consecutive_losses(n)` seeds the counter on startup; if n >= 4 it fires a fresh 2hr cooling period immediately. Same pattern as daily/lifetime. All three counters now survive restarts.
@@ -228,8 +228,8 @@ CHECK: `pip freeze | grep <package>` to get current version, then pin it.
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- **768/768 tests passing**, verify.py 21/29 (8 advisory WARNs — non-critical)
-- **btc_drift_v1 MICRO-LIVE**: 1 contract/bet (~$0.35-0.65), max 20/day, kill switch applies — collecting real calibration data
+- **797/797 tests passing**, verify.py 21/29 (8 advisory WARNs — non-critical)
+- **btc_drift_v1 MICRO-LIVE**: 1 contract/bet (~$0.35-0.65), unlimited/day (daily loss limit governs), kill switch applies — collecting real calibration data
   - Paper calibration fixed (Session 32): slippage 2→3¢, fill_probability=0.85 (15% no-fill), signal_price_cents stored
   - eth_orderbook_imbalance $233 paper anomaly fixed (Session 31): missing 35-65¢ price guard — NO@2¢ bet
   - paper_slippage_ticks raised 2→3 (Session 32: upper end of confirmed 2-3¢ Kalshi BTC spread)
@@ -242,8 +242,8 @@ Current project state (updated each session):
   - copy_trade_loop wired into main.py — 5-min poll, 80s startup delay, paper-only
   - **Architecture FINAL (Session 32)**: polymarket.US is the ONLY path. Whale data = data-api.polymarket.com (public). Orders = api.polymarket.us/v1 (Ed25519). Blocked on POST /v1/orders format only. No .COM account needed.
   - Kalshi copy trading: CONFIRMED INFEASIBLE — no public user attribution on centralized exchange
-- Latest commit: Session 32 (paper calibration: slippage 3¢, fill_probability=0.85, signal_price_cents stored, 10 new tests)
-- Kill switch: consecutive_loss_limit=4, daily_loss_limit=20% (~$15.95 on $79.76 bankroll)
+- Latest commit: Session 34 (lifetime hard stop removed — display-only; btc_drift daily cap unlimited)
+- Kill switch: consecutive_loss_limit=4, daily_loss_limit=20% (~$15.95 on $79.76 bankroll). NO lifetime % hard stop.
 - **Daily loss counter is CST-based (UTC-6)** — resets at midnight CST = 06:00 UTC daily
 - Paper-during-softkill: check_paper_order_allowed() in all paper loops — soft stops block live only
 - **Price range guard 35-65¢** on btc_drift.py, btc_lag.py, AND orderbook_imbalance.py (fixed Session 31)

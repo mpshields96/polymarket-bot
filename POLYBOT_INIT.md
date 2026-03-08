@@ -30,8 +30,8 @@ Watch drift bets: tail -f /tmp/polybot_session31.log | grep --line-buffered "dri
 Watch copy trade: tail -f /tmp/polybot_session31.log | grep --line-buffered copy_trade
 
 All-time live P&L: -$18.85 (21 bets, 8W/13L = 38%)
-Bankroll: $79.76 | Hard stop at -$30 lifetime → $11.15 remaining before forced shutdown
-Max btc_drift spend: ~$3/day, ~$20/week (Matthew's standing directive)
+Bankroll: $79.76 | Daily loss limit: ~$15.95/day (20%) + $20 floor hard stop (30% lifetime hard stop REMOVED)
+btc_drift: 1 contract/bet minimum, unlimited/day — daily loss limit governs
 
 SESSION 31 COMPLETED (2026-03-08):
   ✅ eth_orderbook_imbalance: $233 paper P&L anomaly diagnosed and fixed
@@ -126,7 +126,7 @@ SESSION 23-25 BUGS FIXED:
 P&L STATUS (as of 2026-03-08 13:19 UTC — Session 31):
   All-time live:  -$18.85 (21 settled: 8W 13L, 38% win rate) — btc_drift now micro-live ($1.00 cap)
   All-time paper: ~$7 corrected (eth_orderbook_imbalance $233 anomaly removed — was NO@2¢ bet)
-  Bankroll:       $79.76 (hard stop triggers at -$30 lifetime → only $11.15 more loss allowed)
+  Bankroll:       $79.76 (daily loss limit ~$15.95/day, $20 floor hard stop — 30% lifetime hard stop removed)
 
   ⚠️ btc_lag_v1 live record: 2W/0L (+$4.07) — ONLY 2 TRADES. Audit skeptically.
   ⚠️ btc_drift_v1 live record: 7W/12L (-$22.92) — now MICRO-LIVE at $1.00 cap to get real data.
@@ -315,7 +315,7 @@ Answers already given (do not re-ask):
 ✗ NEVER print private keys or credentials anywhere
 ✗ NEVER enable live trading yourself — paper/demo only
 ✗ NEVER exceed $5 per trade or 5% of bankroll (whichever is lower)
-✗ NEVER exceed 30% total bankroll loss before hard stopping
+✗ NEVER exceed daily loss limit (~$15.95) — soft stop fires automatically
 ✗ NEVER contact any URL outside this approved list:
     https://api.elections.kalshi.com          ← only valid Kalshi URL
     wss://stream.binance.us:9443/ws           ← BTC/ETH feeds (Binance.US only)
@@ -684,7 +684,7 @@ ALL-TIME PAPER P&L: ~$7 real (corrected — $233 anomaly removed Session 31; see
 
 KILL SWITCH STATE:
   Consecutive: 4/4 ← AT LIMIT — 2hr cooling active on restart (expires ~15:19 UTC 2026-03-08)
-  Lifetime: $18.85/$30.00 (62.8% of hard stop used — only $11.15 remaining before forced shutdown)
+  Lifetime: $18.85 (display only — 30% hard stop REMOVED Session 34)
   Daily: reset at CST midnight. All three counters PERSIST across restarts (fixed Sessions 23-25).
 
 ═══════════════════════════════════════════════════════════════
@@ -873,10 +873,10 @@ in real money from silent bugs (Session 20). These concerns are serious and non-
    DO NOT flip any live_executor_enabled=True without completing the full 6-step
    Development Workflow Protocol in CLAUDE.md. Session 20 lost 2 hours to silent bugs.
 
-4. LIFETIME LOSS IS CLOSE TO HARD STOP
-   $18.85 of $30.00 lifetime limit used (62.8%). Only $11.15 before forced shutdown.
-   btc_drift is capped at $1.00/bet and 3/day max — maximum daily exposure ~$3.
-   Watch: every btc_drift settled trade affects the lifetime counter.
+4. btc_drift CALIBRATION — MAXIMIZE DATA RATE
+   1 contract/bet (~$0.35-0.65), unlimited/day. Daily loss limit (~$15.95) governs.
+   30% lifetime hard stop REMOVED. Lifetime loss tracked for display only.
+   Goal: 30 settled bets → valid Brier score → graduation decision.
    DO NOT increase calibration_max_usd without explicit evaluation.
 
 5. POLYMARKET.COM ACCOUNT = SECURITY BOUNDARY
@@ -1001,7 +1001,7 @@ CLAUDE.md — mandatory rules, gotchas, workflow protocol, SE standards
 .planning/PRINCIPLES.md — READ BEFORE ANY STRATEGY OR RISK CHANGE. Always.
 .planning/research/copy_trading_research.md — Kalshi infeasible, .COM path, top traders, ecosystem
 
-IMPORTANT: This codebase handles real money. Bankroll is $79.76 with only $11.15 before hard stop.
+IMPORTANT: This codebase handles real money. Bankroll is $79.76. Daily loss limit ~$15.95 (20%). $20 bankroll floor hard stop.
 Be methodical. Be skeptical of your own assumptions. Verify live API responses, not just docs.
 When in doubt, check .planning/PRINCIPLES.md — does this change fix a mechanical defect, or
 is it a reaction to a statistical outcome that would happen in ANY profitable system?
@@ -1085,7 +1085,7 @@ Completed:
 - btc_lag 30d backtest: 84.1% accuracy, 44 signals/30d, sensitivity 300→800 (Brier=0.2178)
 - EnsembleWeatherFeed: Open-Meteo GFS + NOAA NWS/NDFD blend, adaptive std_dev 2.5/3.5/5.0°F
 - Position dedup: db.has_open_position() on all 8 loops
-- Daily bet cap: max_daily_bets_per_strategy=5 (prevents btc_drift tax churn)
+- btc_drift daily cap: unlimited (kill switch daily loss limit governs) — Session 34
 - User-Agent header added to all Kalshi API calls
 - 289/289 tests. Commit: c61f3e3
 

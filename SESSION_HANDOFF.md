@@ -11,7 +11,7 @@ Watch: `tail -f /tmp/polybot_session33.log | grep --line-buffered "daily\|drift\
 
 btc_drift MICRO-LIVE (1 contract/bet ~$0.35-0.65, 20/day) — active (max data collection mode)
 All other strategies: PAPER-ONLY
-Test count: 798/798
+Test count: 797/797
 Last commit: see `git log --oneline -3`
 
 ═══════════════════════════════════════════════════
@@ -60,8 +60,8 @@ Last commit: see `git log --oneline -3`
 
 ## KILL SWITCH STATUS
 
-Lifetime loss: $18.85 / $30.00 (62.8% of hard stop threshold)
-Bankroll: $79.76 | Hard stop margin: $11.15 remaining
+Lifetime loss: $18.85 (display only — 30% hard stop REMOVED Session 34)
+Bankroll: $79.76 | Protection: daily loss limit 20% (~$15.95/day) + $20 floor hard stop
 Daily loss limit: 20% = ~$15.95 on current bankroll
 
 ═══════════════════════════════════════════════════
