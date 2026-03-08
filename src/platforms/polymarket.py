@@ -1,7 +1,7 @@
 """
 Polymarket.us async REST client.
 
-JOB:    All Polymarket.us API calls (markets, orderbook, positions, activities).
+JOB:    All Polymarket.us API calls (markets, orderbook, positions, activities, orders).
         Auth delegation to polymarket_auth.py. Raises PolymarketAPIError on 4xx/5xx.
 
 DOES NOT: Auth logic (delegates to polymarket_auth.py), strategy, risk decisions.
@@ -13,12 +13,22 @@ API facts confirmed via live exploration 2026-03-01:
   Rate limit:   60 req/min
 
   Confirmed endpoints:
-    GET /v1/markets                          — list markets (sports only as of 2026-03)
-    GET /v1/markets?closed=false             — open markets only
-    GET /v1/markets/{identifier}/book        — orderbook (bids/asks, 0-1 price scale)
-    GET /v1/portfolio/positions              — current holdings
-    GET /v1/portfolio/activities             — deposit/trade history
-    POST /v1/orders                          — create order (format TBD — no crypto markets yet)
+    GET  /v1/markets                          — list markets (sports only as of 2026-03)
+    GET  /v1/markets?closed=false             — open markets only
+    GET  /v1/markets/{identifier}/book        — orderbook (bids/asks, 0-1 price scale)
+    GET  /v1/portfolio/positions              — current holdings
+    GET  /v1/portfolio/activities             — deposit/trade history
+    POST /v1/orders                           — create order (JSON, confirmed 2026-03-08)
+
+  Order JSON schema (confirmed via official SDK + live probe 2026-03-08):
+    {
+      "marketSlug": "tec-nba-mvp-2026-shagil",   # market side identifier
+      "intent":     "ORDER_INTENT_BUY_LONG",       # BUY_LONG=YES, BUY_SHORT=NO
+      "type":       "ORDER_TYPE_LIMIT",
+      "price":      {"value": "0.55", "currency": "USD"},
+      "quantity":   1,                             # number of contracts
+      "tif":        "TIME_IN_FORCE_FILL_OR_KILL"  # FOK by default — never GTC for copy trades
+    }
 
   Price scale: 0.0 – 1.0  (NOT cents like Kalshi — multiply by 100 for Kalshi comparison)
   Market sides: long=True = YES, long=False = NO
@@ -39,6 +49,32 @@ logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://api.polymarket.us"
 _API_PREFIX = "/v1"
+
+
+# ── Order constants ────────────────────────────────────────────────
+
+
+class OrderIntent:
+    """Intent field values for POST /v1/orders."""
+    BUY_LONG  = "ORDER_INTENT_BUY_LONG"   # buy YES side
+    BUY_SHORT = "ORDER_INTENT_BUY_SHORT"  # buy NO side
+
+
+class OrderType:
+    """Order type values."""
+    LIMIT = "ORDER_TYPE_LIMIT"
+
+
+class TimeInForce:
+    """
+    Time-in-force values for POST /v1/orders.
+
+    SAFETY RULE: Use FOK or IOC only for copy trading.
+    NEVER use GTC — we must never be a liquidity provider.
+    """
+    FOK = "TIME_IN_FORCE_FILL_OR_KILL"          # fill immediately or cancel whole order
+    IOC = "TIME_IN_FORCE_IMMEDIATE_OR_CANCEL"   # fill partial immediately, cancel rest
+    GTC = "TIME_IN_FORCE_GOOD_TILL_CANCEL"      # NEVER use for copy trading
 
 
 # ── Exceptions ────────────────────────────────────────────────────
@@ -198,6 +234,36 @@ class PolymarketOrderBook:
         )
 
 
+@dataclass
+class PolymarketOrderResult:
+    """
+    Result from POST /v1/orders.
+
+    Live API response (confirmed 2026-03-08):
+      {"id": "8P08FD200KVQ", "executions": []}         — FOK, no fill
+      {"id": "...", "executions": [{...}, ...]}          — FOK, filled
+    """
+
+    order_id: str
+    executions: List[Dict[str, Any]]
+    status: str = ""  # not always present in API response
+    raw: Dict[str, Any] = field(default_factory=dict, repr=False)
+
+    @property
+    def is_filled(self) -> bool:
+        """True if at least one execution occurred (FOK/IOC filled)."""
+        return len(self.executions) > 0
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "PolymarketOrderResult":
+        return cls(
+            order_id=str(d.get("id", d.get("orderId", ""))),
+            executions=d.get("executions", []),
+            status=d.get("status", ""),
+            raw=d,
+        )
+
+
 # ── REST client ───────────────────────────────────────────────────
 
 
@@ -237,6 +303,23 @@ class PolymarketClient:
                 if resp.status >= 400:
                     body = await resp.text()
                     raise PolymarketAPIError(resp.status, body[:200])
+                return await resp.json()
+
+    async def _post(self, path: str, body: Dict[str, Any]) -> Any:
+        """
+        Authenticated POST with JSON body. Raises PolymarketAPIError on 4xx/5xx.
+        Returns parsed JSON body on success.
+        """
+        full_path = f"{_API_PREFIX}{path}"
+        headers = self._auth.headers("POST", full_path)
+        headers["Content-Type"] = "application/json"
+        url = self._url(path)
+
+        async with aiohttp.ClientSession(timeout=self._timeout) as session:
+            async with session.post(url, headers=headers, json=body) as resp:
+                if resp.status >= 400:
+                    body_text = await resp.text()
+                    raise PolymarketAPIError(resp.status, body_text[:200])
                 return await resp.json()
 
     # ── public API ────────────────────────────────────────────────
@@ -318,6 +401,43 @@ class PolymarketClient:
         if data is None:
             return []
         return data.get("activities", [])
+
+    async def place_order(
+        self,
+        market_slug: str,
+        intent: str,
+        price: float,
+        quantity: int,
+        tif: str = TimeInForce.FOK,
+    ) -> PolymarketOrderResult:
+        """
+        Submit a limit order via POST /v1/orders.
+
+        Args:
+            market_slug:  Market side identifier from PolymarketMarket.yes_identifier
+                          or .no_identifier (e.g. "tec-nba-mvp-2026-shagil")
+            intent:       OrderIntent.BUY_LONG (buy YES) or OrderIntent.BUY_SHORT (buy NO)
+            price:        Limit price 0.0–1.0
+            quantity:     Number of contracts (minimum 1)
+            tif:          TimeInForce — defaults to FOK.
+                          SAFETY: Use FOK or IOC only. NEVER GTC for copy trading.
+
+        Returns:
+            PolymarketOrderResult with order_id and status.
+
+        Raises:
+            PolymarketAPIError on non-2xx response (including 400 bad request).
+        """
+        payload = {
+            "marketSlug": market_slug,
+            "intent": intent,
+            "type": OrderType.LIMIT,
+            "price": {"value": str(round(price, 4)), "currency": "USD"},
+            "quantity": quantity,
+            "tif": tif,
+        }
+        data = await self._post("/orders", payload)
+        return PolymarketOrderResult.from_dict(data or {})
 
     async def connectivity_check(self) -> bool:
         """

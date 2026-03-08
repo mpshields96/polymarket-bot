@@ -330,6 +330,268 @@ class TestPolymarketClient:
 # ── load_from_env tests ───────────────────────────────────────────
 
 
+class TestPolymarketPlaceOrder:
+    """Tests for POST /v1/orders — place_order()."""
+
+    # Real API response (confirmed 2026-03-08): uses "id" + "executions" list
+    SAMPLE_ORDER_UNFILLED = {
+        "id": "ord-abc123",
+        "executions": [],
+    }
+    SAMPLE_ORDER_FILLED = {
+        "id": "ord-abc123",
+        "executions": [{"quantity": 1, "price": {"value": "0.55", "currency": "USD"}}],
+    }
+
+    def _make_client(self):
+        from src.platforms.polymarket import PolymarketClient
+        from src.auth.polymarket_auth import PolymarketAuth
+        import base64
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        pk = Ed25519PrivateKey.generate()
+        seed = pk.private_bytes_raw()
+        pub = pk.public_key().public_bytes_raw()
+        auth = PolymarketAuth(
+            key_id="test-key-id",
+            secret_key_b64=base64.b64encode(seed + pub).decode(),
+        )
+        return PolymarketClient(auth=auth)
+
+    # ── PolymarketOrderResult dataclass tests ───────────────────────
+
+    def test_order_result_is_filled_true(self):
+        """is_filled = True when executions list is non-empty."""
+        from src.platforms.polymarket import PolymarketOrderResult
+        result = PolymarketOrderResult(
+            order_id="abc",
+            executions=[{"quantity": 1}],
+        )
+        assert result.is_filled
+
+    def test_order_result_is_filled_false(self):
+        """is_filled = False when executions list is empty (FOK no-fill)."""
+        from src.platforms.polymarket import PolymarketOrderResult
+        result = PolymarketOrderResult(order_id="abc", executions=[])
+        assert not result.is_filled
+
+    def test_order_result_from_dict_real_response(self):
+        """Parse the real API response shape confirmed 2026-03-08."""
+        from src.platforms.polymarket import PolymarketOrderResult
+        r = PolymarketOrderResult.from_dict({"id": "8P08FD200KVQ", "executions": []})
+        assert r.order_id == "8P08FD200KVQ"
+        assert not r.is_filled
+
+    def test_order_result_from_dict_filled(self):
+        from src.platforms.polymarket import PolymarketOrderResult
+        r = PolymarketOrderResult.from_dict({
+            "id": "xyz-789",
+            "executions": [{"quantity": 1, "price": {"value": "0.55"}}],
+        })
+        assert r.order_id == "xyz-789"
+        assert r.is_filled
+
+    def test_order_result_from_dict_fallback_order_id(self):
+        """Falls back to 'orderId' field when 'id' is absent."""
+        from src.platforms.polymarket import PolymarketOrderResult
+        r = PolymarketOrderResult.from_dict({"orderId": "fallback-id", "executions": []})
+        assert r.order_id == "fallback-id"
+
+    def test_order_result_from_dict_empty_dict(self):
+        from src.platforms.polymarket import PolymarketOrderResult
+        r = PolymarketOrderResult.from_dict({})
+        assert r.order_id == ""
+        assert not r.is_filled
+
+    # ── OrderIntent / TimeInForce constants ─────────────────────────
+
+    def test_order_intent_constants_exist(self):
+        from src.platforms.polymarket import OrderIntent
+        assert OrderIntent.BUY_LONG == "ORDER_INTENT_BUY_LONG"
+        assert OrderIntent.BUY_SHORT == "ORDER_INTENT_BUY_SHORT"
+
+    def test_time_in_force_constants_exist(self):
+        from src.platforms.polymarket import TimeInForce
+        assert TimeInForce.FOK == "TIME_IN_FORCE_FILL_OR_KILL"
+        assert TimeInForce.IOC == "TIME_IN_FORCE_IMMEDIATE_OR_CANCEL"
+        assert TimeInForce.GTC == "TIME_IN_FORCE_GOOD_TILL_CANCEL"
+
+    # ── place_order() HTTP tests ────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_place_order_returns_result(self):
+        from src.platforms.polymarket import OrderIntent
+        client = self._make_client()
+        with patch("aiohttp.ClientSession") as mock_cls:
+            mock_cls.return_value = _make_mock_session(
+                [_make_mock_response(200, self.SAMPLE_ORDER_FILLED)]
+            )
+            result = await client.place_order(
+                market_slug="tec-nba-mvp-2026-shagil",
+                intent=OrderIntent.BUY_LONG,
+                price=0.55,
+                quantity=1,
+            )
+        assert result.order_id == "ord-abc123"
+        assert result.is_filled
+
+    @pytest.mark.asyncio
+    async def test_place_order_uses_post_not_get(self):
+        from src.platforms.polymarket import OrderIntent
+        client = self._make_client()
+        with patch("aiohttp.ClientSession") as mock_cls:
+            sess = _make_mock_session([_make_mock_response(200, self.SAMPLE_ORDER_FILLED)])
+            mock_cls.return_value = sess
+            await client.place_order(
+                market_slug="tec-nba-mvp-2026-shagil",
+                intent=OrderIntent.BUY_LONG,
+                price=0.55,
+                quantity=1,
+            )
+        assert sess.post.called, "Expected POST to be called"
+        assert not sess.get.called, "Expected GET NOT to be called"
+
+    @pytest.mark.asyncio
+    async def test_place_order_url_is_correct(self):
+        from src.platforms.polymarket import OrderIntent
+        client = self._make_client()
+        with patch("aiohttp.ClientSession") as mock_cls:
+            sess = _make_mock_session([_make_mock_response(200, self.SAMPLE_ORDER_FILLED)])
+            mock_cls.return_value = sess
+            await client.place_order(
+                market_slug="tec-nba-mvp-2026-shagil",
+                intent=OrderIntent.BUY_LONG,
+                price=0.55,
+                quantity=1,
+            )
+        url = sess.post.call_args[0][0]
+        assert url == "https://api.polymarket.us/v1/orders"
+
+    @pytest.mark.asyncio
+    async def test_place_order_sends_correct_body(self):
+        from src.platforms.polymarket import OrderIntent, TimeInForce
+        client = self._make_client()
+        with patch("aiohttp.ClientSession") as mock_cls:
+            sess = _make_mock_session([_make_mock_response(200, self.SAMPLE_ORDER_FILLED)])
+            mock_cls.return_value = sess
+            await client.place_order(
+                market_slug="tec-nba-mvp-2026-shagil",
+                intent=OrderIntent.BUY_LONG,
+                price=0.55,
+                quantity=1,
+            )
+        sent_body = sess.post.call_args[1].get("json", {})
+        assert sent_body["marketSlug"] == "tec-nba-mvp-2026-shagil"
+        assert sent_body["intent"] == "ORDER_INTENT_BUY_LONG"
+        assert sent_body["type"] == "ORDER_TYPE_LIMIT"
+        assert sent_body["price"]["value"] == "0.55"
+        assert sent_body["price"]["currency"] == "USD"
+        assert sent_body["quantity"] == 1
+        assert sent_body["tif"] == TimeInForce.FOK  # default
+
+    @pytest.mark.asyncio
+    async def test_place_order_defaults_to_fok(self):
+        from src.platforms.polymarket import OrderIntent, TimeInForce
+        client = self._make_client()
+        with patch("aiohttp.ClientSession") as mock_cls:
+            sess = _make_mock_session([_make_mock_response(200, self.SAMPLE_ORDER_FILLED)])
+            mock_cls.return_value = sess
+            await client.place_order(
+                market_slug="tec-nba-mvp-2026-shagil",
+                intent=OrderIntent.BUY_LONG,
+                price=0.55,
+                quantity=1,
+            )
+        sent_body = sess.post.call_args[1].get("json", {})
+        assert sent_body["tif"] == TimeInForce.FOK
+
+    @pytest.mark.asyncio
+    async def test_place_order_buy_short_no_side(self):
+        from src.platforms.polymarket import OrderIntent
+        client = self._make_client()
+        with patch("aiohttp.ClientSession") as mock_cls:
+            sess = _make_mock_session([_make_mock_response(200, self.SAMPLE_ORDER_FILLED)])
+            mock_cls.return_value = sess
+            await client.place_order(
+                market_slug="tec-nba-mvp-2026-shagil",
+                intent=OrderIntent.BUY_SHORT,
+                price=0.45,
+                quantity=2,
+            )
+        sent_body = sess.post.call_args[1].get("json", {})
+        assert sent_body["intent"] == "ORDER_INTENT_BUY_SHORT"
+        assert sent_body["quantity"] == 2
+
+    @pytest.mark.asyncio
+    async def test_place_order_sends_auth_headers(self):
+        from src.platforms.polymarket import OrderIntent
+        client = self._make_client()
+        with patch("aiohttp.ClientSession") as mock_cls:
+            sess = _make_mock_session([_make_mock_response(200, self.SAMPLE_ORDER_FILLED)])
+            mock_cls.return_value = sess
+            await client.place_order(
+                market_slug="tec-nba-mvp-2026-shagil",
+                intent=OrderIntent.BUY_LONG,
+                price=0.55,
+                quantity=1,
+            )
+        headers = sess.post.call_args[1].get("headers", {})
+        assert "X-PM-Access-Key" in headers
+        assert "X-PM-Signature" in headers
+        assert "X-PM-Timestamp" in headers
+
+    @pytest.mark.asyncio
+    async def test_place_order_raises_on_400(self):
+        from src.platforms.polymarket import OrderIntent, PolymarketAPIError
+        client = self._make_client()
+        with patch("aiohttp.ClientSession") as mock_cls:
+            mock_cls.return_value = _make_mock_session(
+                [_make_mock_response(400, {"code": 2, "message": "market metadata is required"})]
+            )
+            with pytest.raises(PolymarketAPIError) as exc_info:
+                await client.place_order(
+                    market_slug="nonexistent",
+                    intent=OrderIntent.BUY_LONG,
+                    price=0.55,
+                    quantity=1,
+                )
+        assert exc_info.value.status == 400
+
+    @pytest.mark.asyncio
+    async def test_place_order_raises_on_500(self):
+        from src.platforms.polymarket import OrderIntent, PolymarketAPIError
+        client = self._make_client()
+        with patch("aiohttp.ClientSession") as mock_cls:
+            mock_cls.return_value = _make_mock_session(
+                [_make_mock_response(500, {"code": 2, "message": "internal error"})]
+            )
+            with pytest.raises(PolymarketAPIError) as exc_info:
+                await client.place_order(
+                    market_slug="bad-market",
+                    intent=OrderIntent.BUY_LONG,
+                    price=0.55,
+                    quantity=1,
+                )
+        assert exc_info.value.status == 500
+
+    @pytest.mark.asyncio
+    async def test_place_order_price_formatted_as_string(self):
+        """Price dict value must be a string, not a float."""
+        from src.platforms.polymarket import OrderIntent
+        client = self._make_client()
+        with patch("aiohttp.ClientSession") as mock_cls:
+            sess = _make_mock_session([_make_mock_response(200, self.SAMPLE_ORDER_FILLED)])
+            mock_cls.return_value = sess
+            await client.place_order(
+                market_slug="tec-nba-mvp-2026-shagil",
+                intent=OrderIntent.BUY_LONG,
+                price=0.7280,  # should round to 4dp
+                quantity=1,
+            )
+        sent_body = sess.post.call_args[1].get("json", {})
+        assert isinstance(sent_body["price"]["value"], str)
+        assert sent_body["price"]["value"] == "0.728"
+
+
 class TestPolymarketClientLoadFromEnv:
     def test_load_from_env_returns_client(self, monkeypatch):
         import base64
