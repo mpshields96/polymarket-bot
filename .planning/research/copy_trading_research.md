@@ -1,183 +1,146 @@
-# Copy Trading Research — Session 30
-# Researched: 2026-03-01 (autonomous session while Matthew away)
-# Goal: find top trader sources, open-source repos, Kalshi feasibility
+# Copy Trading Research
+# Last updated: Session 31 (2026-03-08)
+# Covers: Kalshi feasibility, Polymarket.COM path, ecosystem tools, top traders
 
 ══════════════════════════════════════════════════════════════
-## KALSHI COPY TRADING — VERDICT: NOT FEASIBLE VIA PUBLIC API
+## KALSHI COPY TRADING — CONFIRMED INFEASIBLE
 ══════════════════════════════════════════════════════════════
 
-### Why it's blocked
-
-Kalshi's public trade API (`GET /trade-api/v2/trades`) returns ANONYMOUS trade data.
+Kalshi's public trade API (`GET /market/get-trades`) returns ANONYMOUS trade data:
+- Response fields: trade_id, ticker, count, yes_price, no_price, taker_side, created_time
 - No username, member ID, or any identifying info per trade
-- You can filter by ticker and timestamp, but NOT by member/user
-- There is no `data-api.kalshi.com/trades?user=X` equivalent
-- Portfolio/fills (`/portfolio/fills`) requires auth — returns YOUR fills only, not others'
+- Portfolio/fills (`/portfolio/fills`) requires auth — returns YOUR fills only
+- Leaderboard exists at kalshi.com/social/leaderboard but no trade-level API for it
+- Users are opted OUT by default — many top traders aren't even visible
 
-Confirmed from docs.kalshi.com/api-reference/market/get-trades:
-  Response fields: trade_id, ticker, count, yes_price, no_price, taker_side, created_time
-  No user attribution whatsoever.
-
-### Leaderboard visibility
-
-- Leaderboard exists at kalshi.com/social/leaderboard
-- Users are opted OUT by default — many top traders aren't visible
-- No API to query leaderboard data or get specific member's trade history
-- Third-party copy trading service exists (see digitaljournal.com PR) but unclear
-  if they use OAuth account sharing or some unofficial mechanism
-
-### Conclusion
-
-Kalshi copy trading is fundamentally different from Polymarket:
+**Why this is fundamentally different from Polymarket:**
 - Polymarket is on-chain → all trades are public blockchain data
-- Kalshi is a centralized exchange → trade data is private by design
-- UNLESS Kalshi adds a social/copy-trading feature with explicit opt-in
-  (the leaderboard feature exists but doesn't expose trade-level data publicly)
+- Kalshi is a CFTC-regulated centralized exchange → trade data is private by design
 
-DO NOT build Kalshi copy trading infrastructure. The data doesn't exist publicly.
-Log this as closed. Focus 100% on Polymarket.COM.
+**Verdict:** Dead end. DO NOT build Kalshi copy trading infrastructure. Closed.
 
 ══════════════════════════════════════════════════════════════
 ## POLYMARKET.COM — THE RIGHT PLATFORM FOR COPY TRADING
 ══════════════════════════════════════════════════════════════
 
-### Why .COM not .US
+### Platform split (critical — never confuse these)
 
-Our existing auth (Ed25519, api.polymarket.us) only covers:
-- Sports-only: NBA/NFL/NHL/NCAA (launched Dec 2025, CFTC approval)
-- No crypto, no politics, no culture
-
-The whales we're tracking (predicting.top leaderboard) trade on polymarket.COM:
-- Full market suite: politics, crypto, sports, culture, economics, geopolitics, entertainment
-- ALL the high-value markets are here (BTC/ETH 15-min, US elections, etc.)
-
-Our current `data-api.polymarket.com` reads are already from .COM data.
-We're reading .COM signals but can only execute on .US (sports only).
+| | polymarket.US | polymarket.COM |
+|---|---|---|
+| Auth | Ed25519 (we have this) | ECDSA secp256k1 (Ethereum wallet) |
+| Markets | Sports only (NBA/NFL/NHL) | Full: politics, crypto, sports, culture, economics |
+| Where whales are | No | YES |
+| Public trade data | No | Via data-api.polymarket.com (public, no auth) |
+| Status | We have credentials | Need new account + Polygon wallet from Matthew |
 
 ### What's needed for .COM trading
 
-1. **Matthew creates a polymarket.com account** (personal, with Polygon/MetaMask wallet)
+1. **Matthew creates a polymarket.com account** (Polygon/MetaMask wallet)
 2. **Polygon wallet**: USDC.e required in funder address for BUY orders
-3. **Auth**: ECDSA secp256k1 (Ethereum signing) via py-clob-client
+3. **Auth**: ECDSA secp256k1 via py-clob-client
 4. **py-clob-client**: `pip install py-clob-client` (v0.29.0, Dec 2025, MIT)
-   - Endpoint: https://clob.polymarket.com
-   - Chain ID: 137 (Polygon mainnet)
-   - Signature types: 0=EOA (standard), 1=proxy/email, 2=gnosis safe
-   - API creds: derived via `client.create_or_derive_api_creds()`
-5. **Order type**: GTC is supported (but USE FOK/IOC — never GTC, never be a liquidity provider)
+   - Endpoint: https://clob.polymarket.com, Chain ID: 137 (Polygon mainnet)
+5. **Order type**: FOK/IOC ONLY — never GTC, never be a liquidity provider
 
-Quick setup (3 steps):
-```python
-from py_clob_client.client import ClobClient
-# 1. Init with private key
-client = ClobClient("https://clob.polymarket.com", key=PRIVATE_KEY, chain_id=137)
-# 2. Set API credentials
-client.set_api_creds(client.create_or_derive_api_creds())
-# 3. Place order
-order_args = OrderArgs(token_id=TOKEN_ID, price=0.65, size=10, side=BUY)
-order = client.create_and_post_order(order_args)
-```
+### Public APIs (confirmed working, no auth)
+- `data-api.polymarket.com/trades?user={proxy_wallet}` — whale trade history (WE USE THIS)
+- `data-api.polymarket.com/activity` — all activity, filterable by type + user (BETTER?)
+- `data-api.polymarket.com/positions?user={proxy_wallet}` — open positions
+- `gamma-api.polymarket.com/markets` — full market catalog
 
-### Order safety rule (HARDCODED when built)
-- FOK/IOC ONLY — never GTC
-- Never be a liquidity provider (maker)
-- Always use `time_in_force=FOK` in order args
+Note: QuickNode copy-trade tutorial uses `/activity` endpoint (not `/trades`) for real-time
+monitoring. May have better timing than /trades. Worth testing in whale_watcher.py.
 
 ══════════════════════════════════════════════════════════════
-## OPEN SOURCE REPOS — EVALUATED FOR ADOPTION
+## TOP TRADERS (verified 2026)
 ══════════════════════════════════════════════════════════════
 
-### HIGH VALUE — worth reviewing in detail
+| Name | P&L | Specialty | Notes |
+|---|---|---|---|
+| HyperLiquid0xb | $1.4M | Sports | Largest single win $755k |
+| Erasmus | $1.3M | Politics | $95k single win, polling edge |
+| 1j59y6nk | $1.4M | Games/Sports | $90k single win |
+| WindWalk3 | $1.1M | Politics (RFK) | All-in directional |
+| BAdiosB | $141k | Mispricing arb | 90.8% win rate, 11.3% ROI |
+| Axios | n/a | Mention markets | 96% win rate niche |
+| aenews | #1 predicting.top | Mixed | smart_score 79.2, 278/459 (60.6%) |
 
-1. **discountry/polymarket-trading-bot** (Python)
-   - Flash Crash Strategy: monitors 15-min Up/Down markets for sudden probability drops
-   - Gasless transactions via Builder Program
-   - Real-time WebSocket, encrypted private key storage
-   - 89 unit tests, asyncio — SIMILAR ARCHITECTURE TO OURS
-   - Auth: MetaMask private key + Safe address + Builder API creds
-   - WORTH REVIEWING: Flash Crash is a legit signal we haven't built
+Trader archetypes (useful for filtering which whales to follow):
+- Quant Fund: 2000+ trades, 58% win rate (volume-based, safe to copy size-scaled)
+- Political Insider: 87 trades, 71% win rate (information edge — copy fast or not at all)
+- Sports Pro: 421 trades, 61% win rate (most overlap with our .US sports markets)
+- Mispricing Arb: BAdiosB style — 11.3% ROI impressive, probably exploiting inefficiencies
 
-2. **ent0n29/polybot** (Python)
-   - Arbitrage strategy for Polymarket Up/Down binaries
-   - Planning a "fund mirroring" product layer (AWARE) — not yet built
-   - Auth: private key + API key/secret/passphrase
-   - WORTH REVIEWING: arbitrage implementation details
-
-3. **Now-Or-Neverr/polymarket-trading-bot** (TypeScript/Node.js)
-   - Copy trading + arbitrage, risk management controls
-   - Uses `TRADER_ADDRESSES` config to follow specific traders
-   - WORTH REVIEWING: how they handle copy trade dedup and signal filtering
-
-4. **Polymarket/agents** (Python — Official)
-   - AI agent framework (LLM-based), not a strategy
-   - Uses OpenAI + Polygon private key
-   - NOT useful for our approach (we're signal-based not AI-based)
-
-### WHALE TRACKING SERVICES (external, not repos)
-
-- **Polywhaler** (polywhaler.com) — tracks $10k+ trades in real-time, free
-- **PolyTrack** (polytrackhq.app) — leaderboards, P&L tracking, real-time alerts
-- **PolyWatch** (polywatch.tech) — free real-time trade alerts
-- **PolyxBot** (Telegram) — AI whale tracking bot
-- **Polycule** (Telegram) — group trading, copy trading, wallet tracking
-- **PolyFocus** (Telegram) — copy trading with multi-chain wallet support
-
-These are competitors/references. Our approach (predicting.top + data-api) is already
-comparable to what these services do.
+Decoy risk note: Some top traders actively use multiple wallets + swapped handles to confuse
+copiers. Our existing decoy filters (size, timing, position age) are the defense.
 
 ══════════════════════════════════════════════════════════════
-## TOP TRADERS TO STUDY
+## ECOSYSTEM TOOLS (2026)
 ══════════════════════════════════════════════════════════════
 
-These are .COM traders with documented track records:
-- **WindWalk3** — $1.1M+ profit, primarily politics/RFK (single bet $1.1M win)
-- **Erasmus** — $1.3M+ profit, political markets, polling-based methodology
-- **HyperLiquid0xb** — $1.4M+ profit, sports focus, baseball specialist
-- **aenews** — Rank 1 on predicting.top, smart_score 79.2, wins 278/459 (60.6%)
+### Free copy trading / whale tracking
+- **Stand.trade** — advanced terminal, tracks and copies whales, free
+- **Polycule** — Telegram bot, 1% fee, sub-second fills
+- **PolyTracker** (Telegram) — wallet monitoring, real-time alerts
+- **Polylerts** — free Telegram bot, up to 15 wallets
+- **Whale Tracker Livid** — $50k+ portfolio wallets, free tier has 1hr delay
+- **PolyScope** — free real-time monitoring, smart trader activity
+- **Polywhaler** (polywhaler.com) — real-time $10k+ trade alerts
 
-All these wallets are trackable via data-api.polymarket.com.
-aenews is already in our whale list (rank 1 from predicting.top).
+### Open source Python repos (study only, never run with our keys)
+1. **Twiztidbonez/Polymarket-copytrade-bot** — copy whale activity (Feb 2026)
+2. **discountry/polymarket-trading-bot** — Flash Crash strategy, 89 tests, asyncio ⭐
+3. **Now-Or-Neverr/polymarket-trading-bot** — copy trading + arbitrage (TypeScript)
+4. **dev-protocol/polymarket-copy-bot** — copy trading impl
+5. **CarlosIbCu/polymarket-kalshi-btc-arbitrage-bot** — cross-platform arb (Rust)
+6. **aarora4/Awesome-Prediction-Market-Tools** — curated tool list
 
-══════════════════════════════════════════════════════════════
-## POLYMARKET ECOSYSTEM RESOURCES
-══════════════════════════════════════════════════════════════
-
-Reddit:
-- r/polymarket (50K+ members) — main community, market analysis, trade ideas
-- r/predictionmarkets — broader PM discussion (Kalshi, Polymarket, Manifold)
-- r/Kalshi — Kalshi specific
-
-Whale tracking tools (already built, public):
-- polywhaler.com — real-time large trade alerts
-- polymarketanalytics.com — discovery + performance metrics
-- unusualwhales.com/predictions — unusual position tracking
-
-Data APIs (all public, no auth):
-- data-api.polymarket.com — trades + positions per wallet (WE USE THIS ✅)
-- gamma-api.polymarket.com — market metadata, indexed on-chain data
-- polymarket.com/leaderboard — public leaderboard (monthly/overall profit)
-
-Useful GitHub topics:
-- github.com/topics/polymarket
-- github.com/harish-garg/Awesome-Polymarket-Tools (curated list)
+### Security warning (CRITICAL)
+December 2025: malicious code found in popular GitHub bots stealing private keys.
+Some bots request unlimited USDC spending approval on setup.
+**Rule: NEVER run third-party code with our keys. Study repos, adapt patterns only.**
 
 ══════════════════════════════════════════════════════════════
-## ACTION ITEMS FOR NEXT SESSION
+## WHY OTHER BOTS SHIP FASTER
 ══════════════════════════════════════════════════════════════
 
-1. DECISION: Matthew — polymarket.com account + Polygon wallet?
-   This is the single gate for full copy trading. Everything else is ready.
+Most "quick" copy trading bots are:
+1. Simple wrappers: poll data-api → if whale bought → post same order via py-clob-client
+2. Zero risk management (no kill switch, no Kelly sizing, no position limits)
+3. No statistical framework (no edge calc, no Brier scoring, no decoy filtering)
+4. Often selling a product/service — not serious algorithmic implementations
 
-2. RESEARCH: Review discountry/polymarket-trading-bot Flash Crash strategy
-   Could be a supplemental signal for .US sports markets and eventually .COM crypto
+They ship in a weekend because they have <200 lines of real logic.
 
-3. RESEARCH: Review ent0n29/polybot arbitrage implementation
-   Complete-set arbitrage on Up/Down binaries could work on .COM
+Our bot has:
+- 10 calibrated strategies with signal edge metrics
+- Kill switch with 3 persistent counters (daily/lifetime/consecutive loss)
+- Kelly sizing with stage progression
+- Decoy filter (6 filters on copy_trader_v1)
+- 754 unit tests
 
-4. PASS: Kalshi copy trading — not feasible. Closed.
+Tradeoff: those bots blow up on bad whale streaks, decoy trades, or market regime changes.
+Ours has guardrails. The extra build time is the price of not losing your stack.
 
-5. IMPLEMENT (when .COM decision is YES):
-   - pip install py-clob-client
-   - PolymarketCOMAuth: ECDSA secp256k1 wrapper (similar to our Ed25519 but for ETH)
-   - PolymarketCOMClient: wraps clob.polymarket.com with FOK/IOC enforcement
-   - Wire copy_trader_v1 signals → .COM executor (FOK, $5 cap)
+══════════════════════════════════════════════════════════════
+## NEXT ACTIONS
+══════════════════════════════════════════════════════════════
+
+1. **GATE: Matthew — create polymarket.com account + Polygon wallet + USDC.e deposit**
+   This is the SINGLE blocker for live copy trading on .COM.
+
+2. **Investigate /activity endpoint** in whale_watcher.py
+   - data-api.polymarket.com/activity vs /trades — is latency better?
+   - Low risk: public endpoint, no auth, no code changes to production paths
+
+3. **Filter whale list for .COM market specialists**
+   - 144 whales currently tracked; filter for political/crypto focus over sports-only
+   - Prioritize whales with .COM trade history in politics + crypto
+
+4. **Study discountry/polymarket-trading-bot Flash Crash strategy**
+   - 89 tests, asyncio, similar architecture to ours
+   - Flash Crash = sudden probability drop in 15-min market = potential signal
+
+5. **Kalshi copy trading — CLOSED**
+   No public user attribution. Cannot be built. Do not revisit unless Kalshi adds
+   an opt-in social trading API.
