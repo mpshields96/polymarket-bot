@@ -164,6 +164,17 @@ strategy:
     min_volume: 100                    # Skip Kalshi markets with < 100 volume
     refresh_interval_seconds: 900      # Refresh Odds API every 15 min (cache level)
 
+  crypto_daily:
+    # BTC/ETH/SOL hourly fixed-time markets (KXBTCD/KXETHD/KXSOLD) — paper-only.
+    # Each series has 24 hourly settlement slots per day.
+    # Strategy: find ATM market in 30min-6hr window, bet on intraday drift direction.
+    # Model blends session drift momentum (70%) + lognormal position (30%).
+    min_drift_pct: 0.005           # Asset must drift ≥ 0.5% from session open to fire
+    min_edge_pct: 0.04             # 4% net edge required after Kalshi fee
+    min_minutes_remaining: 30.0    # Skip markets settling in < 30 min
+    max_minutes_remaining: 360.0   # Skip markets settling > 6hr out (too much uncertainty)
+    min_volume: 100                # Skip thin markets
+
   whale_copy:                          # Polymarket only — inactive until off waitlist
     enabled: false
     min_win_rate: 0.62                 # Only copy whales with 62%+ win rate

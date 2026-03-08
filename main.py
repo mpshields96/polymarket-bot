@@ -760,6 +760,185 @@ async def unemployment_loop(
         await asyncio.sleep(UNEMPLOYMENT_POLL_INTERVAL_SEC)
 
 
+# ── Crypto daily (KXBTCD/KXETHD/KXSOLD) trading loop ─────────────────
+
+CRYPTO_DAILY_POLL_INTERVAL_SEC = 300   # 5 min — hourly markets move slowly
+
+
+async def crypto_daily_loop(
+    kalshi,
+    asset_feed,
+    strategy,
+    kill_switch,
+    db,
+    loop_name: str = "btc_daily",
+    initial_delay_sec: float = 0.0,
+    max_daily_bets: int = 5,
+):
+    """
+    Kalshi daily crypto market loop (KXBTCD / KXETHD / KXSOLD).
+
+    Each series has 24 hourly settlement slots per day. This loop:
+    1. Tracks session_open (asset price at midnight UTC — resets each day)
+    2. Fetches all open markets for the series (up to 500 per poll)
+    3. Passes ALL markets to CryptoDailyStrategy.generate_signal()
+       — the strategy picks the ATM market and applies drift signal internally
+    4. Paper-executes any signal that passes edge + price guard filters
+
+    Paper-only — collecting calibration data for future live evaluation.
+    """
+    from src.execution import paper as paper_mod
+    from datetime import date as _date
+    import yaml as _yaml
+
+    if initial_delay_sec > 0:
+        logger.info("[%s] Startup delay %.0fs (stagger)", loop_name, initial_delay_sec)
+        await asyncio.sleep(initial_delay_sec)
+
+    session_open: Optional[float] = None
+    session_open_date: Optional[_date] = None
+
+    while True:
+        try:
+            if kill_switch.is_hard_stopped:
+                logger.critical("[%s] Kill switch HARD STOPPED. Halting.", loop_name)
+                break
+
+            # ── Current spot price ────────────────────────────────────
+            spot = asset_feed.current_price()
+            if spot is None or spot <= 0:
+                logger.debug("[%s] No spot price yet — waiting", loop_name)
+                await asyncio.sleep(CRYPTO_DAILY_POLL_INTERVAL_SEC)
+                continue
+
+            # ── Session open tracking (reset at midnight UTC) ─────────
+            today_utc = datetime.now(timezone.utc).date()
+            if session_open is None or session_open_date != today_utc:
+                session_open = spot
+                session_open_date = today_utc
+                logger.info(
+                    "[%s] Session open reset: $%.2f (UTC date %s)",
+                    loop_name, session_open, today_utc,
+                )
+
+            # ── Fetch all open markets for this series ────────────────
+            try:
+                markets = await kalshi.get_markets(
+                    series_ticker=strategy.series_ticker,
+                    status="open",
+                    limit=500,
+                )
+            except Exception as e:
+                logger.warning("[%s] Failed to fetch markets: %s", loop_name, e)
+                await asyncio.sleep(CRYPTO_DAILY_POLL_INTERVAL_SEC)
+                continue
+
+            if not markets:
+                logger.debug(
+                    "[%s] No open %s markets found", loop_name, strategy.series_ticker
+                )
+                await asyncio.sleep(CRYPTO_DAILY_POLL_INTERVAL_SEC)
+                continue
+
+            logger.debug(
+                "[%s] Evaluating %d %s market(s) | spot=$%.2f session_open=$%.2f drift=%.3f%%",
+                loop_name, len(markets), strategy.series_ticker,
+                spot, session_open, 100 * (spot - session_open) / session_open,
+            )
+
+            # ── Generate signal (strategy picks ATM internally) ───────
+            signal = strategy.generate_signal(
+                spot=spot,
+                session_open=session_open,
+                markets=markets,
+            )
+
+            if signal is None:
+                await asyncio.sleep(CRYPTO_DAILY_POLL_INTERVAL_SEC)
+                continue
+
+            # ── Position deduplication ────────────────────────────────
+            if db.has_open_position(signal.ticker, is_paper=True):
+                logger.info(
+                    "[%s] Open position already on %s — skip",
+                    loop_name, signal.ticker,
+                )
+                await asyncio.sleep(CRYPTO_DAILY_POLL_INTERVAL_SEC)
+                continue
+
+            # ── Daily bet cap ─────────────────────────────────────────
+            if max_daily_bets > 0 and db.count_trades_today(strategy.name, is_paper=True) >= max_daily_bets:
+                logger.info(
+                    "[%s] Daily paper bet cap (%d) reached — skip",
+                    loop_name, max_daily_bets,
+                )
+                await asyncio.sleep(CRYPTO_DAILY_POLL_INTERVAL_SEC)
+                continue
+
+            # ── Kill switch (paper path) ──────────────────────────────
+            current_bankroll = db.latest_bankroll() or 50.0
+            ok, block_reason = kill_switch.check_paper_order_allowed(
+                trade_usd=1.0,
+                current_bankroll_usd=current_bankroll,
+            )
+            if not ok:
+                logger.info("[%s] Kill switch blocked paper trade: %s", loop_name, block_reason)
+                await asyncio.sleep(CRYPTO_DAILY_POLL_INTERVAL_SEC)
+                continue
+
+            # ── Size + execute (paper) ────────────────────────────────
+            from src.risk.sizing import calculate_size, kalshi_payout as _kp
+            from src.risk.kill_switch import HARD_MAX_TRADE_USD as _HARD_CAP
+
+            _yes_p = signal.price_cents if signal.side == "yes" else (100 - signal.price_cents)
+            _size_result = calculate_size(
+                win_prob=signal.win_prob,
+                payout_per_dollar=_kp(_yes_p, signal.side),
+                edge_pct=signal.edge_pct,
+                bankroll_usd=current_bankroll,
+                min_edge_pct=strategy._min_edge_pct,
+            )
+            if _size_result is None:
+                await asyncio.sleep(CRYPTO_DAILY_POLL_INTERVAL_SEC)
+                continue
+            _trade_usd = min(_size_result.recommended_usd, _HARD_CAP)
+
+            with open(PROJECT_ROOT / "config.yaml") as _f:
+                _cfg = _yaml.safe_load(_f)
+            _slip = _cfg.get("risk", {}).get("paper_slippage_ticks", 3)
+            _fill = _cfg.get("risk", {}).get("paper_fill_probability", 1.0)
+
+            paper_exec = paper_mod.PaperExecutor(
+                db=db,
+                strategy_name=strategy.name,
+                slippage_ticks=_slip,
+                fill_probability=_fill,
+            )
+            result = paper_exec.execute(
+                ticker=signal.ticker,
+                side=signal.side,
+                price_cents=signal.price_cents,
+                size_usd=_trade_usd,
+                reason=signal.reason,
+            )
+            if result is not None:
+                logger.info(
+                    "[%s] Paper trade: %s %s @ %d¢ $%.2f",
+                    loop_name,
+                    result["side"].upper(),
+                    result["ticker"],
+                    result.get("fill_price_cents", result.get("price_cents", 0)),
+                    result["cost_usd"],
+                )
+
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error("[%s] Unexpected error: %s", loop_name, e, exc_info=True)
+
+        await asyncio.sleep(CRYPTO_DAILY_POLL_INTERVAL_SEC)
+
+
 # ── Settlement polling loop ────────────────────────────────────────────
 
 async def settlement_loop(kalshi, db, kill_switch):
@@ -1582,6 +1761,39 @@ async def main():
     sol_lag_strategy = sol_lag_load()
     logger.info("Strategy loaded: %s (paper-only SOL 15-min lag, KXSOL15M)", sol_lag_strategy.name)
 
+    from src.strategies.crypto_daily import CryptoDailyStrategy
+    _cdcfg = config.get("crypto_daily", {})
+    btc_daily_strategy = CryptoDailyStrategy(
+        asset="BTC",
+        series_ticker="KXBTCD",
+        min_drift_pct=_cdcfg.get("min_drift_pct", 0.005),
+        min_edge_pct=_cdcfg.get("min_edge_pct", 0.04),
+        min_minutes_remaining=_cdcfg.get("min_minutes_remaining", 30.0),
+        max_minutes_remaining=_cdcfg.get("max_minutes_remaining", 360.0),
+        min_volume=_cdcfg.get("min_volume", 100),
+    )
+    logger.info("Strategy loaded: %s (paper-only BTC hourly daily markets KXBTCD)", btc_daily_strategy.name)
+    eth_daily_strategy = CryptoDailyStrategy(
+        asset="ETH",
+        series_ticker="KXETHD",
+        min_drift_pct=_cdcfg.get("min_drift_pct", 0.005),
+        min_edge_pct=_cdcfg.get("min_edge_pct", 0.04),
+        min_minutes_remaining=_cdcfg.get("min_minutes_remaining", 30.0),
+        max_minutes_remaining=_cdcfg.get("max_minutes_remaining", 360.0),
+        min_volume=_cdcfg.get("min_volume", 100),
+    )
+    logger.info("Strategy loaded: %s (paper-only ETH hourly daily markets KXETHD)", eth_daily_strategy.name)
+    sol_daily_strategy = CryptoDailyStrategy(
+        asset="SOL",
+        series_ticker="KXSOLD",
+        min_drift_pct=_cdcfg.get("min_drift_pct", 0.005),
+        min_edge_pct=_cdcfg.get("min_edge_pct", 0.04),
+        min_minutes_remaining=_cdcfg.get("min_minutes_remaining", 30.0),
+        max_minutes_remaining=_cdcfg.get("max_minutes_remaining", 360.0),
+        min_volume=_cdcfg.get("min_volume", 100),
+    )
+    logger.info("Strategy loaded: %s (paper-only SOL hourly daily markets KXSOLD)", sol_daily_strategy.name)
+
     # ── Polymarket copy-trade client ──────────────────────────────────
     # Ed25519 auth, api.polymarket.us/v1, sports-only US iOS beta platform
     try:
@@ -1811,6 +2023,49 @@ async def main():
         name="settlement_loop",
     )
 
+    # ── Crypto daily loops (KXBTCD / KXETHD / KXSOLD) ────────────────
+    # Paper-only — all 24 hourly slots per day, ATM drift strategy.
+    # Stagger 90s / 100s / 110s to spread Kalshi API calls.
+    btc_daily_task = asyncio.create_task(
+        crypto_daily_loop(
+            kalshi=kalshi,
+            asset_feed=btc_feed,
+            strategy=btc_daily_strategy,
+            kill_switch=kill_switch,
+            db=db,
+            loop_name="btc_daily",
+            initial_delay_sec=90.0,
+            max_daily_bets=5,
+        ),
+        name="btc_daily_loop",
+    )
+    eth_daily_task = asyncio.create_task(
+        crypto_daily_loop(
+            kalshi=kalshi,
+            asset_feed=eth_feed,
+            strategy=eth_daily_strategy,
+            kill_switch=kill_switch,
+            db=db,
+            loop_name="eth_daily",
+            initial_delay_sec=100.0,
+            max_daily_bets=5,
+        ),
+        name="eth_daily_loop",
+    )
+    sol_daily_task = asyncio.create_task(
+        crypto_daily_loop(
+            kalshi=kalshi,
+            asset_feed=sol_feed,
+            strategy=sol_daily_strategy,
+            kill_switch=kill_switch,
+            db=db,
+            loop_name="sol_daily",
+            initial_delay_sec=110.0,
+            max_daily_bets=5,
+        ),
+        name="sol_daily_loop",
+    )
+
     # ── Copy-trade loop (Polymarket PRIMARY strategy) ─────────────────
     # Paper-only. Polls top whale wallets every 5 min, applies decoy filters,
     # paper-executes genuine signals on api.polymarket.us markets.
@@ -1851,6 +2106,9 @@ async def main():
         unemployment_task.cancel()
         sol_task.cancel()
         settle_task.cancel()
+        btc_daily_task.cancel()
+        eth_daily_task.cancel()
+        sol_daily_task.cancel()
         copy_task.cancel()
 
     for _sig, _sname in ((_signal.SIGTERM, "SIGTERM"), (_signal.SIGHUP, "SIGHUP")):
@@ -1860,7 +2118,8 @@ async def main():
         await asyncio.gather(
             trade_task, eth_lag_task, drift_task, eth_drift_task,
             btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task,
-            unemployment_task, sol_task, settle_task, copy_task,
+            unemployment_task, sol_task, settle_task,
+            btc_daily_task, eth_daily_task, sol_daily_task, copy_task,
         )
     except (KeyboardInterrupt, asyncio.CancelledError):
         pass  # Normal shutdown — SIGTERM or Ctrl+C; finally block handles cleanup
@@ -1876,11 +2135,15 @@ async def main():
         unemployment_task.cancel()
         sol_task.cancel()
         settle_task.cancel()
+        btc_daily_task.cancel()
+        eth_daily_task.cancel()
+        sol_daily_task.cancel()
         copy_task.cancel()
         await asyncio.gather(
             trade_task, eth_lag_task, drift_task, eth_drift_task,
             btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task,
-            unemployment_task, sol_task, settle_task, copy_task,
+            unemployment_task, sol_task, settle_task,
+            btc_daily_task, eth_daily_task, sol_daily_task, copy_task,
             return_exceptions=True,
         )
         logger.info("Stopping feeds and connections...")
