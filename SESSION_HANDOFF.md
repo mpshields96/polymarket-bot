@@ -1,15 +1,15 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file + CLAUDE.md to any new Claude session to resume.
-# Last updated: 2026-03-08 (Session 34)
+# Last updated: 2026-03-08 (Session 35)
 ═══════════════════════════════════════════════════
 
 ## EXACT CURRENT STATE — READ THIS FIRST
 
-Bot is RUNNING — PID 63094, live mode, log: /tmp/polybot_session34.log
+Bot is RUNNING — PID 65654, live mode, log: /tmp/polybot_session35.log
 Check: `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"`
-Watch: `tail -f /tmp/polybot_session34.log | grep --line-buffered "daily\|drift\|LIVE\|Kill switch"`
+Watch: `tail -f /tmp/polybot_session35.log | grep --line-buffered "daily\|drift\|LIVE\|Kill switch"`
 
-btc_drift MICRO-LIVE (1 contract/bet ~$0.35-0.65, UNLIMITED/day) — active (max data collection mode)
+btc_drift MICRO-LIVE (1 contract/bet ~$0.35-0.65, UNLIMITED/day) — active (12/30 live bets so far)
 All other strategies: PAPER-ONLY
 Test count: 825/825
 Last commit: see `git log --oneline -3`
@@ -98,47 +98,76 @@ main.py asyncio event loop [LIVE MODE] — PID 63094
 
 ═══════════════════════════════════════════════════
 
+## SESSION 35 WORK COMPLETED
+
+### 1. Bot restarted to pick up copy_trade_loop kill switch bug fix
+- PID 63094 → 65654, log /tmp/polybot_session35.log
+- Bug fix from Session 34 (check_paper_order_allowed with no args) now active
+
+### 2. sports_futures_v1 research — TEAM NAME BUG FOUND
+- Sports data feed working: SDATA_KEY valid, 30 NBA championship teams returned
+- 178 championship/futures markets open on .US (NBA/NHL/NCAA) — supply side is FINE
+- BUT strategy generates 0 signals due to team name matching bug:
+  - PM raw_title = city only (e.g., "Memphis", "Golden State", "Los Angeles C")
+  - normalize_team_name() strips city → gets empty or partial result
+  - Odds team names = full name (e.g., "Memphis Grizzlies" → normalized to "grizzlies")
+  - "Memphis" → "memphis" ≠ "grizzlies" → NO MATCH
+  - Fix needed: build city → nickname mapping (e.g., "memphis" → "grizzlies")
+    OR parse team abbreviation from yes_identifier slug ("mem" → "grizzlies")
+- sports_futures_v1 is also NOT yet wired into main.py (no loop function)
+- Fix is ~1hr work (TDD, matching map, loop wiring, tests)
+- BLOCKED ON: Matthew's strategic decision on whether to enable this path
+
+### 3. sports_futures_v1 activation requirements (if Matthew approves)
+  a) Fix normalize_team_name() or add slug→nickname mapping
+  b) Wire sports_futures_loop() into main.py
+  c) ~10-15 tests for the matching fix
+  d) 30+ paper trades before any live consideration
+  e) Uses ~5-10 SDATA credits/run (500/month cap — plenty of room)
+
+═══════════════════════════════════════════════════
+
 ## PENDING DECISIONS + NEXT TASKS
 
 1. btc_drift micro-live — collecting 30 settled bets for valid Brier score
    Currently at 12/30. With unlimited/day, should reach 30 within ~2-3 days.
    Do NOT change calibration_max_usd until 30+ settled bets.
 
-2. STRATEGIC DECISION NEEDED: copy trading is blocked — .US is sports only, whales trade .COM
-   Options (ask Matthew):
-   a) Enable sports_futures_v1 (bookmaker mispricing) as primary Polymarket strategy
-   b) Find sports-specific whale data source
-   c) Wait for polymarket.US platform expansion
-   Ask Matthew which direction to take.
+2. *** STRATEGIC DECISION NEEDED (MATTHEW): copy trading is blocked ***
+   All whale signals from predicting.top are .COM politics/crypto markets.
+   polymarket.US is sports-only. Platform mismatch is fundamental.
+   Options:
+   a) Enable sports_futures_v1 (bookmaker vs PM mispricing, already built)
+      → has a team name matching bug, ~1hr to fix + wire in
+      → paper only until 30+ trades, then evaluate live
+   b) Find sports-specific whale data source for .US
+      → no known source identified yet, requires research
+   c) Wait for polymarket.US platform expansion (unknown timeline)
 
 3. DO NOT re-promote btc_lag to live — 0 signals/week, bankroll $79.76 < $90 gate
 
-4. Watch daily loops fire — first signals expected within first full day
+4. Watch daily loops fire — evaluate Brier after 30+ settled bets
    After 30+ settled bets each: evaluate Brier score before any live promotion
 
 5. Sports data feed: SDATA_KEY set in .env, _QuotaGuard active at 500 credits/month
-   sports_game strategy still disabled (enabled: false in config.yaml)
-   Enable only after Matthew decides on direction for Polymarket strategy
-
-6. Need to restart bot to pick up copy_trade_loop kill switch bug fix
-   Safe to do — bug only fires on first .us-matched signal (none yet)
-   Restart command below
+   sports_game strategy disabled (enabled: false in config.yaml)
+   Enable only after Matthew decides direction
 
 ═══════════════════════════════════════════════════
 
 ## RESTART COMMANDS
 
-Live mode (Session 34):
+Live mode (Session 35):
   pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null
   sleep 3; rm -f bot.pid
   echo "CONFIRM" > /tmp/polybot_confirm.txt
-  nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session34.log 2>&1 &
+  nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session35.log 2>&1 &
   sleep 10 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
 
 Watch all loops:
-  tail -f /tmp/polybot_session34.log
+  tail -f /tmp/polybot_session35.log
 Watch daily + drift only:
-  tail -f /tmp/polybot_session34.log | grep --line-buffered "daily\|drift\|LIVE\|Trade executed\|Kill switch"
+  tail -f /tmp/polybot_session35.log | grep --line-buffered "daily\|drift\|LIVE\|Trade executed\|Kill switch"
 
 Key Commands:
   source venv/bin/activate && python3 main.py --report
