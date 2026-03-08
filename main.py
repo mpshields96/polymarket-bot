@@ -938,6 +938,8 @@ async def copy_trade_loop(
                 pm_markets = []
 
             # ── Poll each whale ───────────────────────────────────────
+            logger.info("[copy_trade] Poll cycle — %d whales | %d seen trades | %d .us markets",
+                        min(len(whales), _MAX_WHALES_PER_POLL), len(seen_trade_ids), len(pm_markets))
             for whale in whales[:_MAX_WHALES_PER_POLL]:
                 try:
                     trades = await whale_data.get_trades(
