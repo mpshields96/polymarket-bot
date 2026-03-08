@@ -56,6 +56,7 @@ None — slippage model and settlement verification complete.
 | 3 | Unemployment rate strategy (9th loop, KXUNRATE, BLS window, FRED UNRATE, TDD) | 2026-02-28 | d38f20d, 15307cf | .planning/quick/3-unemployment-rate-strategy/ |
 | 4 | Build real Kalshi-calibrated backtest using Kalshi candlestick API | 2026-03-01 | ecce5be | .planning/quick/4-build-real-kalshi-calibrated-backtest-fr/ |
 | 5 | Probe POST /v1/orders format on polymarket.us — found protobuf (not JSON) | 2026-03-08 | f3a3fef, b0added | .planning/quick/5-probe-post-v1-orders-format-on-polymarke/ |
+| 6 | CryptoDailyStrategy + loops (KXBTCD/KXETHD/KXSOLD, 24 hourly slots, 30 tests) | 2026-03-08 | b815af8, fc03851 | src/strategies/crypto_daily.py |
 
 ## Phase Plans Completed
 
@@ -65,5 +66,5 @@ None — slippage model and settlement verification complete.
 
 ## Last Session
 
-**Stopped at:** Completed quick task 5 — probed POST /v1/orders on polymarket.us. Found protobuf body format (not JSON). polymarket.us path blocked by missing .proto schema. polymarket.COM path (py-clob-client) unblocked and recommended.
-**Session timestamp:** 2026-03-08T14:00:00Z
+**Stopped at:** Session 33 — CryptoDailyStrategy live. Bot restarted at PID 58614 with 3 new daily loops (btc_daily/eth_daily/sol_daily, paper-only). 798/798 tests. Confirmed Kalshi copy trading infeasible (no public user attribution even with leaderboard).
+**Session timestamp:** 2026-03-08T20:35:00Z
