@@ -1067,12 +1067,15 @@ async def copy_trade_loop(
     whale_refresh_sec: int = 21_600,
     paper_slippage_ticks: int = 1,
     paper_fill_probability: float = 1.0,
+    live_executor_enabled: bool = False,   # flip True after 30 paper trades + schema confirmed
 ):
     """
-    Polls top whale wallets, applies decoy filters, and paper-executes
-    genuine copy-trade signals on Polymarket.us.
+    Polls top whale wallets, applies decoy filters, and executes
+    copy-trade signals on Polymarket.us.
 
-    Paper-only until POST /v1/orders protobuf format is confirmed.
+    live_executor_enabled=False (default): paper-only. Flip to True after:
+      - 30 paper copy trades completed
+      - POST /v1/orders schema confirmed (DONE: 2026-03-08)
     Execution targets: season-winner futures currently on api.polymarket.us.
     Game-by-game whale trades are logged but not executed (no .us venue yet).
 
@@ -1085,8 +1088,10 @@ async def copy_trade_loop(
     from src.data.whale_watcher import WhaleDataClient
     from src.strategies.copy_trader_v1 import CopyTraderStrategy, find_market_for_trade
     from src.execution.paper import PaperExecutor
+    from src.platforms.polymarket import OrderIntent, TimeInForce, PolymarketAPIError
 
-    _PAPER_SIZE_USD = 5.0          # fixed $5 paper bets — real sizing not yet wired for PM
+    _PAPER_SIZE_USD = 5.0          # fixed $5 paper bets
+    _LIVE_SIZE_USD  = 5.0          # max $5 live copy trades (HARD_MAX_TRADE_USD enforced separately)
     _TRADE_LOOKBACK_SEC = 7_200    # look at last 2 hours of whale trades per poll
     _MAX_WHALES_PER_POLL = 30      # cap to control API load per poll cycle
 
@@ -1180,22 +1185,93 @@ async def copy_trade_loop(
                                 sig.price_cents, whale.name, whale.smart_score,
                                 sig.edge_pct * 100,
                             )
-                            if kill_switch.check_paper_order_allowed():
-                                result = paper_exec.execute(
-                                    ticker=sig.ticker,
-                                    side=sig.side,
-                                    price_cents=sig.price_cents,
-                                    size_usd=_PAPER_SIZE_USD,
-                                    reason=sig.reason,
+                            _current_bankroll = db.latest_bankroll() or 50.0
+
+                            if live_executor_enabled:
+                                # ── Live execution path ─────────────────────────────
+                                trade_price = sig.price_cents / 100.0
+                                contracts = max(1, int(_LIVE_SIZE_USD / trade_price))
+                                actual_cost = round(contracts * trade_price, 2)
+
+                                ok, block_reason = kill_switch.check_order_allowed(
+                                    trade_usd=actual_cost,
+                                    current_bankroll_usd=_current_bankroll,
                                 )
-                                if result:
-                                    logger.info(
-                                        "[copy_trade] [paper] Executed: %s %s@%d¢ $%.2f trade_id=%s",
-                                        sig.side.upper(), trade.title, sig.price_cents,
-                                        result.get("cost_usd", 0), result.get("trade_id", "?"),
+                                if not ok:
+                                    logger.info("[copy_trade] [live] Kill switch blocked: %s", block_reason)
+                                else:
+                                    identifier = (
+                                        pm_market.yes_identifier if sig.side == "yes"
+                                        else pm_market.no_identifier
                                     )
+                                    intent = (
+                                        OrderIntent.BUY_LONG if sig.side == "yes"
+                                        else OrderIntent.BUY_SHORT
+                                    )
+                                    try:
+                                        order_result = await pm_client.place_order(
+                                            market_slug=identifier,
+                                            intent=intent,
+                                            price=trade_price,
+                                            quantity=contracts,
+                                            tif=TimeInForce.FOK,
+                                        )
+                                        if order_result.is_filled:
+                                            db.save_trade(
+                                                ticker=sig.ticker,
+                                                side=sig.side,
+                                                action="buy",
+                                                price_cents=sig.price_cents,
+                                                count=contracts,
+                                                cost_usd=actual_cost,
+                                                strategy=strategy.name,
+                                                edge_pct=sig.edge_pct,
+                                                win_prob=sig.win_prob,
+                                                is_paper=False,
+                                                server_order_id=order_result.order_id,
+                                                signal_price_cents=sig.price_cents,
+                                            )
+                                            kill_switch.record_trade()
+                                            logger.info(
+                                                "[copy_trade] [LIVE] Executed: %s %s@%d¢ "
+                                                "$%.2f %dc order=%s",
+                                                sig.side.upper(), trade.title, sig.price_cents,
+                                                actual_cost, contracts, order_result.order_id,
+                                            )
+                                        else:
+                                            logger.info(
+                                                "[copy_trade] [live] FOK no fill: %s %s@%d¢ "
+                                                "(order=%s)",
+                                                sig.side.upper(), trade.title, sig.price_cents,
+                                                order_result.order_id,
+                                            )
+                                    except PolymarketAPIError as exc:
+                                        logger.warning("[copy_trade] [live] Order failed: %s", exc)
+
                             else:
-                                logger.info("[copy_trade] Kill switch blocked paper order")
+                                # ── Paper execution path ────────────────────────────
+                                ok, block_reason = kill_switch.check_paper_order_allowed(
+                                    trade_usd=_PAPER_SIZE_USD,
+                                    current_bankroll_usd=_current_bankroll,
+                                )
+                                if not ok:
+                                    logger.info("[copy_trade] Kill switch blocked paper order: %s",
+                                                block_reason)
+                                else:
+                                    result = paper_exec.execute(
+                                        ticker=sig.ticker,
+                                        side=sig.side,
+                                        price_cents=sig.price_cents,
+                                        size_usd=_PAPER_SIZE_USD,
+                                        reason=sig.reason,
+                                    )
+                                    if result:
+                                        logger.info(
+                                            "[copy_trade] [paper] Executed: %s %s@%d¢ "
+                                            "$%.2f trade_id=%s",
+                                            sig.side.upper(), trade.title, sig.price_cents,
+                                            result.get("cost_usd", 0), result.get("trade_id", "?"),
+                                        )
                         else:
                             # No matching .us market — log signal for intelligence only
                             logger.info(
