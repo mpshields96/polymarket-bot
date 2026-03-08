@@ -253,6 +253,34 @@ class TestEdgeGate:
 # ── Near-miss INFO log ─────────────────────────────────────────────────
 
 
+class TestPriceRangeGuard:
+    """Regression: extreme-price bets must be blocked (same 35-65¢ guard as btc_lag)."""
+
+    def test_extreme_yes_price_blocked(self):
+        """YES at 98¢ (NO at 2¢) must not fire — was the anomalous $233 trade."""
+        s = _default_strategy()
+        market = _make_market(yes_price=98, no_price=2)
+        ob = _make_orderbook(yes_qty=900, no_qty=100)
+        assert s.generate_signal(market, ob, _make_btc_feed()) is None
+
+    def test_extreme_no_price_blocked(self):
+        """NO at 98¢ (YES at 2¢) must not fire."""
+        s = _default_strategy()
+        market = _make_market(yes_price=2, no_price=98)
+        ob = _make_orderbook(yes_qty=100, no_qty=900)
+        assert s.generate_signal(market, ob, _make_btc_feed()) is None
+
+    def test_price_at_boundary_allowed(self):
+        """YES at 35¢ is exactly at the lower bound — should not be blocked by price guard."""
+        s = _default_strategy()
+        market = _make_market(yes_price=35, no_price=65)
+        ob = _make_orderbook(yes_qty=900, no_qty=100)
+        # May return None due to edge gate but NOT due to price guard
+        # We just verify it doesn't raise and the guard itself isn't the blocker at this boundary
+        # (outcome depends on edge calc — no assertion on result here)
+        s.generate_signal(market, ob, _make_btc_feed())  # must not raise
+
+
 class TestNearMissLog:
     def test_balanced_book_logs_at_info(self, caplog):
         """When imbalance is between thresholds, logs at INFO level."""

@@ -51,6 +51,8 @@ _DEFAULT_DEPTH_TOP_N = 10            # Consider top N price levels only
 _DEFAULT_MIN_EDGE_PCT = 0.05         # 5% edge required after fees
 _DEFAULT_MIN_MINUTES_REMAINING = 3.0
 _DEFAULT_SIGNAL_SCALING = 1.0        # Scale imbalance→prob mapping (1.0 = linear)
+_MIN_SIGNAL_PRICE_CENTS = 35         # Only bet near-even-odds (35–65¢) — same as btc_lag
+_MAX_SIGNAL_PRICE_CENTS = 65
 
 
 def _kalshi_fee_pct(price_cents: int) -> float:
@@ -176,6 +178,12 @@ class OrderbookImbalanceStrategy(BaseStrategy):
         if price_cents <= 0 or price_cents >= 100:
             logger.debug("[%s] Invalid %s price %d¢ for %s — skip",
                          self.name, side, price_cents, market.ticker)
+            return None
+
+        if not (_MIN_SIGNAL_PRICE_CENTS <= price_cents <= _MAX_SIGNAL_PRICE_CENTS):
+            logger.debug("[%s] Price %d¢ outside calibrated range (%d–%d¢) — skip %s",
+                         self.name, price_cents,
+                         _MIN_SIGNAL_PRICE_CENTS, _MAX_SIGNAL_PRICE_CENTS, market.ticker)
             return None
 
         # ── 5. Compute edge ────────────────────────────────────────────
