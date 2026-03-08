@@ -4,12 +4,11 @@ Kill switch tests — must pass 100%.
 Tests every trigger condition from POLYBOT_INIT.md:
 1. Single trade size cap ($5 hard cap, 5% bankroll)
 2. Daily loss limit (20%)
-3. Consecutive loss cooling (5 losses → 2hr pause)
+3. Consecutive loss cooling (4 losses → 2hr pause)
 4. Hourly rate limit (15 trades/hr)
 5. Auth failure hard stop (3 consecutive)
-6. Total bankroll loss hard stop (30%)
-7. Bankroll minimum hard stop ($20)
-8. Lock file blocks startup
+6. Bankroll minimum hard stop ($20)
+7. Lock file blocks startup
 """
 
 import json
@@ -23,7 +22,6 @@ import pytest
 from src.risk.kill_switch import (
     HARD_MAX_TRADE_USD,
     HARD_MIN_BANKROLL_USD,
-    HARD_STOP_LOSS_PCT,
     DAILY_LOSS_LIMIT_PCT,
     CONSECUTIVE_LOSS_LIMIT,
     MAX_HOURLY_TRADES,
@@ -193,27 +191,31 @@ class TestAuthFailureHardStop:
         assert "auth" in content.lower() or "Auth" in content
 
 
-# ── 6. Total bankroll loss hard stop ──────────────────────────────
+# ── 6. Lifetime loss — display only, no hard stop ─────────────────
 
-class TestTotalBankrollHardStop:
-    def test_under_30pct_loss_no_hard_stop(self, ks):
-        ks.record_loss(29.0)
+class TestLifetimeLossDisplayOnly:
+    """Lifetime realized loss is tracked for reporting only. No hard stop triggered."""
+
+    def test_any_loss_does_not_hard_stop(self, ks):
+        ks.record_loss(50.0)
         assert not ks.is_hard_stopped
 
-    def test_at_30pct_loss_triggers_hard_stop(self, ks):
-        ks.record_loss(30.0)
-        assert ks.is_hard_stopped
+    def test_extreme_loss_does_not_hard_stop(self, ks):
+        ks.record_loss(99.0)
+        assert not ks.is_hard_stopped
 
-    def test_hard_stop_sets_in_memory_state(self, ks):
-        # Lock file is NOT written during tests (PYTEST_CURRENT_TEST guard).
-        # Verify in-memory hard stop state is set instead.
-        ks.record_loss(31.0)
-        assert ks.is_hard_stopped
+    def test_losses_still_tracked_for_display(self, ks):
+        ks.record_loss(15.0)
+        ks.record_loss(10.0)
+        assert ks._state._realized_loss_usd == pytest.approx(25.0)
 
-    def test_hard_stop_blocks_all_trades(self, ks):
-        ks.record_loss(31.0)
-        ok, reason = ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=69.0)
-        assert not ok
+    def test_trade_still_allowed_after_large_lifetime_loss(self, ks):
+        # Record a large lifetime loss but keep daily loss under 20% limit
+        # so we can confirm lifetime loss alone does NOT block trades
+        ks.record_loss(5.0)   # daily: $5 (under $20 daily limit)
+        ks._state._realized_loss_usd = 50.0   # simulate large lifetime loss directly
+        ok, _ = ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=95.0)
+        assert ok, "Lifetime loss alone must not block trades (display-only)"
 
 
 # ── 7. Bankroll minimum hard stop ────────────────────────────────
@@ -316,12 +318,13 @@ class TestSettlementIntegration:
         ks.record_loss(2.00)
         assert ks._state._realized_loss_usd == pytest.approx(2.00)
 
-    def test_total_loss_hard_stop_triggered_at_30pct(self):
+    def test_large_losses_do_not_hard_stop(self):
+        """Lifetime loss no longer triggers a hard stop — regression guard."""
         ks = KillSwitch(starting_bankroll_usd=100.0)
-        ks.record_loss(29.99)
-        assert not ks.is_hard_stopped
-        ks.record_loss(0.02)  # crosses 30%
-        assert ks.is_hard_stopped
+        ks.record_loss(50.0)  # well above any old 30% threshold
+        assert not ks.is_hard_stopped, (
+            "Lifetime loss must NOT trigger hard stop (removed — rely on daily limit + floor)"
+        )
 
     def test_record_loss_zero_is_ignored(self, ks):
         ks.record_loss(0.0)
@@ -597,11 +600,11 @@ class TestPaperOrderAllowed:
         assert ok, "Paper trade must not be blocked by hourly rate limit"
 
     def test_paper_blocked_by_hard_stop(self, ks):
-        """Hard stops MUST still block paper trades."""
-        for _ in range(31):
-            ks.record_loss(1.0)  # triggers hard stop (30% total loss)
+        """Hard stops MUST still block paper trades (triggered via auth failures)."""
+        for _ in range(MAX_AUTH_FAILURES):
+            ks.record_auth_failure()
         assert ks.is_hard_stopped
-        ok, _ = ks.check_paper_order_allowed(trade_usd=1.0, current_bankroll_usd=69.0)
+        ok, _ = ks.check_paper_order_allowed(trade_usd=1.0, current_bankroll_usd=90.0)
         assert not ok, "Hard stop must still block paper trades"
 
     def test_paper_blocked_by_lock_file(self, ks, tmp_path, monkeypatch):
@@ -634,15 +637,15 @@ class TestHardStopNoPollutionDuringTests:
 
     def test_hard_stop_does_not_write_event_log_during_tests(self, tmp_path, monkeypatch):
         """EVENT_LOG must not be written during pytest (PYTEST_CURRENT_TEST is set)."""
-        from src.risk.kill_switch import KillSwitch, EVENT_LOG
+        from src.risk.kill_switch import KillSwitch, EVENT_LOG, MAX_AUTH_FAILURES
         # Confirm we ARE in a test (PYTEST_CURRENT_TEST is set by pytest)
         assert os.environ.get("PYTEST_CURRENT_TEST"), "This test requires PYTEST env var"
         # Record event log size before
         size_before = EVENT_LOG.stat().st_size if EVENT_LOG.exists() else 0
         ks = KillSwitch(starting_bankroll_usd=100.0)
-        # Trigger hard stop via bankroll loss (record 31 consecutive $1 losses)
-        for _ in range(31):
-            ks.record_loss(1.0)
+        # Trigger hard stop via auth failures
+        for _ in range(MAX_AUTH_FAILURES):
+            ks.record_auth_failure()
         # Event log must NOT have grown
         size_after = EVENT_LOG.stat().st_size if EVENT_LOG.exists() else 0
         assert size_after == size_before, (
@@ -652,14 +655,14 @@ class TestHardStopNoPollutionDuringTests:
 
     def test_hard_stop_does_not_create_lock_file_during_tests(self, monkeypatch):
         """kill_switch.lock must not be created during pytest runs."""
-        from src.risk.kill_switch import KillSwitch, LOCK_FILE
+        from src.risk.kill_switch import KillSwitch, LOCK_FILE, MAX_AUTH_FAILURES
         assert os.environ.get("PYTEST_CURRENT_TEST"), "This test requires PYTEST env var"
         # Remove any existing lock file
         if LOCK_FILE.exists():
             LOCK_FILE.unlink()
         ks = KillSwitch(starting_bankroll_usd=100.0)
-        for _ in range(31):
-            ks.record_loss(1.0)
+        for _ in range(MAX_AUTH_FAILURES):
+            ks.record_auth_failure()
         assert not LOCK_FILE.exists(), (
             "kill_switch.lock was created during a test run. "
             "This can block bot startup after pytest if conftest cleanup doesn't run."
@@ -667,10 +670,10 @@ class TestHardStopNoPollutionDuringTests:
 
     def test_hard_stop_state_still_set_during_tests(self):
         """In-memory hard stop state SHOULD still be set — tests need to assert it."""
-        from src.risk.kill_switch import KillSwitch
+        from src.risk.kill_switch import KillSwitch, MAX_AUTH_FAILURES
         ks = KillSwitch(starting_bankroll_usd=100.0)
-        for _ in range(31):
-            ks.record_loss(1.0)
+        for _ in range(MAX_AUTH_FAILURES):
+            ks.record_auth_failure()
         # State should be set even though files are not written
         assert ks.is_hard_stopped, "Hard stop in-memory state must still be set during tests"
 
@@ -747,12 +750,12 @@ class TestRestoreDailyLoss:
 
 class TestRestoreRealizedLoss:
     """
-    Regression tests: restore_realized_loss() seeds the lifetime counter so the
-    30% hard stop persists correctly across calendar days and session restarts.
+    Regression tests: restore_realized_loss() seeds the lifetime counter for
+    display/reporting purposes on bot restart.
 
     Design intent:
     - Uses SET semantics (not add) to avoid double-counting with restore_daily_loss()
-    - Triggers hard stop immediately if losses already breach 30% on startup
+    - Does NOT trigger any hard stop — lifetime loss is display-only
     - Only touches _realized_loss_usd — not _daily_loss_usd
     """
 
@@ -785,15 +788,12 @@ class TestRestoreRealizedLoss:
         status = ks.get_status()
         assert status["total_realized_loss_usd"] == pytest.approx(25.0)
 
-    def test_restore_realized_triggers_hard_stop_at_30pct(self, ks):
-        """If lifetime losses already exceed 30%, restore must trigger hard stop immediately."""
-        ks.restore_realized_loss(30.0)  # exactly $30 = 30% of $100
-        assert ks.is_hard_stopped
-
-    def test_restore_realized_below_30pct_does_not_hard_stop(self, ks):
-        """29.9% should not trigger hard stop."""
-        ks.restore_realized_loss(29.9)
-        assert not ks.is_hard_stopped
+    def test_restore_realized_any_amount_does_not_hard_stop(self, ks):
+        """Lifetime loss no longer triggers a hard stop — regression guard."""
+        ks.restore_realized_loss(99.0)  # extreme value — must NOT hard stop
+        assert not ks.is_hard_stopped, (
+            "restore_realized_loss must not trigger hard stop (display-only now)"
+        )
 
     def test_restore_realized_does_not_touch_daily_loss(self, ks):
         """restore_realized_loss must NOT modify _daily_loss_usd (separate counter)."""

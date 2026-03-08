@@ -200,15 +200,16 @@ class TestKillSwitchSafety:
         assert not ok, "Trade of $2 must be blocked when bankroll is $30 (exceeds 5%)"
 
     def test_hard_stop_requires_manual_reset(self):
-        """Once a hard stop is triggered, no trade can pass without manual reset."""
-        from src.risk.kill_switch import KillSwitch, LOCK_FILE
+        """Once a hard stop is triggered (via auth failures), no trade can pass without manual reset."""
+        from src.risk.kill_switch import KillSwitch, LOCK_FILE, MAX_AUTH_FAILURES
         if LOCK_FILE.exists():
             LOCK_FILE.unlink()
         ks = KillSwitch(starting_bankroll_usd=100.0)
-        ks.record_loss(31.0)  # trigger hard stop
+        for _ in range(MAX_AUTH_FAILURES):
+            ks.record_auth_failure()
         assert ks.is_hard_stopped
         # Even a tiny trade must be blocked
-        ok, _ = ks.check_order_allowed(trade_usd=0.01, current_bankroll_usd=69.0)
+        ok, _ = ks.check_order_allowed(trade_usd=0.01, current_bankroll_usd=90.0)
         assert not ok
 
 

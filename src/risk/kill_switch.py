@@ -7,15 +7,14 @@ All checks are SYNCHRONOUS — no await here.
 Triggers:
   SOFT (auto-reset):
     1. Single trade would exceed $5 OR 5% of bankroll (lower applies)
-    2. Daily P&L loss > 15% of starting bankroll  → resets at midnight
+    2. Daily P&L loss > 20% of starting bankroll  → resets at midnight
     3. 4 consecutive losses → 2hr cooling period
     4. Hourly trade count > 15 → rate-limit pause
 
   HARD (manual reset required):
     5. 3+ consecutive auth failures
-    6. Total bankroll loss > 30%
-    7. Bankroll < $20
-    8. kill_switch.lock file exists at startup
+    6. Bankroll < $20
+    7. kill_switch.lock file exists at startup
 
 Adapted from: https://github.com/Bh-Ayush/Kalshi-CryptoBot (risk.py)
 """
@@ -38,7 +37,6 @@ EVENT_LOG = PROJECT_ROOT / "KILL_SWITCH_EVENT.log"
 
 # ── Hard limits — these cannot be changed by config ──────────────
 HARD_MAX_TRADE_USD = 5.00         # Absolute ceiling per trade
-HARD_STOP_LOSS_PCT = 0.30         # 30% total bankroll loss = hard stop
 HARD_MIN_BANKROLL_USD = 20.00     # Below $20 = hard stop
 DAILY_LOSS_LIMIT_PCT = 0.20       # 20% daily loss = soft kill (resets midnight)
 CONSECUTIVE_LOSS_LIMIT = 4        # Losses before cooling period
@@ -219,7 +217,7 @@ class KillSwitch:
 
         Still blocks on:
           - kill_switch.lock (manual hard stop)
-          - in-memory hard stop (30% bankroll loss, auth failures)
+          - in-memory hard stop (auth failures)
           - Bankroll below $20 floor (always hard stop regardless of paper/live)
 
         Does NOT block on:
@@ -272,13 +270,6 @@ class KillSwitch:
             self._state._soft_stop_until = until
             logger.warning("COOLING PERIOD TRIGGERED: %s", reason)
 
-        # Check total bankroll loss (hard stop)
-        total_loss_pct = self._state._realized_loss_usd / self._state.starting_bankroll
-        if total_loss_pct >= HARD_STOP_LOSS_PCT:
-            self._hard_stop(
-                f"Total bankroll loss {total_loss_pct:.1%} >= {HARD_STOP_LOSS_PCT:.0%} limit"
-            )
-
     def restore_daily_loss(self, loss_usd: float):
         """Restore today's live loss total from the DB on bot restart.
 
@@ -299,29 +290,20 @@ class KillSwitch:
     def restore_realized_loss(self, loss_usd: float):
         """Restore all-time live loss total from the DB on bot restart.
 
-        Prevents the 30% lifetime hard stop from resetting to 0 on restart.
+        Tracked for display/reporting only — no hard stop is triggered.
         Only touches _realized_loss_usd — NOT _daily_loss_usd (that is restored
         separately via restore_daily_loss()).
 
-        Called on startup with db.all_time_live_loss_usd() so lifetime losses
-        accumulate correctly across calendar days and session restarts.
+        Called on startup with db.all_time_live_loss_usd() so the status report
+        shows accurate lifetime P&L across restarts.
         """
         if loss_usd <= 0:
             return
         self._state._realized_loss_usd = loss_usd  # set, not add — avoids double-count
-        lifetime_pct = loss_usd / self._state.starting_bankroll
         logger.info(
-            "Lifetime live loss restored from DB: $%.2f (%.1f%% of $%.2f hard stop at 30%%)",
+            "Lifetime live loss restored from DB: $%.2f (display only)",
             loss_usd,
-            lifetime_pct * 100,
-            self._state.starting_bankroll,
         )
-        # If lifetime losses already exceed hard stop, trigger immediately
-        if lifetime_pct >= HARD_STOP_LOSS_PCT:
-            self._hard_stop(
-                f"Lifetime loss ${loss_usd:.2f} ({lifetime_pct:.1%}) restored from DB "
-                f">= {HARD_STOP_LOSS_PCT:.0%} hard stop limit"
-            )
 
     def restore_consecutive_losses(self, count: int):
         """Restore consecutive live loss streak from the DB on bot restart.
