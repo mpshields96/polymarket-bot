@@ -11,7 +11,7 @@ Watch: `tail -f /tmp/polybot_session35.log | grep --line-buffered "daily\|drift\
 
 btc_drift MICRO-LIVE (1 contract/bet ~$0.35-0.65, UNLIMITED/day) — active (12/30 live bets so far)
 All other strategies: PAPER-ONLY
-Test count: 825/825
+Test count: 859/859
 Last commit: see `git log --oneline -3`
 
 ═══════════════════════════════════════════════════
@@ -75,7 +75,7 @@ Daily loss limit: 20% = ~$15.95 on current bankroll
 
 ═══════════════════════════════════════════════════
 
-## CURRENT BOT ARCHITECTURE (13 loops)
+## CURRENT BOT ARCHITECTURE (14 loops — sports_futures_loop active on next restart)
 
 main.py asyncio event loop [LIVE MODE] — PID 63094
   Kalshi 15-min loops:
@@ -95,6 +95,7 @@ main.py asyncio event loop [LIVE MODE] — PID 63094
     [sol_daily]     sol_daily_v1         PAPER-ONLY (KXSOLD, 24 hourly slots)
   Polymarket:
     [copy_trade]    copy_trader_v1       PAPER-ONLY (5-min poll, 144 whales, 0 .us matches so far)
+    [sports_futures] sports_futures_v1   PAPER-ONLY (30-min poll, NBA/NHL/NCAAB futures, NOT YET ACTIVE — needs restart)
 
 ═══════════════════════════════════════════════════
 
@@ -104,26 +105,38 @@ main.py asyncio event loop [LIVE MODE] — PID 63094
 - PID 63094 → 65654, log /tmp/polybot_session35.log
 - Bug fix from Session 34 (check_paper_order_allowed with no args) now active
 
-### 2. sports_futures_v1 research — TEAM NAME BUG FOUND
+### 2. sports_futures_v1 research — TEAM NAME BUG FOUND (Session 35 early)
 - Sports data feed working: SDATA_KEY valid, 30 NBA championship teams returned
 - 178 championship/futures markets open on .US (NBA/NHL/NCAA) — supply side is FINE
-- BUT strategy generates 0 signals due to team name matching bug:
+- BUT strategy generated 0 signals due to team name matching bug:
   - PM raw_title = city only (e.g., "Memphis", "Golden State", "Los Angeles C")
-  - normalize_team_name() strips city → gets empty or partial result
+  - normalize_team_name() stripped city → got empty or partial result
   - Odds team names = full name (e.g., "Memphis Grizzlies" → normalized to "grizzlies")
   - "Memphis" → "memphis" ≠ "grizzlies" → NO MATCH
-  - Fix needed: build city → nickname mapping (e.g., "memphis" → "grizzlies")
-    OR parse team abbreviation from yes_identifier slug ("mem" → "grizzlies")
-- sports_futures_v1 is also NOT yet wired into main.py (no loop function)
-- Fix is ~1hr work (TDD, matching map, loop wiring, tests)
-- BLOCKED ON: Matthew's strategic decision on whether to enable this path
 
-### 3. sports_futures_v1 activation requirements (if Matthew approves)
-  a) Fix normalize_team_name() or add slug→nickname mapping
-  b) Wire sports_futures_loop() into main.py
-  c) ~10-15 tests for the matching fix
-  d) 30+ paper trades before any live consideration
-  e) Uses ~5-10 SDATA credits/run (500/month cap — plenty of room)
+### 3. sports_futures_v1 FIXED + WIRED (Session 35 — this session)
+- Added `_CITY_TO_NICKNAMES` map (NBA + NHL + NCAAB top teams) to sports_futures_v1.py
+- Added `_ABBREV_TO_NICKNAME` map (ESPN standard abbreviations)
+- Added `_get_pm_team_nickname(title, identifier, odds_by_name)` — 3-stage fallback:
+    Stage 1: normalize_team_name(title) — works for full names and bare nicknames
+    Stage 2: City map — "Memphis" → "grizzlies", "Golden State" → "warriors"
+             Sport-context aware: "Boston" picks "celtics" in NBA, "bruins" in NHL
+    Stage 3: Abbreviation from identifier slug — "mem" → "grizzlies" as last resort
+- Added `_extract_identifier_abbrev(identifier)` helper
+- 26 new tests in TestCityMatchFix + TestGetPmTeamNickname + TestExtractIdentifierAbbrev
+- Added `sports_futures_loop()` to main.py:
+    - Paper-only (no live flag, no live path)
+    - 30-min poll, 6-hour feed cache → ~30-90 SDATA credits/month (well within 500 cap)
+    - Fetches NBA + NHL + NCAAB championship odds from SportsFeed
+    - Filters PM markets to sportsMarketType=futures
+    - kill_switch.check_paper_order_allowed(trade_usd, bankroll) called correctly
+    - PaperExecutor uses strategy.name (not hardcoded) — avoids Session 20 pattern
+    - Handles missing SDATA_KEY gracefully (logs + returns, no crash)
+    - Hard stop skips poll
+- 8 new tests in TestSportsFuturesLoop covering all execution paths
+- 859/859 tests passing (up from 825)
+- Loop wired into main.py asyncio.gather + _on_signal cancellation + finally cleanup
+- **Bot NOT restarted** — sports_futures_loop will be active after next restart
 
 ═══════════════════════════════════════════════════
 
@@ -133,13 +146,15 @@ main.py asyncio event loop [LIVE MODE] — PID 63094
    Currently at 12/30. With unlimited/day, should reach 30 within ~2-3 days.
    Do NOT change calibration_max_usd until 30+ settled bets.
 
-2. *** STRATEGIC DECISION NEEDED (MATTHEW): copy trading is blocked ***
+2. *** RESTART NEEDED to activate sports_futures_loop ***
+   The loop code is written and tested but the running bot (PID 65654) doesn't
+   have it yet. Next restart will pick it up automatically.
+   Restart command (see below). Paper-only — no risk.
+
+3. copy trading still blocked (platform mismatch)
    All whale signals from predicting.top are .COM politics/crypto markets.
-   polymarket.US is sports-only. Platform mismatch is fundamental.
-   Options:
-   a) Enable sports_futures_v1 (bookmaker vs PM mispricing, already built)
-      → has a team name matching bug, ~1hr to fix + wire in
-      → paper only until 30+ trades, then evaluate live
+   polymarket.US is sports-only. sports_futures_loop is now the active path.
+   Options still open:
    b) Find sports-specific whale data source for .US
       → no known source identified yet, requires research
    c) Wait for polymarket.US platform expansion (unknown timeline)

@@ -25,7 +25,7 @@ Paper-only until POST /v1/orders format is confirmed.
 from __future__ import annotations
 
 import logging
-from typing import List
+from typing import Any, Dict, List, Optional
 
 from src.data.odds_api import ChampionshipOdds
 from src.platforms.polymarket import PolymarketMarket
@@ -40,6 +40,180 @@ _MULTI_WORD_CITIES = {
     "tampa bay", "kansas city", "san francisco", "san jose",
     "st. louis", "st louis", "new england", "new jersey",
 }
+
+# ── City → nickname mapping ───────────────────────────────────────────────────
+# Polymarket.us title field is city-only ("Memphis", "Golden State", "Los Angeles C").
+# Maps lowercase PM title → list of possible team nicknames (priority order).
+# Sport context disambiguates: caller tries each candidate against the odds lookup
+# dict and uses the first match, so "Boston" picks Celtics in NBA context, Bruins
+# in NHL context.
+_CITY_TO_NICKNAMES: Dict[str, List[str]] = {
+    # ── NBA ──────────────────────────────────────────────────────────────────
+    "atlanta": ["hawks"],
+    "boston": ["celtics", "bruins"],       # NBA: Celtics | NHL: Bruins
+    "brooklyn": ["nets"],
+    "charlotte": ["hornets"],
+    "chicago": ["bulls", "blackhawks"],    # NBA: Bulls | NHL: Blackhawks
+    "cleveland": ["cavaliers"],
+    "dallas": ["mavericks", "stars"],      # NBA: Mavs | NHL: Stars
+    "denver": ["nuggets", "avalanche"],    # NBA: Nuggets | NHL: Avalanche
+    "detroit": ["pistons", "red wings"],
+    "golden state": ["warriors"],
+    "houston": ["rockets"],
+    "indiana": ["pacers"],
+    "la lakers": ["lakers"],               # PM abbreviation form
+    "la clippers": ["clippers"],
+    "los angeles l": ["lakers"],           # PM truncated form ("Los Angeles L")
+    "los angeles c": ["clippers"],         # PM truncated form ("Los Angeles C")
+    "los angeles": ["lakers", "clippers", "kings"],  # ambiguous — resolved via odds lookup
+    "memphis": ["grizzlies"],
+    "miami": ["heat"],
+    "milwaukee": ["bucks"],
+    "minnesota": ["timberwolves", "wild"],
+    "new orleans": ["pelicans"],
+    "new york": ["knicks", "rangers", "islanders"],
+    "oklahoma city": ["thunder"],
+    "orlando": ["magic"],
+    "philadelphia": ["76ers", "sixers", "flyers"],
+    "phoenix": ["suns", "coyotes"],
+    "portland": ["trail blazers"],
+    "sacramento": ["kings"],
+    "san antonio": ["spurs"],
+    "toronto": ["raptors", "maple leafs"],
+    "utah": ["jazz", "hockey club"],
+    "washington": ["wizards", "capitals"],
+    # ── NHL (not already covered above) ──────────────────────────────────────
+    "anaheim": ["ducks"],
+    "buffalo": ["sabres"],
+    "calgary": ["flames"],
+    "carolina": ["hurricanes"],
+    "colorado": ["avalanche", "nuggets"],
+    "columbus": ["blue jackets"],
+    "edmonton": ["oilers"],
+    "florida": ["panthers"],
+    "las vegas": ["golden knights"],
+    "vegas": ["golden knights"],
+    "montreal": ["canadiens"],
+    "nashville": ["predators"],
+    "new jersey": ["devils"],
+    "ottawa": ["senators"],
+    "pittsburgh": ["penguins"],
+    "san jose": ["sharks"],
+    "seattle": ["kraken"],
+    "st. louis": ["blues"],
+    "st louis": ["blues"],
+    "tampa bay": ["lightning"],
+    "vancouver": ["canucks"],
+    "winnipeg": ["jets"],
+    # ── NCAAB common tournament teams ────────────────────────────────────────
+    "connecticut": ["huskies"],
+    "uconn": ["huskies"],
+    "gonzaga": ["bulldogs"],
+    "kansas": ["jayhawks"],
+    "kentucky": ["wildcats"],
+    "duke": ["blue devils"],
+    "north carolina": ["tar heels"],
+    "michigan": ["wolverines"],
+    "michigan state": ["spartans"],
+    "villanova": ["wildcats"],
+    "arizona": ["wildcats"],
+    "iowa": ["hawkeyes"],
+    "iowa state": ["cyclones"],
+    "purdue": ["boilermakers"],
+    "tennessee": ["volunteers"],
+    "alabama": ["crimson tide"],
+    "baylor": ["bears"],
+    "arkansas": ["razorbacks"],
+    "creighton": ["bluejays"],
+    "san diego state": ["aztecs"],
+    "florida state": ["seminoles"],
+    "auburn": ["tigers"],
+    "south carolina": ["gamecocks"],
+    "ohio state": ["buckeyes"],
+    "virginia": ["cavaliers"],
+    "oregon": ["ducks"],
+}
+
+# Standard sport abbreviations (ESPN/Polymarket) → nickname
+_ABBREV_TO_NICKNAME: Dict[str, str] = {
+    # NBA
+    "atl": "hawks",    "bos": "celtics",   "bkn": "nets",     "cha": "hornets",
+    "chi": "bulls",    "cle": "cavaliers", "dal": "mavericks", "den": "nuggets",
+    "det": "pistons",  "gsw": "warriors",  "hou": "rockets",   "ind": "pacers",
+    "lac": "clippers", "lal": "lakers",    "mem": "grizzlies", "mia": "heat",
+    "mil": "bucks",    "min": "timberwolves", "nop": "pelicans", "nyk": "knicks",
+    "okc": "thunder",  "orl": "magic",     "phi": "76ers",     "phx": "suns",
+    "por": "trail blazers", "sac": "kings", "sas": "spurs",   "tor": "raptors",
+    "uta": "jazz",     "was": "wizards",
+    # NHL
+    "ana": "ducks",    "buf": "sabres",    "cgy": "flames",    "car": "hurricanes",
+    "cbj": "blue jackets", "col": "avalanche", "dal": "stars", "det": "red wings",
+    "edm": "oilers",   "fla": "panthers",  "lak": "kings",     "mtl": "canadiens",
+    "nsh": "predators", "njd": "devils",   "nyi": "islanders", "nyr": "rangers",
+    "ott": "senators", "pit": "penguins",  "sjs": "sharks",    "sea": "kraken",
+    "stl": "blues",    "tbl": "lightning", "tor": "maple leafs", "van": "canucks",
+    "vgk": "golden knights", "wpg": "jets", "wsh": "capitals",
+}
+
+
+def _extract_identifier_abbrev(identifier: str) -> str:
+    """
+    Extract the team abbreviation/slug from a Polymarket side identifier.
+
+    Example: "nba-champion-2026-mem-yes" → "mem"
+             "nba-champion-2026-thunder-yes" → "thunder"
+    Pattern: strip "-yes" / "-no" suffix, return last hyphen segment.
+    """
+    ident = identifier.lower().strip()
+    for suffix in ("-yes", "-no"):
+        if ident.endswith(suffix):
+            ident = ident[: -len(suffix)]
+            break
+    parts = ident.split("-")
+    return parts[-1] if parts else ""
+
+
+def _get_pm_team_nickname(
+    title: str, identifier: str, odds_by_name: Dict[str, Any]
+) -> str:
+    """
+    Resolve a Polymarket team title to a matchable nickname key.
+
+    PM market titles are often city-only ("Memphis") instead of full names
+    ("Memphis Grizzlies").  Uses a multi-stage fallback:
+
+      Stage 1: normalize_team_name(title) — works for full names and bare nicknames
+               ("Thunder", "Oklahoma City Thunder" → "thunder")
+      Stage 2: City → nickname map — for city-only titles ("Memphis" → "grizzlies").
+               Tries every candidate in priority order; returns first found in odds.
+               Sport context disambiguates: "Boston" picks "celtics" in NBA context
+               (where odds has "celtics" but not "bruins") and vice-versa for NHL.
+      Stage 3: Abbreviation from identifier slug — "mem" → "grizzlies" as last resort.
+
+    Returns the best matching key, or normalized title if nothing found (signal
+    will be silently skipped by the caller's odds lookup).
+    """
+    # Stage 1: direct normalize — works for nickname titles and full names
+    normalized = normalize_team_name(title)
+    if normalized in odds_by_name:
+        return normalized
+
+    # Stage 2: city map lookup
+    title_lower = title.strip().lower()
+    candidates = _CITY_TO_NICKNAMES.get(title_lower, [])
+    for candidate in candidates:
+        if candidate in odds_by_name:
+            return candidate
+
+    # Stage 3: abbreviation extracted from identifier slug
+    abbrev = _extract_identifier_abbrev(identifier)
+    if abbrev:
+        nickname = _ABBREV_TO_NICKNAME.get(abbrev)
+        if nickname and nickname in odds_by_name:
+            return nickname
+
+    # Fall through — return normalized; caller's odds.get() will miss, logged as debug
+    return normalized
 
 
 def normalize_team_name(name: str) -> str:
@@ -111,9 +285,13 @@ class SportsFuturesStrategy:
             if market.closed or not market.active:
                 continue
 
-            # Polymarket.us futures markets use "title" for the short team name (e.g. "Thunder")
+            # PM .us title field is often city-only ("Memphis", "Golden State").
+            # _get_pm_team_nickname resolves it to the canonical nickname via a
+            # multi-stage fallback (normalize → city map → identifier abbreviation).
             team_title = market.raw.get("title", "") or market.question
-            normalized = normalize_team_name(team_title)
+            normalized = _get_pm_team_nickname(
+                team_title, market.yes_identifier, odds_by_name
+            )
 
             o = odds_by_name.get(normalized)
             if o is None:

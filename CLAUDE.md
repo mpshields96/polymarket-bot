@@ -229,22 +229,24 @@ CHECK: `pip freeze | grep <package>` to get current version, then pin it.
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- **825/825 tests passing**, verify.py 21/29 (8 advisory WARNs — non-critical)
+- **859/859 tests passing**, verify.py 21/29 (8 advisory WARNs — non-critical)
 - **btc_drift_v1 MICRO-LIVE**: 1 contract/bet (~$0.35-0.65), unlimited/day (daily loss limit governs) — at 12/30 live settled bets
   - Paper calibration fixed (Session 32): slippage 2→3¢, fill_probability=0.85 (15% no-fill), signal_price_cents stored
   - eth_orderbook_imbalance $233 paper anomaly fixed (Session 31): missing 35-65¢ price guard — NO@2¢ bet
   - paper_slippage_ticks raised 2→3 (Session 32: upper end of confirmed 2-3¢ Kalshi BTC spread)
 - All other 9 Kalshi loops PAPER-ONLY: btc_lag (0 signals/week), eth_lag, eth_drift (DO NOT PROMOTE), btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
-- **POLYMARKET — BLOCKED ON PLATFORM MISMATCH (Session 34)**
+- **POLYMARKET — sports_futures_v1 NOW ACTIVE (after next restart)**
   - POST /v1/orders JSON format confirmed (Session 34): place_order() implemented
-  - copy_trade_loop kill switch bug fixed (Session 34): check_paper_order_allowed() called correctly
-  - live_executor_enabled=False — ready to flip once 30 paper trades + strategic decision made
-  - PROBLEM: predicting.top whales trade .COM (politics/crypto). .US is sports-only. 0 matches.
-  - STRATEGIC DECISION NEEDED: sports_futures_v1 (bookmaker arb) OR sports whale data source
+  - copy_trade_loop: predicting.top whales trade .COM only — 0 .us matches (platform mismatch)
+  - **sports_futures_v1 FIXED + WIRED (Session 35)**:
+    - Team name bug fixed: _CITY_TO_NICKNAMES map + _get_pm_team_nickname() multi-stage fallback
+    - sports_futures_loop() in main.py — paper-only, 30-min poll, NBA/NHL/NCAAB futures
+    - 34 new tests (26 matching + 8 loop). Kill switch, paper exec, graceful SDATA_KEY missing
+    - Awaiting restart to activate (bot currently on PID 65654 pre-Session 35 code)
   - src/strategies/copy_trader_v1.py — 6 decoy filters + Signal (29 tests)
-  - src/strategies/sports_futures_v1.py — mispricing vs bookmaker consensus (25 tests, disabled)
+  - src/strategies/sports_futures_v1.py — mispricing vs bookmaker consensus (51 tests, WIRED)
   - Kalshi copy trading: CONFIRMED INFEASIBLE (no public user attribution)
-- Latest commit: Session 34 (POST /v1/orders confirmed, live path built, copy_trade bug fixed)
+- Latest commit: Session 35 (sports_futures team name fix + loop wired, 859 tests)
 - Kill switch: consecutive_loss_limit=4, daily_loss_limit=20% (~$15.95 on $79.76 bankroll). NO lifetime % hard stop.
 - **Daily loss counter is CST-based (UTC-6)** — resets at midnight CST = 06:00 UTC daily
 - Paper-during-softkill: check_paper_order_allowed() in all paper loops — soft stops block live only

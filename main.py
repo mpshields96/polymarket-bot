@@ -1056,6 +1056,147 @@ def _announce_live_bet(result: dict, strategy_name: str) -> None:
         pass  # notification is best-effort; never block the trading loop
 
 
+# ── Polymarket sports-futures mispricing loop ─────────────────────────
+
+async def sports_futures_loop(
+    pm_client,
+    db,
+    kill_switch,
+    initial_delay_sec: float = 95.0,
+    poll_interval_sec: int = 1_800,   # 30 min — championship prices move slowly
+    paper_slippage_ticks: int = 1,
+    paper_fill_probability: float = 1.0,
+):
+    """
+    Compares Polymarket.us championship futures prices to sharp bookmaker consensus
+    (Pinnacle / DraftKings) and paper-executes signals when edge > 5%.
+
+    Paper-only. Will NOT flip to live until 30+ settled paper trades + Brier < 0.25.
+
+    Sports feed (SDATA_KEY): 6-hour cache on championship data → ~1 API credit per
+    sport per cache cycle.  Monthly credit usage: ~30-90 credits out of 500 cap.
+
+    Markets: NBA Championship, NHL Stanley Cup, NCAAB Tournament winner.
+    Signal: BUY YES if PM underprice by >5pp vs sharp consensus.
+            BUY NO  if PM overprice by >5pp.
+
+    kill_switch.check_paper_order_allowed() called before every paper order.
+    Hard stop blocks paper orders; soft stops (daily loss, consecutive) do NOT.
+    """
+    from src.data.odds_api import SportsFeed
+    from src.strategies.sports_futures_v1 import SportsFuturesStrategy
+    from src.execution.paper import PaperExecutor
+
+    try:
+        feed = SportsFeed.load_from_env()
+    except RuntimeError as exc:
+        logger.warning("[sports_futures] %s — loop disabled for this session", exc)
+        return
+
+    strategy = SportsFuturesStrategy(min_edge_pct=0.05)
+    paper_exec = PaperExecutor(
+        db=db,
+        strategy_name=strategy.name,
+        slippage_ticks=paper_slippage_ticks,
+        fill_probability=paper_fill_probability,
+    )
+
+    _PAPER_SIZE_USD = 5.0
+
+    logger.info("[sports_futures] Startup — waiting %.0fs before first poll", initial_delay_sec)
+    await asyncio.sleep(initial_delay_sec)
+
+    while True:
+        try:
+            if kill_switch.is_hard_stopped:
+                logger.debug("[sports_futures] Hard stop active — skipping poll")
+                await asyncio.sleep(poll_interval_sec)
+                continue
+
+            # ── Fetch open Polymarket futures markets ─────────────────────
+            try:
+                all_pm = await pm_client.get_markets(closed=False, limit=500)
+            except Exception as exc:
+                logger.warning("[sports_futures] PM market fetch failed: %s", exc)
+                await asyncio.sleep(poll_interval_sec)
+                continue
+
+            futures_markets = [
+                m for m in all_pm
+                if (
+                    m.market_type == "futures"
+                    or m.raw.get("sportsMarketType") == "futures"
+                    or m.raw.get("sportsMarketTypeV2") == "SPORTS_MARKET_TYPE_FUTURE"
+                )
+            ]
+
+            if not futures_markets:
+                logger.debug("[sports_futures] No futures markets open — sleeping")
+                await asyncio.sleep(poll_interval_sec)
+                continue
+
+            # ── Fetch championship odds (6-hour cache — low credit burn) ──
+            nba_odds = await feed.get_nba_championship()
+            nhl_odds = await feed.get_nhl_championship()
+            ncaab_odds = await feed.get_ncaab_championship()
+            all_odds = nba_odds + nhl_odds + ncaab_odds
+
+            logger.debug(
+                "[sports_futures] %d futures markets | %d odds (%d NBA, %d NHL, %d NCAAB) | quota: %s",
+                len(futures_markets), len(all_odds),
+                len(nba_odds), len(nhl_odds), len(ncaab_odds),
+                feed.quota_status(),
+            )
+
+            if not all_odds:
+                logger.debug("[sports_futures] No championship odds available — sleeping")
+                await asyncio.sleep(poll_interval_sec)
+                continue
+
+            # ── Scan for mispricing signals ───────────────────────────────
+            signals = strategy.scan_for_signals(futures_markets, all_odds)
+            logger.info(
+                "[sports_futures] Poll: %d PM futures, %d odds → %d signals | quota: %s",
+                len(futures_markets), len(all_odds), len(signals), feed.quota_status(),
+            )
+
+            # ── Paper-execute signals ─────────────────────────────────────
+            _current_bankroll = db.latest_bankroll() or 50.0
+            for sig in signals:
+                ok, block_reason = kill_switch.check_paper_order_allowed(
+                    trade_usd=_PAPER_SIZE_USD,
+                    current_bankroll_usd=_current_bankroll,
+                )
+                if not ok:
+                    logger.info(
+                        "[sports_futures] Kill switch blocked paper order: %s", block_reason
+                    )
+                    continue
+
+                result = paper_exec.execute(
+                    ticker=sig.ticker,
+                    side=sig.side,
+                    price_cents=sig.price_cents,
+                    size_usd=_PAPER_SIZE_USD,
+                    reason=sig.reason,
+                )
+                if result:
+                    logger.info(
+                        "[sports_futures] [paper] %s@%d¢ $%.2f trade_id=%s | %s",
+                        sig.side.upper(), sig.price_cents,
+                        result.get("cost_usd", 0), result.get("trade_id", "?"),
+                        sig.reason,
+                    )
+
+        except asyncio.CancelledError:
+            logger.info("[sports_futures] Loop cancelled — shutting down")
+            raise
+        except Exception as exc:
+            logger.error("[sports_futures] Unexpected loop error: %s", exc, exc_info=True)
+
+        await asyncio.sleep(poll_interval_sec)
+
+
 # ── Polymarket copy-trade polling loop ────────────────────────────────
 
 async def copy_trade_loop(
@@ -2166,6 +2307,30 @@ async def main():
         copy_task = asyncio.create_task(asyncio.sleep(0), name="copy_trade_noop")
         logger.warning("Copy-trade loop SKIPPED — PM client unavailable")
 
+    # ── Sports-futures mispricing loop (Polymarket supplemental) ─────
+    # Paper-only. Compares PM championship futures to bookmaker consensus.
+    # 30-min poll; 6-hr feed cache keeps credit usage ~30-90/month.
+    # Disabled gracefully if PM client or SDATA_KEY unavailable.
+    if pm_client is not None:
+        sports_futures_task = asyncio.create_task(
+            sports_futures_loop(
+                pm_client=pm_client,
+                db=db,
+                kill_switch=kill_switch,
+                initial_delay_sec=95.0,        # stagger after copy_trade (80s)
+                poll_interval_sec=1_800,        # 30-min cadence
+                paper_slippage_ticks=paper_slippage_ticks,
+                paper_fill_probability=paper_fill_probability,
+            ),
+            name="sports_futures_loop",
+        )
+        logger.info("Sports-futures loop started (paper, 30-min poll, NBA/NHL/NCAAB)")
+    else:
+        sports_futures_task = asyncio.create_task(
+            asyncio.sleep(0), name="sports_futures_noop"
+        )
+        logger.warning("Sports-futures loop SKIPPED — PM client unavailable")
+
     # ── Signal handlers (clean shutdown on SIGTERM/SIGHUP) ───────────
     import signal as _signal
     _loop = asyncio.get_running_loop()
@@ -2187,6 +2352,7 @@ async def main():
         eth_daily_task.cancel()
         sol_daily_task.cancel()
         copy_task.cancel()
+        sports_futures_task.cancel()
 
     for _sig, _sname in ((_signal.SIGTERM, "SIGTERM"), (_signal.SIGHUP, "SIGHUP")):
         _loop.add_signal_handler(_sig, lambda n=_sname: _on_signal(n))
@@ -2197,6 +2363,7 @@ async def main():
             btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task,
             unemployment_task, sol_task, settle_task,
             btc_daily_task, eth_daily_task, sol_daily_task, copy_task,
+            sports_futures_task,
         )
     except (KeyboardInterrupt, asyncio.CancelledError):
         pass  # Normal shutdown — SIGTERM or Ctrl+C; finally block handles cleanup
@@ -2216,11 +2383,13 @@ async def main():
         eth_daily_task.cancel()
         sol_daily_task.cancel()
         copy_task.cancel()
+        sports_futures_task.cancel()
         await asyncio.gather(
             trade_task, eth_lag_task, drift_task, eth_drift_task,
             btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task,
             unemployment_task, sol_task, settle_task,
             btc_daily_task, eth_daily_task, sol_daily_task, copy_task,
+            sports_futures_task,
             return_exceptions=True,
         )
         logger.info("Stopping feeds and connections...")
