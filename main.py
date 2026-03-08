@@ -1888,7 +1888,7 @@ async def main():
             btc_series_ticker=btc_series_ticker,
             loop_name="drift",
             initial_delay_sec=15.0,
-            max_daily_bets=20,
+            max_daily_bets=0,  # unlimited — daily loss limit governs, maximise calibration data
             slippage_ticks=paper_slippage_ticks,
             fill_probability=paper_fill_probability,
             trade_lock=_live_trade_lock,
