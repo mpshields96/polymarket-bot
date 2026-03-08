@@ -1873,8 +1873,9 @@ async def main():
     # Paper data structurally unreliable (no slippage, no fill timing).
     # Micro-live: $1.00 hard cap per bet — ~$10/week at current signal frequency.
     # Purpose: collect 30 real settled trades for valid Brier score.
+    # Bet size: $0.50 cap → always 1 contract (min) at market price 35-65¢.
     # Do NOT raise cap until: 30+ live trades + Brier < 0.30.
-    _DRIFT_CALIBRATION_CAP_USD = 1.00
+    _DRIFT_CALIBRATION_CAP_USD = 0.50
     drift_task = asyncio.create_task(
         trading_loop(
             kalshi=kalshi,
@@ -1887,7 +1888,7 @@ async def main():
             btc_series_ticker=btc_series_ticker,
             loop_name="drift",
             initial_delay_sec=15.0,
-            max_daily_bets=3,
+            max_daily_bets=8,
             slippage_ticks=paper_slippage_ticks,
             fill_probability=paper_fill_probability,
             trade_lock=_live_trade_lock,

@@ -5,11 +5,11 @@
 
 ## EXACT CURRENT STATE — READ THIS FIRST
 
-Bot is RUNNING — PID 58614, live mode, log: /tmp/polybot_session33.log
+Bot is RUNNING — PID 59386, live mode, log: /tmp/polybot_session33.log
 Check: `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"`
 Watch: `tail -f /tmp/polybot_session33.log | grep --line-buffered "daily\|drift\|LIVE\|Kill switch"`
 
-btc_drift MICRO-LIVE ($1.00 cap, 3/day) — active
+btc_drift MICRO-LIVE ($0.50 cap, 8/day) — active (raised from $1/3 to get 30 trades faster)
 All other strategies: PAPER-ONLY
 Test count: 798/798
 Last commit: fc03851 — wire crypto_daily_loop into main.py
