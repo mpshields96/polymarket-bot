@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -210,3 +211,94 @@ class TestSettlementResultMapping:
             count=10,
         )
         assert pnl < 0
+
+
+# ── TestFillProbability ────────────────────────────────────────────────
+
+
+class TestFillProbability:
+    """Test that fill_probability controls whether a paper trade executes."""
+
+    def test_fill_probability_1_0_always_fills(self, db):
+        """fill_probability=1.0 means every execute() call returns a trade."""
+        pe = PaperExecutor(db=db, strategy_name="test", fill_probability=1.0)
+        for _ in range(5):
+            result = pe.execute("KXBTC15M-TEST", "yes", 50, 5.0)
+            assert result is not None
+
+    def test_fill_probability_0_0_never_fills(self, db):
+        """fill_probability=0.0 means every execute() call returns None."""
+        pe = PaperExecutor(db=db, strategy_name="test", fill_probability=0.0)
+        for _ in range(5):
+            result = pe.execute("KXBTC15M-TEST", "yes", 50, 5.0)
+            assert result is None
+
+    def test_fill_probability_default_is_1_0(self, db):
+        """Default fill_probability is 1.0 — backward compatible."""
+        pe = PaperExecutor(db=db, strategy_name="test")
+        assert pe._fill_probability == 1.0
+
+    def test_fill_probability_no_fill_when_random_above_threshold(self, db):
+        """When random() >= fill_probability, no fill — returns None."""
+        pe = PaperExecutor(db=db, strategy_name="test", fill_probability=0.7)
+        with patch("src.execution.paper.random.random", return_value=0.8):
+            result = pe.execute("KXBTC15M-TEST", "yes", 50, 5.0)
+            assert result is None
+
+    def test_fill_probability_fills_when_random_below_threshold(self, db):
+        """When random() < fill_probability, trade fills — returns trade dict."""
+        pe = PaperExecutor(db=db, strategy_name="test", fill_probability=0.7)
+        with patch("src.execution.paper.random.random", return_value=0.5):
+            result = pe.execute("KXBTC15M-TEST", "yes", 50, 5.0)
+            assert result is not None
+
+    def test_no_fill_does_not_write_to_db(self, db):
+        """A no-fill does not create a trade record in the DB."""
+        pe = PaperExecutor(db=db, strategy_name="test", fill_probability=0.0)
+        pe.execute("KXBTC15M-TEST", "yes", 50, 5.0)
+        trades = db.get_trades(is_paper=True)
+        assert len(trades) == 0
+
+
+# ── TestSignalPriceCents ───────────────────────────────────────────────
+
+
+class TestSignalPriceCents:
+    """Test that signal_price_cents (pre-slippage) is stored alongside fill_price_cents."""
+
+    def test_signal_price_stored_before_slippage(self, db):
+        """execute() returns signal_price_cents equal to original price_cents."""
+        pe = PaperExecutor(db=db, strategy_name="test", slippage_ticks=3)
+        result = pe.execute("KXBTC15M-TEST", "yes", 50, 5.0)
+        assert result is not None
+        assert result["signal_price_cents"] == 50   # original price
+        assert result["fill_price_cents"] == 53     # 50 + 3 slippage
+
+    def test_signal_price_differs_from_fill_price_with_slippage(self, db):
+        """With non-zero slippage, signal_price_cents < fill_price_cents."""
+        pe = PaperExecutor(db=db, strategy_name="test", slippage_ticks=2)
+        result = pe.execute("KXBTC15M-TEST", "no", 45, 5.0)
+        assert result is not None
+        assert result["signal_price_cents"] == 45
+        assert result["fill_price_cents"] == 47
+
+    def test_signal_price_equals_fill_price_with_zero_slippage(self, db):
+        """With slippage_ticks=0, signal_price_cents == fill_price_cents."""
+        pe = PaperExecutor(db=db, strategy_name="test", slippage_ticks=0)
+        result = pe.execute("KXBTC15M-TEST", "yes", 50, 5.0)
+        assert result is not None
+        assert result["signal_price_cents"] == 50
+        assert result["fill_price_cents"] == 50
+
+    def test_signal_price_cents_persisted_in_db(self, db):
+        """signal_price_cents is stored in the trades table."""
+        pe = PaperExecutor(db=db, strategy_name="test", slippage_ticks=2)
+        result = pe.execute("KXBTC15M-TEST", "yes", 50, 5.0)
+        assert result is not None
+        cursor = db._conn.execute(
+            "SELECT signal_price_cents, price_cents FROM trades WHERE id = ?",
+            (result["trade_id"],),
+        )
+        row = cursor.fetchone()
+        assert row[0] == 50   # signal_price_cents
+        assert row[1] == 52   # fill price_cents (50 + 2 slippage)

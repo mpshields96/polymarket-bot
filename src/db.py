@@ -112,7 +112,20 @@ class DB:
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(_SCHEMA_SQL)
         self._conn.commit()
+        self._migrate()
         logger.info("DB initialized at %s", self._db_path)
+
+    def _migrate(self):
+        """Apply incremental schema migrations to existing databases."""
+        migrations = [
+            "ALTER TABLE trades ADD COLUMN signal_price_cents INTEGER",
+        ]
+        for sql in migrations:
+            try:
+                self._conn.execute(sql)
+                self._conn.commit()
+            except sqlite3.OperationalError:
+                pass  # Column already exists — safe to ignore
 
     def close(self):
         if self._conn:
@@ -143,17 +156,19 @@ class DB:
         is_paper: bool = True,
         client_order_id: Optional[str] = None,
         server_order_id: Optional[str] = None,
+        signal_price_cents: Optional[int] = None,
     ) -> int:
         """Insert a new trade record. Returns the new row ID."""
         cursor = self._conn.execute(
             """INSERT INTO trades
                (timestamp, ticker, side, action, price_cents, count, cost_usd,
-                strategy, edge_pct, win_prob, is_paper, client_order_id, server_order_id)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                strategy, edge_pct, win_prob, is_paper, client_order_id, server_order_id,
+                signal_price_cents)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 time.time(), ticker, side, action, price_cents, count, cost_usd,
                 strategy, edge_pct, win_prob, int(is_paper),
-                client_order_id, server_order_id,
+                client_order_id, server_order_id, signal_price_cents,
             ),
         )
         self._conn.commit()

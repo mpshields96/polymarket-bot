@@ -69,6 +69,7 @@ async def trading_loop(
     initial_delay_sec: float = 0.0,
     max_daily_bets: int = 5,
     slippage_ticks: int = 1,
+    fill_probability: float = 1.0,
     trade_lock: Optional[asyncio.Lock] = None,
     calibration_max_usd: Optional[float] = None,
 ):
@@ -257,6 +258,7 @@ async def trading_loop(
                         db=db,
                         strategy_name=strategy.name,
                         slippage_ticks=_slip,
+                        fill_probability=fill_probability,
                     )
                     result = paper_exec.execute(
                         ticker=signal.ticker,
@@ -408,10 +410,12 @@ async def weather_loop(
                 with open(PROJECT_ROOT / "config.yaml") as _f:
                     _wcfg = _yaml.safe_load(_f)
                 _wslip = _wcfg.get("risk", {}).get("paper_slippage_ticks", 1)
+                _wfill = _wcfg.get("risk", {}).get("paper_fill_probability", 1.0)
                 paper_exec = paper_mod.PaperExecutor(
                     db=db,
                     strategy_name=weather_strategy.name,
                     slippage_ticks=_wslip,
+                    fill_probability=_wfill,
                 )
                 result = paper_exec.execute(
                     ticker=signal.ticker,
@@ -563,10 +567,12 @@ async def fomc_loop(
                 with open(PROJECT_ROOT / "config.yaml") as _f:
                     _fcfg = _yaml.safe_load(_f)
                 _fslip = _fcfg.get("risk", {}).get("paper_slippage_ticks", 1)
+                _ffill = _fcfg.get("risk", {}).get("paper_fill_probability", 1.0)
                 paper_exec = paper_mod.PaperExecutor(
                     db=db,
                     strategy_name=fomc_strategy.name,
                     slippage_ticks=_fslip,
+                    fill_probability=_ffill,
                 )
                 result = paper_exec.execute(
                     ticker=signal.ticker,
@@ -721,10 +727,12 @@ async def unemployment_loop(
                 with open(PROJECT_ROOT / "config.yaml") as _f:
                     _ucfg = _yaml.safe_load(_f)
                 _uslip = _ucfg.get("risk", {}).get("paper_slippage_ticks", 1)
+                _ufill = _ucfg.get("risk", {}).get("paper_fill_probability", 1.0)
                 paper_exec = paper_mod.PaperExecutor(
                     db=db,
                     strategy_name=unemployment_strategy.name,
                     slippage_ticks=_uslip,
+                    fill_probability=_ufill,
                 )
                 result = paper_exec.execute(
                     ticker=signal.ticker,
@@ -879,6 +887,7 @@ async def copy_trade_loop(
     poll_interval_sec: int = 300,
     whale_refresh_sec: int = 21_600,
     paper_slippage_ticks: int = 1,
+    paper_fill_probability: float = 1.0,
 ):
     """
     Polls top whale wallets, applies decoy filters, and paper-executes
@@ -906,7 +915,8 @@ async def copy_trade_loop(
     whale_data = WhaleDataClient()
     strategy = CopyTraderStrategy()
     paper_exec = PaperExecutor(db=db, strategy_name=strategy.name,
-                               slippage_ticks=paper_slippage_ticks)
+                               slippage_ticks=paper_slippage_ticks,
+                               fill_probability=paper_fill_probability)
 
     whales: list = []
     last_whale_refresh: float = 0.0
@@ -1592,6 +1602,7 @@ async def main():
     max_daily_bets_live = config.get("risk", {}).get("max_daily_bets_live", 10)
     max_daily_bets_paper = config.get("risk", {}).get("max_daily_bets_paper", 0)
     paper_slippage_ticks = config.get("risk", {}).get("paper_slippage_ticks", 1)
+    paper_fill_probability = config.get("risk", {}).get("paper_fill_probability", 1.0)
 
     # Shared lock for live trading loops — serializes check→execute→record_trade so
     # two loops can't both pass check_order_allowed() before either increments the
@@ -1618,6 +1629,7 @@ async def main():
             initial_delay_sec=0.0,
             max_daily_bets=max_daily_bets_live,
             slippage_ticks=paper_slippage_ticks,
+            fill_probability=paper_fill_probability,
             trade_lock=_live_trade_lock,
         ),
         name="trading_loop",
@@ -1640,6 +1652,7 @@ async def main():
             initial_delay_sec=7.0,
             max_daily_bets=max_daily_bets_paper,
             slippage_ticks=paper_slippage_ticks,
+            fill_probability=paper_fill_probability,
             trade_lock=None,
         ),
         name="eth_lag_loop",
@@ -1664,6 +1677,7 @@ async def main():
             initial_delay_sec=15.0,
             max_daily_bets=3,
             slippage_ticks=paper_slippage_ticks,
+            fill_probability=paper_fill_probability,
             trade_lock=_live_trade_lock,
             calibration_max_usd=_DRIFT_CALIBRATION_CAP_USD,
         ),
@@ -1684,6 +1698,7 @@ async def main():
             initial_delay_sec=22.0,
             max_daily_bets=max_daily_bets_paper,
             slippage_ticks=paper_slippage_ticks,
+            fill_probability=paper_fill_probability,
         ),
         name="eth_drift_loop",
     )
@@ -1702,6 +1717,7 @@ async def main():
             initial_delay_sec=29.0,
             max_daily_bets=max_daily_bets_paper,
             slippage_ticks=paper_slippage_ticks,
+            fill_probability=paper_fill_probability,
         ),
         name="btc_imbalance_loop",
     )
@@ -1720,6 +1736,7 @@ async def main():
             initial_delay_sec=36.0,
             max_daily_bets=max_daily_bets_paper,
             slippage_ticks=paper_slippage_ticks,
+            fill_probability=paper_fill_probability,
         ),
         name="eth_imbalance_loop",
     )
@@ -1785,6 +1802,7 @@ async def main():
             initial_delay_sec=65.0,
             max_daily_bets=max_daily_bets_paper,
             slippage_ticks=paper_slippage_ticks,
+            fill_probability=paper_fill_probability,
         ),
         name="sol_lag_loop",
     )
@@ -1807,6 +1825,7 @@ async def main():
                 poll_interval_sec=300,       # 5-min poll cadence
                 whale_refresh_sec=21_600,    # refresh whale list every 6 hours
                 paper_slippage_ticks=paper_slippage_ticks,
+                paper_fill_probability=paper_fill_probability,
             ),
             name="copy_trade_loop",
         )

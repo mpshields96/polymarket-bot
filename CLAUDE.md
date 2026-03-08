@@ -188,7 +188,8 @@ DO NOT: fix symptoms without finding root cause
 - **Price range guard on orderbook_imbalance.py added (Session 31)** — 35-65¢ guard was already on btc_lag/btc_drift but was MISSING from orderbook_imbalance.py. This caused a $233 fake paper profit (NO@2¢ bet). Any new strategy must add this guard. See `_MIN_SIGNAL_PRICE_CENTS`, `_MAX_SIGNAL_PRICE_CENTS` constants.
 - **calibration_max_usd param on trading_loop (Session 31)** — btc_drift passes `calibration_max_usd=1.00`. Applied AFTER hard cap and stage cap clamps. None = disabled. Only use this for micro-live calibration. Do NOT add it to strategies that aren't in micro-live phase.
 - **Kalshi copy trading is INFEASIBLE — closed permanently (Session 31)** — `GET /market/get-trades` returns zero user attribution. Centralized exchange = private by design. Do not revisit unless Kalshi adds opt-in social trading API.
-- **Polymarket.COM vs .US is permanent architecture (Session 31)** — .US = sports-only, Ed25519 auth; .COM = full suite, ECDSA secp256k1 via py-clob-client. Whale data is from .COM. Our current order execution is .US. These are different accounts, different credentials, different order formats.
+- **Polymarket architecture FINAL (Session 32)** — Matthew is US-based on iOS app (polymarket.US, $60 balance). polymarket.COM is geo-restricted for US users + requires ECDSA/Polygon wallet — that path is CLOSED (no VPN, no .COM account needed). The ENTIRE copy trade system runs on polymarket.US: whale trade data comes from `data-api.polymarket.com` (public, no auth, no geo-block), order execution goes to `api.polymarket.us/v1` (Ed25519 auth, credentials already in .env). Sports whale trades on .COM are matched to .US sports markets by title. This is the correct and final architecture. Do NOT revisit .COM unless Matthew explicitly opens that door.
+- **POST /v1/orders on .US is the live execution blocker** — protobuf format not yet confirmed. Once confirmed + 30 paper copy trades, flip copy_trade_loop to live. No .COM dependency whatsoever.
 - **predicting.top API format can change without warning (Session 30)** — already changed twice (response wrapper + smart_score nesting). If leaderboard loads 0 whales, check API response shape first before debugging logic. Add an assertion on `len(whales) > 0` after load if this keeps happening.
 
 ## Software Engineering Standards
@@ -227,11 +228,11 @@ CHECK: `pip freeze | grep <package>` to get current version, then pin it.
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- **758/758 tests passing**, verify.py 21/29 (8 advisory WARNs — non-critical)
+- **768/768 tests passing**, verify.py 21/29 (8 advisory WARNs — non-critical)
 - **btc_drift_v1 MICRO-LIVE**: $1.00/bet cap, max 3/day, kill switch applies — collecting real calibration data
-  - Paper trading had structural bias: slippage (1-2¢ paper vs 2-3¢ real), no fill queue, no counterparty repricing
+  - Paper calibration fixed (Session 32): slippage 2→3¢, fill_probability=0.85 (15% no-fill), signal_price_cents stored
   - eth_orderbook_imbalance $233 paper anomaly fixed (Session 31): missing 35-65¢ price guard — NO@2¢ bet
-  - paper_slippage_ticks raised 1→2 (Kalshi BTC spreads avg 2-3¢; 1¢ was systematically optimistic)
+  - paper_slippage_ticks raised 2→3 (Session 32: upper end of confirmed 2-3¢ Kalshi BTC spread)
 - All other 9 Kalshi loops PAPER-ONLY: btc_lag (0 signals/week), eth_lag, eth_drift (DO NOT PROMOTE — 1.1 days data only), btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
 - **POLYMARKET PRIMARY MISSION: COPY TRADING**
   - src/data/predicting_top.py — whale wallet list from predicting.top (18 tests)
@@ -239,9 +240,9 @@ Current project state (updated each session):
   - src/strategies/copy_trader_v1.py — 6 decoy filters + Signal generation (29 tests) ← PRIMARY STRATEGY
   - src/strategies/sports_futures_v1.py — mispricing vs Odds API (25 tests) ← SUPPLEMENTAL ONLY
   - copy_trade_loop wired into main.py — 5-min poll, 80s startup delay, paper-only
-  - BLOCKED for .COM live: Matthew must create polymarket.com account + Polygon wallet
+  - **Architecture FINAL (Session 32)**: polymarket.US is the ONLY path. Whale data = data-api.polymarket.com (public). Orders = api.polymarket.us/v1 (Ed25519). Blocked on POST /v1/orders format only. No .COM account needed.
   - Kalshi copy trading: CONFIRMED INFEASIBLE — no public user attribution on centralized exchange
-- Latest commit: ed87261 — feat: micro-live calibration phase for btc_drift ($1.00 cap, 3/day)
+- Latest commit: Session 32 (paper calibration: slippage 3¢, fill_probability=0.85, signal_price_cents stored, 10 new tests)
 - Kill switch: consecutive_loss_limit=4, daily_loss_limit=20% (~$15.95 on $79.76 bankroll)
 - **Daily loss counter is CST-based (UTC-6)** — resets at midnight CST = 06:00 UTC daily
 - Paper-during-softkill: check_paper_order_allowed() in all paper loops — soft stops block live only
@@ -254,6 +255,27 @@ Current project state (updated each session):
 - ⚠️ Polymarket.us: sports-only. Polymarket.COM: full suite (crypto/politics/culture) — where whales trade
 - Live restart: `pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session31.log 2>&1 &`
 - Paper restart: `pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid; nohup ./venv/bin/python3 main.py >> /tmp/polybot_session31.log 2>&1 &`
+
+## Loading Screen Tip — MANDATORY at end of EVERY response
+Every response (with or without code changes) must end with a "💡 Loading Screen Tip" block.
+Purpose: surface the ONE most useful skill/command to use next, with token cost, so Matthew can say yes/no autonomously.
+
+FORMAT (always use this exactly):
+```
+💡 **Loading Screen Tip**
+**Recommended:** `/command:name` — [one-line reason why it's the right tool right now]
+**Token cost:** ~X% of 5-hour window | **Run autonomously:** yes/no → just say "yes"
+```
+
+RULES:
+- Show at most ONE recommendation per response (the most objectively useful)
+- Only recommend if there is a genuinely applicable skill/command for the immediate next step
+- If no command is appropriate, show "No skill needed — inline work is sufficient" instead
+- Token cost tiers (from mandatory-skills-workflow.md):
+  - Free (~0-1%): superpowers:TDD, superpowers:verification-before-completion, superpowers:systematic-debugging, gsd:add-todo
+  - Low (~1-2%): gsd:quick, gsd:health, gsd:progress
+  - Expensive (~15-25%): gsd:plan-phase, gsd:execute-phase, gsd:verify-work, superpowers:dispatching-parallel-agents
+- If "run autonomously: yes", Matthew can respond "yes" and Claude proceeds without further questions
 
 ## Workflow — ALWAYS AUTONOMOUS (Matthew's standing directive, never needs repeating)
 - **Bypass permissions ACTIVE — operate fully autonomously at all times**

@@ -192,7 +192,8 @@ risk:
   max_hourly_trades: 15                # Trades per hour before rate pause
   max_daily_bets_live: 10             # Live bets per strategy per UTC day — keeps tax forms manageable
   max_daily_bets_paper: 35            # Paper bets per strategy per day — graduates in 1 day (need 30 trades)
-  paper_slippage_ticks: 2              # Raised 1→2 (Session 31): Kalshi BTC spreads average 2-3¢; 1¢ was over-optimistic
+  paper_slippage_ticks: 3              # Raised 2→3 (Session 32): upper end of confirmed 2-3¢ Kalshi BTC spread
+  paper_fill_probability: 0.85         # 85% fill rate: 15% no-fill simulates market movement between signal and order
 
   # Hard stops (require manual --reset-killswitch)
   hard_stop_loss_pct: 0.30             # Lose 30% total → HARD STOP

@@ -21,6 +21,7 @@ Caller (main.py) reads paper_slippage_ticks from config.yaml and passes it as:
 from __future__ import annotations
 
 import logging
+import random
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -41,19 +42,35 @@ class PaperExecutor:
         Clamped to 99 (never fills above 99 cents).
         Default slippage_ticks=1 matches realistic paper mode.
         Set slippage_ticks=0 for exact-price backtesting.
+
+    Fill probability model:
+        fill_probability=1.0 (default): every signal fills (backward compatible).
+        fill_probability=0.85: 15% of signals are simulated no-fills (market moved
+        before order arrived). No-fills return None and write nothing to DB.
+        Caller reads this from config.yaml risk.paper_fill_probability.
     """
 
-    def __init__(self, db: DB, strategy_name: str = "btc_lag", slippage_ticks: int = 1):
+    def __init__(
+        self,
+        db: DB,
+        strategy_name: str = "btc_lag",
+        slippage_ticks: int = 1,
+        fill_probability: float = 1.0,
+    ):
         """
         Args:
-            db:              SQLite persistence layer.
-            strategy_name:   Name of the strategy placing the trade (stored in DB).
-            slippage_ticks:  Adverse fill shift in cents. Default 1 (realistic paper mode).
-                             Caller reads this from config.yaml risk.paper_slippage_ticks.
+            db:               SQLite persistence layer.
+            strategy_name:    Name of the strategy placing the trade (stored in DB).
+            slippage_ticks:   Adverse fill shift in cents. Default 1 (realistic paper mode).
+                              Caller reads this from config.yaml risk.paper_slippage_ticks.
+            fill_probability: Fraction of signals that actually fill (0.0–1.0).
+                              Default 1.0 = always fill. Caller reads from
+                              config.yaml risk.paper_fill_probability.
         """
         self._db = db
         self._strategy_name = strategy_name
         self._slippage_ticks = slippage_ticks
+        self._fill_probability = fill_probability
 
     def execute(
         self,
@@ -74,8 +91,19 @@ class PaperExecutor:
             reason:       Human-readable reason string from signal.
 
         Returns:
-            Trade record dict, or None if execution failed.
+            Trade record dict, or None if execution failed or simulated no-fill.
         """
+        # Simulate no-fill: models orders that don't fill due to price movement
+        if self._fill_probability < 1.0 and random.random() >= self._fill_probability:
+            logger.debug(
+                "[paper] No fill simulated (fill_probability=%.2f) | %s %s@%d¢",
+                self._fill_probability, side.upper(), ticker, price_cents,
+            )
+            return None
+
+        # Store original signal price before slippage (for calibration comparison)
+        signal_price_cents = price_cents
+
         # Apply slippage adversely (buyer pays more)
         fill_price_cents = self._apply_slippage(price_cents, self._slippage_ticks)
 
@@ -120,6 +148,7 @@ class PaperExecutor:
             win_prob=None,
             is_paper=True,
             client_order_id=client_order_id,
+            signal_price_cents=signal_price_cents,
         )
 
         return {
@@ -128,6 +157,7 @@ class PaperExecutor:
             "ticker": ticker,
             "side": side,
             "action": "buy",
+            "signal_price_cents": signal_price_cents,
             "fill_price_cents": fill_price_cents,
             "count": count,
             "cost_usd": actual_cost,

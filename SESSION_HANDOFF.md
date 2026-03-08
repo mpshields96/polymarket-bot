@@ -1,56 +1,59 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file + CLAUDE.md to any new Claude session to resume.
-# Last updated: 2026-03-08 (Session 31)
+# Last updated: 2026-03-08 (Session 32)
 ═══════════════════════════════════════════════════
 
 ## EXACT CURRENT STATE — READ THIS FIRST
 
-Bot is RUNNING — PID 53490, log at /tmp/polybot_session31.log
+Bot is STOPPED — being restarted with new paper calibration settings (Session 32).
 Check: `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"`
+Start: see RESTART COMMANDS below.
 
-btc_drift MICRO-LIVE ($1.00 cap, 3/day) — in 2hr cooling until ~15:19 UTC (consecutive_losses=4 on restart)
+btc_drift MICRO-LIVE ($1.00 cap, 3/day) — kill switch cooling may be active; check log
 All other 9 Kalshi strategies: PAPER-ONLY
 Copy-trade loop: RUNNING (paper-only, 5-min poll)
-Test count: 758/758
-Last commit: ed87261 — feat: micro-live calibration phase for btc_drift ($1.00 cap, 3/day)
+Test count: 768/768
+Last commit: Session 32 — paper calibration fixes + Polymarket architecture docs
 
 ═══════════════════════════════════════════════════
 
-## SESSION 31 WORK COMPLETED
+## SESSION 32 WORK COMPLETED
 
-### 1. Paper P&L anomaly found + fixed
-- eth_orderbook_imbalance had $233.24 single trade at NO@2c (YES=98c)
-- Price range guard (35-65c) was missing from orderbook_imbalance.py
-- Fixed: same guard as btc_lag/btc_drift added to both BTC and ETH paths
-- 3 regression tests added (TestPriceRangeGuard)
-- Real paper P&L without anomaly: ~$7 for eth_orderbook_imbalance (not $240)
+### 1. Paper calibration fixed (3 structural gaps closed)
+- paper_slippage_ticks: 2 → 3 (upper end of confirmed 2-3¢ Kalshi BTC spread)
+- paper_fill_probability: 0.85 added (15% no-fill simulates market movement before order arrives)
+- signal_price_cents DB column added (stores pre-slippage price for future real slippage measurement)
+- DB migration: ALTER TABLE trades ADD COLUMN signal_price_cents INTEGER (safe, idempotent)
+- PaperExecutor: fill_probability parameter added, signal_price_cents tracked in execute()
+- 10 new tests: TestFillProbability (6) + TestSignalPriceCents (4)
+- All PaperExecutor instantiations in main.py updated: trading_loop, weather, fomc, unemployment, copy_trade
+- **768/768 tests pass**
 
-### 2. Paper vs live discrepancy diagnosed
-- Paper P&L is structurally optimistic: no real slippage, no fill timing, no counterparty
-- Paper slippage_ticks raised 1->2 (Kalshi BTC spreads avg 2-3c at near-50c)
+### 2. Polymarket architecture FINAL clarified
+- Previous sessions had wrong conclusion: "BLOCKED — need .COM account + Polygon wallet"
+- Reality: Matthew is US-based, iOS app, $60 on polymarket.US — polymarket.COM is geo-restricted
+- Correct path: data-api.polymarket.com (public whale data) + api.polymarket.us/v1 (Ed25519 orders)
+- ONLY remaining blocker: POST /v1/orders protobuf format confirmation
+- No VPN, no .COM account, no Polygon wallet needed
+- CLAUDE.md + MEMORY.md + SESSION_HANDOFF.md all updated with correct architecture
 
-### 3. Micro-live calibration phase implemented
-- Matthew decision: use real $1.00 bets instead of fake paper for btc_drift
-- calibration_max_usd=1.00 parameter added to trading_loop
-- btc_drift loop: live_executor_enabled, $1.00 cap, max 3/day (~$3/day, $20/week max)
-- Kill switch applies fully — daily/lifetime/consecutive limits enforced
-- PRINCIPLES.md updated with micro-live phase rules
+### 3. Loading screen tip rule added
+- Every response must end with `💡 Loading Screen Tip` block
+- Shows single most useful next command + token cost estimate + yes/no approval
+- Hardcoded in CLAUDE.md Workflow section + MEMORY.md User preferences
 
-### 4. Copy trading research completed
-- Kalshi copy trading: CONFIRMED INFEASIBLE (no public user attribution)
-- Polymarket.COM: full market suite, whales trade here, py-clob-client for ECDSA auth
-- Top traders: HyperLiquid0xb $1.4M, Erasmus $1.3M, WindWalk3 $1.1M, BAdiosB 90.8% wr
-- Research doc: .planning/research/copy_trading_research.md
+### 4. Weekly $20 live bet limit (this week only)
+- Matthew set $20/week live bet limit for this week (not a permanent change)
+- btc_drift at $1/bet × 3/day = max $21/week → already within limit
+- Lifetime hard stop unchanged: $30 total loss limit (currently $18.85 used)
 
 ═══════════════════════════════════════════════════
 
-## KILL SWITCH STATUS (2026-03-08 13:19 UTC)
-
-2hr cooling active until ~15:19 UTC — consecutive_losses=4 restored from DB on restart.
-After cooling expires, btc_drift micro-live bets can fire normally.
+## KILL SWITCH STATUS
 
 Lifetime loss: $18.85 / $30.00 (62.8% of hard stop threshold)
 Bankroll: $79.76 | Hard stop margin: $11.15 remaining
+Daily loss limit: 20% = ~$15.95 on current bankroll
 
 ═══════════════════════════════════════════════════
 
@@ -75,31 +78,30 @@ main.py asyncio event loop [LIVE MODE]
 
 ## PENDING DECISIONS + NEXT TASKS
 
-1. WAIT: 2hr cooling expires ~15:19 UTC — watch for first micro-live btc_drift bet
-   tail -f /tmp/polybot_session31.log | grep --line-buffered "LIVE\|drift\|Trade executed"
+1. CONFIRM: POST /v1/orders protobuf format on polymarket.US
+   This is the ONLY remaining blocker for live copy trading.
+   Once confirmed + 30 paper copy trades → flip copy_trade_loop to live.
 
-2. GATE: Matthew — polymarket.COM account + Polygon wallet?
-   This is the SINGLE blocker for real copy trading on .COM (where all whales trade).
-   YES -> ECDSA auth + py-clob-client integration in src/auth/ + src/platforms/
-
-3. btc_drift micro-live — let it collect 30 real bets, then evaluate Brier score
+2. btc_drift micro-live — let it collect 30 real bets, then evaluate Brier score
    Do NOT change calibration_max_usd until 30+ settled bets.
 
-4. DO NOT re-promote btc_lag to live — 0 signals/week, bankroll $79.76 < $90 gate
+3. DO NOT re-promote btc_lag to live — 0 signals/week, bankroll $79.76 < $90 gate
+
+4. Weekly $20 live bet limit this week — Matthew reconvening next week on this
 
 ═══════════════════════════════════════════════════
 
 ## RESTART COMMANDS
 
-Live mode (current — standard restart):
+Live mode (with new paper calibration — Session 32):
   pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null
   sleep 3; rm -f bot.pid
   echo "CONFIRM" > /tmp/polybot_confirm.txt
-  nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session31.log 2>&1 &
+  nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session32.log 2>&1 &
   sleep 10 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
 
 Watch micro-live drift bets:
-  tail -f /tmp/polybot_session31.log | grep --line-buffered "drift\|LIVE\|Trade executed\|Kill switch"
+  tail -f /tmp/polybot_session32.log | grep --line-buffered "drift\|LIVE\|Trade executed\|Kill switch"
 
 Key Commands:
   source venv/bin/activate && python3 main.py --report
