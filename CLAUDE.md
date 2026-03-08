@@ -189,7 +189,8 @@ DO NOT: fix symptoms without finding root cause
 - **calibration_max_usd param on trading_loop (Session 31)** — btc_drift passes `calibration_max_usd=0.01` → live.py always floors to 1 contract (actual cost $0.35-0.65). None = disabled. Only use for micro-live calibration. Do NOT add to other strategies.
 - **Kalshi copy trading is INFEASIBLE — closed permanently (Session 31)** — `GET /market/get-trades` returns zero user attribution. Centralized exchange = private by design. Do not revisit unless Kalshi adds opt-in social trading API.
 - **Polymarket architecture FINAL (Session 32)** — Matthew is US-based on iOS app (polymarket.US, $60 balance). polymarket.COM is geo-restricted for US users + requires ECDSA/Polygon wallet — that path is CLOSED (no VPN, no .COM account needed). The ENTIRE copy trade system runs on polymarket.US: whale trade data comes from `data-api.polymarket.com` (public, no auth, no geo-block), order execution goes to `api.polymarket.us/v1` (Ed25519 auth, credentials already in .env). Sports whale trades on .COM are matched to .US sports markets by title. This is the correct and final architecture. Do NOT revisit .COM unless Matthew explicitly opens that door.
-- **POST /v1/orders on .US is the live execution blocker** — protobuf format not yet confirmed. Once confirmed + 30 paper copy trades, flip copy_trade_loop to live. No .COM dependency whatsoever.
+- **POST /v1/orders on .US CONFIRMED JSON (Session 34)** — Schema: {marketSlug, intent, type, price:{value,currency}, quantity, tif}. Response: {"id":"...", "executions":[]}. place_order() implemented in src/platforms/polymarket.py. live_executor_enabled=False in copy_trade_loop until 30 paper trades.
+- **Copy trading platform mismatch CONFIRMED (Session 34)** — predicting.top whales ALL trade on polymarket.COM (politics/crypto/culture). Our account is on polymarket.US (sports-only). data-api.polymarket.com covers .COM trades ONLY (separate integer vs hex condition IDs). ALL whale signals are ".com-only" — none match .US sports markets. STRATEGIC DECISION NEEDED: enable sports_futures_v1 bookmaker arbitrage OR find sports-specific whale data source.
 - **predicting.top API format can change without warning (Session 30)** — already changed twice (response wrapper + smart_score nesting). If leaderboard loads 0 whales, check API response shape first before debugging logic. Add an assertion on `len(whales) > 0` after load if this keeps happening.
 
 ## Software Engineering Standards
@@ -228,21 +229,22 @@ CHECK: `pip freeze | grep <package>` to get current version, then pin it.
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- **797/797 tests passing**, verify.py 21/29 (8 advisory WARNs — non-critical)
-- **btc_drift_v1 MICRO-LIVE**: 1 contract/bet (~$0.35-0.65), unlimited/day (daily loss limit governs), kill switch applies — collecting real calibration data
+- **825/825 tests passing**, verify.py 21/29 (8 advisory WARNs — non-critical)
+- **btc_drift_v1 MICRO-LIVE**: 1 contract/bet (~$0.35-0.65), unlimited/day (daily loss limit governs) — at 12/30 live settled bets
   - Paper calibration fixed (Session 32): slippage 2→3¢, fill_probability=0.85 (15% no-fill), signal_price_cents stored
   - eth_orderbook_imbalance $233 paper anomaly fixed (Session 31): missing 35-65¢ price guard — NO@2¢ bet
   - paper_slippage_ticks raised 2→3 (Session 32: upper end of confirmed 2-3¢ Kalshi BTC spread)
-- All other 9 Kalshi loops PAPER-ONLY: btc_lag (0 signals/week), eth_lag, eth_drift (DO NOT PROMOTE — 1.1 days data only), btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
-- **POLYMARKET PRIMARY MISSION: COPY TRADING**
-  - src/data/predicting_top.py — whale wallet list from predicting.top (18 tests)
-  - src/data/whale_watcher.py — whale trades + positions from data-api.polymarket.com (28 tests)
-  - src/strategies/copy_trader_v1.py — 6 decoy filters + Signal generation (29 tests) ← PRIMARY STRATEGY
-  - src/strategies/sports_futures_v1.py — mispricing vs sharp consensus (25 tests) ← SUPPLEMENTAL ONLY
-  - copy_trade_loop wired into main.py — 5-min poll, 80s startup delay, paper-only
-  - **Architecture FINAL (Session 32)**: polymarket.US is the ONLY path. Whale data = data-api.polymarket.com (public). Orders = api.polymarket.us/v1 (Ed25519). Blocked on POST /v1/orders format only. No .COM account needed.
-  - Kalshi copy trading: CONFIRMED INFEASIBLE — no public user attribution on centralized exchange
-- Latest commit: Session 34 (lifetime hard stop removed — display-only; btc_drift daily cap unlimited)
+- All other 9 Kalshi loops PAPER-ONLY: btc_lag (0 signals/week), eth_lag, eth_drift (DO NOT PROMOTE), btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
+- **POLYMARKET — BLOCKED ON PLATFORM MISMATCH (Session 34)**
+  - POST /v1/orders JSON format confirmed (Session 34): place_order() implemented
+  - copy_trade_loop kill switch bug fixed (Session 34): check_paper_order_allowed() called correctly
+  - live_executor_enabled=False — ready to flip once 30 paper trades + strategic decision made
+  - PROBLEM: predicting.top whales trade .COM (politics/crypto). .US is sports-only. 0 matches.
+  - STRATEGIC DECISION NEEDED: sports_futures_v1 (bookmaker arb) OR sports whale data source
+  - src/strategies/copy_trader_v1.py — 6 decoy filters + Signal (29 tests)
+  - src/strategies/sports_futures_v1.py — mispricing vs bookmaker consensus (25 tests, disabled)
+  - Kalshi copy trading: CONFIRMED INFEASIBLE (no public user attribution)
+- Latest commit: Session 34 (POST /v1/orders confirmed, live path built, copy_trade bug fixed)
 - Kill switch: consecutive_loss_limit=4, daily_loss_limit=20% (~$15.95 on $79.76 bankroll). NO lifetime % hard stop.
 - **Daily loss counter is CST-based (UTC-6)** — resets at midnight CST = 06:00 UTC daily
 - Paper-during-softkill: check_paper_order_allowed() in all paper loops — soft stops block live only
