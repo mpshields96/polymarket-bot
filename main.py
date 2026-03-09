@@ -2089,6 +2089,9 @@ async def main():
                         help="Run connection verification and exit")
     parser.add_argument("--reset-killswitch", action="store_true",
                         help="Reset a triggered hard stop (requires manual confirmation)")
+    parser.add_argument("--reset-soft-stop", action="store_true",
+                        help="Clear consecutive loss counter and cooling period at startup "
+                             "(use after a bug fix that caused the loss streak)")
     parser.add_argument("--report", action="store_true",
                         help="Print today's P&L summary and exit")
     parser.add_argument("--graduation-status", action="store_true",
@@ -2235,6 +2238,9 @@ async def main():
     _consecutive_streak, _last_loss_ts = db.current_live_consecutive_losses()
     if _consecutive_streak > 0:
         kill_switch.restore_consecutive_losses(_consecutive_streak, _last_loss_ts)
+    if args.reset_soft_stop:
+        kill_switch.reset_soft_stop()
+        logger.warning("[startup] --reset-soft-stop: consecutive loss counter cleared")
     # Log kill switch health AFTER all restores — surfaces any active blocks immediately
     kill_switch.log_startup_status()
 

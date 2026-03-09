@@ -418,6 +418,23 @@ class KillSwitch:
         self._state._consecutive_losses = 0
         logger.info("Win recorded — consecutive loss counter reset")
 
+    def reset_soft_stop(self) -> None:
+        """Clear the consecutive loss counter and any active cooling period.
+
+        Use when a bug fix addresses the root cause of a loss streak and you want
+        to resume live trading before the cooling window expires naturally.
+        The daily loss limit and hard stop are NOT affected.
+        """
+        self._state._consecutive_losses = 0
+        self._state._cooling_until = None
+        if "consecutive" in self._state._soft_stop_reason.lower():
+            self._state._soft_stop = False
+            self._state._soft_stop_reason = ""
+            self._state._soft_stop_until = None
+        logger.warning(
+            "[kill_switch] Soft stop reset: consecutive loss counter cleared (manual override)"
+        )
+
     def record_auth_failure(self):
         """Call on every API authentication failure."""
         self._state._consecutive_auth_failures += 1

@@ -1008,3 +1008,47 @@ class TestCalibrationCap:
         trade_usd = min(size_from_sizing, hard_cap)
         trade_usd = min(trade_usd, calibration_max_usd)
         assert trade_usd == pytest.approx(0.50)
+
+
+class TestResetSoftStop:
+    """reset_soft_stop() clears consecutive counter and cooling without touching daily/hard state."""
+
+    @pytest.fixture
+    def ks(self):
+        return KillSwitch(starting_bankroll_usd=100.0)
+
+    def test_reset_clears_consecutive_counter(self, ks):
+        for _ in range(4):
+            ks.record_loss(1.0)
+        assert ks._state._consecutive_losses == 4
+        ks.reset_soft_stop()
+        assert ks._state._consecutive_losses == 0
+
+    def test_reset_clears_cooling(self, ks):
+        for _ in range(4):
+            ks.record_loss(1.0)
+        assert ks._state._cooling_until is not None
+        ks.reset_soft_stop()
+        assert ks._state._cooling_until is None
+
+    def test_reset_clears_soft_stop_flag(self, ks):
+        for _ in range(4):
+            ks.record_loss(1.0)
+        assert ks._state._soft_stop is True
+        ks.reset_soft_stop()
+        assert ks._state._soft_stop is False
+
+    def test_reset_allows_order_after_active_cooling(self, ks):
+        for _ in range(4):
+            ks.record_loss(1.0)
+        allowed, _ = ks.check_order_allowed(trade_usd=0.50, current_bankroll_usd=100.0)
+        assert allowed is False
+        ks.reset_soft_stop()
+        allowed, _ = ks.check_order_allowed(trade_usd=0.50, current_bankroll_usd=100.0)
+        assert allowed is True
+
+    def test_reset_does_not_affect_daily_loss(self, ks):
+        for _ in range(4):
+            ks.record_loss(1.0)
+        ks.reset_soft_stop()
+        assert ks._state._daily_loss_usd == pytest.approx(4.0)
