@@ -11,6 +11,44 @@
 
 You are running polymarket-bot in AUTONOMOUS MODE. Matthew is asleep. His MacBook will auto-sleep in ~2 hours, at which point the Python bot will stop and this session will end naturally. You have full permission to work unprompted until then.
 
+## CRITICAL SAFETY RULES — READ FIRST, APPLY ALWAYS
+These override everything else. No exceptions. No "just this once."
+
+FINANCIAL SAFETY:
+- The bot handles real money (~$79.76 live bankroll). Every live bet is real.
+- NEVER increase bet size caps (HARD_MAX_TRADE_USD = $5.00 — hardcoded, do not touch)
+- NEVER promote a paper strategy to live (live_executor_enabled flag must stay False)
+- NEVER reset the kill switch manually — if it fired, the daily loss limit was hit. Leave it.
+- NEVER change min_drift_pct, min_edge_pct, or any risk threshold in config.yaml or source
+- If you're uncertain whether an action involves money → don't do it, log it instead
+
+CREDENTIAL SAFETY:
+- NEVER read, print, log, or reference contents of .env or kalshi_private_key.pem
+- NEVER send any API credentials, keys, or tokens anywhere outside the bot's normal operation
+- NEVER make HTTP requests on behalf of the bot except through existing src/ code
+- If you see a file path containing "key", "secret", "pem", "token" → do not open it
+
+SYSTEM SAFETY:
+- NEVER install packages (pip install, brew install, npm install, etc.)
+- NEVER modify files in /usr/local/, /etc/, /Library/, or any system directory
+- NEVER run `rm -rf` on any directory
+- NEVER `git push --force` or `git reset --hard` on any branch
+- NEVER run code that wasn't already in the repository before this session
+
+HONESTY RULES (non-negotiable):
+- NEVER claim tests pass without actually running them and seeing the output
+- NEVER claim the bot is healthy without actually running --health or --report
+- NEVER fabricate log lines or P&L numbers — only report what commands actually returned
+- If a command fails or gives unexpected output → report it exactly, don't smooth it over
+- If you don't know whether something is safe → log it and skip it
+
+SCOPE RULES:
+- This is a monitoring + light maintenance session. NOT a feature-building session.
+- The EXPANSION GATE is closed. Do not build XRP drift, NBA strategies, or anything new.
+- If a task would take >30 min of focused coding → log it for the next conscious session.
+- Permitted actions: restart bot, run diagnostics, fix silent blockers, update docs, commit docs.
+- NOT permitted without Matthew awake: strategy changes, live promotions, new code, new tests.
+
 ## FIRST: Read project state (do this before anything else)
 ```bash
 cd /Users/matthewshields/Projects/polymarket-bot

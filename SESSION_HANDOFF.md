@@ -17,8 +17,8 @@ KEY STATE (Session 36 close — 2026-03-09):
 * Bot: PID 74462, live mode, log /tmp/polybot_session36.log
 * THREE MICRO-LIVE LOOPS: btc_drift + eth_drift + sol_drift (all ~$0.35-0.65/bet, unlimited/day)
 * All others: PAPER-ONLY. 869/869 tests passing.
-* Last commits: 8be7901 (session close), e904715 (todos+roadmap), 3477987 (report fix)
-* Bankroll: ~$79.76 | All-time live P&L: -$16.53 (improving) | btc_drift: 12/30 live bets
+* Last commits: c8afa61 (AUTONOMOUS_SESSION.md), 0155633 (token budget prompt), 8be7901 (session close)
+* Bankroll: ~$79.76 | All-time live P&L: -$15.15 (improving) | btc_drift: 12/30 live bets
 * Protection: 20% daily loss + $20 floor. GSD health: HEALTHY. 0 pending todos.
 * --report correctly splits paper/live by is_paper per trade (two rows on transition days)
 * Autonomous monitoring task ACTIVE: "polybot-monitor" runs every 30 min, logs to
@@ -93,16 +93,16 @@ copy_trader_v1 (Polymarket.US — 0 matches, platform mismatch confirmed)
 ### Tests: 869/869
 
 ### Last commits:
+- c8afa61 — docs: AUTONOMOUS_SESSION.md — 2hr sleep-mode work prompt
+- 0155633 — docs: expand Session 37 prompt with token budget + autonomous mode
+- 8be7901 — docs: session 36 final close-out — handoff + changelog updated
 - e904715 — chore: todos marked complete + ROADMAP phase 04.2 acknowledged (GSD healthy)
 - 3477987 — fix(report): split paper/live rows by is_paper per-trade (not per-strategy mode)
-- 25b5f2b — docs: full Kalshi live API re-probe — 5 new market categories discovered
-- 11ff825 — feat: sol_drift_v1 micro-live (third drift data stream)
-- aa83e78 — feat: eth_drift micro-live + btc_drift thresholds restored 0.05/0.05
 
-### P&L:
+### P&L (as of 2026-03-09 23:10 CDT):
 - Bankroll: ~$79.76
-- All-time live P&L: -$16.53 (improving — today +$2.32 live)
-- btc_drift: 12/30 live settled bets. eth_drift: ~3 live. sol_drift: ~2 live.
+- All-time live P&L: -$15.15 (improving — today: btc_drift 5/6 +$1.83, eth_drift 3/4 +$0.83, sol_drift 3/3 +$1.04)
+- btc_drift: 12/30 live settled bets. eth_drift: ~4 live. sol_drift: ~3 live.
 - Protection: 20% daily loss limit + $20 bankroll floor. NO lifetime % hard stop.
 
 # ═══════════════════════════════════════════════════════════════
