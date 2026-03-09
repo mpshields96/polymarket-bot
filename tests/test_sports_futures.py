@@ -442,6 +442,50 @@ class TestSportsFuturesSignal:
         s = SportsFuturesStrategy()
         assert s.name == "sports_futures_v1"
 
+    def test_min_books_default_is_two(self):
+        """Default min_books is 2 — 1-book signals are filtered out."""
+        from src.strategies.sports_futures_v1 import SportsFuturesStrategy
+        s = SportsFuturesStrategy()
+        assert s._min_books == 2
+
+    def test_one_book_signal_filtered_out_by_default(self):
+        """1-book odds → no signal when min_books=2 (default)."""
+        from src.data.odds_api import ChampionshipOdds
+        strategy = self._make_strategy(min_edge_pct=0.05)
+        pm_market = self._make_pm_market("Thunder", 0.30)
+        # Only 1 book — below default min_books=2
+        odds = [ChampionshipOdds(
+            team_name="Oklahoma City Thunder",
+            decimal_odds=2.44,
+            implied_prob=0.41,
+            num_books=1,
+        )]
+        signals = strategy.scan_for_signals([pm_market], odds)
+        assert signals == [], "1-book signal must be filtered out by default min_books=2"
+
+    def test_one_book_signal_allowed_when_min_books_one(self):
+        """min_books=1 allows 1-book signals through."""
+        from src.strategies.sports_futures_v1 import SportsFuturesStrategy
+        from src.data.odds_api import ChampionshipOdds
+        strategy = SportsFuturesStrategy(min_edge_pct=0.05, min_books=1)
+        pm_market = self._make_pm_market("Thunder", 0.30)
+        odds = [ChampionshipOdds(
+            team_name="Oklahoma City Thunder",
+            decimal_odds=2.44,
+            implied_prob=0.41,
+            num_books=1,
+        )]
+        signals = strategy.scan_for_signals([pm_market], odds)
+        assert len(signals) == 1
+
+    def test_two_book_signal_passes_default_filter(self):
+        """2-book odds → signal passes (meets default min_books=2)."""
+        strategy = self._make_strategy(min_edge_pct=0.05)
+        pm_market = self._make_pm_market("Thunder", 0.30)
+        odds = [self._make_odds("Oklahoma City Thunder", 0.41)]  # num_books=2
+        signals = strategy.scan_for_signals([pm_market], odds)
+        assert len(signals) == 1
+
 
 # ── City-to-nickname matching fix (Session 35) ────────────────────────────────
 # Real PM market titles are city-only ("Memphis", "Golden State", "Los Angeles C")

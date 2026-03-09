@@ -236,16 +236,9 @@ This is pure read infrastructure. No execution. No credentials needed. Safe to b
 
 ---
 
-## [ ] Kill Switch Event Log — Test Pollution Fix
-**Added:** 2026-03-01 Session 22
-**Issue:** `kill_switch._hard_stop()` writes to KILL_SWITCH_EVENT.log during pytest runs
-- Tests that trigger the hard stop (record_loss × 3 → $30+ losses) write to the LIVE event log
-- This creates misleading entries like "HARD STOP — $31 loss" that look like real trading events
-- _write_blockers() correctly guards with `PYTEST_CURRENT_TEST` — but _hard_stop() does not
-**Fix:** Add `if os.environ.get("PYTEST_CURRENT_TEST"): return` before writing to EVENT_LOG in _hard_stop()
-Also: avoid writing kill_switch.lock during tests (conftest.py cleans it but better to skip)
-**Priority:** Low — cosmetic issue, no trading impact
-**Estimated effort:** 5 minutes + 1 test
+## [DONE] Kill Switch Event Log — Test Pollution Fix
+**Completed:** Session 35 — already fixed in `_hard_stop()` at line 454 of kill_switch.py.
+`PYTEST_CURRENT_TEST` guard returns early before writing EVENT_LOG or lock file.
 
 ---
 

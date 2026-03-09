@@ -253,8 +253,9 @@ class SportsFuturesStrategy:
     Paper-only until POST /v1/orders protobuf format is confirmed.
     """
 
-    def __init__(self, min_edge_pct: float = 0.05):
+    def __init__(self, min_edge_pct: float = 0.05, min_books: int = 2):
         self._min_edge_pct = min_edge_pct
+        self._min_books = min_books
 
     @property
     def name(self) -> str:
@@ -298,6 +299,13 @@ class SportsFuturesStrategy:
                 logger.debug(
                     "[sports_futures] No odds match for PM market %r (normalized=%r)",
                     team_title, normalized,
+                )
+                continue
+
+            if o.num_books < self._min_books:
+                logger.debug(
+                    "[sports_futures] Skipping %r — only %d book(s), min_books=%d",
+                    team_title, o.num_books, self._min_books,
                 )
                 continue
 
