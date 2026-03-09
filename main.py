@@ -2200,6 +2200,7 @@ async def main():
     from src.strategies.btc_lag import load_sol_lag_from_config as sol_lag_load
     from src.strategies.btc_drift import load_from_config as drift_strategy_load
     from src.strategies.btc_drift import load_eth_drift_from_config as eth_drift_load
+    from src.strategies.btc_drift import load_sol_drift_from_config as sol_drift_load
     from src.strategies.orderbook_imbalance import (
         load_btc_imbalance_from_config,
         load_eth_imbalance_from_config,
@@ -2265,6 +2266,8 @@ async def main():
     logger.info("Strategy loaded: %s (paper-only ETH lag — returning to calibration)", eth_lag_strategy.name)
     eth_drift_strategy = eth_drift_load()
     logger.info("Strategy loaded: %s (micro-live ETH drift, 1 contract/bet)", eth_drift_strategy.name)
+    sol_drift_strategy = sol_drift_load()
+    logger.info("Strategy loaded: %s (micro-live SOL drift, 1 contract/bet)", sol_drift_strategy.name)
     btc_imbalance_strategy = load_btc_imbalance_from_config()
     logger.info("Strategy loaded: %s (paper-only BTC orderbook imbalance)", btc_imbalance_strategy.name)
     eth_imbalance_strategy = load_eth_imbalance_from_config()
@@ -2440,7 +2443,31 @@ async def main():
         ),
         name="eth_drift_loop",
     )
-    # BTC orderbook imbalance: paper-only, stagger 29s
+    # SOL drift: micro-live, stagger 29s (before BTC imbalance moves to 36s)
+    # Enabled Session 36: SOL ~3x more volatile than BTC/ETH → more frequent signals.
+    # Same 1-contract/bet cap as btc_drift/eth_drift. KXSOL15M series.
+    # Do NOT raise cap until: 30+ sol live trades + Brier < 0.30.
+    sol_drift_task = asyncio.create_task(
+        trading_loop(
+            kalshi=kalshi,
+            btc_feed=sol_feed,
+            strategy=sol_drift_strategy,
+            kill_switch=kill_switch,
+            db=db,
+            live_executor_enabled=live_mode,
+            live_confirmed=live_confirmed,
+            btc_series_ticker="KXSOL15M",
+            loop_name="sol_drift",
+            initial_delay_sec=29.0,
+            max_daily_bets=0,  # unlimited — daily loss limit governs
+            slippage_ticks=paper_slippage_ticks,
+            fill_probability=paper_fill_probability,
+            trade_lock=_live_trade_lock,
+            calibration_max_usd=_DRIFT_CALIBRATION_CAP_USD,
+        ),
+        name="sol_drift_loop",
+    )
+    # BTC orderbook imbalance: paper-only, stagger 36s (was 29s — shifted for sol_drift)
     btc_imbalance_task = asyncio.create_task(
         trading_loop(
             kalshi=kalshi,
@@ -2452,7 +2479,7 @@ async def main():
             live_confirmed=False,
             btc_series_ticker=btc_series_ticker,
             loop_name="btc_imbalance",
-            initial_delay_sec=29.0,
+            initial_delay_sec=36.0,
             max_daily_bets=max_daily_bets_paper,
             slippage_ticks=paper_slippage_ticks,
             fill_probability=paper_fill_probability,
@@ -2649,6 +2676,7 @@ async def main():
         eth_lag_task.cancel()
         drift_task.cancel()
         eth_drift_task.cancel()
+        sol_drift_task.cancel()
         btc_imbalance_task.cancel()
         eth_imbalance_task.cancel()
         weather_task.cancel()
@@ -2667,7 +2695,7 @@ async def main():
 
     try:
         await asyncio.gather(
-            trade_task, eth_lag_task, drift_task, eth_drift_task,
+            trade_task, eth_lag_task, drift_task, eth_drift_task, sol_drift_task,
             btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task,
             unemployment_task, sol_task, settle_task,
             btc_daily_task, eth_daily_task, sol_daily_task, copy_task,
@@ -2680,6 +2708,7 @@ async def main():
         eth_lag_task.cancel()
         drift_task.cancel()
         eth_drift_task.cancel()
+        sol_drift_task.cancel()
         btc_imbalance_task.cancel()
         eth_imbalance_task.cancel()
         weather_task.cancel()
@@ -2693,7 +2722,7 @@ async def main():
         copy_task.cancel()
         sports_futures_task.cancel()
         await asyncio.gather(
-            trade_task, eth_lag_task, drift_task, eth_drift_task,
+            trade_task, eth_lag_task, drift_task, eth_drift_task, sol_drift_task,
             btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task,
             unemployment_task, sol_task, settle_task,
             btc_daily_task, eth_daily_task, sol_daily_task, copy_task,
