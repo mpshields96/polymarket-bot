@@ -168,6 +168,18 @@ async def execute(
         order.order_id, order.status,
     )
 
+    # ── Canceled order guard ──────────────────────────────────────────────
+    # Kalshi cancels orders that cannot be matched (no liquidity, market closing,
+    # risk limit). A canceled order must NOT be recorded as a live bet — doing so
+    # corrupts calibration data, inflates trade counters, and poisons Brier scores.
+    if order.status == "canceled":
+        logger.warning(
+            "[live] Order canceled by Kalshi — NOT recording as trade: "
+            "server_id=%s ticker=%s",
+            order.order_id, signal.ticker,
+        )
+        return None
+
     # ── Record to DB ──────────────────────────────────────────────────
     trade_id = db.save_trade(
         ticker=signal.ticker,
