@@ -29,6 +29,13 @@ All core infrastructure built and validated:
 
 Key lesson: btc_lag signal is valid. Kalshi execution (market orders, maturing market) is the problem.
 
+### Phase 04.2: Paper Data Collection ✅ COMPLETE
+- PaperExecutor with configurable adverse slippage model (1-tick default)
+- `--graduation-status` CLI command (8-strategy Brier progress table)
+- Settlement result normalization (.lower()) in kalshi.py `_parse_market()`
+- `docs/SETTLEMENT_MAPPING.md` — WIN/LOSS field logic documented
+- Plan: `.planning/phases/04.2-paper-data-collection/04.2-01-PLAN.md`
+
 ═══════════════════════════════════════════════════════════════
 
 ## 🔄 CURRENT — Phase 5: Polymarket Integration
