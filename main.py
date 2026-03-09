@@ -1933,6 +1933,8 @@ async def main():
     _consecutive_streak, _last_loss_ts = db.current_live_consecutive_losses()
     if _consecutive_streak > 0:
         kill_switch.restore_consecutive_losses(_consecutive_streak, _last_loss_ts)
+    # Log kill switch health AFTER all restores — surfaces any active blocks immediately
+    kill_switch.log_startup_status()
 
     current_bankroll = db.latest_bankroll() or starting_bankroll
     stage = get_stage(current_bankroll)

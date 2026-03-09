@@ -382,6 +382,37 @@ class KillSwitch:
             self._state._soft_stop_reason = reason
             self._state._soft_stop_until = until
 
+    def log_startup_status(self):
+        """Print a visible kill switch health summary at startup.
+
+        Called after all restore_* calls in main(). Surfaces any active blocks
+        so silent soft/hard stops are immediately visible in the startup log.
+        See KILL_SWITCH_LESSONS.md LESSON 4 for why this is mandatory.
+        """
+        s = self._state
+        hard = "⚠️  HARD STOPPED" if s._hard_stop else "OK"
+        daily = f"${s._daily_loss_usd:.2f} / ${s.starting_bankroll * DAILY_LOSS_LIMIT_PCT:.2f} limit"
+
+        if s._cooling_until and time.time() < s._cooling_until:
+            remaining = (s._cooling_until - time.time()) / 60
+            consec = f"{s._consecutive_losses}/{CONSECUTIVE_LOSS_LIMIT} ⚠️  COOLING {remaining:.0f}min remaining"
+        else:
+            consec = f"{s._consecutive_losses}/{CONSECUTIVE_LOSS_LIMIT} — OK"
+
+        lines = [
+            "══ Kill Switch Status ══════════════════════",
+            f"  Hard stopped:    {hard}",
+            f"  Daily loss:      {daily}",
+            f"  Consecutive:     {consec}",
+            "════════════════════════════════════════════",
+        ]
+        if s._hard_stop or (s._cooling_until and time.time() < s._cooling_until):
+            for line in lines:
+                logger.warning(line)
+        else:
+            for line in lines:
+                logger.info(line)
+
     def record_win(self):
         """Call when a trade settles as a win."""
         self._state._consecutive_losses = 0
