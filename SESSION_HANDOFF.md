@@ -5,13 +5,13 @@
 
 ## EXACT CURRENT STATE — READ THIS FIRST
 
-Bot is RUNNING — PID 67702, live mode, log: /tmp/polybot_session35.log
+Bot is RUNNING — PID 69468, live mode, log: /tmp/polybot_session35.log
 Check: `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"`
 Watch: `tail -f /tmp/polybot_session35.log | grep --line-buffered "daily\|drift\|LIVE\|Kill switch\|sports_futures"`
 
-btc_drift MICRO-LIVE (1 contract/bet ~$0.35-0.65, UNLIMITED/day) — active (12/30 live bets so far)
+btc_drift MICRO-LIVE (1 contract/bet ~$0.35-0.65, UNLIMITED/day) — active, NOW UNBLOCKED (was 7 days stale-blocked)
 All other strategies: PAPER-ONLY
-Test count: 859/859
+Test count: 865/865
 Last commit: see `git log --oneline -3`
 
 ═══════════════════════════════════════════════════
@@ -136,17 +136,42 @@ main.py asyncio event loop [LIVE MODE] — PID 67702
 - 8 new tests in TestSportsFuturesLoop covering all execution paths
 - 859/859 tests passing (up from 825)
 - Loop wired into main.py asyncio.gather + _on_signal cancellation + finally cleanup
-- **Bot NOT restarted** — sports_futures_loop will be active after next restart
+
+### 4. CRITICAL BUG FIXED: Stale consecutive loss streak blocked live bets 7 days
+- Trades 110-121 (2026-03-01) = 4 consecutive btc_drift losses
+- restore_consecutive_losses() fired a FRESH 2hr cooling period on every restart
+- Result: ZERO live bets for 7+ days (every restart re-blocked for 2hrs)
+- Fix: db.current_live_consecutive_losses() now returns (count, last_loss_ts)
+  restore_consecutive_losses(count, last_loss_ts) checks if window already expired
+  If stale: seed counter only — no new block. If fresh: restore remaining time.
+- +6 new regression tests including test_restore_stale_streak_does_not_block
+- **See KILL_SWITCH_LESSONS.md Lesson 1 — this is now documented and tested**
+
+### 5. Settlement loop now skips Polymarket tickers
+- sports_futures paper trades have tec-*/nba-*/nhl-* tickers
+- settlement_loop was calling kalshi.get_market() on them → 404 spam every poll
+- Fix: filter to KX-prefixed tickers before Kalshi API calls
+- **See KILL_SWITCH_LESSONS.md Lesson 2**
+
+### 6. Startup kill switch health check added
+- kill_switch.log_startup_status() called after all restore_* in main()
+- Logs Hard stop / Daily loss / Consecutive status as visible banner
+- Any active block appears in first startup log lines — never silent again
+- KILL_SWITCH_LESSONS.md created with 6 lessons from Sessions 23-35
+
+865/865 tests passing (up from 859, +6 new kill switch regression tests)
+Bot PID 69468, all fixes live.
 
 ═══════════════════════════════════════════════════
 
 ## PENDING DECISIONS + NEXT TASKS
 
 1. btc_drift micro-live — collecting 30 settled bets for valid Brier score
-   Currently at 12/30. With unlimited/day, should reach 30 within ~2-3 days.
+   Was blocked 7 days by stale streak bug. Now unblocked.
+   Was at 12/30. With unlimited/day, should reach 30 within ~2-3 days.
    Do NOT change calibration_max_usd until 30+ settled bets.
 
-2. sports_futures_loop is NOW ACTIVE (PID 67702) — monitor first polls
+2. sports_futures_loop is ACTIVE (PID 69468) — first poll already ran (8 signals)
    First poll fires ~95s after restart. Watch for signals in log:
    `tail -f /tmp/polybot_session35.log | grep sports_futures`
 
