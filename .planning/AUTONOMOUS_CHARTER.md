@@ -29,7 +29,46 @@ NEVER PAUSE. NEVER ASK. NEVER STOP MID-TASK.
 - If Matthew says "I'll be back in 2 hours" — that means work autonomously for 2 hours.
   All findings → /tmp/polybot_autonomous_monitor.md. He'll read it when he returns.
 
-## THE 2-HOUR AUTONOMOUS WINDOW PROTOCOL
+## HOW AUTONOMOUS OPERATION ACTUALLY WORKS — TWO MECHANISMS
+
+IMPORTANT: There are two separate mechanisms. Both are ALREADY SET UP. Do not recreate them.
+
+### Mechanism 1 — polybot-monitor SCHEDULED TASK (runs 24/7, every 30 min, even when no chat is open)
+
+This is a Claude Code scheduled task running on cron. It fires automatically whether or not
+a Claude Code window is open. Matthew does not need to be present.
+
+- Task ID: `polybot-monitor`
+- Cron: `*/30 * * * *` (every 30 minutes, always)
+- Skill file: ~/.claude/scheduled-tasks/polybot-monitor/SKILL.md
+- What it does each run: reads SESSION_HANDOFF.md → checks bot PID →
+  runs --report/--graduation-status/--health → tails last 5 log lines →
+  appends timestamped entry to /tmp/polybot_autonomous_monitor.md →
+  restarts bot if stopped → exits cleanly
+- Each run is short (~2-3 minutes). Fire-and-exit, not a long session.
+
+**To check it's running:** Use `mcp__scheduled-tasks__list_scheduled_tasks`
+  Should show: enabled=true, recent lastRunAt (within 30 min)
+**To update it** (when log path or test count changes):
+  Use `mcp__scheduled-tasks__update_scheduled_task` with taskId="polybot-monitor"
+  OR invoke `/anthropic-skills:schedule` and replace it
+**To create a new one from scratch:** `/anthropic-skills:schedule`
+
+This is the "heartbeat" — keeps the bot monitored 24/7 with zero human involvement.
+
+### Mechanism 2 — Main chat session (research, debugging, development work)
+
+When Matthew says "work autonomously for X hours", this is a regular Claude Code chat:
+1. Reads POLYBOT_INIT.md → SESSION_HANDOFF.md → CHANGELOG.md → KALSHI_MARKETS.md (startup)
+2. Does heavier work: API probing, Reddit/GitHub research, code fixes, documentation updates
+3. Logs ALL findings to /tmp/polybot_autonomous_monitor.md (same file as scheduled task)
+4. Checks bot status every ~15 min (tail log, PID check)
+5. At context limit: wraps up docs, commits, writes handoff, then exits
+
+Both mechanisms write to /tmp/polybot_autonomous_monitor.md. Matthew reads that file
+when he returns to see everything that happened while he was away.
+
+### THE 2-HOUR AUTONOMOUS WINDOW PROTOCOL
 
 When Matthew leaves for an extended period:
 1. Log monitoring entry to /tmp/polybot_autonomous_monitor.md immediately
