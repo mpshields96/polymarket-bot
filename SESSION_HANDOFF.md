@@ -1,37 +1,38 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-09 (Session 37 autonomous close-out — 09:22 CDT)
+# Last updated: 2026-03-09 (Session 38 — home restart + canceled order fix)
 # ═══════════════════════════════════════════════════════════════
 
-## ▶ COPY-PASTE THIS TO START A NEW SESSION (Session 37+)
+## ▶ COPY-PASTE THIS TO START A NEW SESSION (Session 39+)
 
 ```
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 37).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 38).
 Read these files immediately before doing anything else:
   1. cat SESSION_HANDOFF.md          <- exact bot state + what to do next
   2. cat .planning/CHANGELOG.md      <- what changed each session and WHY (permanent record)
   3. cat .planning/KALSHI_MARKETS.md <- complete Kalshi market map, volumes, what is built
 Do NOT ask setup questions. Do NOT write code until you have read all three.
 
-KEY STATE (Session 37 autonomous close — 2026-03-09 09:22 CDT):
-* Bot: PID 90027, live mode, log /tmp/polybot_session37.log
+KEY STATE (Session 38 — 2026-03-09 17:22 CDT):
+* Bot: PID 96757, live mode, log /tmp/polybot_session38.log
 * THREE MICRO-LIVE LOOPS: btc_drift + eth_drift + sol_drift (all ~$0.35-0.65/bet, unlimited/day)
-* All others: PAPER-ONLY. 869/869 tests passing.
-* Last commits: 69678a8 (execution-time price guard todo), 0745785 (graduation_stats bug todo)
-* Bankroll: ~$79.76 | All-time live P&L: -$16.12 | Today live: +$2.73
-* btc_drift: 30/30 ✅, Brier 0.2526 ✅ | eth_drift: 17 live settled | sol_drift: 10 live settled
-* Kill switch: SOFT STOP active (4 consec losses, fired 09:04 CDT, expires ~11:02 CDT)
-  DO NOT RESET — correct behavior after 4 consecutive losses
-* Protection: 20% daily loss (38% used today = $6.30/$16.44) + $20 floor. Hard stop: CLEAR.
-* 2 PENDING TODOS: graduation_stats bug (low) + execution-time price guard (HIGH)
+* All others: PAPER-ONLY. 882/882 tests passing.
+* Last commits: 76a4726 (canceled-order guard docs), 9009fa8 (canceled-order guard fix)
+* Bankroll: ~$84.33 | All-time live P&L: -$13.99 | Kill switch: CLEAR (0/4 consec, $6.30/$20 daily)
+* btc_drift: graduation_stats shows 12 (BUG — known todo, paper/live filter wrong)
+* eth_drift: 64 paper bets in stats (BUG — same filter issue)
+* Expansion gate: STILL CLOSED (2-3 weeks live data needed + no KS events)
 
-NEXT SESSION DIRECTIVE: Fix execution-time price guard in live.py (HIGH PRIORITY — see todo).
-After fix, graduation_stats() is_paper param fix. Then wait until expansion gate criteria met.
+NEXT SESSION DIRECTIVE:
+1. Fix graduation_stats() is_paper param (LOW — reporting only, no trading impact)
+2. Update POLYBOT_INIT.md with sc:analyze security findings + SKILLS_REFERENCE.md link (DOCS)
+3. Monitor btc_drift YES vs NO directional win rates after 30 more clean bets
+4. Wait for expansion gate criteria before building new strategies
 
 STANDING DIRECTIVES (never need repeating):
 * Fully autonomous always — do work first, summarize after. Never ask for confirmation.
 * EXPANSION GATE: no new live strategies until btc_drift 30+ live trades + Brier < 0.30
-* 869 tests must pass before any commit (count updates each session)
+* 882 tests must pass before any commit (count updates each session)
 * Read .planning/CHANGELOG.md at session start, append entries at session end
 * Read .planning/KALSHI_MARKETS.md before any Kalshi strategy work
 * Never touch files outside /Users/matthewshields/Projects/polymarket-bot/
@@ -45,6 +46,8 @@ TOKEN BUDGET (Matthew's standing permission — never needs repeating):
   superpowers:dispatching-parallel-agents): max 5 uses per 5-hour window, each ~3-5%
   budget. ONLY when ALL conditions met: 5+ tasks, 4+ subsystems, multi-session, PLAN.md needed.
 * Default: gsd:quick + superpowers:TDD + superpowers:verification-before-completion
+* sc:analyze, sc:test, sc:troubleshoot --think: Low-Medium tier (~1-5%) — use freely
+  when auditing security, reviewing test coverage, or debugging stuck issues.
 
 AUTONOMOUS OPERATION MODE (active when Matthew is asleep or away):
 * NEVER pause to ask questions. NEVER wait for confirmation. NEVER stop mid-task.
@@ -71,13 +74,13 @@ Then: gsd:quick + superpowers:TDD + superpowers:verification-before-completion f
 
 ## EXACT CURRENT STATE
 
-Bot RUNNING — PID 74462, live mode, log: /tmp/polybot_session36.log
+Bot RUNNING — PID 96757, live mode, log: /tmp/polybot_session38.log
 Check:  cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"
-Watch:  tail -f /tmp/polybot_session36.log
+Watch:  tail -f /tmp/polybot_session38.log
 Health: source venv/bin/activate && python3 main.py --health
 
 ### THREE Live drift loops (all micro-live, 1 contract/bet ~$0.35-0.65):
-- btc_drift_v1 -> KXBTC15M | min_drift=0.05, min_edge=0.05 | RESTORED Session 36
+- btc_drift_v1 -> KXBTC15M | min_drift=0.05, min_edge=0.05 | thresholds RESTORED Session 36
 - eth_drift_v1 -> KXETH15M | min_drift=0.05, min_edge=0.05 | ENABLED Session 36
 - sol_drift_v1 -> KXSOL15M | min_drift=0.15, min_edge=0.05 | NEW Session 36 (3x BTC volatility)
 All share: _live_trade_lock, calibration_max_usd=0.01, price guard 35-65 cents.
@@ -91,50 +94,48 @@ weather_forecast (HIGHNY weekdays only), fomc_rate (~8x/year), unemployment_rate
 sports_futures_v1 (Polymarket.US bookmaker arb, paper-only, min_books=2)
 copy_trader_v1 (Polymarket.US — 0 matches, platform mismatch confirmed)
 
-### Tests: 869/869
+### Tests: 882/882
 
 ### Last commits:
-- 69678a8 — docs: capture todo - add execution-time price guard to live executor
-- 0745785 — docs: capture todo - Fix graduation_stats to query live bets for live strategies
-- 8a312d0 — docs: autonomous session final — btc_drift Brier gate MET + kill switch event
-- d1f10f0 — docs: autonomous session 37 — bug discovery + live bet count update
+- 76a4726 — docs(quick-7): canceled-order guard SUMMARY + STATE update
+- 9009fa8 — fix(live): guard against recording canceled orders as live bets
+- 6127cea — test(quick-7): add failing tests for canceled/resting order status guard
+- b6e32ae — fix: correct %.1f%% format in sports_futures logger
+- ebf7150 — docs: capture todo - Update POLYBOT_INIT docs with live.py security findings
 
-### P&L (as of 2026-03-09 09:22 CDT — Session 37 autonomous close):
-- Bankroll: ~$79.76 (daily loss offset)
-- All-time live P&L: -$16.12
-- Today: live +$2.73 (btc_drift 11/18 61%, eth_drift 10/17 59%, sol_drift 8/10 80%)
-- btc_drift: **30/30** live settled bets ✅ | Brier = **0.2526** ✅ (< 0.30 threshold MET)
-- eth_drift: 17 live settled. sol_drift: 10 live settled.
-- Protection: daily loss $6.30/$16.44 (38%), $20 floor. NO lifetime hard stop.
+### P&L (as of 2026-03-09 17:22 CDT — Session 38):
+- Bankroll: ~$84.33
+- All-time live P&L: -$13.99
+- Kill switch: CLEAR — daily $6.30/$20 (32%), consecutive 0/4, hard stop CLEAR
+- Live bet confirmed today: trade_id=446 btc_drift YES@36¢ (status=executed)
 
-### EXPANSION GATE STATUS (updated 09:22 CDT):
+### EXPANSION GATE STATUS (updated Session 38):
 | Criterion | Status |
 |-----------|--------|
-| btc_drift 30+ live bets | ✅ MET (exactly 30) |
-| Brier < 0.30 | ✅ MET (0.2526) |
-| 2-3 weeks live P&L data | ❌ NOT MET (~1 day live) |
-| No kill switch events | ❌ NOT MET (SECOND soft stop fired 09:04 CDT this session) |
-Gate: STILL CLOSED. Two criteria unmet. Do not build XRP drift until criteria above both pass.
+| btc_drift 30+ live bets | ✅ MET (34+) |
+| Brier < 0.30 | ✅ MET (0.2526 clean) |
+| 2-3 weeks live P&L data | ❌ NOT MET (~2 days live) |
+| No kill switch events in window | ❌ NOT MET (multiple soft stops) |
+Gate: STILL CLOSED. Do not build XRP drift until criteria above both pass.
 
-### PENDING TODOS (2):
-1. HIGH — live.py execution-time price guard missing (filed 08:46 CDT today)
-   → Signal at 59¢ placed at 84¢ (25¢ slippage bypasses price guard). See todo.
-2. LOW — graduation_stats() only queries is_paper=1 (reporting bug, no trading impact)
+### PENDING TODOS (3):
+1. LOW — graduation_stats() only queries paper trades for live strategies (reporting bug)
    See: .planning/todos/pending/2026-03-09-fix-graduation-stats-to-query-live-bets-for-live-strategies.md
-   See: .planning/todos/pending/2026-03-10-add-execution-time-price-guard-to-live-executor.md
+2. MONITOR — btc_drift YES vs NO win rate asymmetry (BUY YES 35.7% vs BUY NO 55%)
+   See: .planning/todos/pending/2026-03-09-monitor-btc-drift-directional-calibration-yes-vs-no-win-rates.md
+3. DOCS — Update POLYBOT_INIT.md with sc:analyze security findings + SKILLS_REFERENCE.md link
+   See: .planning/todos/pending/2026-03-09-update-polybot-init-docs-with-live-py-security-findings-and-skills-reference.md
 
-### KILL SWITCH STATE (at Session 37 autonomous close — 09:22 CDT):
-- Soft stop: 4 consecutive losses → 2hr cooling (started 09:04 CDT, expires ~11:02-11:04 CDT)
-- Hard stop: CLEAR (no lock file)
-- Daily loss: $6.30 / $16.44 (38%) — safe, $10.14 remaining before daily limit
-- On restart before 11:04 CDT: cooling will be seeded from DB and still active
-- On restart after 11:04 CDT: cooling expired, counter resets, safe to trade
+### SECURITY FIXES APPLIED (Sessions 37-38):
+- Execution-time price guard: added to live.py (signal@59¢ filled@84¢ → blocked)
+- Canceled order guard: added to live.py (status="canceled" → return None, never save to DB)
+- sports_futures ValueError fix: %.1%% → %.1f%% (was spamming logs)
 
 # ═══════════════════════════════════════════════════════════════
 
 ## CURRENT BOT ARCHITECTURE (15 loops total)
 
-main.py asyncio event loop [LIVE MODE — PID 90027]
+main.py asyncio event loop [LIVE MODE — PID 96757]
 
 Kalshi 15-min loops:
   [trading]       btc_lag_v1             PAPER-ONLY (0 signals/week — market mature)
@@ -160,58 +161,44 @@ Polymarket:
 
 # ═══════════════════════════════════════════════════════════════
 
-## SESSION 36 WORK COMPLETED (2026-03-08 to 2026-03-09)
+## SESSION 37-38 WORK COMPLETED (2026-03-09)
 
-1. btc_drift thresholds RESTORED — min_drift 0.10->0.05, min_edge 0.08->0.05
-   Session 25 raised these with only 12 live trades (PRINCIPLES.md violation). Fixed.
-   Result: 1 bet/day -> 8-15 signals/day. Commit: aa83e78
+Session 37 (autonomous + home work):
+1. Execution-time price guard — added to live.py after orderbook fetch:
+   - Re-checks YES-equiv price against 35-65¢ at execution time
+   - Rejects if slippage > 10¢ from signal price
+   - Fixes: signal@59¢ filled@84¢ (25¢ slippage, happened in prod)
+   - 6 new tests in TestExecutionPriceGuard. Commit: 3c8baa9
+2. --reset-soft-stop flag — clears consecutive loss counter/cooling at startup
+   5 new tests. Commit: 92aee5f
+3. btc_drift calibration analysis — 34 live bets, Brier 0.2503 overall
+   Clean data (35-65¢): 20 bets, BUY YES 35.7% vs BUY NO 55% — directional asymmetry
+4. sc:analyze security audit on live.py — found 3 issues, highest filed as todo
+5. SKILLS_REFERENCE.md created — complete skill/command map with token costs
 
-2. eth_drift MICRO-LIVE enabled — same 1-contract cap, shared lock. Commit: aa83e78
-
-3. sol_drift_v1 NEW — KXSOL15M, min_drift=0.15 (3x BTC volatility). Commit: 11ff825
-
-4. .planning/CHANGELOG.md CREATED — permanent append-only session log.
-   Every future session MUST append. Never truncate. Commit: 1dc85c6
-
-5. .planning/KALSHI_MARKETS.md CREATED + FULL LIVE RE-PROBE
-   5 new market categories discovered (player props, parlays, MLB game winners, Oscars, CPI).
-   Volume data added for all series. Expansion roadmap documented.
-   Commits: 7197556, 25b5f2b
-
-6. --report BUG FIXED — now splits by (strategy, is_paper) per trade.
-   Old paper data never lost. Transition days show two rows (correct). Commit: 3477987
-
-7. Kalshi copy trading RESEARCH re-confirmed infeasible.
-   API docs confirm zero trader attribution. All GitHub bots use statistical edge.
-   Documented in CLAUDE.md + MEMORY.md.
-
-8. MEMORY.md rewritten — was over 200-line limit with stale facts. Now current.
-
-9. GSD health W007 FIXED — phase 04.2 added to ROADMAP.md with correct `### Phase 04.2:` format.
-   GSD health now: HEALTHY (0 errors, 0 warnings). Commit: e904715
-
-10. Stale todos CLEARED — 2 todos from 2026-02-28 both completed in Sessions 31/35.
-    Moved to .planning/todos/completed/. Pending queue: 0.
+Session 38 (home restart):
+6. sports_futures ValueError fix — %.1%% → %.1f%% in logger (two lines)
+   Commit: b6e32ae
+7. Canceled order guard — live.py now checks order.status == "canceled" before db.save_trade()
+   Return None instead of recording a phantom live bet. 2 new tests. Commit: 9009fa8
+8. CLAUDE.md Gotchas updated — live.py unit tests status corrected, canceled-order finding added
+9. SESSION_HANDOFF.md updated (this file)
 
 # ═══════════════════════════════════════════════════════════════
 
 ## PENDING DECISIONS + NEXT TASKS
 
-1. ✅ BRIER GATE MET — btc_drift 30 live bets, Brier 0.2526. Expansion gate criteria check needed.
-   DO NOT build XRP drift yet — 2 remaining criteria unmet (see EXPANSION GATE STATUS table above).
-   Matthew: review kill switch event (5 consec losses, soft stop 01:49 CDT). Decide when to restart.
+1. Fix graduation_stats() is_paper param — LOW priority reporting bug.
+   graduation_stats() doesn't pass is_paper=0 for live strategies, shows wrong counts.
 
-2. RESTART CAUTION — kill switch soft stop active at shutdown (expires 03:49 CDT).
-   On restart before 03:49 CDT: cooling period will be seeded from DB and remain active.
-   On restart after 03:49 CDT: cooling expired, consecutive counter resets to 0.
-   Either way: bot is safe to restart.
+2. POLYBOT_INIT.md + docs update — add sc:analyze findings + SKILLS_REFERENCE.md link.
+   Captures the 3 security findings for future session awareness.
 
-3. XRP drift — NEXT safe expansion after drift validates.
+3. XRP drift — NEXT expansion after gate criteria met.
    Same code as sol_drift, ~15 min. KXXRP15M ~5,900 volume confirmed.
    min_drift_pct ~0.10-0.12 (XRP ~2x BTC volatility). DO NOT BUILD YET.
 
 4. KXNBAGAME/KXNHLGAME game winners — gate: sports_futures_v1 shows edge first.
-   Skeleton exists in sports_game.py, not wired.
 
 5. Copy trading blocked (platform mismatch). No action until .US platform expands.
 
@@ -228,20 +215,20 @@ Polymarket:
   pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null
   sleep 3; rm -f bot.pid
   echo "CONFIRM" > /tmp/polybot_confirm.txt
-  nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session36.log 2>&1 &
+  nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session38.log 2>&1 &
   sleep 10 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
 
 ### Watch drift loops (most active — live bets fire here)
-  tail -f /tmp/polybot_session36.log | grep --line-buffered "drift\|LIVE\|Trade executed\|Kill switch"
+  tail -f /tmp/polybot_session38.log | grep --line-buffered "drift\|LIVE\|Trade executed\|Kill switch"
 
 ### Watch everything
-  tail -f /tmp/polybot_session36.log
+  tail -f /tmp/polybot_session38.log
 
 ### Diagnostics
   source venv/bin/activate && python3 main.py --report            # today P&L, paper/live split
   source venv/bin/activate && python3 main.py --graduation-status # Brier + live bet count
   source venv/bin/activate && python3 main.py --health            # kill switch + open trades + SDATA
-  source venv/bin/activate && python3 -m pytest tests/ -q         # 869/869 required before commit
+  source venv/bin/activate && python3 -m pytest tests/ -q         # 882/882 required before commit
 
 # ═══════════════════════════════════════════════════════════════
 

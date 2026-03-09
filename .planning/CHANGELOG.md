@@ -321,3 +321,50 @@ No code changes permitted (autonomous mode rules). Two todos filed, one git clea
 - Daily loss: $6.30/$16.44 (38%) | Hard stop: CLEAR
 
 ### Test count: 869/869
+
+---
+
+## Session 38 — 2026-03-09 (home restart + security fixes)
+### Context
+Matthew returned home from work. Work wifi caused Kalshi + Binance disconnects at ~16:44 CDT
+(bot recovered automatically). Clean restart on home wifi to fresh session38 log.
+
+### Changed
+1. **sports_futures_v1.py: logging ValueError fix**
+   - `%.1%%` → `%.1f%%` in two logger.info calls (lines 332, 355)
+   - Was: `ValueError: unsupported format character '%'` every time a NO/YES signal was skipped
+   - Spamming the log but not crashing the bot. Commit: b6e32ae
+
+2. **live.py: canceled order guard (security fix — Session 37 sc:analyze finding)**
+   - Added `if order.status == "canceled": log warning + return None` before `db.save_trade()`
+   - Kalshi returns status="canceled" when no liquidity or market closes mid-execution
+   - Was: canceled orders recorded as real live bets → corrupted calibration + graduation counters
+   - Now: phantom trades never reach DB. "resting" status (GTC orders) still recorded normally.
+   - 2 new tests in TestExecuteOrderStatusGuard. Commits: 6127cea (RED), 9009fa8 (GREEN)
+
+3. **CLAUDE.md Gotchas section: updated**
+   - Stale "live.py has ZERO unit tests" → corrected to reflect TestExecutionPriceGuard + TestExecuteOrderStatusGuard
+   - Added bullet documenting the canceled order guard and regression tests
+
+4. **Autonomous session todos filed:**
+   - SKILLS_REFERENCE.md created (.planning/SKILLS_REFERENCE.md) — full skill/command map
+   - Todo: update POLYBOT_INIT.md with sc:analyze findings + SKILLS_REFERENCE.md
+   - Todo: monitor btc_drift YES vs NO win rate asymmetry (BUY YES 35.7% vs BUY NO 55%)
+   - gsd:add-todo workflow used for both captures
+
+### P&L at session close
+- Bankroll: ~$84.33 | All-time live: -$13.99
+- Kill switch: CLEAR — daily $6.30/$20 (32%), consecutive 0/4, hard stop CLEAR
+- Live bet confirmed: trade_id=446 btc_drift YES@36¢ (status=executed)
+- Paper bets confirmed: sports_futures placed trade_ids 443-445 (NBA/NHL futures)
+
+### Expansion gate
+STILL CLOSED. Two criteria unmet: (1) 2-3 weeks live data, (2) no kill switch events.
+Do not build XRP drift yet.
+
+### Pending todos (3):
+1. LOW — graduation_stats() shows paper counts for live strategies
+2. MONITOR — btc_drift YES vs NO win rate asymmetry (re-evaluate after 30 more clean bets)
+3. DOCS — Update POLYBOT_INIT.md with sc:analyze security findings + SKILLS_REFERENCE.md link
+
+### Test count: 882/882 | Bot: PID 96757, log /tmp/polybot_session38.log
