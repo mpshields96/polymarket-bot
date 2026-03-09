@@ -417,3 +417,107 @@ Next expansion = KXXRP15M drift after gate opens.
 ### Pending todos (0): All cleared this session.
 
 ### Test count: 887/887 | Bot: PID 96757, log /tmp/polybot_session38.log
+
+---
+
+## Session 39 — 2026-03-09 ~17:00–19:00 CDT (autonomous, Matthew washing dishes/mowing)
+
+### Context
+Fully autonomous 2-hour session. Matthew left. Bot was running PID 96757. Three micro-live
+drift loops active (btc/eth/sol). Three paper daily loops active (KXBTCD/KXETHD/KXSOLD).
+
+### Changed
+
+1. **.planning/AUTONOMOUS_CHARTER.md — CREATED (new file)**
+   - WHY: Matthew's explicit demand — exhausted re-explaining autonomous operation requirements
+     to every new Claude chat session. "For the love of fucking god, document this."
+   - WHAT: Complete permanent mandate for ALL new chats:
+     * Full autonomous operation rules (never ask, never pause, work first then summarize)
+     * 2-hour autonomous window protocol (monitor every 15 min, log to /tmp)
+     * Market research protocol — REDDIT/GITHUB VERIFY BEFORE BUILDING ANYTHING
+     * Tool usage rules (Free/Low/Expensive tiers, 75% token budget cap)
+     * Expansion gate details, bot architecture snapshot, critical gotchas
+     * Monitoring cycle log format, context handoff protocol
+     * ACKNOWLEDGMENT REQUIREMENT: all new sessions must confirm receipt
+   - ADDED TO: SESSION_HANDOFF.md mandatory reading list (STEP 1 position 2)
+   - ADDED TO: MEMORY.md (AUTONOMOUS_CHARTER.md section at top of preferences)
+
+2. **.planning/KALSHI_MARKETS.md — major addition (Session 39 API probe findings)**
+   - WHY: Multiple undocumented series confirmed via Kalshi API + events endpoint + website research
+   - WHAT added:
+     * KXBTCATH ("When will Bitcoin hit a new ATH?"): Series confirmed on Kalshi website.
+       0 open markets via API — likely resolved YES when BTC hit $109k in Jan 2026.
+       Action: Monitor monthly for new markets opening.
+     * KXBTCMAX100 current pricing (BTC ~$84k): DEC 2026 at 38¢, SEP at 27¢, MAY at 14¢
+     * KXBTCMAXY current pricing: $100k threshold at 36¢ (7 markets, $2.2M vol)
+     * KXBTCMINY current pricing: $40k floor at 35¢, $50k at 57¢ (market says 57% BTC dips below $50k)
+     * KXBTCMAX150 current state: 4¢ on "BTC hits $150k by June" ($10.8M total open)
+     * All discovery confirmed via asyncio Kalshi client + events endpoint pagination
+   - CATEGORIES 2B/2C/2D/2E: no structural changes, data points updated with live pricing
+
+3. **polybot-monitor scheduled task UPDATED (/.claude/scheduled-tasks/polybot-monitor/SKILL.md)**
+   - WHY: Was pointing to session36.log (hardcoded), had stale test count (869 → 887),
+     only tracked btc_drift graduation (missed eth_drift and sol_drift)
+   - WHAT: Dynamically finds log (ls -t /tmp/polybot_session*.log | head -1),
+     tracks all 3 drift loops, handles soft/hard stop distinction, 887 test count
+
+4. **SESSION_HANDOFF.md — updated mid-session**
+   - WHY: State was stale (Session 38 close-out, 5+ hours ago)
+   - WHAT: Added AUTONOMOUS_CHARTER.md to mandatory reading list (STEP 1),
+     updated KEY STATE (P&L, graduation counts, kill switch), Session 39 work summary
+   - Correction: All-time live P&L now -$13.87 (was -$13.37)
+
+5. **MEMORY.md — AUTONOMOUS_CHARTER.md reference added**
+   - WHY: Memory is loaded into every session; charter location must be memorized
+   - WHAT: New section at top of User Preferences: "AUTONOMOUS_CHARTER.md — MANDATORY READ"
+
+### Investigation findings (no code changes)
+
+6. **KXETH15M LIQUIDITY CRISIS IDENTIFIED — eth_drift slippage analysis**
+   - Session 39 observation: 8+ slippage/guard rejections vs 2 successful placements since restart
+   - Typical slippage pattern: signal 43-57¢ → execution 29-71¢ (14-18¢ move on single-contract order!)
+   - Volume context: KXBTC15M ~103k contracts/window vs KXETH15M ~9.4k (11x difference)
+   - KXSOL15M ~4.2k (25x less liquid than BTC) — similar rejection patterns
+   - This is EXPECTED from volume differential, NOT a bug. Guards are protecting correctly.
+   - Implication: eth_drift and sol_drift graduation will be SLOWER than btc_drift due to rejections.
+     Many signals generated, few executed due to thin order books on small-cap 15-min markets.
+   - Action taken: NONE — guards are working correctly. Documented for next session awareness.
+
+7. **Daily loops confirmed ACTIVE (btc_daily/eth_daily/sol_daily)**
+   - Were "silent" in log but confirmed paper bets ARE being placed:
+     btc_daily: 5 paper bets today (2/5 wins, -$4.38), eth_daily: 4 paper bets (0/4, -$11.53)
+   - Silence = all logging after session-open reset is at DEBUG level only (not INFO)
+   - Debug how to view: grep -i "daily\|kxbtcd" /tmp/polybot_session*.log
+   - eth_daily 0/4 (-$11.53) paper performance is poor but paper only — no action needed
+
+8. **Reddit/GitHub research on KXBTCD hourly markets + barrier option strategies**
+   - GitHub: Found multiple Kalshi BTC trading bots (Bh-Ayush/Kalshi-CryptoBot trades 15min+1hr,
+     OctagonAI/kalshi-deep-trading-bot, ryanfrigo/kalshi-ai-trading-bot, arbitrage bots)
+   - Key insight from GitHub: community consensus — edge requires information advantage over HFTs.
+     Statistical edge (our current approach) is the correct path. Copy trading on Kalshi: impossible.
+   - KXBTCMAX150 settlement: trimmed mean (top/bottom 20% removed) of BRTI 60-second windows.
+     Any strategy needs to account for trimmed mean settlement, not spot price.
+   - Reddit research: limited direct r/kalshi results (Reddit blocked WebFetch). WebSearch found
+     confirmation that "hourly" category on Kalshi IS KXBTCD (24 daily slots) — same series.
+     No separate KXBTC1H series. Matthew's "hourly bet types" = KXBTCD structure (already built).
+   - Reddit/GitHub agent running in background for deeper research (may complete in next session)
+
+### Kill switch event (historical, not new)
+- HARD STOP from 2026-03-01 shows in --health log — this is a HISTORICAL event, not active
+- Current status: CLEAR. Daily $7.23/$20 (36%), consecutive 2/4. Bot actively placing bets.
+
+### P&L at session mid-point (18:35 CDT)
+- Today live: +$4.98 (54 settled bets) | Paper: -$5.46
+- btc_drift 38/30 ✅ Brier 0.247 | eth_drift 21/30 (9 more) | sol_drift 11/30 (19 more)
+- Kill switch: CLEAR | consecutive 2/4 | daily $7.23/$20.00 (36%)
+- All-time live P&L: -$13.87 | Bankroll: ~$83.35 est.
+
+### Expansion gate
+STILL CLOSED. Two criteria unmet: (1) 2-3 weeks live data, (2) no kill switch events in window.
+Next expansion = KXXRP15M drift. Do NOT promote eth_orderbook_imbalance (paper READY, gate CLOSED).
+
+### Pending todos (none filed this session — all work done inline)
+AUTONOMOUS_CHARTER.md research todos are captured in the charter itself.
+
+### Test count: 887/887 (unchanged — no code changes this session, docs only)
+### Commits this session: None yet (docs only — will commit at session end)

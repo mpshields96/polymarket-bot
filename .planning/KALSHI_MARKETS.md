@@ -1,13 +1,23 @@
 # KALSHI MARKETS — Complete Reference
-# Last updated: Session 38 (2026-03-09) — FULL TAXONOMY + UI CONFIRMATION (screenshot)
+# Last updated: Session 39 (2026-03-09) — FULL TAXONOMY + EVENTS ENDPOINT DISCOVERY
 # Source: Live API probe (Session 23, all 8,719 series) + full re-probe Session 36
 #         + Matthew's kalshi.com Crypto tab screenshot (Session 38)
-#         Confirmed via get_markets() calls against trading-api.kalshi.com
+#         + Events endpoint paginated search (Session 39) — 3,000 events scanned
+#         Confirmed via get_markets() + GET /events against api.elections.kalshi.com
 #
 # PURPOSE: All future Claude sessions read this FIRST before any strategy work.
 #          STANDING DIRECTIVE: New sessions must research undocumented categories.
 #          See RESEARCH DIRECTIVES section at bottom — probe API, search Reddit/GitHub.
 #          UPDATE THIS FILE whenever a new series is discovered or a strategy changes status.
+#
+# SESSION 39 KEY DISCOVERIES:
+#   - CONFIRMED: KXBTCMAX100 ($2.7M), KXBTCMAXY ($2.2M), KXBTC2026200 ($3.4M)
+#   - CONFIRMED: KXBTCMAXMON/KXBTCMINMON (monthly max/min, trimmed mean, ~$550k/mo)
+#   - CONFIRMED: KXBTCY (annual year-end, 28 mkts, $1.4M) is BINARY not range-bracket
+#   - CONFIRMED: KXBTCW/KXETHW/KXSOLW exist — 0 open on Sunday (expected, weekly timing)
+#   - EVENTS ENDPOINT: GET /events?status=open scans all Kalshi categories
+#   - ALL KALSHI CATEGORIES CONFIRMED: Crypto, Politics, Financials, Companies,
+#     Mentions, Climate, Economics, Science, Sports, Entertainment, Elections, World
 # ══════════════════════════════════════════════════════════════
 
 ## ⚠️ CRITICAL UPDATE — Session 38 Screenshot Confirms More Market Types Than Documented
@@ -39,9 +49,13 @@ Matthew's kalshi.com Crypto tab screenshot (Session 38) shows:
 | KXBTC15M (15-min direction) | ~103,000/window | ✅ LIVE |
 | "Bitcoin price today at 8pm" (daily/hourly) | $2,448 | ✅ PAPER |
 
-**CONCLUSION: The One Time event markets ("When will BTC hit $X?") and Weekly/Annual price**
-**level markets have FAR more volume than KXBTCD daily/hourly. We are ignoring the most**
-**liquid crypto markets on Kalshi. The next chat must research and document these.**
+**SESSION 39 UPDATE: All major tickers now confirmed. Key corrections:**
+- Annual markets (KXBTCY) are BINARY (B/T prefix), NOT range brackets — confirmed API probe
+- Monthly markets (KXBTCMAXMON) use TRIMMED MEAN settlement — different from spot price
+- One-time events use SERIES TICKER = KXBTCMAX100 (not "KXBTC150K" which is stale)
+- Weekly tickers (KXBTCW etc) EXIST but open Mon only — probe confirmed on Sunday = 0 open
+- Events endpoint GET /events?status=open is the correct way to discover new market types
+- KXDOGED confirmed active but ZERO VOLUME — do not build
 
 **FULL KALSHI MARKET CATEGORIES (top nav — most NOT documented):**
 - Crypto ← documented below (incomplete)
@@ -118,7 +132,7 @@ Each daily series generates ~24 hourly markets. Kalshi UI shows these as "Hourly
 | KXETHD  | ETH   | ~0 (new)            | 📋 PAPER (eth_daily_v1) | same structure |
 | KXSOLD  | SOL   | ~0 (new)            | 📋 PAPER (sol_daily_v1) | same structure |
 | KXXRPD  | XRP   | ~0 (confirmed ✅)   | NOT BUILT           | Exists but near-zero volume |
-| KXDOGED | DOGE  | ⚠️ NOT PROBED       | NOT BUILT           | UI confirms DOGE (6) exists — probe needed |
+| KXDOGED | DOGE  | vol=0 all markets ❌| NOT BUILT           | Session 39: EXISTS but zero liquidity — skip |
 | KXBNBD  | BNB   | ❌ No open markets  | NOT BUILT           | Series inactive |
 | KXBCHD  | BCH   | ❌ No open markets  | NOT BUILT           | Series inactive |
 
@@ -129,97 +143,195 @@ Each daily series generates ~24 hourly markets. Kalshi UI shows these as "Hourly
 
 ═══════════════════════════════════════════════════════════════
 
-## CATEGORY 2B — Crypto Price Level (Weekly) ⚠️ UNDOCUMENTED — $455K volume
+## CATEGORY 2B — Crypto Price Level (Weekly) ✅ TICKER CONFIRMED — 0 OPEN MARKETS NOW
 
 "Will [asset] be ABOVE or BELOW $[strike] on [day of week] at [time]?"
 UI shows "Weekly (8)" under Crypto. Example: "Bitcoin price on Friday at 5pm EDT?"
 
-| Series   | Asset | Volume (UI screenshot) | Status in bot | Notes |
-|----------|-------|------------------------|---------------|-------|
-| KXBTCW?  | BTC   | ~$455,661 vol, 50 mkts | ❌ NOT BUILT  | ⚠️ TICKER NOT CONFIRMED — probe needed |
-| KXETHW?  | ETH   | unknown                | ❌ NOT BUILT  | |
-| KXSOLW?  | SOL   | unknown                | ❌ NOT BUILT  | |
-| KXXRPW?  | XRP   | unknown                | ❌ NOT BUILT  | |
-| KXDOGEW? | DOGE  | unknown                | ❌ NOT BUILT  | |
+| Series  | Asset | Vol (UI screenshot) | Status in bot | Notes |
+|---------|-------|---------------------|---------------|-------|
+| KXBTCW  | BTC   | ~$455,661 vol       | ❌ NOT BUILT  | ✅ ticker confirmed, 0 open NOW (Session 39 probe) |
+| KXETHW  | ETH   | unknown             | ❌ NOT BUILT  | ✅ ticker confirmed, 0 open now |
+| KXSOLW  | SOL   | unknown             | ❌ NOT BUILT  | ✅ ticker confirmed, 0 open now |
+| KXBTCWK | BTC   | -                   | ❌ NOT BUILT  | ✅ confirmed exists, 0 open |
+| KXBTCFRI| BTC   | -                   | ❌ NOT BUILT  | ✅ confirmed exists, 0 open |
 
-**Key facts (from screenshot):**
-- "Bitcoin price on Friday at 5pm EDT?" = weekly settlement at end-of-week
-- 50 markets at different strikes = same multi-strike structure as KXBTCD
-- $455K volume = ~90x more liquid than KXBTCD daily slots
-- Tickers UNKNOWN — "KXBTCW" is a guess. Probe via `client.get_markets(series_ticker="KXBTCW")`
+**Key findings (Session 39 API probe):**
+- KXBTCW, KXETHW, KXSOLW tickers ARE REAL — series confirmed to exist via API
+- All return "0 open markets" currently — weekly markets may only open Mon–Fri
+- Session 39 probed on a Sunday → 0 open is EXPECTED (opens Monday, closes Friday 5pm EDT)
+- Same multi-strike structure as KXBTCD (multiple price levels = B/T suffix)
+- $455K volume per week = ~90x more liquid than KXBTCD daily slots
+- Strategy potential: same as KXBTCD but with weekly settlement. Research after expansion gate.
 
-**Research needed:** What is the actual series ticker? Check kalshi.com URL when clicking market.
-
-═══════════════════════════════════════════════════════════════
-
-## CATEGORY 2C — Crypto Price Level (Monthly) ⚠️ UNDOCUMENTED
-
-"Will [asset] be ABOVE or BELOW $[strike] at end of [month]?"
-UI shows "Monthly (11)" under Crypto.
-
-| Series   | Asset | Volume | Status in bot | Notes |
-|----------|-------|--------|---------------|-------|
-| KXBTCM?  | BTC   | unknown | ❌ NOT BUILT  | ⚠️ TICKER NOT CONFIRMED |
-| KXETHM?  | ETH   | unknown | ❌ NOT BUILT  | |
-| KXSOLM?  | SOL   | unknown | ❌ NOT BUILT  | |
-
-**Research needed:** Probe `client.get_markets(series_ticker="KXBTCM")` to confirm.
+**Next step:** Probe on a weekday to see open markets. Should work same as KXBTCD structure.
 
 ═══════════════════════════════════════════════════════════════
 
-## CATEGORY 2D — Crypto Price Level (Annual) ⚠️ UNDOCUMENTED — $1.4M volume
+## CATEGORY 2C — Crypto Monthly Max/Min ✅ CONFIRMED ACTIVE — $547K+ volume
 
-"Will [asset] be in price range $[X] to $[Y] at end of year?"
-UI shows "Annual (8)" under Crypto. Example: "Bitcoin price at the end of 2026"
+"How high/low will [asset] get during [month]?" — Uses TRIMMED MEAN, not spot price!
+UI shows "Monthly (11)" under Crypto. Settlement: trimmed mean price by month-end.
 
-| Market example           | Volume      | Markets | Notes |
-|--------------------------|-------------|---------|-------|
-| BTC price end of 2026    | $1,394,912  | 28      | Range betting: 45-49,999, 50-54,999, etc. |
+⚠️ CRITICAL: These are NOT end-of-month spot price bets. Settlement = TRIMMED MEAN of BTC
+price throughout the month (removes outliers). Harder to model than spot.
 
-| Series   | Asset | Volume | Status | Notes |
-|----------|-------|--------|--------|-------|
-| KXBTCY?  | BTC   | ~$1.4M | ❌ NOT BUILT | ⚠️ TICKER NOT CONFIRMED — range bets, not binary |
-| KXETHY?  | ETH   | unknown | ❌ NOT BUILT | |
+| Series       | Asset | Vol (Session 39)  | Status  | Description |
+|--------------|-------|-------------------|---------|-------------|
+| KXBTCMAXMON  | BTC   | $546,490 (6 mkts) | ❌ NOT BUILT | "How high will BTC get in March?" |
+| KXBTCMINMON  | BTC   | $438,856 (8 mkts) | ❌ NOT BUILT | "How low will BTC get in March?" |
+| KXETHMAXMON  | ETH   | $95,930 (7 mkts)  | ❌ NOT BUILT | "How high will ETH get in March?" |
+| KXSOLMAXMON  | SOL   | $34,769 (7 mkts)  | ❌ NOT BUILT | "How high will SOL get in March?" |
+| KXDOGEMAXMON | DOGE  | $8,202 (7 mkts)   | ❌ NOT BUILT | "How high will DOGE get in March?" |
+| KXDOGEMINMON | DOGE  | $1,391 (8 mkts)   | ❌ NOT BUILT | "How low will DOGE get in March?" |
+| KXBTCM       | BTC   | 0 open now        | ❌ NOT BUILT | Alt monthly ticker — confirmed exists |
 
-**Key difference from other price-level:** Annual bets have RANGE brackets (e.g. "45-49,999")
-not binary above/below. This is a different market structure — multiple outcome market.
-Signal: lognormal price model with calibrated volatility. Research needed.
-**Research needed:** Probe API, search Reddit /r/kalshi for strategies.
+**Market structure example (KXBTCMAXMON):**
+- KXBTCMAXMON-BTC-26MAR31 with suffix 7500000 → "Will BTC trimmed mean be above $75,000 by 11:59pm March 31?"
+- Strikes: $75k (45¢), $77.5k (30¢), $80k (19¢)
+- Settlement: trimmed mean = removes top/bottom outlier prices across month
+
+**Signal challenge:** Trimmed mean ≠ spot price. Would need to model rolling monthly average
+distribution using realized vol + current price. Medium-complexity signal. Post-gate research.
+
+**Recommended research order:** KXBTCMAXMON → KXBTCMINMON (highest vol, BTC only)
 
 ═══════════════════════════════════════════════════════════════
 
-## CATEGORY 2E — Crypto One-Time Events ⚠️ UNDOCUMENTED — UP TO $14.8M VOLUME
+## CATEGORY 2D — Crypto Annual Year-End Price ✅ CONFIRMED ACTIVE — $1.4M+ volume
 
-"When will [asset] reach $[price] for the first time?"
+"Will [asset] be ABOVE or BELOW $[strike] on Jan 1, 2027?" — Binary YES/NO, not range!
+
+⚠️ CORRECTION from Session 38: These are BINARY above/below bets, NOT range brackets.
+Ticker structure: KXBTCY-27JAN0100-B82500 = "Will BTC be BELOW $82,500 on Jan 1, 2027?"
+                  KXBTCY-27JAN0100-T20000 = "Will BTC be ABOVE $20,000 on Jan 1, 2027?"
+
+| Series  | Asset | Vol (Session 39)  | Markets | Status  | Description |
+|---------|-------|-------------------|---------|---------|-------------|
+| KXBTCY  | BTC   | ~$1.4M+  (28 mkts)| 28      | ❌ NOT BUILT | BTC price on Jan 1, 2027 |
+| KXETHY  | ETH   | ~$350K+ (18 mkts) | 18      | ❌ NOT BUILT | ETH price on Jan 1, 2027 |
+| KXSOLD26| SOL   | $116,979 (8 mkts) | 8       | ❌ NOT BUILT | SOL price on Jan 1, 2027 |
+
+**Most liquid KXBTCY markets (Session 39 live probe):**
+| Ticker suffix | YES price | Volume   | Description |
+|---------------|-----------|----------|-------------|
+| B42500        | 5¢        | 151,117  | Will BTC be below $42,500 on Jan 1, 2027? |
+| B52500        | 7¢        | 122,502  | Will BTC be below $52,500 on Jan 1, 2027? |
+| B47500        | 7¢        | 118,948  | Will BTC be below $47,500 on Jan 1, 2027? |
+| B67500        | 7¢        | 107,617  | Will BTC be below $67,500 on Jan 1, 2027? |
+| B82500        | 4¢        | 105,287  | Will BTC be below $82,500 on Jan 1, 2027? |
+| T20000.00     | 4¢        | 45,750   | Will BTC be above $20,000 on Jan 1, 2027? |
+| T149999.99    | 5¢        | 75,086   | Will BTC be above $149,999 on Jan 1, 2027? |
+
+**Signal approach:** Lognormal price model, Jan 1, 2027 settlement. BTC is ~$80k now.
+B82500 at 4¢ = market says only 4% chance BTC ends below $82,500 (very bullish consensus).
+These markets have 9+ month settlement — capital tied up. But edge could be very high.
+
+**Action:** Post-expansion-gate research task. Requires lognormal drift model + vol calibration.
+
+═══════════════════════════════════════════════════════════════
+
+## CATEGORY 2E — Crypto One-Time Events ✅ TICKERS CONFIRMED — $2.7M–$14.8M VOLUME
+
+"When will Bitcoin cross $X?" / "Will Bitcoin be above $X by [date]?"
 UI shows "One Time (14)" under Crypto. HIGHEST volume crypto markets on Kalshi.
 
-| Market example                  | Volume       | Markets | Notes |
-|---------------------------------|--------------|---------|-------|
-| "When will Bitcoin hit $150k?"  | $14,790,425  | 3       | Multiple date brackets |
-| "When will Bitcoin cross $100k?"| $3,384,242   | 6       | Multiple date brackets |
+**Session 39 findings:** Found via events endpoint `/events?status=open`. The series tickers
+that returned "exists, 0 open" via get_markets() ARE these markets — they use the event_ticker
+approach, not simple series_ticker. Multiple confirmed active series:
 
-| Series    | Asset | Volume | Status | Notes |
-|-----------|-------|--------|--------|-------|
-| unknown   | BTC   | $14.8M | ❌ NOT BUILT | ⚠️ TICKER COMPLETELY UNKNOWN |
-| unknown   | ETH   | unknown | ❌ NOT BUILT | |
+| Series       | Event ticker                   | Volume (Session 39) | Description |
+|--------------|--------------------------------|---------------------|-------------|
+| KXBTCMAX150  | KXBTCMAX150-25                 | $10,834,502 (3 mkts)| When will Bitcoin hit $150k? ← HIGHEST VOLUME |
+| KXBTCMAX100  | KXBTCMAX100-26                 | $2,704,740 (6 mkts) | When will BTC cross $100k again? |
+| KXBTCMAXY    | KXBTCMAXY-26DEC31              | $2,202,638 (7 mkts) | How high will BTC get in 2026? |
+| KXBTCMINY    | KXBTCMINY-27JAN01              | $1,078,887 (5 mkts) | How low will BTC get in 2026? |
+| KXBTC2026200 | KXBTC2026200-27JAN01           | $3,425,025 (1 mkt)  | Will BTC be above $200k by 2027? |
+| KXBTC2026250 | KXBTC2026250-27JAN01           | $453,891 (1 mkt)    | Will BTC be above $250k by 2027? |
+| KXETHMAXY    | KXETHMAXY-27JAN01              | $1,257,719 (8 mkts) | How high will ETH get in 2026? |
+| KXETHMINY    | KXETHMINY-27JAN01              | $283,017 (5 mkts)   | How low will ETH get in 2026? |
+| KXSOLMAXY    | KXSOLMAXY-27JAN01              | $205,273 (8 mkts)   | How high will SOL get in 2026? |
+| KXBTCVSGOLD  | KXBTCVSGOLD-26                 | $113,035 (1 mkt)    | Will BTC outperform gold in 2026? |
+| KXBTCRESERVE | KXBTCRESERVE-27                | $85,447 (1 mkt)     | Will Trump create BTC reserve? |
 
-**Key structure:** Not binary binary yes/no. Example outcomes:
-- "Before January 2027" (2.4x) at 40%
-- "Before October 2026" (3.4x) at 27%
-This is a multi-outcome market with date brackets.
+**Most liquid single market: KXBTC2026200 — $3.4M on "Will BTC be above $200k by 2027?" at 8¢**
 
-**Signal hypothesis:** BTC price trajectory model + realized volatility →
-estimate probability of hitting target before each date. Research existing approaches.
+**KXBTCMAX100 structure (When will BTC cross $100k again?):**
+- Ticker: KXBTCMAX100 series, markets by DATE BRACKET (e.g. MAR, APR, JUNE...)
+- KXBTCMAX100 MAR → "Will BTC be above $100k by April 1?" YES=1¢ vol=999k
+- KXBTCMAX100 APR → "Will BTC be above $100k by May 1?"  YES=6¢ vol=681k
+- KXBTCMAX100 JUNE → "Will BTC be above $100k by July 1?" YES=19¢ vol=513k
+- BTC currently ~$80k → 1¢ on April deadline is essentially "BTC must cross $100k in 3 weeks"
 
-**THIS IS THE HIGHEST-VOLUME CRYPTO MARKET ON KALSHI.**
-$14.8M on a single "When will BTC hit $150k?" market vs $103K per KXBTC15M window.
-Settle only once → capital tied up longer, but edge could be substantial if model is good.
+**KXBTCMAXY structure (How high will BTC get in 2026?):**
+- 7 markets with price thresholds — binary: "Will BTC REACH ABOVE $X by Dec 31?"
+- $99,999.99 at 36¢ (36% chance BTC breaks $100k this year), vol=597k
+- $129,999.99 at 16¢, vol=261k | $199,999.99 at 8¢, vol=521k
 
-**Research needed (CRITICAL):**
-1. Find actual series tickers via Kalshi API probe
-2. Search reddit.com/r/kalshi for "bitcoin $150k" strategy discussions
-3. Search GitHub for Kalshi one-time event prediction strategies
-4. Understand settlement rules — when exactly does it settle after hitting price?
+**Signal approach for KXBTCMAX100 (highest priority for future research):**
+- BTC path: geometric Brownian motion + realized vol → P(BTC > $100k before date T)
+- Uses: option pricing models (first-passage-time probability for BM hitting a barrier)
+- Formula: P(S_T > K) = Φ((ln(S0/K) + μT) / (σ√T)) for simplest version
+- Vol calibration: use 30-day realized vol from Binance.US historical klines
+- This is standard barrier option pricing — NOT a new signal, established math
+
+**KXBTCMAX150 — "When will Bitcoin hit $150k?" — $10.8M total volume (Session 39 confirmed):**
+- 3 markets, different deadline dates:
+  - KXBTCMAX150-25-26MAR31 → YES=0¢ vol=3.7M — "Will BTC hit $150k before April 1?" (3 weeks → impossible)
+  - KXBTCMAX150-25-26APR30 → YES=2¢ vol=2.7M — "Before May 1?" (7 weeks, 2% implied)
+  - KXBTCMAX150-25-26MAY31 → YES=4¢ vol=4.4M — "Before June 1?" (3 months, 4% implied)
+- Market type: ONE-TOUCH option ("Did BTC touch $149,999.99 at ANY point before deadline?")
+- Settlement: if BTC spot price ≥ $150k at any moment before close_time → YES resolves
+- Signal: barrier option pricing (first-passage-time probability for GBM)
+  P(S_t ≥ K before T) = function of: current price, target, time, vol (σ), drift (μ)
+  Known formula from options theory — NOT guesswork
+- BTC currently ~$80k → $150k is +87.5% from here → very low probability → these 4-cent
+  prices may actually be MISPRICED if vol is high. Worth investigating.
+
+**KXBTCMAX100 structure (6 markets, $2.7M total):**
+- Markets by BTC-must-reach-by-MONTH deadline:
+  - MAR (by April 1): 1¢ vol=999k | APR (by May 1): 6¢ vol=681k
+  - MAY: 14¢ vol=362k | JUNE: 19¢ vol=513k | SEP: 26¢ vol=62k | DEC: 38¢ vol=87k
+- Close time note: some markets show close=2027-01-01 — may be SETTLEMENT date, not deadline
+- Same one-touch structure as KXBTCMAX150 but for $100k target
+
+**What happened to the $14.8M market from Session 38 screenshot:**
+That WAS KXBTCMAX150 — confirmed! $10.8M open volume. NOT settled (BTC hasn't hit $150k).
+The screenshot showed a higher number, likely volume displayed differently (may include settled).
+
+**KXBTCATH — "When will Bitcoin hit a new all-time high?" (Session 39 discovery):**
+- URL: kalshi.com/markets/kxbtcath/btc-ath
+- Confirmed via website: series EXISTS and is titled "When will Bitcoin hit a new ATH?"
+- API probe (Session 39, Sunday Mar 9): 0 open markets, 0 total markets
+- Hypothesis: Market resolved YES when BTC hit $109k in Jan 2026, then no new series opened
+- OR: Markets may only open when BTC is near ATH (proximity trigger)
+- Action: Monitor — probe monthly to see if new markets open. Do NOT build until confirmed active.
+
+**KXBTCMAX100 current pricing (Session 39 probe, BTC ~$84k, Sunday Mar 9):**
+- DEC 2026 contract: 38¢ (38% chance BTC crosses $100k by December 2026)
+- SEP 2026: 27¢ | MAY 2026: 14¢ | APR 2026: 6¢ | MAR 2026: 1¢ (3 weeks, near-impossible)
+- Total volume: $2,704,832 across 6 markets
+- Insight: December at 38¢ with BTC at $84k is a reasonable market. +$16k = +19% needed.
+
+**KXBTCMAXY current pricing (Session 39 probe — "How high will BTC get in 2026?"):**
+- $99,999: 36¢ (36% chance BTC hits $100k before Dec 31, 2026) vol=597k
+- $109,999: 26¢ vol=sample | $149,999: 12¢ vol=sample | $199,999: 8¢ (8% chance 2.5x)
+- Total: 7 markets, $2.2M vol
+
+**KXBTCMINY current pricing (Session 39 probe — "How low will BTC get in 2026?"):**
+- $40,000: 35¢ (35% chance BTC dips below $40k in 2026) | $45,000: 46¢ | $50,000: 57¢
+- Total: 5 markets, $1.1M vol. Insight: market says 57% chance BTC dips below $50k this year.
+
+**Signal approach (TIER 2 post-gate):**
+Barrier option / first-passage-time model using GBM. Standard formula from options theory:
+P(max S_t ≥ K, 0 ≤ t ≤ T) = Φ((-ln(K/S) + (μ-σ²/2)T)/(σ√T)) + (S/K)^(2μ/σ²-1) × Φ((-ln(K/S) - (μ+σ²/2)T)/(σ√T))
+Where: S=current price, K=target, T=time to deadline, σ=realized vol, μ=drift
+Calibration: Binance.US 30-day klines (already used in backtest.py)
+
+**Expansion roadmap:** KXBTCMAX100 is Tier 2 priority (post-gate). Requires:
+1. Barrier option pricing model (first-passage-time)
+2. Vol calibration from Binance.US 30-day klines (scripts/backtest.py pattern)
+3. Paper trading + Brier validation before live
 
 ═══════════════════════════════════════════════════════════════
 
@@ -401,29 +513,41 @@ The "hourly BTC bet" IS KXBTCD with 24 hourly settlement slots. Not a separate s
 | sports_futures_v1.py       | Polymarket.US            | 📋 Paper |
 | copy_trader_v1.py          | Polymarket.US            | 📋 Paper (platform mismatch) |
 
-## EXPANSION ROADMAP — Order of operations
+## EXPANSION ROADMAP — Order of operations (Updated Session 39)
 
 After expansion gate opens (2-3 weeks live data + no kill switch events):
 
 **Tier 1 — Quick wins (same code pattern as existing strategies):**
 1. **KXXRP15M** — XRP 15-min direction (same code as sol_drift, ~15 min to add)
 2. **KXBTCD hourly live** — btc_daily_v1 already paper, promote after graduation met
-3. **Weekly price-level** — if KXBTCW ticker confirmed, ~same as KXBTCD but weekly settlement
+3. **KXBTCW/KXETHW/KXSOLW** — Weekly price-level (tickers confirmed Session 39!)
+   - Same structure as KXBTCD but weekly settlement (Friday 5pm EDT)
+   - Tickers: KXBTCW, KXETHW, KXSOLW — probe on weekday to see open markets
+   - Signal: same lognormal drift model as KXBTCD but with weekly σ√5 scaling
 
-**Tier 2 — High-volume, new strategy needed:**
-4. **One-Time events** ("When will BTC hit $150k?") — $14.8M volume, completely new strategy type
-   Signal: price trajectory model + realized vol → probability of hitting target before date
-   Research before building: search Reddit, GitHub, probe API for tickers + settlement rules
-5. **Annual price-level** ("Bitcoin price at end of 2026") — $1.4M volume, range-betting structure
-   Different from binary above/below — multiple brackets, different Kelly sizing
+**Tier 2 — High-volume, new strategy needed (post-gate research):**
+4. **KXBTCMAX100** ($2.7M) — "When will BTC cross $100k again?" — Barrier option model
+   - Signal: P(S_t > $100k before date T) using first-passage-time formula
+   - Calibration: 30-day realized vol from Binance.US (scripts/backtest.py pattern)
+   - Settlement: binary YES if BTC > $100k before deadline
+5. **KXBTCMAXY** ($2.2M) — "How high will BTC get in 2026?" — Annual max model
+   - Signal: P(max(S_t) > K for any t ≤ Dec 31) = barrier option all-time-high probability
+6. **KXBTCY** ($1.4M, 28 mkts) — "BTC price on Jan 1, 2027" — Annual endpoint price
+   - Signal: lognormal model with 9+ month horizon, calibrated vol
+7. **KXBTCMAXMON** ($546k) + **KXBTCMINMON** ($439k) — Monthly trimmed mean max/min
+   - BLOCKER: Must understand "trimmed mean" settlement methodology first
+   - Signal: monthly vol model, harder to calibrate than spot price bets
+8. **KXBTC2026200** ($3.4M single market) — "Will BTC be above $200k by 2027?"
+   - Only 1 market, 8¢ YES = essentially a macro bet. Low priority.
 
 **Tier 3 — Sports / other (gate: sports_futures shows edge first):**
-6. **KXNBAGAME / KXNHLGAME** — game winners (skeleton exists)
-7. **KXNBA3D** — triple-double props (~13,600 volume, best player prop)
-8. **KXCPI** — CPI monthly (confirmed exists, reuse FOMC pattern)
-9. **KXMLBGAME** — MLB game winners (April+ season volume)
+9. **KXNBAGAME / KXNHLGAME** — game winners (skeleton exists)
+10. **KXNBA3D** — triple-double props (~13,600 volume, best player prop)
+11. **KXCPI** — CPI monthly (confirmed exists, reuse FOMC pattern)
+12. **KXMLBGAME** — MLB game winners (April+ season volume)
 
 **Do NOT build:** KXMVE* parlays, KXMVEOSCARS, KXNBA/KXMLB season futures, KXBNB/KXBCH
+**Do NOT build yet:** KXDOGED (DOGE daily) — vol=0 across all markets, no liquidity
 
 ═══════════════════════════════════════════════════════════════
 

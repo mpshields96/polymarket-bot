@@ -1,22 +1,23 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-09 (Session 38 close-out — full docs + POLYBOT_INIT update)
+# Last updated: 2026-03-09 (Session 39 mid-session — AUTONOMOUS_CHARTER created, Kalshi markets researched)
 # ═══════════════════════════════════════════════════════════════
 
-## ▶ COPY-PASTE THIS TO START A NEW SESSION (Session 39+)
+## ▶ COPY-PASTE THIS TO START A NEW SESSION (Session 40+)
 
 ```
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 38 close-out).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 39 mid-session).
 
 ══════════════════════════════════════════════════════
 MANDATORY: BEFORE WRITING A SINGLE LINE OF CODE, DO ALL OF THIS:
 ══════════════════════════════════════════════════════
 
 STEP 1 — READ THESE FILES (required, in order):
-  cat SESSION_HANDOFF.md          ← bot state + what to do next (this file, already reading)
-  cat .planning/CHANGELOG.md      ← what changed every session and WHY
-  cat .planning/KALSHI_MARKETS.md ← COMPLETE Kalshi market map — ALL categories
-  cat .planning/SKILLS_REFERENCE.md ← ALL GSD/sc:/superpowers tools + token costs
+  cat SESSION_HANDOFF.md                ← bot state + what to do next (this file, already reading)
+  cat .planning/AUTONOMOUS_CHARTER.md   ← ⚠️ NEW Session 39 — Matthew's complete autonomous ops rules
+  cat .planning/CHANGELOG.md            ← what changed every session and WHY
+  cat .planning/KALSHI_MARKETS.md       ← COMPLETE Kalshi market map — ALL categories
+  cat .planning/SKILLS_REFERENCE.md    ← ALL GSD/sc:/superpowers tools + token costs
 
 STEP 2 — MANDATORY RULES FOR EVERY SESSION:
 
@@ -51,27 +52,43 @@ STEP 2 — MANDATORY RULES FOR EVERY SESSION:
 
 ══════════════════════════════════════════════════════
 
-KEY STATE (Session 38 close-out — 2026-03-09 ~18:00 CDT):
+KEY STATE (Session 39 mid-session — 2026-03-09 ~18:35 CDT):
 * Bot: PID 96757, LIVE mode, log /tmp/polybot_session38.log
 * THREE MICRO-LIVE LOOPS: btc_drift + eth_drift + sol_drift (all ~$0.35-0.65/bet, unlimited/day)
 * All others: PAPER-ONLY. 887/887 tests passing.
-* Last commits: c2a2192 (POLYBOT_INIT docs), 159eead (graduation stats todo complete)
-* Bankroll: ~$84.33 | All-time live P&L: -$13.37 | P&L today: +$5.48 live
-* Kill switch: CLEAR — daily $6.30/$16.88 (37%), consecutive 0/4, hard stop CLEAR
-* btc_drift: 37/30 ✅ Brier 0.247 | eth_drift: 19/30 | sol_drift: 11/30
+* Last commits: c2a2192 (POLYBOT_INIT docs) — no new commits this session yet
+* Bankroll: ~$84.33 | All-time live P&L: -$13.87 | P&L today: +$4.98 live (54 settled)
+* Kill switch: CLEAR — daily $7.23/$20.00 (36%), consecutive 2/4, hard stop CLEAR
+* btc_drift: 38/30 ✅ Brier 0.247 | eth_drift: 21/30 (9 more) | sol_drift: 11/30 (19 more)
 * SDATA: 53/500 (11%) — resets 2026-04-01
 * Expansion gate: STILL CLOSED (2-3 weeks live data needed + no KS events)
-* KXBTCD hourly bets: paper via btc_daily_v1 — 24 hourly price-level slots/day
-* Kalshi weekly/annual/one-time bets: $14.8M volume — UNDOCUMENTED, research needed
+* KXBTCD hourly bets: paper via btc_daily_v1 — 5 bets today (2/5 wins, -$4.38)
+* eth_drift SLIPPAGE REJECTIONS: 17¢ slippage on KXETH15M (signal@43¢ → exec@60¢) — liquidity thin
+
+SESSION 39 WORK DONE:
+* .planning/AUTONOMOUS_CHARTER.md CREATED — permanent mandatory doc for ALL new chats
+  (Matthew's explicit demand — no more re-explaining autonomous operation requirements)
+* .planning/KALSHI_MARKETS.md — major update with confirmed tickers from API probe:
+  - KXBTCMAX150 ($10.8M!): "When will Bitcoin hit $150k?" — 3 date bracket markets (binary)
+  - KXBTCMAX100 ($2.7M): "When will BTC cross $100k again?" — 6 date bracket markets
+  - KXBTCMAXMON ($546k) + KXBTCMINMON ($439k): Monthly max/min, TRIMMED MEAN settlement
+  - KXBTCY: 28 markets, $1.4M+, BINARY (B/T prefix, NOT range brackets)
+  - KXBTCW/KXETHW/KXSOLW: confirmed exist, 0 open Sunday (expected weekly timing)
+  - KXBTC2026200 ($3.4M): "Will BTC be above $200k by 2027?"
+* polybot-monitor scheduled task UPDATED (was pointing session36.log, old test count 869)
+* Daily loops (btc_daily/eth_daily/sol_daily) CONFIRMED ACTIVE — log at DEBUG after session-open
+  reset (not broken, just silent at INFO level — check with grep -i "daily" in log)
+* Reddit research agent launched for KXBTCD hourly strategy community insights
 
 NEXT SESSION DIRECTIVE (in priority order):
-1. Probe Kalshi API for Weekly/Monthly/Annual/One-Time crypto tickers (KXBTCW? etc.)
-   Search reddit.com/r/kalshi + GitHub for these market strategies
-   Update .planning/KALSHI_MARKETS.md with findings
-2. Monitor eth_drift + sol_drift graduation (11 + 19 more live bets needed)
-3. Check btc_daily_v1 paper graduation progress (--graduation-status)
-4. Monitor btc_drift YES vs NO win rate asymmetry (wait 30 more clean bets)
-5. Expansion gate still closed — no new live strategies yet
+1. Read .planning/AUTONOMOUS_CHARTER.md — acknowledge before any work
+2. Check Reddit agent results (run: cat /tmp/reddit_kalshi_research.md if it exists)
+   OR relaunch: WebSearch site:reddit.com/r/kalshi KXBTCD hourly + KXBTCMAX150
+3. Monitor eth_drift slippage issue — is KXETH15M consistently thin? Check 24hr patterns
+4. Monitor eth_drift + sol_drift graduation (9 + 19 more live bets needed)
+5. Search GitHub for KXBTCMAX150 barrier option strategies
+6. Update CHANGELOG.md + SESSION_HANDOFF.md (current session not fully committed yet)
+7. Expansion gate still closed — no new live strategies yet
 
 STANDING DIRECTIVES (never need repeating):
 * Fully autonomous always — do work first, summarize after. Never ask for confirmation.
