@@ -177,3 +177,21 @@
 - btc_imbalance stagger shifted 29s→36s to make room
 ### Why: Three concurrent drift loops (BTC+ETH+SOL) maximize calibration data rate at minimal financial risk ($0.35-0.65/bet). SOL ~3x more volatile than BTC → min_drift_pct scaled 3x (0.15%) to maintain same edge quality bar. Combined expected signal rate: 15-25/day.
 ### Test count: 869/869 | Commit: 11ff825
+
+---
+
+## Session 36 (cont2) — 2026-03-09 — KALSHI_MARKETS.md full live re-probe
+### Changed
+- .planning/KALSHI_MARKETS.md — COMPLETE REWRITE based on live API probe
+  - All series confirmed/denied via get_markets() against trading-api.kalshi.com
+  - NEW categories added: Player Props (KXNBAPTS/AST/REB/3PT/2D/3D, KXNHLPTS/AST)
+  - NEW categories added: MLB game winners (KXMLBGAME), Parlays (KXMVE*), Oscars (KXMVEOSCARS)
+  - Volume data added for every series (BTC15M=103k, ETH15M=9.4k, SOL15M=4.2k, XRP15M=5.9k)
+  - KXXRPD confirmed exists (but near-zero volume)
+  - KXBNB15M, KXBCH15M, KXBNBD, KXBCHD all confirmed inactive (no open markets)
+  - KXCPI confirmed exists (~1,400 volume)
+  - Expansion roadmap added: XRP drift → game winners → KXNBA3D → CPI → MLB season
+### Why: Session 36 re-probe revealed 5 entire market categories previously unknown to bot:
+  player props (6 series), MLB game winners, parlay markets (KXMVE*), Oscars, CPI confirmation.
+  Matthew's standing directive: stop steering with a blindfold — complete market knowledge required.
+  All future sessions must read KALSHI_MARKETS.md before any strategy work.
