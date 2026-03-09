@@ -217,9 +217,19 @@ Paper trading has three structural accuracy problems that cannot be fully fixed:
 - Not lowering risk thresholds — it's replacing fake data with real data at tiny stakes
 - The $1.00 cap is MORE conservative than the previous $5 paper bets in terms of dollar exposure
 
-**Current status (2026-03-08):**
-- btc_drift: Micro-live enabled. $1.00 cap, max 3/day.
-- All other strategies: remain paper-only until btc_drift completes micro-live graduation.
+**Current status (2026-03-08, updated Session 36):**
+- btc_drift: Micro-live, 1 contract/bet (~$0.35-0.65), unlimited/day (daily loss limit governs).
+- eth_drift: Micro-live enabled Session 36. Same 1-contract cap. 62+ paper trades validated at same thresholds.
+- All other strategies: remain paper-only until btc_drift + eth_drift complete micro-live graduation.
+
+**CALIBRATION CHICKEN-AND-EGG WARNING (Session 36 lesson):**
+Session 25 raised btc_drift thresholds (0.05→0.10 drift, 0.05→0.08 edge) with only ~12 live trades.
+This reduced signal frequency to ~1/day. Result: calibration stalled — took weeks per 30-bet target.
+The thresholds were raised as a STATISTICAL OUTCOME reaction, not a mechanical defect fix (PRINCIPLES violation).
+Session 36 restored original thresholds (0.05/0.05). At these values: ~8-15 signals/day.
+LESSON: Tightening thresholds during calibration to avoid risk is self-defeating — it delays the data
+needed to justify ANY threshold decision. The 1-contract cap ($0.35-0.65) is the risk governor, not
+the signal frequency.
 
 ═══════════════════════════════════════════════════════════════
 

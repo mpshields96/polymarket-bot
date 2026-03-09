@@ -10,9 +10,9 @@
 ##   Strategies: btc_lag, eth_lag, btc_drift, eth_drift, btc_imbalance,
 ##               eth_imbalance, weather, fomc, unemployment_rate, sol_lag
 ##   Approach:   Statistical signals (BTC price lag, sentiment, weather, macro)
-##   Status:     All 10 paper-only as of Session 27 (live demoted due to
-##               market maturation — HFTs now price in same minute as BTC moves)
-##   Goal:       Live trading on Kalshi when signal edge is confirmed by Brier
+##   Status:     btc_drift + eth_drift MICRO-LIVE (1 contract/bet ~$0.35-0.65).
+##               All others paper-only (market maturation, HFTs price btc_lag same minute).
+##   Goal:       30 live settled bets + Brier < 0.30 → Stage 2 promotion
 ##
 ## HALF 2 — POLYMARKET COPYTRADE BOT (PRIMARY GOAL)
 ##   Platform:   Polymarket.us (api.polymarket.us/v1) — CFTC-approved US iOS beta
@@ -24,8 +24,8 @@
 ##               it SUPPORTS or SUPPLEMENTS the copy trading mission
 ##   Whale data: data-api.polymarket.com (public, no auth) via whale_watcher.py
 ##   Whale list: predicting.top/api/leaderboard (public) via predicting_top.py
-##   Status:     Paper-only — POST /v1/orders protobuf format not yet confirmed
-##   Goal:       Live copy trading once order format is confirmed + 30 paper trades
+##   Status:     Paper-only — platform mismatch (whales trade .COM, account is .US)
+##   Goal:       Live copy trading once platform mismatch resolved + 30 paper trades
 ##
 ## STANDING RULE: Any new Polymarket feature, strategy, or research task must
 ## directly serve the copy trading goal. If it doesn't help copy trades succeed,
@@ -40,6 +40,9 @@ kill switch threshold, or risk rule. It contains:
 - The anti-bloat principle (no trauma-based rules)
 - Graduation criteria and why they are mandatory
 - When to change vs when to wait for data
+
+Read `.planning/CHANGELOG.md` to understand what changed in every prior session
+and WHY. Every session must append entries here. This is the authoritative record.
 
 If you (Claude) are about to change a threshold, add a filter, or
 adjust a parameter after a losing period — read PRINCIPLES.md first.
@@ -173,8 +176,8 @@ DO NOT: fix symptoms without finding root cause
 - **strategy `_min_edge_pct` must be passed to `calculate_size(min_edge_pct=...)`** — default is 8%, but btc_lag fires at 4% and btc_drift at 5%. Without this, valid 4-7.9% edge signals are silently dropped. Bug fixed Session 22 (4ae55bd). Pattern: `_strat_min_edge = getattr(strategy, '_min_edge_pct', 0.08)`. Regression tests in TestStrategyMinEdgePropagation.
 - **KILL_SWITCH_EVENT.log is polluted by test runs** — `_hard_stop()` writes to the live event log even during pytest. Events timestamped during tests look like real trading stops. Root cause: no `PYTEST_CURRENT_TEST` guard (unlike `_write_blockers()`). Fix logged in .planning/todos.md. Don't be alarmed by mysterious hard stops that don't match DB data.
 - **Price range guard TIGHTENED to 35-65¢ (Session 25 cont2)**: btc_lag/eth_lag/sol_lag and btc_drift.py all use `_MIN_SIGNAL_PRICE_CENTS=35`, `_MAX_SIGNAL_PRICE_CENTS=65`. Bets at extreme prices blocked — only near-even-odds bets are placed. Trade 113 (btc_drift YES@21¢) would now be blocked. If adding a new lag strategy, apply same constants.
-- **btc_drift thresholds raised (Session 25 cont2)**: `min_edge_pct=0.08` (was 0.05), `min_drift_pct=0.10` (was 0.05). Need ~0.19% BTC drift to achieve 8% edge at 50¢. At sensitivity=800, P(YES)≈0.595 at 0.19% drift → edge=0.595-0.50-0.0175=0.0775. Don't change without 30+ live trades + Brier data.
-- **calculate_size() min_edge_pct must match strategy**: btc_lag uses 4%, btc_drift uses 8%. Both correctly passed via `_strat_min_edge = getattr(strategy, '_min_edge_pct', 0.08)`. Keep in sync if thresholds change.
+- **btc_drift thresholds RESTORED (Session 36)**: `min_edge_pct=0.05`, `min_drift_pct=0.05` (restored from 0.08/0.10 set in Session 25). Session 25 raised them with only ~12 live trades — a PRINCIPLES.md violation. At 0.05% drift, sensitivity=800 → raw_prob≈0.599 → edge≈8.1%. Expect 8-15 signals/day. Do NOT re-raise without 30+ live trades + Brier data.
+- **calculate_size() min_edge_pct must match strategy**: btc_lag uses 4%, btc_drift/eth_drift use 5%. All passed via `_strat_min_edge = getattr(strategy, '_min_edge_pct', 0.08)`. Keep in sync if thresholds change.
 - **Daily loss counter DID NOT persist across restarts** (fixed Session 23 cont'd): on restart, `_daily_loss_usd` reset to 0 in memory, bypassing the daily limit. Fix: `db.daily_live_loss_usd()` queries settled losses since midnight UTC; `kill_switch.restore_daily_loss()` seeds the counter; called from main.py on startup. Consecutive loss counter intentionally resets (restart = manual soft stop override).
 - **`_realized_loss_usd` is display-only (Session 34)**: The 30% lifetime hard stop was removed. `restore_realized_loss()` still seeds the counter for status display but triggers no stop. Protection = daily loss limit (20%) + $20 bankroll floor.
 - **restore_daily_loss() and restore_realized_loss() are SEPARATE concerns** — `restore_daily_loss()` only touches `_daily_loss_usd`. `restore_realized_loss()` only touches `_realized_loss_usd`. Never mix them. Double-counting was a bug that's been fixed.
@@ -232,37 +235,43 @@ CHECK: `pip freeze | grep <package>` to get current version, then pin it.
 
 Current project state (updated each session):
 - **869/869 tests passing**, verify.py 21/29 (8 advisory WARNs — non-critical)
-- **btc_drift_v1 MICRO-LIVE**: 1 contract/bet (~$0.35-0.65), unlimited/day (daily loss limit governs) — at 22 placed / 21 settled (was blocked 7 days by stale kill switch bug, now fixed)
-  - Paper calibration fixed (Session 32): slippage 2→3¢, fill_probability=0.85 (15% no-fill), signal_price_cents stored
-  - eth_orderbook_imbalance $233 paper anomaly fixed (Session 31): missing 35-65¢ price guard — NO@2¢ bet
-  - paper_slippage_ticks raised 2→3 (Session 32: upper end of confirmed 2-3¢ Kalshi BTC spread)
-- All other 9 Kalshi loops PAPER-ONLY: btc_lag (0 signals/week), eth_lag, eth_drift (DO NOT PROMOTE), btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
-- **POLYMARKET — sports_futures_v1 ACTIVE (paper, bot PID 69468)**
+- **btc_drift_v1 MICRO-LIVE**: 1 contract/bet (~$0.35-0.65), unlimited/day (daily loss limit governs)
+  - Thresholds RESTORED Session 36: min_drift_pct=0.05, min_edge_pct=0.05 (was 0.10/0.08 since Session 25)
+  - Session 25 tightening was a PRINCIPLES.md violation (done with only ~12 live trades). Restored to original.
+  - At 0.05% drift, sensitivity=800 → raw_prob≈0.599 → edge≈8.1%. Expect 8-15 signals/day.
+  - Paper calibration: slippage 3¢, fill_probability=0.85, signal_price_cents stored in DB
+  - 22 placed / 21 settled (was blocked 7 days by stale kill switch bug, now fixed)
+- **eth_drift_v1 MICRO-LIVE** (enabled Session 36): same 1-contract cap, same thresholds (0.05/0.05)
+  - 62+ paper trades already validated at these thresholds. Added to double calibration data rate.
+  - Shares _live_trade_lock and daily loss limit with btc_drift. calibration_max_usd=0.01.
+  - Note: logs say "[btc_drift]" internally — cosmetic only. btc_feed=eth_feed is correct.
+- All other 8 Kalshi loops PAPER-ONLY: btc_lag (0 signals/week), eth_lag, btc_imbalance, eth_imbalance,
+  weather, fomc, unemployment_rate, sol_lag
+- **POLYMARKET — sports_futures_v1 ACTIVE (paper)**
   - POST /v1/orders JSON format confirmed (Session 34): place_order() implemented
-  - copy_trade_loop: predicting.top whales trade .COM only — 0 .us matches (platform mismatch)
-  - **sports_futures_v1 (Session 35)**: team name bug fixed, min_books=2 filter, 55 tests, paper-only
+  - copy_trade_loop: predicting.top whales trade .COM only — 0 .us matches (platform mismatch confirmed)
+  - sports_futures_v1: team name bug fixed (Session 35), min_books=2 filter, paper-only
   - src/strategies/copy_trader_v1.py — 6 decoy filters + Signal (29 tests)
   - Kalshi copy trading: CONFIRMED INFEASIBLE (no public user attribution)
-- **Session 35 kill switch fixes**:
-  - Stale consecutive loss streak bug FIXED (7-day block): db returns (count, last_loss_ts), restore uses remaining time
+- **Session 35-36 kill switch + calibration fixes**:
+  - Stale consecutive loss streak bug FIXED: db returns (count, last_loss_ts), restore uses remaining time
   - Settlement loop KX-prefix filter FIXED: Polymarket tickers no longer hit Kalshi API
-  - kill_switch.log_startup_status(): visible health banner at startup
-  - python main.py --health: 6-section diagnostic — run first when no live bets for 24hr+
+  - --health: 6-section diagnostic — run first when no live bets for 24hr+
   - trading_loop watchdog: WARNING 24hr, CRITICAL 72hr with no live bet
   - KILL_SWITCH_LESSONS.md: 7 lessons + no-live-bets protocol
-- Latest commit: ad2ddaf (Session 35, 869 tests)
+  - .planning/CHANGELOG.md: CREATED — permanent session log (all future sessions must append)
+- Latest commit: aa83e78 (Session 36, 869 tests)
 - Kill switch: consecutive_loss_limit=4, daily_loss_limit=20% (~$15.95 on $79.76 bankroll). NO lifetime % hard stop.
 - **Daily loss counter is CST-based (UTC-6)** — resets at midnight CST = 06:00 UTC daily
 - Paper-during-softkill: check_paper_order_allowed() in all paper loops — soft stops block live only
 - **Price range guard 35-65¢** on btc_drift.py, btc_lag.py, AND orderbook_imbalance.py (fixed Session 31)
 - **ALL THREE kill switch counters persist across restarts**: daily loss + lifetime loss + consecutive losses
-- asyncio.Lock (_live_trade_lock) for all live loops — wraps check→execute→record atomically
+- asyncio.Lock (_live_trade_lock) for all live loops (btc_drift + eth_drift) — wraps check→execute→record atomically
 - Bankroll: $79.76 | All-time live P&L: -$18.85 (21 settled, 8W/13L=38%)
 - btc_lag_v1: Brier 0.191 (STRONG signal) but ~0 signals/week — HFTs price Kalshi same minute as BTC moves
-- eth_drift_v1: DO NOT PROMOTE — paper P&L -$35.47, only 1.1 days data, statistically meaningless
 - ⚠️ Polymarket.us: sports-only. Polymarket.COM: full suite (crypto/politics/culture) — where whales trade
-- Live restart: `pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session31.log 2>&1 &`
-- Paper restart: `pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid; nohup ./venv/bin/python3 main.py >> /tmp/polybot_session31.log 2>&1 &`
+- Live restart: `pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session36.log 2>&1 &`
+- Paper restart: `pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid; nohup ./venv/bin/python3 main.py >> /tmp/polybot_session36.log 2>&1 &`
 
 ## Loading Screen Tip — MANDATORY at end of EVERY response
 Every response (with or without code changes) must end with a "💡 Loading Screen Tip" block.

@@ -1,20 +1,24 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file + CLAUDE.md to any new Claude session to resume.
-# Last updated: 2026-03-09 (Session 35 cont)
+# Last updated: 2026-03-08 (Session 36)
 ═══════════════════════════════════════════════════
 
 ## EXACT CURRENT STATE — READ THIS FIRST
 
-Bot is RUNNING — PID 69468, live mode, log: /tmp/polybot_session35.log
-Check: `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"`
-Watch: `tail -f /tmp/polybot_session35.log | grep --line-buffered "daily\|drift\|LIVE\|Kill switch\|sports_futures"`
+⚠️ BOT NEEDS RESTART — config.yaml + main.py changed this session (thresholds + eth_drift live)
+Restart command below. After restart: verify both drift loops firing in log.
+
+Last known PID: 69468 (Session 35). Run check before restart:
+  `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"`
+Watch after restart: `tail -f /tmp/polybot_session36.log | grep --line-buffered "daily\|drift\|eth_drift\|LIVE\|Kill switch"`
 Health: `python3 main.py --health`
 
-btc_drift MICRO-LIVE (1 contract/bet ~$0.35-0.65, UNLIMITED/day) — active, unblocked after 7-day stale streak fix
+btc_drift MICRO-LIVE (1 contract/bet ~$0.35-0.65, UNLIMITED/day) — thresholds RESTORED 0.05/0.05
+eth_drift MICRO-LIVE (Session 36, same cap) — was paper-only, now live
 All other strategies: PAPER-ONLY
 Test count: 869/869
-Last commit: 107eaad (Session 35 docs), ad2ddaf (sports_futures min_books), 683dc02 (--health + watchdog)
-Live bets: 22 placed, 21 settled (12/30 for Brier threshold)
+Last commit: aa83e78 (Session 36: thresholds + eth_drift live + CHANGELOG)
+Live bets: 22 placed, 21 settled (needs restart to count new bets)
 
 ═══════════════════════════════════════════════════
 
@@ -77,14 +81,14 @@ Daily loss limit: 20% = ~$15.95 on current bankroll
 
 ═══════════════════════════════════════════════════
 
-## CURRENT BOT ARCHITECTURE (14 loops — sports_futures_loop active on next restart)
+## CURRENT BOT ARCHITECTURE (15 loops)
 
-main.py asyncio event loop [LIVE MODE] — PID 67702
+main.py asyncio event loop [LIVE MODE]
   Kalshi 15-min loops:
     [trading]       btc_lag_v1           PAPER-ONLY (0 signals/week, market mature)
     [eth_trading]   eth_lag_v1           PAPER-ONLY
-    [drift]         btc_drift_v1         MICRO-LIVE 1 contract/bet, UNLIMITED/day -- ACTIVE (12/30)
-    [eth_drift]     eth_drift_v1         PAPER-ONLY
+    [drift]         btc_drift_v1         MICRO-LIVE 1 contract/bet, UNLIMITED/day — thresholds 0.05/0.05 (Session 36)
+    [eth_drift]     eth_drift_v1         MICRO-LIVE 1 contract/bet, UNLIMITED/day — ENABLED Session 36
     [btc_imbalance] orderbook_imb_v1     PAPER-ONLY
     [eth_imbalance] eth_orderbook_imb_v1 PAPER-ONLY
     [weather]       weather_forecast_v1  PAPER-ONLY (weekdays only)
@@ -96,8 +100,8 @@ main.py asyncio event loop [LIVE MODE] — PID 67702
     [eth_daily]     eth_daily_v1         PAPER-ONLY (KXETHD, 24 hourly slots)
     [sol_daily]     sol_daily_v1         PAPER-ONLY (KXSOLD, 24 hourly slots)
   Polymarket:
-    [copy_trade]    copy_trader_v1       PAPER-ONLY (5-min poll, 144 whales, 0 .us matches so far)
-    [sports_futures] sports_futures_v1   PAPER-ONLY (30-min poll, NBA/NHL/NCAAB futures, ACTIVE — team name bug fixed)
+    [copy_trade]    copy_trader_v1       PAPER-ONLY (5-min poll, 144 whales, 0 .us matches — platform mismatch)
+    [sports_futures] sports_futures_v1   PAPER-ONLY (30-min poll, NBA/NHL/NCAAB futures, min_books=2)
 
 ═══════════════════════════════════════════════════
 
@@ -168,46 +172,46 @@ Bot PID 69468, all fixes live.
 
 ## PENDING DECISIONS + NEXT TASKS
 
-1. btc_drift micro-live — collecting 30 settled bets for valid Brier score
-   Was blocked 7 days by stale streak bug. Now unblocked.
-   At 12/30 settled (22 placed). With unlimited/day, should reach 30 within ~2 weeks.
-   Do NOT change calibration_max_usd until 30+ settled bets.
+1. **RESTART BOT** (first thing next session)
+   Config + main.py changed. Restart picks up: btc_drift thresholds 0.05/0.05 + eth_drift live.
+   After restart: verify BOTH drift loops firing in log within first 15 min.
+   Expected: 8-15 signals/day combined (vs previous 1/day).
 
-2. sports_futures_loop is ACTIVE (PID 69468) — min_books=2 filter now active
-   First poll generated 8 signals (all NO, PM overpriced vs bookmaker consensus)
-   Paper-only. Watch for signals: `tail -f /tmp/polybot_session35.log | grep sports_futures`
+2. btc_drift + eth_drift micro-live — collecting 30 settled bets each for valid Brier score
+   btc_drift at 21 settled. eth_drift: new to live, 0 live settled bets yet.
+   At 8-15 signals/day combined, should reach 30 bets each within ~3-5 days.
+   Do NOT change calibration_max_usd until 30+ settled bets per strategy.
 
-3. copy trading still blocked (platform mismatch)
-   All whale signals from predicting.top are .COM politics/crypto markets.
-   polymarket.US is sports-only. sports_futures_loop is now the active path.
-   Options still open:
-   b) Find sports-specific whale data source for .US — no known source yet
-   c) Wait for polymarket.US platform expansion (unknown timeline)
+3. sports_futures_loop — paper-only, min_books=2 active, ~8 signals last poll
+   Watch: `tail -f /tmp/polybot_session36.log | grep sports_futures`
 
-4. DO NOT re-promote btc_lag to live — 0 signals/week, bankroll $79.76 < $90 gate
+4. copy trading blocked (platform mismatch, .COM whales ≠ .US sports markets)
+   No action needed until platform expansion or sports whale source found.
 
-5. Watch daily loops fire — evaluate Brier after 30+ settled bets each
+5. DO NOT re-promote btc_lag to live — 0 signals/week, bankroll $79.76
 
-6. **NEW: `python main.py --health`** — run first when troubleshooting anything.
-   Comprehensive 6-section diagnostic. trading_loop warns at 24hr, critical at 72hr.
+6. `python main.py --health` — run first when troubleshooting no-live-bets issues.
+
+7. .planning/CHANGELOG.md created — ALL future sessions must append here. Read it at session start.
 
 ═══════════════════════════════════════════════════
 
 ## RESTART COMMANDS
 
-Live mode (Session 35):
+Live mode (Session 36):
   pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null
   sleep 3; rm -f bot.pid
   echo "CONFIRM" > /tmp/polybot_confirm.txt
-  nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session35.log 2>&1 &
+  nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session36.log 2>&1 &
   sleep 10 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
 
 Watch all loops:
-  tail -f /tmp/polybot_session35.log
-Watch daily + drift only:
-  tail -f /tmp/polybot_session35.log | grep --line-buffered "daily\|drift\|LIVE\|Trade executed\|Kill switch"
+  tail -f /tmp/polybot_session36.log
+Watch drift loops only (most active):
+  tail -f /tmp/polybot_session36.log | grep --line-buffered "drift\|LIVE\|Trade executed\|Kill switch"
 
 Key Commands:
   source venv/bin/activate && python3 main.py --report
   source venv/bin/activate && python3 main.py --graduation-status
+  source venv/bin/activate && python3 main.py --health
   source venv/bin/activate && python3 -m pytest tests/ -q
