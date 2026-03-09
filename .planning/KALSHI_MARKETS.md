@@ -57,17 +57,28 @@ Matthew's kalshi.com Crypto tab screenshot (Session 38) shows:
 - Events endpoint GET /events?status=open is the correct way to discover new market types
 - KXDOGED confirmed active but ZERO VOLUME — do not build
 
-**FULL KALSHI MARKET CATEGORIES (top nav — most NOT documented):**
-- Crypto ← documented below (incomplete)
-- Politics ← ⚠️ NOT DOCUMENTED — likely high volume election/policy markets
-- Sports ← partially documented (Category 5-7 below)
-- Culture ← ⚠️ NOT DOCUMENTED
-- Climate ← ⚠️ NOT DOCUMENTED — possibly overlaps weather
-- Economics ← partially documented (FOMC/CPI/unemployment) — likely more series
-- Mentions ← ⚠️ NOT DOCUMENTED — possibly social/news volume metrics
-- Companies ← ⚠️ NOT DOCUMENTED — earnings? stock price?
-- Financials ← ⚠️ NOT DOCUMENTED — interest rates, inflation indices?
-- Tech & Science ← ⚠️ NOT DOCUMENTED — AI milestones? space? biotech?
+**FULL KALSHI MARKET CATEGORIES (top nav — Session 39 events endpoint probe):**
+Session 39 event endpoint probe (GET /events?status=open, 5 pages ~1000 events):
+
+| Category | Count (open events) | Example | Strategy relevance |
+|----------|---------------------|---------|-------------------|
+| Elections | 453 | Will X win UK election? | ❌ Political edge hard to quantify |
+| Politics | 339 | Will Mamdani become US President? | ❌ Not in scope |
+| Entertainment | 57 | James Bond theme performer? | ❌ Not in scope |
+| Economics | 57 | How high will unemployment get before 2030? | ✅ FOMC/CPI/unemployment (partial) |
+| Sports | 39 | Canadian team wins Stanley Cup before 2031? | ✅ Already built (paper) |
+| Science/Tech | 12 | Human on Mars before CA high-speed rail? | ❌ Long-dated, hard to model |
+| World | 7 | Will Musk visit Mars in his lifetime? | ❌ Not in scope |
+| Social | 7 | US state population decrease? | ❌ Not in scope |
+| Climate | 10 | World pass 2°C? | ❌ Similar to weather (HIGHNY already built) |
+| Companies | 11 | When will a company achieve AGI? | ❌ Not in scope |
+| Financials | 3 | Will Ramp or Brex IPO first? | ❌ Not in scope |
+| Health | 4 | FDA cure for Type 1 diabetes before 2033? | ❌ Not in scope |
+| Transportation | 1 | Will Karl Bushby finish world walk? | ❌ Not in scope |
+
+Note: Volume field returns 0 for events (volume tracked per market, not per event).
+Economics (57) is most relevant — likely includes CPI, GDP, PCE, JOLTS series we haven't built.
+KXGDP found active (92k vol), KXCPI active (890 vol) — both NOT BUILT yet in bot.
 
 ## ⚠️ KEY INSIGHT — "Hourly BTC bets" exist, just named differently
 
@@ -83,6 +94,36 @@ per day** — one closing each hour throughout the day. Example:
 These are **price-level bets** (is BTC above/below $X at time T), NOT direction bets like 15-min.
 Strike is parsed from ticker suffix: `KXBTCD-26MAR0921-T80000` → strike = $80,000.
 
+## ⚠️ KXBTCD STRUCTURE CLARIFICATION (Session 39 research — CRITICAL)
+
+**The daily bracket price level is set ONCE per day** (likely at midnight or market open),
+NOT as a new level per hour. All 24 hourly slots share the SAME dollar strike set that morning.
+
+Example: If BTC opens at $84,000 and the daily bracket is set at $84,000:
+- 9am slot: "Will BTC be above $84,000 at 9am EST?" → 50¢ at open (fair coin)
+- 12pm slot: "Will BTC be above $84,000 at 12pm EST?" → 50¢ at open (same strike, more time)
+- 5pm slot: same strike, but time uncertainty is lower as 5pm approaches
+
+**Signal implication (from Session 39 GitHub research):**
+If BTC has drifted significantly since the bracket was set (e.g., +1.5% since midnight),
+early-morning YES contracts may be systematically underpriced because:
+- Market prices the slot at ~50¢ when bracket is set
+- BTC drifts → the YES should reprice toward 65-70¢ as the move persists
+- Our btc_drift signal logic IS directly applicable to KXBTCD!
+- This is why Kalshi-CryptoBot specifically paired BOTH 15-min + hourly — same signal.
+
+**Key observation:** KXBTCD hourly slots are NOT "hourly direction" bets. They are daily
+absolute-level bets with hourly sub-resolution windows. The "7am EST" means the signal
+window closes at 7am, not that it resets. This is a path-independent binary: at expiry, is BTC above K?
+
+**Community research (Session 39 agent):**
+- Kalshi-CryptoBot (GitHub: Bh-Ayush/Kalshi-CryptoBot) explicitly pairs 15-min + hourly bots
+  (repo now private = possibly profitable alpha being hidden — strong signal)
+- HN #1 leaderboard trader (ammario): uses log-odds spread market-making across many markets.
+  Different architecture from us but confirms Kalshi edge is real for systematic traders.
+- Academic study (arXiv:2601.01706): 2-4% persistent price deviations between platforms.
+- QuantPedia: confirms systematic edges exist in prediction markets for well-calibrated models.
+
 **Volume comparison (Session 36 live probe):**
 - KXBTC15M: ~103,000 contracts/window — the MOST LIQUID 15-min crypto market
 - KXBTCD: ~5,000 total across all hourly/daily slots — 20x LESS liquid than 15-min direction
@@ -90,6 +131,27 @@ Strike is parsed from ticker suffix: `KXBTCD-26MAR0921-T80000` → strike = $80,
 - One-Time events ("When will BTC hit $150k?"): ~$14.8M volume — 140x KXBTCD!
 - Implication: 15-min direction is right for high-frequency. Weekly/annual/one-time events
   have enormous volume and could support a separate lower-frequency strategy.
+
+## ⚠️ RESEARCH-VERIFIED EXPANSION PRIORITY (Session 39 findings)
+
+Based on Session 39 Reddit/GitHub research agent findings:
+
+| Priority | Market Type | Edge Source | Build When |
+|----------|-------------|-------------|------------|
+| Tier 1A | KXBTC15M drift (btc/eth/sol) | Momentum continuation | LIVE NOW ✅ |
+| Tier 1B | KXBTCD early-morning hourly slots | Same drift signal vs fixed bracket | Expansion gate opens |
+| Tier 2A | KXBTCMAX150/100 via options | Compare vs Deribit digital option price lag | Post-gate, needs Deribit API |
+| Tier 2B | KXXRP15M drift | Same 15-min model, new asset | Post-gate (2 weeks live data) |
+| Tier 3 | KXBTCW weekly | Macro signal (different from momentum) | Later — needs different model |
+| Tier 4 | KXBTCMAXY/KXBTCMINY/KXBTCMAXMON | Lognormal range model (complex) | Later — log to todos only |
+
+**DO NOT BUILD until expansion gate opens** (still closed as of Session 39)
+
+**Red flags confirmed (do not pursue):**
+- LLM-based "AI trading bots" — tested negative returns, educational only
+- Cross-platform Kalshi/Polymarket arbitrage — US residents legally blocked (polymarket.COM closed)
+- Monthly/yearly max-min brackets — too thin, capital lockup, complex signal
+- KXBTCMAX150 as a long-duration position — capital locked months, poor vs 15-min 96x/day recycling
 
 ═══════════════════════════════════════════════════════════════
 
