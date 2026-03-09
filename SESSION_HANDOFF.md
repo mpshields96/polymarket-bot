@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-09 (Session 36 — final close-out)
+# Last updated: 2026-03-09 (Session 37 autonomous close-out — 09:22 CDT)
 # ═══════════════════════════════════════════════════════════════
 
 ## ▶ COPY-PASTE THIS TO START A NEW SESSION (Session 37+)
@@ -13,19 +13,20 @@ Read these files immediately before doing anything else:
   3. cat .planning/KALSHI_MARKETS.md <- complete Kalshi market map, volumes, what is built
 Do NOT ask setup questions. Do NOT write code until you have read all three.
 
-KEY STATE (Session 36 close — 2026-03-09):
-* Bot: PID 74462, live mode, log /tmp/polybot_session36.log
+KEY STATE (Session 37 autonomous close — 2026-03-09 09:22 CDT):
+* Bot: PID 90027, live mode, log /tmp/polybot_session37.log
 * THREE MICRO-LIVE LOOPS: btc_drift + eth_drift + sol_drift (all ~$0.35-0.65/bet, unlimited/day)
 * All others: PAPER-ONLY. 869/869 tests passing.
-* Last commits: c8afa61 (AUTONOMOUS_SESSION.md), 0155633 (token budget prompt), 8be7901 (session close)
-* Bankroll: ~$79.76 | All-time live P&L: -$15.15 (improving) | btc_drift: 12/30 live bets
-* Protection: 20% daily loss + $20 floor. GSD health: HEALTHY. 0 pending todos.
-* --report correctly splits paper/live by is_paper per trade (two rows on transition days)
-* Autonomous monitoring task ACTIVE: "polybot-monitor" runs every 30 min, logs to
-  /tmp/polybot_autonomous_monitor.md — read this file if resuming after Matthew was asleep
+* Last commits: 69678a8 (execution-time price guard todo), 0745785 (graduation_stats bug todo)
+* Bankroll: ~$79.76 | All-time live P&L: -$16.12 | Today live: +$2.73
+* btc_drift: 30/30 ✅, Brier 0.2526 ✅ | eth_drift: 17 live settled | sol_drift: 10 live settled
+* Kill switch: SOFT STOP active (4 consec losses, fired 09:04 CDT, expires ~11:02 CDT)
+  DO NOT RESET — correct behavior after 4 consecutive losses
+* Protection: 20% daily loss (38% used today = $6.30/$16.44) + $20 floor. Hard stop: CLEAR.
+* 2 PENDING TODOS: graduation_stats bug (low) + execution-time price guard (HIGH)
 
-NEXT SESSION DIRECTIVE: DO NOTHING except watch until 30 settled live bets per strategy.
-Run python3 main.py --report to check progress. XRP drift is next IF drift validates.
+NEXT SESSION DIRECTIVE: Fix execution-time price guard in live.py (HIGH PRIORITY — see todo).
+After fix, graduation_stats() is_paper param fix. Then wait until expansion gate criteria met.
 
 STANDING DIRECTIVES (never need repeating):
 * Fully autonomous always — do work first, summarize after. Never ask for confirmation.
@@ -93,45 +94,47 @@ copy_trader_v1 (Polymarket.US — 0 matches, platform mismatch confirmed)
 ### Tests: 869/869
 
 ### Last commits:
-- c8afa61 — docs: AUTONOMOUS_SESSION.md — 2hr sleep-mode work prompt
-- 0155633 — docs: expand Session 37 prompt with token budget + autonomous mode
-- 8be7901 — docs: session 36 final close-out — handoff + changelog updated
-- e904715 — chore: todos marked complete + ROADMAP phase 04.2 acknowledged (GSD healthy)
-- 3477987 — fix(report): split paper/live rows by is_paper per-trade (not per-strategy mode)
+- 69678a8 — docs: capture todo - add execution-time price guard to live executor
+- 0745785 — docs: capture todo - Fix graduation_stats to query live bets for live strategies
+- 8a312d0 — docs: autonomous session final — btc_drift Brier gate MET + kill switch event
+- d1f10f0 — docs: autonomous session 37 — bug discovery + live bet count update
 
-### P&L (as of 2026-03-10 02:09 CDT — autonomous session final update):
-- Bankroll: ~$79.76 → ~$83.50 (estimated, some bets settled in-session)
-- All-time live P&L: -$14.89 (improving from -$15.15)
-- Today: live $3.96 (btc_drift 9/14, eth_drift 8/13, sol_drift 7/8) — 57% win rate
+### P&L (as of 2026-03-09 09:22 CDT — Session 37 autonomous close):
+- Bankroll: ~$79.76 (daily loss offset)
+- All-time live P&L: -$16.12
+- Today: live +$2.73 (btc_drift 11/18 61%, eth_drift 10/17 59%, sol_drift 8/10 80%)
 - btc_drift: **30/30** live settled bets ✅ | Brier = **0.2526** ✅ (< 0.30 threshold MET)
-- eth_drift: 13 live settled. sol_drift: 8 live settled.
-- Protection: 20% daily loss limit ($3.60 used of $16.70), $20 floor. NO lifetime hard stop.
+- eth_drift: 17 live settled. sol_drift: 10 live settled.
+- Protection: daily loss $6.30/$16.44 (38%), $20 floor. NO lifetime hard stop.
 
-### EXPANSION GATE STATUS (updated 02:09 CDT):
+### EXPANSION GATE STATUS (updated 09:22 CDT):
 | Criterion | Status |
 |-----------|--------|
 | btc_drift 30+ live bets | ✅ MET (exactly 30) |
 | Brier < 0.30 | ✅ MET (0.2526) |
 | 2-3 weeks live P&L data | ❌ NOT MET (~1 day live) |
-| No kill switch events | ❌ NOT MET (soft stop fired 01:49 CDT — 5 consec losses) |
+| No kill switch events | ❌ NOT MET (SECOND soft stop fired 09:04 CDT this session) |
 Gate: STILL CLOSED. Two criteria unmet. Do not build XRP drift until criteria above both pass.
 
-### BUG FOUND (autonomous session, NOT FIXED):
-- --graduation-status shows wrong count for live strategies (graduation_stats queries is_paper=1 only)
-- Real live settled counts come from direct SQL: `WHERE is_paper=0 AND result IS NOT NULL`
-- Fix needed: add is_paper param to graduation_stats(), update print_graduation_status()
-- Reporting bug only — no trading impact
+### PENDING TODOS (2):
+1. HIGH — live.py execution-time price guard missing (filed 08:46 CDT today)
+   → Signal at 59¢ placed at 84¢ (25¢ slippage bypasses price guard). See todo.
+2. LOW — graduation_stats() only queries is_paper=1 (reporting bug, no trading impact)
+   See: .planning/todos/pending/2026-03-09-fix-graduation-stats-to-query-live-bets-for-live-strategies.md
+   See: .planning/todos/pending/2026-03-10-add-execution-time-price-guard-to-live-executor.md
 
-### KILL SWITCH STATE (at shutdown):
-- Soft stop: 5 consecutive losses → 2hr cooling (started 01:49 CDT, expires ~03:49 CDT)
+### KILL SWITCH STATE (at Session 37 autonomous close — 09:22 CDT):
+- Soft stop: 4 consecutive losses → 2hr cooling (started 09:04 CDT, expires ~11:02-11:04 CDT)
 - Hard stop: CLEAR (no lock file)
-- On restart: consecutive losses will be seeded from DB; cooling may still be active
+- Daily loss: $6.30 / $16.44 (38%) — safe, $10.14 remaining before daily limit
+- On restart before 11:04 CDT: cooling will be seeded from DB and still active
+- On restart after 11:04 CDT: cooling expired, counter resets, safe to trade
 
 # ═══════════════════════════════════════════════════════════════
 
 ## CURRENT BOT ARCHITECTURE (15 loops total)
 
-main.py asyncio event loop [LIVE MODE — PID 74462]
+main.py asyncio event loop [LIVE MODE — PID 90027]
 
 Kalshi 15-min loops:
   [trading]       btc_lag_v1             PAPER-ONLY (0 signals/week — market mature)

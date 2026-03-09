@@ -283,3 +283,41 @@
 - SESSION_HANDOFF.md: complete rewrite of P&L section + expansion gate status table + kill switch state
 - .planning/CHANGELOG.md: this entry
 ### Test count: 869/869
+
+---
+
+## Session 37 — Autonomous Window 2 (2026-03-09 08:24–09:22 CDT)
+### Context
+65-minute autonomous monitoring window while Matthew at clinic. Bot restarted PID 90027 at session start.
+No code changes permitted (autonomous mode rules). Two todos filed, one git cleanup done.
+
+### Events
+- **Kill switch soft stop fired at 09:04 CDT** — 4 consecutive losses, 2hr cooling.
+  Correct behavior. Bot remained running; paper loops unaffected. Soft stop expires ~11:02 CDT.
+- **sol_drift valid signal blocked at 09:21 CDT** — BUY YES @57¢, edge=8.7%.
+  Kill switch correctly blocked it during cooling period. Price would have been in range.
+- **No code errors** — all loops evaluating normally throughout session.
+
+### Bugs documented (NOT fixed — await conscious session)
+1. **live.py execution-time price guard (HIGH PRIORITY)**
+   - Signal at 59¢ filled at 84¢ in prior window (asyncio latency + HFT repricing)
+   - Todo filed: .planning/todos/pending/2026-03-10-add-execution-time-price-guard-to-live-executor.md
+2. **graduation_stats() is_paper=1 hardcoded (LOW)**
+   - --graduation-status shows paper counts for live strategies (reporting-only bug)
+   - Todo filed: .planning/todos/pending/2026-03-09-fix-graduation-stats-to-query-live-bets-for-live-strategies.md
+
+### Git cleanup
+- Staged deletion of stale pending/ todo files (moved to completed/ in Session 36 but not committed):
+  - .planning/todos/pending/2026-02-28-add-slippage-model-to-paper-executor.md
+  - .planning/todos/pending/2026-02-28-verify-settlement-result-from-kalshi-api-directly.md
+
+### P&L at window close
+- Today live: +$2.73 | All-time live: -$16.12
+- btc_drift 11/18 (61%), eth_drift 10/17 (59%), sol_drift 8/10 (80%)
+- btc_drift: 30 live settled ✅ | Brier: 0.2526 ✅ | Expansion gate: still CLOSED (2 criteria unmet)
+
+### State at close
+- Bot: RUNNING PID 90027 | Kill switch: soft stop active until ~11:02 CDT
+- Daily loss: $6.30/$16.44 (38%) | Hard stop: CLEAR
+
+### Test count: 869/869
