@@ -236,3 +236,23 @@
 - Today's P&L: +$3.68 (live: +$2.32, paper: +$1.36). All-time live: -$16.53 (improving).
 - btc_drift live settled: 12/30. eth_drift live: ~3. sol_drift live: ~2.
 ### Test count: 869/869 | Commit: e904715
+
+---
+
+## Session 37 (autonomous) — 2026-03-09/10 — overnight monitoring + bug discovery
+### Changed
+- SESSION_HANDOFF.md: updated btc_drift live settled count from 12 to 22 (accurate as of 00:30 CDT).
+  Also documented graduation_stats() bug discovered during audit.
+### Bug discovered (NOT FIXED — needs Matthew's review next session)
+- graduation_stats() in src/db.py only queries is_paper=1. For live strategies (btc_drift, eth_drift,
+  sol_drift), this means --graduation-status shows paper bet counts, not live bet counts.
+- Actual live settled counts: btc_drift=22/30, eth_drift=4, sol_drift=3.
+- --graduation-status incorrectly showed btc_drift at 12/30.
+- Fix needed: add is_paper param to graduation_stats(), update print_graduation_status() to
+  use is_paper=False for live strategies. Reporting bug only — no trading impact.
+### Observations (no code changes)
+- Bot healthy: PID 74462 running, kill switch clean, daily loss 6%, last live bet 4 min before session start.
+- All 3 drift loops evaluating every 30s, price guard correctly skipping near-expiry markets (3-15¢).
+- 869/869 tests: CONFIRMED PASSING (autonomous verification)
+- sports_futures_v1: 54 paper bets placed, 0 settled — expected (non-KX tickers, settlement loop ignores them)
+### Test count: 869/869 | No new commits (docs update only)

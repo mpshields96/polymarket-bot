@@ -99,11 +99,13 @@ copy_trader_v1 (Polymarket.US — 0 matches, platform mismatch confirmed)
 - e904715 — chore: todos marked complete + ROADMAP phase 04.2 acknowledged (GSD healthy)
 - 3477987 — fix(report): split paper/live rows by is_paper per-trade (not per-strategy mode)
 
-### P&L (as of 2026-03-09 23:10 CDT):
+### P&L (as of 2026-03-10 00:30 CDT — autonomous session update):
 - Bankroll: ~$79.76
-- All-time live P&L: -$15.15 (improving — today: btc_drift 5/6 +$1.83, eth_drift 3/4 +$0.83, sol_drift 3/3 +$1.04)
-- btc_drift: 12/30 live settled bets. eth_drift: ~4 live. sol_drift: ~3 live.
+- All-time live P&L: ~-$15.15 (improving)
+- btc_drift: **22/30** live settled bets (P&L -$14.56). eth_drift: 4 live. sol_drift: 3 live.
 - Protection: 20% daily loss limit + $20 bankroll floor. NO lifetime % hard stop.
+- BUG FOUND: --graduation-status shows 12/30 for btc_drift (queries is_paper=1 only).
+  Real count = 22 (is_paper=0). graduation_stats() needs live_only param. Fix next session.
 
 # ═══════════════════════════════════════════════════════════════
 
