@@ -305,17 +305,28 @@ class KillSwitch:
             loss_usd,
         )
 
-    def restore_consecutive_losses(self, count: int):
+    def restore_consecutive_losses(
+        self, count: int, last_loss_ts: float | None = None
+    ):
         """Restore consecutive live loss streak from the DB on bot restart.
 
         Prevents bot restarts from resetting the consecutive loss counter to 0
         mid-streak, which previously allowed the bot to place extra losing bets
         after already reaching the 4-loss cooling threshold.
 
-        If count >= CONSECUTIVE_LOSS_LIMIT: triggers a fresh 2hr cooling period
-        immediately so the bot cannot trade on restart after a breach.
-        If count < limit: seeds the counter so fewer additional losses are needed
-        to trigger cooling (e.g. restored at 3 → 1 more loss fires it).
+        KEY SAFETY RULE: Only triggers a NEW cooling period if the last loss
+        happened WITHIN the cooling window (i.e. time.time() - last_loss_ts <
+        COOLING_PERIOD_HOURS * 3600). If the losses are older than the window,
+        the 2-hour cooling was already served in the previous session — we only
+        seed the counter so the NEXT loss triggers immediately.
+
+        Without this check, every restart fires a fresh 2-hour block even when
+        the streak is days old (confirmed bug: trades 110-121 from 2026-03-01
+        blocked all live trades on every restart for 6+ days).
+
+        If count >= limit AND within cooling window: restore remaining time.
+        If count >= limit AND window expired: seed counter only, no cooling.
+        If count < limit: seed counter so fewer additional losses are needed.
 
         Called on startup with db.current_live_consecutive_losses().
         """
@@ -328,7 +339,40 @@ class KillSwitch:
             CONSECUTIVE_LOSS_LIMIT,
         )
         if count >= CONSECUTIVE_LOSS_LIMIT:
-            until = time.time() + (COOLING_PERIOD_HOURS * 3600)
+            cooling_window_sec = COOLING_PERIOD_HOURS * 3600
+            now = time.time()
+
+            # Check if the cooling period was already served before this restart
+            if last_loss_ts is not None and (now - last_loss_ts) >= cooling_window_sec:
+                # Cooling window has fully expired — streak is stale, don't block
+                logger.info(
+                    "Consecutive loss streak of %d is stale (last loss %.1fhr ago) — "
+                    "cooling already served, counter seeded but no new block",
+                    count,
+                    (now - last_loss_ts) / 3600,
+                )
+                return
+
+            # Cooling window still active (or no timestamp — conservative fallback)
+            if last_loss_ts is not None:
+                # Restore remaining time rather than a fresh full window
+                elapsed = now - last_loss_ts
+                remaining = cooling_window_sec - elapsed
+                until = now + remaining
+                logger.warning(
+                    "Consecutive loss streak of %d still within cooling window — "
+                    "%.0fmin remaining",
+                    count,
+                    remaining / 60,
+                )
+            else:
+                # No timestamp available — conservative: fresh full window
+                until = now + cooling_window_sec
+                logger.warning(
+                    "COOLING PERIOD TRIGGERED ON RESTART (no timestamp): %d consecutive losses",
+                    count,
+                )
+
             self._state._cooling_until = until
             reason = (
                 f"{count} consecutive losses restored from DB — "
@@ -337,7 +381,6 @@ class KillSwitch:
             self._state._soft_stop = True
             self._state._soft_stop_reason = reason
             self._state._soft_stop_until = until
-            logger.warning("COOLING PERIOD TRIGGERED ON RESTART: %s", reason)
 
     def record_win(self):
         """Call when a trade settles as a win."""

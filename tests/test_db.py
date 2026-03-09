@@ -682,12 +682,18 @@ class TestAllTimeLiveLossUsd:
 
 class TestCurrentLiveConsecutiveLosses:
     """
-    current_live_consecutive_losses() returns the number of consecutive
-    losses at the END of live settled trade history (global, all strategies).
+    current_live_consecutive_losses() returns (count, last_loss_ts) where
+    count = consecutive losses at end of live settled trade history (global)
+    and last_loss_ts = unix timestamp of the most recent loss in the streak.
 
     Regression: consecutive loss counter was resetting to 0 on restart,
     allowing the bot to place 3 extra losing bets (trades 86, 88, 90) after
     already reaching the 4-loss limit in a prior session.
+
+    Session 35 regression: restore_consecutive_losses was firing a FRESH 2hr
+    cooling period on every restart even when the losses happened days ago
+    (trades 110-121, 2026-03-01). last_loss_ts lets the kill switch detect
+    stale streaks and skip re-triggering.
     """
 
     def _live(self, db, ticker, side, result, pnl_cents):
@@ -709,22 +715,30 @@ class TestCurrentLiveConsecutiveLosses:
         return t
 
     def test_returns_zero_if_no_trades(self, db):
-        assert db.current_live_consecutive_losses() == 0
+        streak, ts = db.current_live_consecutive_losses()
+        assert streak == 0
+        assert ts is None
 
     def test_returns_zero_if_only_paper_losses(self, db):
         """Paper losses must NOT count toward consecutive loss streak."""
         self._paper(db, "KXBTC15M-A", "yes", "no", -500)
         self._paper(db, "KXBTC15M-B", "yes", "no", -500)
-        assert db.current_live_consecutive_losses() == 0
+        streak, ts = db.current_live_consecutive_losses()
+        assert streak == 0
+        assert ts is None
 
     def test_returns_one_for_single_live_loss(self, db):
         self._live(db, "KXBTC15M-A", "yes", "no", -500)
-        assert db.current_live_consecutive_losses() == 1
+        streak, ts = db.current_live_consecutive_losses()
+        assert streak == 1
+        assert ts is not None
 
     def test_returns_zero_if_most_recent_is_win(self, db):
         self._live(db, "KXBTC15M-A", "yes", "no", -500)  # loss
         self._live(db, "KXBTC15M-B", "yes", "yes", +560)  # win — resets streak
-        assert db.current_live_consecutive_losses() == 0
+        streak, ts = db.current_live_consecutive_losses()
+        assert streak == 0
+        assert ts is None
 
     def test_counts_streak_ending_in_losses(self, db):
         """Win then 3 losses → streak = 3."""
@@ -732,7 +746,9 @@ class TestCurrentLiveConsecutiveLosses:
         self._live(db, "KXBTC15M-B", "yes", "no", -500)   # loss 1
         self._live(db, "KXBTC15M-C", "yes", "no", -500)   # loss 2
         self._live(db, "KXBTC15M-D", "yes", "no", -500)   # loss 3
-        assert db.current_live_consecutive_losses() == 3
+        streak, ts = db.current_live_consecutive_losses()
+        assert streak == 3
+        assert ts is not None
 
     def test_stops_counting_at_first_win_from_end(self, db):
         """L L W L L → streak = 2 (only tail losses count)."""
@@ -741,13 +757,17 @@ class TestCurrentLiveConsecutiveLosses:
         self._live(db, "KXBTC15M-C", "yes", "yes", +560)  # win — resets
         self._live(db, "KXBTC15M-D", "yes", "no", -500)   # loss 1
         self._live(db, "KXBTC15M-E", "yes", "no", -500)   # loss 2
-        assert db.current_live_consecutive_losses() == 2
+        streak, ts = db.current_live_consecutive_losses()
+        assert streak == 2
+        assert ts is not None
 
     def test_counts_four_consecutive_at_limit(self, db):
         """Exactly 4 consecutive losses → kill switch should fire on restore."""
         for i in range(4):
             self._live(db, f"KXBTC15M-{i}", "yes", "no", -500)
-        assert db.current_live_consecutive_losses() == 4
+        streak, ts = db.current_live_consecutive_losses()
+        assert streak == 4
+        assert ts is not None
 
     def test_works_across_strategies(self, db):
         """Streak counts globally across all live strategies."""
@@ -767,7 +787,9 @@ class TestCurrentLiveConsecutiveLosses:
         t2 = db._conn.execute("SELECT MAX(id) FROM trades").fetchone()[0]
         db.settle_trade(t2, result="no", pnl_cents=-500)
 
-        assert db.current_live_consecutive_losses() == 2
+        streak, ts = db.current_live_consecutive_losses()
+        assert streak == 2
+        assert ts is not None
 
     def test_ignores_unsettled_live_trades(self, db):
         """Open positions (no result yet) must not affect the streak."""
@@ -777,4 +799,17 @@ class TestCurrentLiveConsecutiveLosses:
             count=100, cost_usd=5.0, is_paper=False,
             strategy="btc_drift_v1", edge_pct=0.05, win_prob=0.6,
         )
-        assert db.current_live_consecutive_losses() == 1
+        streak, ts = db.current_live_consecutive_losses()
+        assert streak == 1
+        assert ts is not None
+
+    def test_last_loss_ts_is_most_recent_loss(self, db):
+        """last_loss_ts must be the timestamp of the most recent loss, not an older one."""
+        import time as _time
+        self._live(db, "KXBTC15M-A", "yes", "no", -500)  # loss 1 (older)
+        _time.sleep(0.01)
+        self._live(db, "KXBTC15M-B", "yes", "no", -500)  # loss 2 (newer — this ts returned)
+        _, ts = db.current_live_consecutive_losses()
+        assert ts is not None
+        # ts must be close to now (within 5 seconds)
+        assert abs(_time.time() - ts) < 5.0

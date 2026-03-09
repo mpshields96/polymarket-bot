@@ -24,6 +24,7 @@ from src.risk.kill_switch import (
     HARD_MIN_BANKROLL_USD,
     DAILY_LOSS_LIMIT_PCT,
     CONSECUTIVE_LOSS_LIMIT,
+    COOLING_PERIOD_HOURS,
     MAX_HOURLY_TRADES,
     MAX_AUTH_FAILURES,
     LOCK_FILE,
@@ -854,19 +855,72 @@ class TestRestoreConsecutiveLosses:
         status = ks.get_status()
         assert status["consecutive_losses"] == 0
 
+    def test_restore_at_limit_no_ts_triggers_cooling(self, ks):
+        """No timestamp → conservative fallback → cooling fires immediately."""
+        ks.restore_consecutive_losses(CONSECUTIVE_LOSS_LIMIT, last_loss_ts=None)
+        ok, reason = ks.check_order_allowed(trade_usd=2.0, current_bankroll_usd=100.0)
+        assert not ok
+        assert "ooling" in reason
+
     def test_restore_at_limit_triggers_cooling(self, ks):
-        """Restoring count >= CONSECUTIVE_LOSS_LIMIT must block trading immediately."""
+        """Backward compat: positional arg only → same as no timestamp."""
         ks.restore_consecutive_losses(CONSECUTIVE_LOSS_LIMIT)
         ok, reason = ks.check_order_allowed(trade_usd=2.0, current_bankroll_usd=100.0)
         assert not ok
         assert "ooling" in reason
 
     def test_restore_above_limit_triggers_cooling(self, ks):
-        """Restoring count > limit (e.g. 6) must also block trading."""
+        """Restoring count > limit (e.g. 6) with no timestamp must also block trading."""
         ks.restore_consecutive_losses(CONSECUTIVE_LOSS_LIMIT + 2)
         ok, reason = ks.check_order_allowed(trade_usd=2.0, current_bankroll_usd=100.0)
         assert not ok
         assert "ooling" in reason
+
+    def test_restore_stale_streak_does_not_block(self, ks):
+        """KEY REGRESSION (Session 35): stale streak (last loss >2hr ago) must NOT block.
+
+        Trades 110-121 on 2026-03-01 triggered 4 consecutive losses. Every restart
+        since then fired a fresh 2-hour block because last_loss_ts was never checked.
+        This test confirms the fix: if cooling window has expired, only seed the counter.
+        """
+        import time as _time
+        stale_ts = _time.time() - (COOLING_PERIOD_HOURS * 3600 + 600)  # 10min past expiry
+        ks.restore_consecutive_losses(CONSECUTIVE_LOSS_LIMIT, last_loss_ts=stale_ts)
+        ok, reason = ks.check_order_allowed(trade_usd=2.0, current_bankroll_usd=100.0)
+        assert ok, (
+            f"Stale streak should NOT block — got: {reason}. "
+            "This is the Session 35 regression."
+        )
+
+    def test_restore_stale_streak_seeds_counter(self, ks):
+        """Stale streak seeds counter so one MORE loss still triggers cooling."""
+        import time as _time
+        stale_ts = _time.time() - (COOLING_PERIOD_HOURS * 3600 + 600)
+        ks.restore_consecutive_losses(CONSECUTIVE_LOSS_LIMIT, last_loss_ts=stale_ts)
+        # Counter seeded at LIMIT — next loss should immediately trigger cooling
+        ks.record_loss(5.0)
+        ok, reason = ks.check_order_allowed(trade_usd=2.0, current_bankroll_usd=100.0)
+        assert not ok
+        assert "ooling" in reason
+
+    def test_restore_fresh_streak_still_blocks(self, ks):
+        """Recent streak (within 2hr window) must still block trading."""
+        import time as _time
+        recent_ts = _time.time() - 1800  # 30 min ago — well within 2hr window
+        ks.restore_consecutive_losses(CONSECUTIVE_LOSS_LIMIT, last_loss_ts=recent_ts)
+        ok, reason = ks.check_order_allowed(trade_usd=2.0, current_bankroll_usd=100.0)
+        assert not ok
+        assert "ooling" in reason
+
+    def test_restore_fresh_streak_uses_remaining_time(self, ks):
+        """Fresh streak restores REMAINING cooling time, not a new full 2hr window."""
+        import time as _time
+        recent_ts = _time.time() - 3000  # 50 min ago → ~70min remaining
+        ks.restore_consecutive_losses(CONSECUTIVE_LOSS_LIMIT, last_loss_ts=recent_ts)
+        ok, reason = ks.check_order_allowed(trade_usd=2.0, current_bankroll_usd=100.0)
+        assert not ok
+        # Remaining should be ~70min, not 120min
+        assert "70min" in reason or "69min" in reason or "71min" in reason
 
     def test_restore_below_limit_does_not_block(self, ks):
         """Restoring count < limit must NOT block trading yet."""

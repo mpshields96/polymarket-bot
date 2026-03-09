@@ -963,8 +963,12 @@ async def settlement_loop(kalshi, db, kill_switch):
             if not open_trades:
                 continue
 
+            # Only settle Kalshi trades here — Polymarket trades (tec-*, nba-*, etc.)
+            # are NOT Kalshi markets and will 404. Kalshi tickers always start with "KX".
+            kalshi_trades = [t for t in open_trades if t["ticker"].upper().startswith("KX")]
+
             # Deduplicate tickers to minimise API calls
-            tickers = list({t["ticker"] for t in open_trades})
+            tickers = list({t["ticker"] for t in kalshi_trades})
 
             for ticker in tickers:
                 try:
@@ -978,7 +982,7 @@ async def settlement_loop(kalshi, db, kill_switch):
                     continue
 
                 result = market.result  # "yes" | "no"
-                ticker_trades = [t for t in open_trades if t["ticker"] == ticker]
+                ticker_trades = [t for t in kalshi_trades if t["ticker"] == ticker]
 
                 for trade in ticker_trades:
                     pnl_cents = paper_exec.settle(
@@ -1926,9 +1930,9 @@ async def main():
     _today_live_loss = db.daily_live_loss_usd()
     if _today_live_loss > 0:
         kill_switch.restore_daily_loss(_today_live_loss)
-    _consecutive_streak = db.current_live_consecutive_losses()
+    _consecutive_streak, _last_loss_ts = db.current_live_consecutive_losses()
     if _consecutive_streak > 0:
-        kill_switch.restore_consecutive_losses(_consecutive_streak)
+        kill_switch.restore_consecutive_losses(_consecutive_streak, _last_loss_ts)
 
     current_bankroll = db.latest_bankroll() or starting_bankroll
     stage = get_stage(current_bankroll)

@@ -397,18 +397,24 @@ class DB:
         ).fetchone()
         return float(row[0] or 0.0)
 
-    def current_live_consecutive_losses(self) -> int:
-        """Return the current consecutive live loss streak (global, all strategies).
+    def current_live_consecutive_losses(self) -> tuple[int, float | None]:
+        """Return (streak, last_loss_ts) for the current live consecutive loss streak.
 
         Walks settled live trades from most recent backwards and counts losses
         until a win is found (or the beginning of history).
 
-        Used by kill_switch on restart to restore _consecutive_losses so the
-        4-loss cooling period persists across bot restarts — prevents the restart
-        from resetting the counter mid-streak and allowing extra losing bets.
+        Returns:
+            (streak: int, last_loss_ts: float | None)
+            last_loss_ts is the settled_at timestamp of the most recent loss in the
+            streak (used to check if the 2hr cooling period was already served before
+            this restart). None if streak == 0.
+
+        Used by kill_switch.restore_consecutive_losses() on startup. The timestamp
+        prevents a stale streak from triggering a fresh 2hr cooling period on every
+        restart when the losses happened hours/days ago.
         """
         rows = self._conn.execute(
-            """SELECT result, side
+            """SELECT result, side, timestamp
                FROM trades
                WHERE is_paper = 0
                  AND result IS NOT NULL
@@ -416,13 +422,16 @@ class DB:
         ).fetchall()
 
         streak = 0
+        last_loss_ts: float | None = None
         for row in rows:
-            result, side = row[0], row[1]
+            result, side, ts = row[0], row[1], row[2]
             if result != side:
                 streak += 1
+                if last_loss_ts is None:
+                    last_loss_ts = ts
             else:
                 break
-        return streak
+        return streak, last_loss_ts
 
     def total_realized_pnl_usd(self, is_paper: Optional[bool] = None) -> float:
         """Return sum of all settled P&L in USD."""
