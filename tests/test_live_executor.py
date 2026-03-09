@@ -532,3 +532,135 @@ class TestExecuteFailures:
         )
 
         assert kalshi.create_order.call_args.kwargs["action"] == "buy"
+
+
+# ── Execution-time price guard ────────────────────────────────────────────
+
+
+class TestExecutionPriceGuard:
+    """Execution-time price guard: reject outside 35-65¢ (YES-equiv) or >10¢ slippage.
+
+    Background: btc_drift's 35-65¢ guard fires at signal-generation time only.
+    HFTs can reprice in the 0.1-1s asyncio gap, causing orders to fill at extreme
+    prices (observed session 37, 2026-03-10 08:39 CDT: filled at 84¢).
+    This guard is the last line of defense before create_order is called.
+    """
+
+    async def test_rejects_execution_price_above_guard(
+        self, live_env, bypass_first_run
+    ):
+        """YES-side: execution price 80¢ is above 65¢ guard → returns None, no order."""
+        # no_bid=20 → yes_ask = 100 - 20 = 80¢
+        ob = make_orderbook(no_bid=20)
+        signal = make_signal(side="yes", price_cents=55)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal, make_market(yes_price=80), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="btc_drift_v1",
+        )
+
+        assert result is None
+        kalshi.create_order.assert_not_called()
+        db.save_trade.assert_not_called()
+
+    async def test_rejects_execution_price_below_guard(
+        self, live_env, bypass_first_run
+    ):
+        """YES-side: execution price 20¢ is below 35¢ guard → returns None, no order."""
+        # no_bid=80 → yes_ask = 100 - 80 = 20¢
+        ob = make_orderbook(no_bid=80)
+        signal = make_signal(side="yes", price_cents=55)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal, make_market(yes_price=20), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="btc_drift_v1",
+        )
+
+        assert result is None
+        kalshi.create_order.assert_not_called()
+        db.save_trade.assert_not_called()
+
+    async def test_rejects_excessive_slippage(self, live_env, bypass_first_run):
+        """YES-side: signal@55¢, execution@67¢ → 12¢ slippage > 10¢ max → rejected."""
+        # no_bid=33 → yes_ask = 100 - 33 = 67¢ (within 35-65 range fails: 67 > 65)
+        # Actually 67 > 65 → caught by range guard. Use 64¢ with 9¢ signal offset.
+        # To test slippage guard independently: signal@50¢, exec@62¢ → 12¢ slip, exec in range.
+        # no_bid=38 → yes_ask = 100 - 38 = 62¢ (in 35-65 range), signal=50¢ → 12¢ slip > 10¢
+        ob = make_orderbook(no_bid=38)
+        signal = make_signal(side="yes", price_cents=50)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal, make_market(yes_price=62), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="btc_drift_v1",
+        )
+
+        assert result is None
+        kalshi.create_order.assert_not_called()
+        db.save_trade.assert_not_called()
+
+    async def test_allows_execution_at_guard_boundary(
+        self, live_env, bypass_first_run
+    ):
+        """YES-side: signal@55¢, exec@65¢ (10¢ slippage = at max, boundary ok) → proceeds."""
+        # no_bid=35 → yes_ask = 100 - 35 = 65¢ (at upper guard boundary, 10¢ slip = at limit)
+        ob = make_orderbook(no_bid=35)
+        signal = make_signal(side="yes", price_cents=55)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal, make_market(yes_price=65), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="btc_drift_v1",
+        )
+
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
+    async def test_no_side_slippage_uses_yes_equivalent(
+        self, live_env, bypass_first_run
+    ):
+        """NO-side: signal NO@45¢ (YES-eq=55¢), exec NO@32¢ (YES-eq=68¢) → 13¢ slip → rejected.
+
+        Slippage must be computed in YES-equivalent space, not raw NO price.
+        Raw NO comparison: |32 - 45| = 13¢ (would also catch it, but for wrong reason).
+        YES-equiv comparison: |68 - 55| = 13¢ > 10¢ → correctly rejected.
+        Also: YES-equiv 68 > 65 → also caught by range guard — tests correct conversion path.
+        """
+        # yes_bid=68 → no_ask = 100 - 68 = 32¢ (NO execution price)
+        # YES-equivalent of NO@32¢ = 100 - 32 = 68¢ (outside 35-65 range)
+        ob = make_orderbook(yes_bid=68)
+        signal = make_signal(side="no", price_cents=45)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal, make_market(yes_price=68, no_price=32), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="btc_drift_v1",
+        )
+
+        assert result is None
+        kalshi.create_order.assert_not_called()
+        db.save_trade.assert_not_called()
+
+    async def test_valid_price_executes_normally(self, live_env, bypass_first_run):
+        """Regression: signal YES@55¢, exec@59¢ (4¢ slip, in range) → order placed normally."""
+        # no_bid=41 → yes_ask = 100 - 41 = 59¢ (in 35-65 range, 4¢ slip < 10¢ max)
+        ob = make_orderbook(no_bid=41)
+        signal = make_signal(side="yes", price_cents=55)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal, make_market(yes_price=59), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="btc_drift_v1",
+        )
+
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+        db.save_trade.assert_called_once()
