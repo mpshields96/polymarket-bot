@@ -44,6 +44,10 @@ kill switch threshold, or risk rule. It contains:
 Read `.planning/CHANGELOG.md` to understand what changed in every prior session
 and WHY. Every session must append entries here. This is the authoritative record.
 
+Read `.planning/KALSHI_MARKETS.md` before any strategy or series work — complete map
+of every Kalshi series type (what exists, what doesn't, what's built vs planned).
+Key fact: KXBTC1H does NOT exist. Hourly BTC bets are inside KXBTCD (24 slots/day).
+
 If you (Claude) are about to change a threshold, add a filter, or
 adjust a parameter after a losing period — read PRINCIPLES.md first.
 

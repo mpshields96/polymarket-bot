@@ -190,6 +190,7 @@ Bot PID 69468, all fixes live.
 6. `python3 main.py --health` — run first if no live bets for 24hr+.
 
 7. Read .planning/CHANGELOG.md at session start — append to it at session end.
+8. Read .planning/KALSHI_MARKETS.md before any Kalshi strategy work — full series map.
 
 ═══════════════════════════════════════════════════
 
