@@ -329,7 +329,7 @@ class SportsFuturesStrategy:
                         ),
                     ))
                     logger.info(
-                        "[sports_futures] YES signal: %s PM=%.3f odds=%.3f edge=%.1%%",
+                        "[sports_futures] YES signal: %s PM=%.3f odds=%.3f edge=%.1f%%",
                         team_title, pm_price, odds_prob, edge * 100,
                     )
                 except ValueError as exc:
@@ -352,7 +352,7 @@ class SportsFuturesStrategy:
                         ),
                     ))
                     logger.info(
-                        "[sports_futures] NO signal: %s PM=%.3f odds=%.3f edge=%.1%%",
+                        "[sports_futures] NO signal: %s PM=%.3f odds=%.3f edge=%.1f%%",
                         team_title, pm_price, odds_prob, no_edge * 100,
                     )
                 except ValueError as exc:
