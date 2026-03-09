@@ -146,7 +146,7 @@ DO NOT: fix symptoms without finding root cause
 - `_STALE_THRESHOLD_SEC = 35.0` in binance.py — Binance.US @bookTicker can be silent 10-30s; 10s threshold causes false stale signals
 - **RESTART PROCEDURE**: `kill $(cat bot.pid)` only kills the most recent instance; use pkill. `echo "CONFIRM" | nohup python main.py` does NOT work — nohup drops piped stdin (EOFError). Always use temp file: `pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session25.log 2>&1 &` — then verify with `ps aux | grep "[m]ain.py"` (should be exactly 1 process).
 - **Paper/live separation** (fixed Session 21): `has_open_position()` and `count_trades_today()` now pass `is_paper` filter. Live daily cap counts live bets only. Paper bets no longer eat into live quota.
-- 758/758 tests must pass before any commit (count updates each session)
+- 869/869 tests must pass before any commit (count updates each session)
 - **`confidence` field in Signal is computed but never consumed** (not used in sizing, kill switch, or main.py). It's a dead field — low priority to wire in or remove.
 - **eth_drift uses BTCDriftStrategy internally** — logs say `[btc_drift]` and "BTC=ETH_price". Cosmetic only. `btc_feed=eth_feed` in main.py call is correct.
 - **settlement_loop uses `paper_exec.settle()` for live trades too** — logs say `[paper] Settled` even for live trades. Cosmetic only; P&L math and DB update are correct.
@@ -231,31 +231,33 @@ CHECK: `pip freeze | grep <package>` to get current version, then pin it.
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- **859/859 tests passing**, verify.py 21/29 (8 advisory WARNs — non-critical)
-- **btc_drift_v1 MICRO-LIVE**: 1 contract/bet (~$0.35-0.65), unlimited/day (daily loss limit governs) — at 12/30 live settled bets
+- **869/869 tests passing**, verify.py 21/29 (8 advisory WARNs — non-critical)
+- **btc_drift_v1 MICRO-LIVE**: 1 contract/bet (~$0.35-0.65), unlimited/day (daily loss limit governs) — at 22 placed / 21 settled (was blocked 7 days by stale kill switch bug, now fixed)
   - Paper calibration fixed (Session 32): slippage 2→3¢, fill_probability=0.85 (15% no-fill), signal_price_cents stored
   - eth_orderbook_imbalance $233 paper anomaly fixed (Session 31): missing 35-65¢ price guard — NO@2¢ bet
   - paper_slippage_ticks raised 2→3 (Session 32: upper end of confirmed 2-3¢ Kalshi BTC spread)
 - All other 9 Kalshi loops PAPER-ONLY: btc_lag (0 signals/week), eth_lag, eth_drift (DO NOT PROMOTE), btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag
-- **POLYMARKET — sports_futures_v1 NOW ACTIVE (after next restart)**
+- **POLYMARKET — sports_futures_v1 ACTIVE (paper, bot PID 69468)**
   - POST /v1/orders JSON format confirmed (Session 34): place_order() implemented
   - copy_trade_loop: predicting.top whales trade .COM only — 0 .us matches (platform mismatch)
-  - **sports_futures_v1 FIXED + WIRED (Session 35)**:
-    - Team name bug fixed: _CITY_TO_NICKNAMES map + _get_pm_team_nickname() multi-stage fallback
-    - sports_futures_loop() in main.py — paper-only, 30-min poll, NBA/NHL/NCAAB futures
-    - 34 new tests (26 matching + 8 loop). Kill switch, paper exec, graceful SDATA_KEY missing
-    - Awaiting restart to activate (bot currently on PID 65654 pre-Session 35 code)
+  - **sports_futures_v1 (Session 35)**: team name bug fixed, min_books=2 filter, 55 tests, paper-only
   - src/strategies/copy_trader_v1.py — 6 decoy filters + Signal (29 tests)
-  - src/strategies/sports_futures_v1.py — mispricing vs bookmaker consensus (51 tests, WIRED)
   - Kalshi copy trading: CONFIRMED INFEASIBLE (no public user attribution)
-- Latest commit: Session 35 (sports_futures team name fix + loop wired, 859 tests)
+- **Session 35 kill switch fixes**:
+  - Stale consecutive loss streak bug FIXED (7-day block): db returns (count, last_loss_ts), restore uses remaining time
+  - Settlement loop KX-prefix filter FIXED: Polymarket tickers no longer hit Kalshi API
+  - kill_switch.log_startup_status(): visible health banner at startup
+  - python main.py --health: 6-section diagnostic — run first when no live bets for 24hr+
+  - trading_loop watchdog: WARNING 24hr, CRITICAL 72hr with no live bet
+  - KILL_SWITCH_LESSONS.md: 7 lessons + no-live-bets protocol
+- Latest commit: ad2ddaf (Session 35, 869 tests)
 - Kill switch: consecutive_loss_limit=4, daily_loss_limit=20% (~$15.95 on $79.76 bankroll). NO lifetime % hard stop.
 - **Daily loss counter is CST-based (UTC-6)** — resets at midnight CST = 06:00 UTC daily
 - Paper-during-softkill: check_paper_order_allowed() in all paper loops — soft stops block live only
 - **Price range guard 35-65¢** on btc_drift.py, btc_lag.py, AND orderbook_imbalance.py (fixed Session 31)
 - **ALL THREE kill switch counters persist across restarts**: daily loss + lifetime loss + consecutive losses
 - asyncio.Lock (_live_trade_lock) for all live loops — wraps check→execute→record atomically
-- Bankroll: $79.76 | All-time live P&L: -$18.85 (21 bets, 8W/13L=38%)
+- Bankroll: $79.76 | All-time live P&L: -$18.85 (21 settled, 8W/13L=38%)
 - btc_lag_v1: Brier 0.191 (STRONG signal) but ~0 signals/week — HFTs price Kalshi same minute as BTC moves
 - eth_drift_v1: DO NOT PROMOTE — paper P&L -$35.47, only 1.1 days data, statistically meaningless
 - ⚠️ Polymarket.us: sports-only. Polymarket.COM: full suite (crypto/politics/culture) — where whales trade
@@ -290,7 +292,7 @@ RULES:
 - **Security first, always**: never expose .env / API keys / pem files; never run untrusted code; never modify system files outside the project directory
 - **Never break the bot**: before any restart or config change, confirm the current bot is running or stopped; always verify single instance after restart
 - Two parallel Claude Code chats may run simultaneously — keep framework overhead ≤10-15% per chat
-- 758/758 tests must pass before any commit (count updates each session)
+- 869/869 tests must pass before any commit (count updates each session)
 - **Before ANY new live strategy: complete all 6 steps of Development Workflow Protocol above**
 - **Graduation → live promotion**: when `--graduation-status` shows READY FOR LIVE, run the full Step 5 pre-live audit checklist before flipping `live_executor_enabled=True` in main.py. Session 20 lost 2 hours of live bets to silent bugs found only after going live — catch them in Step 5 first.
 - **EXPANSION GATE (Matthew's standing directive)**: Do NOT build new strategy types until current live strategies are producing solid, consistent results. Hard gate: btc_drift at 30+ live trades + Brier < 0.30 + 2-3 weeks of live P&L data + no kill switch events + no silent blockers. Until then: log ideas to .planning/todos.md only. Do not build.
