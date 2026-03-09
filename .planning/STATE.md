@@ -58,6 +58,7 @@ None — slippage model and settlement verification complete.
 | 5 | Probe POST /v1/orders format on polymarket.us — found protobuf (not JSON) | 2026-03-08 | f3a3fef, b0added | .planning/quick/5-probe-post-v1-orders-format-on-polymarke/ |
 | 6 | CryptoDailyStrategy + loops (KXBTCD/KXETHD/KXSOLD, 24 hourly slots, 30 tests) | 2026-03-08 | b815af8, fc03851 | src/strategies/crypto_daily.py |
 | 7 | Add execution-time price guard to live.py (35-65c + 10c max slippage) | 2026-03-10 | 0ca6b5e, 3c8baa9 | .planning/quick/6-add-execution-time-price-guard-to-live-p/ |
+| 8 | Fix canceled order status check in live.py (canceled → no DB write, resting → record normally) | 2026-03-09 | 6127cea, 9009fa8 | .planning/quick/7-fix-canceled-order-status-check-in-live-/ |
 
 ## Phase Plans Completed
 
