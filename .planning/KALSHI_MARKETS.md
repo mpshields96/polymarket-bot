@@ -405,13 +405,18 @@ Calibration: Binance.US 30-day klines (already used in backtest.py)
 | KXUNRATE       | US unemployment (BLS)       | Monthly       | Opens 2d pre-BLS | 📋 PAPER (unemployment_rate_v1) |
 | KXCPI          | CPI inflation print         | Monthly       | ~1,400 ✅ confirmed | NOT BUILT (low freq) |
 | KXJOLTS        | Job openings (JOLTS)        | Monthly       | not probed     | NOT BUILT |
-| KXGDP          | GDP growth                  | Quarterly     | not probed     | NOT BUILT |
+| KXGDP          | GDP growth                  | Quarterly     | ~208,000 ✅ confirmed | NOT BUILT |
 
 **Notes:**
 - KXUNRATE markets open ~2 days before BLS release. No open markets outside that window = expected.
 - KXFEDDECISION: uses FRED yield curve spread (DGS2-DFF) as signal.
 - KXCPI: confirmed ✅ exists (Session 36 probe). ~1,400 volume when open. Not built — low freq.
 - CPI/JOLTS/GDP: not built — low frequency + less reliable signal hypothesis than FOMC.
+- **KXGDP confirmed active (Session 39 probe)**: 8 open markets Q1 2026, 208,040 total volume.
+  Settlement = BEA advance GDP estimate (~late April). Structure: binary "Will real GDP exceed X%?"
+  Market pricing (2026-03-09): T1.0=72¢, T1.5=59¢, T2.0=45¢, T2.5=38¢, T3.0=28¢, T3.5=17¢, T4.0=10¢, T4.5=7¢
+  → Implied market consensus: ~1.5-2.0% Q1 GDP growth. 208k vol = 44x CPI (meaningful liquidity).
+  Priority: log to todos.md — quarterly + requires macro model, not near-term target.
 
 ═══════════════════════════════════════════════════════════════
 
