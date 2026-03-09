@@ -2264,7 +2264,7 @@ async def main():
     eth_lag_strategy = eth_lag_load()
     logger.info("Strategy loaded: %s (paper-only ETH lag — returning to calibration)", eth_lag_strategy.name)
     eth_drift_strategy = eth_drift_load()
-    logger.info("Strategy loaded: %s (paper-only ETH drift)", eth_drift_strategy.name)
+    logger.info("Strategy loaded: %s (micro-live ETH drift, 1 contract/bet)", eth_drift_strategy.name)
     btc_imbalance_strategy = load_btc_imbalance_from_config()
     logger.info("Strategy loaded: %s (paper-only BTC orderbook imbalance)", btc_imbalance_strategy.name)
     eth_imbalance_strategy = load_eth_imbalance_from_config()
@@ -2415,7 +2415,11 @@ async def main():
         ),
         name="drift_loop",
     )
-    # ETH drift: paper-only, stagger 22s
+    # ETH drift: micro-live, stagger 22s
+    # Enabled Session 36: same calibration pattern as btc_drift — 1 contract/bet (~$0.35-0.65).
+    # Purpose: double live data collection rate (ETH + BTC both feeding Brier score).
+    # eth_drift has 62+ paper trades at same thresholds (0.05/0.05), pre-validated.
+    # Do NOT raise cap until: 30+ eth live trades + Brier < 0.30.
     eth_drift_task = asyncio.create_task(
         trading_loop(
             kalshi=kalshi,
@@ -2423,14 +2427,16 @@ async def main():
             strategy=eth_drift_strategy,
             kill_switch=kill_switch,
             db=db,
-            live_executor_enabled=False,
-            live_confirmed=False,
+            live_executor_enabled=live_mode,
+            live_confirmed=live_confirmed,
             btc_series_ticker=eth_series_ticker,
             loop_name="eth_drift",
             initial_delay_sec=22.0,
-            max_daily_bets=max_daily_bets_paper,
+            max_daily_bets=0,  # unlimited — daily loss limit governs
             slippage_ticks=paper_slippage_ticks,
             fill_probability=paper_fill_probability,
+            trade_lock=_live_trade_lock,
+            calibration_max_usd=_DRIFT_CALIBRATION_CAP_USD,
         ),
         name="eth_drift_loop",
     )

@@ -54,18 +54,21 @@ strategy:
     lag_sensitivity: 15.0              # Cents of YES/NO price move implied per 1% BTC move
 
   btc_drift:
-    # SECONDARY strategy — LIVE (btc_drift_v1) + paper calibration.
-    # Fires whenever BTC drifts from market-open price.
-    # Math: at sensitivity=800, need ~0.19% BTC drift to achieve 8% edge at 50¢ market.
-    # Raised min_edge 0.05→0.08 and min_drift 0.05→0.10 on 2026-03-01 (Matthew):
-    #   - Titanium V36 review showed 5% edge = "speculative" tier — not production grade
-    #   - Single drift signal (no RLM, no efficiency data) needs higher edge floor
-    #   - 8% edge + 0.10% min_drift requires genuine BTC conviction before betting real money
-    #   - Price range guard also tightened to 35-65¢ (in btc_drift.py constants)
-    sensitivity: 800.0               # Sigmoid steepness — calibrated from 30d backtest (was 300)
-    min_drift_pct: 0.10              # BTC must drift ≥ 0.10% from market open (was 0.05)
+    # LIVE (btc_drift_v1) MICRO-LIVE CALIBRATION — unlocking signal flow for data collection.
+    # History of threshold changes (ordered):
+    #   Original (Session 22):   min_edge=0.05, min_drift=0.05
+    #   Tightened (Session 25):  min_edge=0.08, min_drift=0.10 — with only ~12 live trades (premature)
+    #   Calibration (Session 35): min_edge=0.05, min_drift=0.05 — RESTORED to original.
+    #     Reason: 1 bet/day in calibration mode is a trap. Need 10-15/day to reach 30 bets
+    #     for valid Brier score. At $0.50/bet, lowering thresholds adds ~$5-10/day of exposure.
+    #     Math: at 0.05% drift with sensitivity=800 → raw_prob≈0.599 → edge≈8.1% YES edge.
+    #     Signals with 5-8% edge already firing in logs but being rejected by old 8% floor.
+    #     PRINCIPLES.md note: the Session 25 tightening itself lacked 30 data points.
+    #     Do NOT re-tighten until 30+ settled live bets + Brier score computed.
+    sensitivity: 800.0               # Sigmoid steepness — calibrated from 30d backtest
+    min_drift_pct: 0.05              # BTC must drift ≥ 0.05% from market open (restored from 0.10)
     min_minutes_remaining: 3.0       # Don't enter with ≤ 3 min left
-    min_edge_pct: 0.08               # Only trade if net edge > 8% (after fees) — was 0.05
+    min_edge_pct: 0.05               # Net edge > 5% (restored from 0.08 — was original value)
     time_weight: 0.7                 # How much time remaining blends probability (0=ignore, 1=full)
 
   eth_lag:
