@@ -5,21 +5,20 @@
 
 ## EXACT CURRENT STATE — READ THIS FIRST
 
-⚠️ BOT NEEDS RESTART — config.yaml + main.py changed this session (thresholds + eth_drift live)
-Restart command below. After restart: verify both drift loops firing in log.
-
-Last known PID: 69468 (Session 35). Run check before restart:
-  `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"`
-Watch after restart: `tail -f /tmp/polybot_session36.log | grep --line-buffered "daily\|drift\|eth_drift\|LIVE\|Kill switch"`
+Bot RUNNING — PID 74462, live mode, log: /tmp/polybot_session36.log
+Check: `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"`
+Watch: `tail -f /tmp/polybot_session36.log`
 Health: `python3 main.py --health`
 
-btc_drift MICRO-LIVE (1 contract/bet ~$0.35-0.65, UNLIMITED/day) — thresholds RESTORED 0.05/0.05
-eth_drift MICRO-LIVE (Session 36, same cap) — was paper-only, now live
-sol_drift MICRO-LIVE (Session 36, same cap) — NEW, KXSOL15M, min_drift_pct=0.15 (3x BTC)
+btc_drift  MICRO-LIVE (1 contract/bet ~$0.35-0.65, UNLIMITED/day) — thresholds 0.05/0.05 RESTORED
+eth_drift  MICRO-LIVE (Session 36) — enabled this session, firing signals confirmed
+sol_drift  MICRO-LIVE (Session 36) — NEW, KXSOL15M, min_drift_pct=0.15 (3x BTC volatility)
 All other strategies: PAPER-ONLY
 Test count: 869/869
-Last commit: aa83e78 (Session 36: thresholds + eth_drift live + CHANGELOG)
-Live bets: 22+ (bot restarted with 3 drift loops: btc+eth+sol)
+Last commits: 11ff825 (sol_drift), 1dc85c6 (docs), c4ec489 (CLAUDE/PRINCIPLES/HANDOFF), aa83e78 (thresholds+eth_drift)
+Live bets today: btc_drift 3 bets (2W, +$0.69), eth_drift 5 bets (3W, +$8.43 paper+live combined)
+All-time live P&L: -$18.16 | Bankroll: ~$79.76
+NEXT SESSION: Just watch signal rate for 24hr before adding anything. XRP drift is next IF drift model validates.
 
 ═══════════════════════════════════════════════════
 
@@ -173,27 +172,24 @@ Bot PID 69468, all fixes live.
 
 ## PENDING DECISIONS + NEXT TASKS
 
-1. **RESTART BOT** (first thing next session)
-   Config + main.py changed. Restart picks up: btc_drift thresholds 0.05/0.05 + eth_drift live.
-   After restart: verify BOTH drift loops firing in log within first 15 min.
-   Expected: 8-15 signals/day combined (vs previous 1/day).
+1. **DO NOTHING except watch** — bot is running with 3 live drift loops. Let it collect data.
+   Run `python3 main.py --report` to check bet count. Target: 30 settled bets per strategy.
+   Do NOT change thresholds, caps, or add new strategies until Brier scores are computed.
 
-2. btc_drift + eth_drift micro-live — collecting 30 settled bets each for valid Brier score
-   btc_drift at 21 settled. eth_drift: new to live, 0 live settled bets yet.
-   At 8-15 signals/day combined, should reach 30 bets each within ~3-5 days.
-   Do NOT change calibration_max_usd until 30+ settled bets per strategy.
+2. btc_drift + eth_drift + sol_drift micro-live — collecting 30 settled bets each
+   btc_drift: 21+ settled. eth_drift: ~5 settled (new this session). sol_drift: 0 (just enabled).
+   At 15-25 signals/day combined, should reach 30 bets/strategy in 1-3 days.
 
-3. sports_futures_loop — paper-only, min_books=2 active, ~8 signals last poll
-   Watch: `tail -f /tmp/polybot_session36.log | grep sports_futures`
+3. XRP drift — NEXT SAFE EXPANSION, but ONLY after drift model validates (30 bets + Brier < 0.30).
+   Same code as sol_drift, ~15 min to add. Logged here so it's not forgotten. DO NOT BUILD YET.
 
-4. copy trading blocked (platform mismatch, .COM whales ≠ .US sports markets)
-   No action needed until platform expansion or sports whale source found.
+4. sports_futures_loop — paper-only, active, checking for .US sports mispricing vs bookmakers.
 
-5. DO NOT re-promote btc_lag to live — 0 signals/week, bankroll $79.76
+5. copy trading blocked (platform mismatch). No action until .US platform expands.
 
-6. `python main.py --health` — run first when troubleshooting no-live-bets issues.
+6. `python3 main.py --health` — run first if no live bets for 24hr+.
 
-7. .planning/CHANGELOG.md created — ALL future sessions must append here. Read it at session start.
+7. Read .planning/CHANGELOG.md at session start — append to it at session end.
 
 ═══════════════════════════════════════════════════
 
