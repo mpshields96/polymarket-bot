@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file + CLAUDE.md to any new Claude session to resume.
-# Last updated: 2026-03-08 (Session 35)
+# Last updated: 2026-03-09 (Session 35 cont)
 ═══════════════════════════════════════════════════
 
 ## EXACT CURRENT STATE — READ THIS FIRST
@@ -8,11 +8,13 @@
 Bot is RUNNING — PID 69468, live mode, log: /tmp/polybot_session35.log
 Check: `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"`
 Watch: `tail -f /tmp/polybot_session35.log | grep --line-buffered "daily\|drift\|LIVE\|Kill switch\|sports_futures"`
+Health: `python3 main.py --health`
 
-btc_drift MICRO-LIVE (1 contract/bet ~$0.35-0.65, UNLIMITED/day) — active, NOW UNBLOCKED (was 7 days stale-blocked)
+btc_drift MICRO-LIVE (1 contract/bet ~$0.35-0.65, UNLIMITED/day) — active, unblocked after 7-day stale streak fix
 All other strategies: PAPER-ONLY
-Test count: 865/865
-Last commit: see `git log --oneline -3`
+Test count: 869/869
+Last commit: 107eaad (Session 35 docs), ad2ddaf (sports_futures min_books), 683dc02 (--health + watchdog)
+Live bets: 22 placed, 21 settled (12/30 for Brier threshold)
 
 ═══════════════════════════════════════════════════
 
@@ -159,7 +161,7 @@ main.py asyncio event loop [LIVE MODE] — PID 67702
 - Any active block appears in first startup log lines — never silent again
 - KILL_SWITCH_LESSONS.md created with 6 lessons from Sessions 23-35
 
-865/865 tests passing (up from 859, +6 new kill switch regression tests)
+869/869 tests passing (up from 859 this session: +6 kill switch + 4 sports_futures)
 Bot PID 69468, all fixes live.
 
 ═══════════════════════════════════════════════════
@@ -168,29 +170,26 @@ Bot PID 69468, all fixes live.
 
 1. btc_drift micro-live — collecting 30 settled bets for valid Brier score
    Was blocked 7 days by stale streak bug. Now unblocked.
-   Was at 12/30. With unlimited/day, should reach 30 within ~2-3 days.
+   At 12/30 settled (22 placed). With unlimited/day, should reach 30 within ~2 weeks.
    Do NOT change calibration_max_usd until 30+ settled bets.
 
-2. sports_futures_loop is ACTIVE (PID 69468) — first poll already ran (8 signals)
-   First poll fires ~95s after restart. Watch for signals in log:
-   `tail -f /tmp/polybot_session35.log | grep sports_futures`
+2. sports_futures_loop is ACTIVE (PID 69468) — min_books=2 filter now active
+   First poll generated 8 signals (all NO, PM overpriced vs bookmaker consensus)
+   Paper-only. Watch for signals: `tail -f /tmp/polybot_session35.log | grep sports_futures`
 
 3. copy trading still blocked (platform mismatch)
    All whale signals from predicting.top are .COM politics/crypto markets.
    polymarket.US is sports-only. sports_futures_loop is now the active path.
    Options still open:
-   b) Find sports-specific whale data source for .US
-      → no known source identified yet, requires research
+   b) Find sports-specific whale data source for .US — no known source yet
    c) Wait for polymarket.US platform expansion (unknown timeline)
 
-3. DO NOT re-promote btc_lag to live — 0 signals/week, bankroll $79.76 < $90 gate
+4. DO NOT re-promote btc_lag to live — 0 signals/week, bankroll $79.76 < $90 gate
 
-4. Watch daily loops fire — evaluate Brier after 30+ settled bets
-   After 30+ settled bets each: evaluate Brier score before any live promotion
+5. Watch daily loops fire — evaluate Brier after 30+ settled bets each
 
-5. Sports data feed: SDATA_KEY set in .env, _QuotaGuard active at 500 credits/month
-   sports_game strategy disabled (enabled: false in config.yaml)
-   Enable only after Matthew decides direction
+6. **NEW: `python main.py --health`** — run first when troubleshooting anything.
+   Comprehensive 6-section diagnostic. trading_loop warns at 24hr, critical at 72hr.
 
 ═══════════════════════════════════════════════════
 

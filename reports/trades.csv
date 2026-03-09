@@ -199,7 +199,7 @@ id,placed_at,settled_at,ticker,strategy,side,action,price_cents,count,cost_usd,e
 198,2026-03-09 00:06:20,,tec-nhl-scw-2026-06-30-min,sports_futures_v1,no,buy,97,5,4.85,,,paper,,,,3cfd5496-c8cf-44db-856e-dc7412dd1cf0,
 199,2026-03-09 00:06:20,,tec-nhl-scw-2026-06-30-car,sports_futures_v1,no,buy,93,5,4.65,,,paper,,,,85552195-9c5c-4730-ae74-8c4697e020be,
 200,2026-03-09 00:06:20,,tec-nhl-scw-2026-06-30-buf,sports_futures_v1,no,buy,99,5,4.95,,,paper,,,,c5917568-e96e-43ac-96a6-c06fa1c966b7,
-201,2026-03-09 00:15:21,,KXBTC15M-26MAR082030-30,orderbook_imbalance_v1,yes,buy,50,7,3.5,,,paper,,,,6313ce66-aaef-4b6f-b397-b70bba4fb997,
+201,2026-03-09 00:15:21,2026-03-09 00:31:22,KXBTC15M-26MAR082030-30,orderbook_imbalance_v1,yes,buy,50,7,3.5,,,paper,no,-3.5,False,6313ce66-aaef-4b6f-b397-b70bba4fb997,
 202,2026-03-09 00:17:51,,KXETH15M-26MAR082030-30,eth_drift_v1,no,buy,51,7,3.5700000000000003,,,paper,,,,dbe7d3d2-2ff9-46a4-b443-e1df3d6a5f32,
-203,2026-03-09 00:19:21,,KXBTC15M-26MAR082030-30,btc_drift_v1,no,buy,64,1,0.64,0.0926,0.6201,live,,,,77dfed45-9a18-4cd5-a8f6-de9fd76f12ed,40557c26-37b1-4421-89ec-57d841be095f
+203,2026-03-09 00:19:21,2026-03-09 00:31:22,KXBTC15M-26MAR082030-30,btc_drift_v1,no,buy,64,1,0.64,0.0926,0.6201,live,no,0.34,True,77dfed45-9a18-4cd5-a8f6-de9fd76f12ed,40557c26-37b1-4421-89ec-57d841be095f
 204,2026-03-09 00:26:25,,KXETHD-26MAR0821-T1929.99,eth_daily_v1,no,buy,41,3,1.23,,,paper,,,,57bf4b43-2b94-4f3c-981b-555e78082142,
