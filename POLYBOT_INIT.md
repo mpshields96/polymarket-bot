@@ -2,170 +2,282 @@
 # For: Claude Code Desktop App | Owner: Matthew
 # Read this fully before doing anything.
 
+═══════════════════════════════════════════════════════════════════════
+## ⚠️ MANDATORY RULES — NEW SESSIONS MUST FOLLOW ALL OF THESE
+═══════════════════════════════════════════════════════════════════════
+
+### RULE 1: READ THESE FILES FIRST, IN ORDER, EVERY SESSION
+  1. SESSION_HANDOFF.md          — exact bot state, PID, log path, pending tasks, last commit
+  2. .planning/CHANGELOG.md      — what changed every session and WHY (permanent record)
+  3. .planning/KALSHI_MARKETS.md — FULL market map — ALL categories, what's built, what's not
+  4. .planning/SKILLS_REFERENCE.md — ALL available GSD/sc:/superpowers commands + token costs
+  5. .planning/PRINCIPLES.md     — before ANY strategy/risk parameter change
+
+### RULE 2: INVESTIGATE KALSHI MARKET TYPES EVERY SESSION
+  KALSHI HAS FAR MORE MARKET TYPES THAN THE 15-MIN DIRECTION MARKETS WE TRADE.
+  From Matthew's screenshot (Session 38): Crypto section alone has:
+    15 Minute (✅ built) | Hourly (✅ paper) | Daily (✅ paper) |
+    Weekly ($455K vol) | Monthly | Annual ($1.4M vol) | One Time ($14.8M vol!) | DOGE
+  Full Kalshi nav: Politics | Sports | Culture | Climate | Economics |
+                   Mentions | Companies | Financials | Tech & Science
+  → Read .planning/KALSHI_MARKETS.md RESEARCH DIRECTIVES section
+  → When bandwidth exists: probe API for undocumented tickers, search Reddit/GitHub
+  → Document findings in .planning/KALSHI_MARKETS.md before building anything new
+  → NEVER ignore these categories because they were "not built before"
+
+### RULE 3: USE GSD + SUPERPOWERS SKILLS — THEY ARE MANDATORY TOOLS
+  READ .planning/SKILLS_REFERENCE.md before choosing any implementation approach.
+  DEFAULT for 90% of work: gsd:quick + superpowers:TDD + superpowers:verification-before-completion
+  THESE ARE FREE (or low cost) — USE THEM ON EVERY TASK:
+    superpowers:TDD                         — before writing ANY implementation code
+    superpowers:verification-before-completion — before claiming work is done
+    superpowers:systematic-debugging        — before proposing ANY fix for a bug
+    gsd:add-todo                           — when any idea or issue surfaces
+    gsd:quick                              — wraps any focused task with atomic commit + state tracking
+  DO NOT improvise without these tools. They exist to prevent bugs that have cost real money.
+
+### RULE 4: AUTONOMOUS OPERATION — NEVER WAIT FOR MATTHEW
+  Fully autonomous always. Do work first, summarize after.
+  If Matthew is away: append findings to /tmp/polybot_autonomous_monitor.md
+  NEVER pause mid-task to ask for confirmation on: tests, file reads/edits, commits, diagnostics.
+
 ═══════════════════════════════════════════════════
-## CURRENT STATUS — READ THIS FIRST (updated each session)
+## CURRENT STATUS — (updated each session)
 ═══════════════════════════════════════════════════
 
-BUILD COMPLETE. 758/758 tests passing. verify.py 21/29 (8 advisory WARNs — non-critical).
-Last commit: ed87261 (Session 31 — micro-live calibration phase for btc_drift, $1.00 cap, 3/day)
+BUILD COMPLETE. 887/887 tests passing. verify.py 21/29 (8 advisory WARNs — non-critical).
+Last commit: c2a2192 (Session 38 — POLYBOT_INIT docs update with live.py security findings + SKILLS_REFERENCE link)
+  4. .planning/SKILLS_REFERENCE.md — all GSD/sc:/superpowers commands with token cost tiers
+  5. .planning/PRINCIPLES.md     — before ANY strategy/risk parameter change
 
-📋 btc_drift_v1 MICRO-LIVE — $1.00 cap, max 3/day, kill switch applies
-   2hr cooling active on restart (consecutive_losses=4 restored from DB)
-   After cooling: real $1.00 bets fire normally on btc_drift signals
-   Goal: 30 real settled bets + Brier < 0.30 to graduate to Stage 1 ($5 cap)
+## BOT STATE — Session 38 (2026-03-09)
 
-📋 ALL OTHER 9 KALSHI STRATEGIES PAPER-ONLY
-   btc_lag_v1: paper (0 signals last 5+ days — HFTs pricing Kalshi same minute)
-   eth_lag_v1: paper (process violation promotion — needs 30 paper trades)
-   eth_drift_v1: paper (41 trades, looks "ready" but only 1.1 days data — DO NOT PROMOTE)
-   All others: always paper, collecting calibration data
+BOT IS RUNNING: PID 96757 in bot.pid | Log: /tmp/polybot_session38.log | Mode: LIVE
+Check:  cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "RUNNING" || echo "STOPPED"
+Watch:  tail -f /tmp/polybot_session38.log | grep --line-buffered "drift\|LIVE\|Trade executed\|Kill switch"
 
-📋 COPY-TRADE LOOP RUNNING — paper-only (POST /v1/orders protobuf format not confirmed)
-   Polls 144 whale wallets from predicting.top every 5 min
-   6 decoy filters applied (copy_trader_v1.py)
-   BLOCKED for .COM live: Matthew needs polymarket.com account + Polygon wallet
+Bankroll: ~$84.33 | All-time live P&L: -$13.37 | Tests: 887/887
+Kill switch: CLEAR — daily $6.30/$16.88 (37%), consecutive 0/4, hard stop CLEAR, SDATA 53/500
 
-BOT IS RUNNING: PID 53490 in bot.pid | Log: /tmp/polybot_session31.log
-Watch drift bets: tail -f /tmp/polybot_session31.log | grep --line-buffered "drift\|LIVE\|Trade executed"
-Watch copy trade: tail -f /tmp/polybot_session31.log | grep --line-buffered copy_trade
+## THREE MICRO-LIVE DRIFT LOOPS (all 1 contract/bet ~$0.35-0.65, unlimited/day, daily loss limit governs)
 
-All-time live P&L: -$18.85 (21 bets, 8W/13L = 38%)
-Bankroll: $79.76 | Daily loss limit: ~$15.95/day (20%) + $20 floor hard stop (30% lifetime hard stop REMOVED)
-btc_drift: 1 contract/bet minimum, unlimited/day — daily loss limit governs
+  🔴 btc_drift_v1 → KXBTC15M | min_drift=0.05, min_edge=0.05 | calibration_max_usd=0.01
+     Graduation: 37/30 ✅ | Brier: 0.247 | Status: READY FOR LIVE (expansion gate still closed)
+     NOTE: BUY YES 35.7% win rate vs BUY NO 55% — directional asymmetry, monitor after 30 more bets
 
-SESSION 31 COMPLETED (2026-03-08):
-  ✅ eth_orderbook_imbalance: $233 paper P&L anomaly diagnosed and fixed
-     Root cause: missing 35-65¢ price range guard (NO@2¢ bet won $233 on $4.76 spend)
-     Fix: _MIN_SIGNAL_PRICE_CENTS=35, _MAX_SIGNAL_PRICE_CENTS=65 added to orderbook_imbalance.py
-     Regression tests: TestPriceRangeGuard (3 tests)
-  ✅ Paper P&L discrepancy explained: structural paper optimism (slippage, fill timing, counterparty)
-     paper_slippage_ticks raised 1→2 (Kalshi BTC spreads avg 2-3¢; 1¢ was over-optimistic)
-  ✅ Micro-live calibration phase implemented for btc_drift_v1
-     calibration_max_usd=1.00 param added to trading_loop()
-     btc_drift loop: live_executor_enabled=True, $1.00 cap, max 3/day
-     PRINCIPLES.md updated with micro-live phase rules
-  ✅ Copy trading research completed (see .planning/research/copy_trading_research.md)
-     Kalshi: CONFIRMED INFEASIBLE (no public user attribution — centralized exchange)
-     Polymarket.COM: full platform, whales trade here, py-clob-client for ECDSA auth
-     Top traders: HyperLiquid0xb $1.4M, Erasmus $1.3M, BAdiosB 90.8% win rate
-  ✅ master_roadmap.md created (.planning/master_roadmap.md) — self-contained handoff doc
+  🔴 eth_drift_v1 → KXETH15M | min_drift=0.05, min_edge=0.05 | calibration_max_usd=0.01
+     Graduation: 19/30 | Brier: 0.247 | Status: needs 11 more live bets
 
-PHASE 5.1 COMPLETE (Session 28):
-  ✅ src/auth/polymarket_auth.py — Ed25519 signing (19 tests, 100% pass)
-  ✅ src/platforms/polymarket.py — REST client: markets/orderbook/positions/activities (23 tests)
-  ✅ POLYMARKET_KEY_ID + POLYMARKET_SECRET_KEY wired in .env and verified working
-  ✅ setup/verify.py: Polymarket auth [12] + API connectivity [13] checks added
+  🔴 sol_drift_v1 → KXSOL15M | min_drift=0.15 (3x BTC), min_edge=0.05 | calibration_max_usd=0.01
+     Graduation: 11/30 | Brier: 0.156 | Status: needs 19 more live bets
 
-PHASE 5.2 PARTIAL (Sessions 29-31):
-  ✅ src/data/predicting_top.py — WhaleAccount + PredictingTopClient (18 tests)
-     FIXED Session 30: API changed format — response now {"traders":[...]} not bare list
-     FIXED Session 30: smart_score is now a nested dict — was silently skipping ALL 179 traders
-  ✅ src/data/whale_watcher.py — WhaleTrade + WhalePosition + WhaleDataClient (28 tests)
-  ✅ src/strategies/copy_trader_v1.py — decoy filters + Signal generator (29 tests)
-  ✅ src/strategies/sports_futures_v1.py — mispricing vs sports data feed (25 tests) [SUPPLEMENTAL]
-  ✅ copy_trade_loop wired into main.py — polls every 5 min, 80s startup delay
-  ⏳ BLOCKED for .COM live: Matthew must create polymarket.com account + Polygon wallet
-  ⏳ PENDING: ECDSA auth + py-clob-client integration (after Matthew has .com account)
+  All three share: _live_trade_lock (asyncio), calibration_max_usd=0.01, price guard 35-65¢
+  Expected: ~15-25 live bets/day combined across all three strategies
 
-WHAT WORKS:
-  ✅ Kalshi auth (api.elections.kalshi.com)
-  ✅ BTC + ETH + SOL feeds — Binance.US @bookTicker, ~100 ticks/min
-  ✅ Polymarket.us auth — Ed25519 signing, X-PM-Access-Key/Timestamp/Signature headers
-  ✅ Polymarket.us REST — GET /v1/markets, /v1/markets/{id}/book, /v1/portfolio/positions, /v1/portfolio/activities
-  📋 [trading]        btc_lag_v1                 — PAPER (demoted Session 27, 0 signals/week)
-  📋 [eth_trading]    eth_lag_v1                 — PAPER (demoted Session 25)
-  🔴 [drift]          btc_drift_v1               — MICRO-LIVE $1.00/bet, max 3/day (Session 31)
-  ✅ [eth_drift]      eth_drift_v1               — paper, 22s stagger
-  ✅ [btc_imbalance]  orderbook_imbalance_v1     — paper, 29s stagger
-  ✅ [eth_imbalance]  eth_orderbook_imbalance_v1 — paper, 36s stagger
-  ✅ [weather]        weather_forecast_v1        — paper, 43s stagger, ENSEMBLE (Open-Meteo+NWS)
-  ✅ [fomc]           fomc_rate_v1               — paper, 51s stagger, active March 5-19
-  ✅ [unemployment]   unemployment_rate_v1       — paper, 58s stagger, active until March 7
-  ✅ [sol_lag]        sol_lag_v1                 — paper, 65s stagger (added Session 23)
-  ✅ sports_game_v1 skeleton built — DISABLED until live results confirmed + SDATA_KEY
-  ✅ --status / --report / --graduation-status: bypass PID lock, safe while bot live
-  ✅ PaperExecutor: 1-tick adverse slippage. Daily caps: live=10/day, paper=35/day per strategy
-  ✅ Paper/live separation: has_open_position + count_trades_today both pass is_paper filter (fixed Session 21)
-  ✅ Kill switch: test pollution fix — _hard_stop() now has PYTEST_CURRENT_TEST guard (fixed Session 22)
-  ✅ Live executor: 33 unit tests written (was ZERO — fixed Session 21)
-  ✅ Orphaned instance guard: _scan_for_duplicate_main_processes() in main.py (Session 21)
-  ✅ scripts/restart_bot.sh: safe restart script with pkill, venv path, single-instance verify (Session 22)
-  ✅ Sizing clamp: trade_usd = min(size_result.recommended_usd, HARD_MAX_TRADE_USD) in main.py
-  ✅ min_edge_pct propagation: trading_loop passes strategy._min_edge_pct to calculate_size (fixed Session 22)
-  ✅ macOS notifications: Reminders app notifier for live bets + midnight P&L summary
-  ✅ Kill switch: all 3 counters persist across restarts (daily loss + lifetime loss + consecutive losses)
-  ✅ count_trades_today() uses CST midnight (UTC-6) — matches daily_live_loss_usd() (fixed Session 25)
-  ✅ Price range guard 35-65¢ on btc_drift.py + btc_lag.py — only near-even-odds bets allowed
-  ✅ asyncio.Lock (_live_trade_lock) for btc_lag_v1 live loop — check→execute→record is atomic
-  ✅ Paper-during-softkill: check_paper_order_allowed() in all paper loops — soft stops block live only
-  ✅ .planning/PRINCIPLES.md — read before any parameter change
+## PAPER-ONLY LOOPS (12 total)
+  📋 btc_lag_v1, eth_lag_v1, sol_lag_v1 — 0 signals/week (HFTs price same minute)
+  📋 orderbook_imbalance_v1, eth_orderbook_imbalance_v1 — paper, price guard added
+  📋 btc_daily_v1, eth_daily_v1, sol_daily_v1 — KXBTCD/KXETHD/KXSOLD 24 hourly slots/day
+  📋 weather_forecast_v1 — HIGHNY weekdays only
+  📋 fomc_rate_v1 — ~8x/year | unemployment_rate_v1 — ~12x/year
+  📋 sports_futures_v1 — Polymarket.US bookmaker arb, min_books=2
+  📋 copy_trader_v1 — Polymarket.US, 0 .US matches (platform mismatch confirmed)
 
-SESSION 21 BUGS FIXED:
-  Bug 1: Paper/live separation — has_open_position + count_trades_today now filter by is_paper
-  Bug 2: Sizing clamp missing — bankroll >$100 caused all live bets to be blocked (pct_cap > $5 hard cap)
-  Bug 3: _FIRST_RUN_CONFIRMED not set in piped stdin mode — added to main.py after startup confirm
+## EXPANSION GATE STATUS (Session 38 — STILL CLOSED)
+  | Criterion                       | Status              |
+  |--------------------------------|---------------------|
+  | btc_drift 30+ live bets        | ✅ MET (37+)        |
+  | Brier < 0.30                   | ✅ MET (0.247)      |
+  | 2-3 weeks live P&L data        | ❌ NOT MET (~2 days)|
+  | No kill switch events in window | ❌ NOT MET         |
+  Gate: CLOSED. Next expansion = KXXRP15M drift (same code as sol_drift, ~15 min to build).
+  DO NOT BUILD until BOTH remaining criteria pass.
 
-SESSION 22 BUGS FIXED (4 classes found — all silent failures):
-  Bug 1: Kill switch wrong kwargs in paper loops (weather/fomc/unemployment) → trade_usd=, current_bankroll_usd=
-  Bug 2: calculate_size() wrong kwargs in paper loops → kalshi_payout() + payout_per_dollar= added
-  Bug 3: SizeResult object passed as float to paper_exec.execute(size_usd=) → .recommended_usd extracted
-  Bug 4: strategy min_edge_pct not propagated to calculate_size → silently blocked all btc_lag (4%) + btc_drift (5%) signals
-  Bug 5: _hard_stop() wrote to KILL_SWITCH_EVENT.log during tests → PYTEST_CURRENT_TEST guard added
+## SECURITY FIXES APPLIED (Sessions 37-38 — all in live.py)
+  ✅ Execution-time price guard (Session 37): re-checks price after orderbook fetch
+     Rejects if outside 35-65¢ OR slippage >10¢ from signal price
+     Fixes: signal@59¢ filled@84¢ (25¢ slippage, happened in prod)
+     Tests: TestExecutionPriceGuard (6 tests) in test_live_executor.py
+  ✅ Canceled order guard (Session 38): status=="canceled" → return None before db.save_trade()
+     Prevents phantom live bets when Kalshi cancels on liquidity failure or late market close
+     Tests: TestExecuteOrderStatusGuard (2 tests) in test_live_executor.py
+  ✅ sports_futures ValueError fix (Session 38): %.1%% → %.1f%% in logger (was spamming logs)
 
-SESSION 23-25 BUGS FIXED:
-  Session 23: Price range guard was 10-90¢ but btc_lag still fired at 2¢ (trade_id=90, $4.98 loss) — tightened to 35-65¢ on ALL lag strategies
-  Session 23: Paper-during-softkill missing — soft stops were blocking paper data collection; check_paper_order_allowed() added
-  Session 23: sol_lag_v1 added (paper-only, SOL feed at wss://stream.binance.us:9443/ws/solusdt@bookTicker)
-  Session 24: Lifetime loss counter (_realized_loss_usd) reset to 0 on every restart — now seeded from db.all_time_live_loss_usd() on startup
-  Session 24: asyncio race condition on hourly limit — two live loops could both pass check before either records → asyncio.Lock added
-  Session 25: Consecutive loss counter (_consecutive_losses) reset to 0 on every restart — now seeded from db.current_live_consecutive_losses() on startup
-  Session 25: count_trades_today() used UTC midnight, daily_live_loss_usd() used CST midnight → both now CST (UTC-6)
-  Session 25: btc_drift_v1 demoted — live record 7W/12L (38%), core signal not valid at 15-min Kalshi timescale
-  Session 25: eth_lag_v1 demoted — was promoted live but performance was not validated at promotion time
+## GRADUATION_STATS FIX (Session 38)
+  graduation_stats() in src/db.py now accepts is_paper: Optional[bool] = True
+  main.py print_graduation_status() passes is_paper=False for live strategies
+  setup/verify.py _LIVE_STRATEGIES = {"btc_drift_v1", "eth_drift_v1", "sol_drift_v1"}
+  sol_drift_v1 added to _GRAD (was missing — never tracked until Session 38)
+  Result: btc_drift now correctly shows 37/30 ✅ (was showing 12 — was querying paper trades)
 
-P&L STATUS (as of 2026-03-08 13:19 UTC — Session 31):
-  All-time live:  -$18.85 (21 settled: 8W 13L, 38% win rate) — btc_drift now micro-live ($1.00 cap)
-  All-time paper: ~$7 corrected (eth_orderbook_imbalance $233 anomaly removed — was NO@2¢ bet)
-  Bankroll:       $79.76 (daily loss limit ~$15.95/day, $20 floor hard stop — 30% lifetime hard stop removed)
-
-  ⚠️ btc_lag_v1 live record: 2W/0L (+$4.07) — ONLY 2 TRADES. Audit skeptically.
-  ⚠️ btc_drift_v1 live record: 7W/12L (-$22.92) — now MICRO-LIVE at $1.00 cap to get real data.
-  ⚠️ eth_lag_v1 live record: 1W/3L (-$6.53) — PAPER. Insufficient paper validation at promotion.
-
-  btc_lag_v1 graduation: 43 paper trades, Brier 0.191 ← STRONG signal but 0 signals/week
-  eth_drift_v1 "graduation": DO NOT TRUST. Only 1.1 days paper data. -$35.47 paper P&L.
-  eth_orderbook_imbalance: paper P&L anomaly FIXED (Session 31). Real paper P&L ~$7 not $233.
-
-NEXT ACTION — IF BOT IS STOPPED, RESTART (paper mode — no --live flag):
-  cd /Users/matthewshields/Projects/polymarket-bot
-  pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid
-  nohup ./venv/bin/python main.py >> /tmp/polybot_session30.log 2>&1 &
-  sleep 5 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
-
-NEXT ACTION — IF RESTARTING LIVE (only after bankroll > $90 AND explicit decision):
-  pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid
+## LIVE RESTART COMMAND (always use this exact form)
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null
+  sleep 3; rm -f bot.pid
   echo "CONFIRM" > /tmp/polybot_confirm.txt
-  nohup ./venv/bin/python main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session30.log 2>&1 &
-  sleep 8 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
+  nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session38.log 2>&1 &
+  sleep 10 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
 
-NEXT SESSION PRIORITY ORDER (as of Session 31):
-  1. WAIT: 2hr cooling expires ~15:19 UTC — watch for first micro-live btc_drift bet
-     tail -f /tmp/polybot_session31.log | grep --line-buffered "LIVE\|drift\|Trade executed"
-  2. GATE: Matthew — polymarket.COM account + Polygon wallet?
-     This is the SINGLE blocker for real copy trading where all whales actually trade.
-     YES → Claude adds ECDSA auth (src/auth/polymarket_com_auth.py) + py-clob-client integration
-  3. btc_drift micro-live — collect 30 real bets, then evaluate Brier score
-     DO NOT change calibration_max_usd until 30+ settled bets
-  4. DO NOT re-promote btc_lag to live — 0 signals/week, bankroll $79.76 < $90 gate
-  5. DO NOT promote eth_drift — 1.1 days paper data is statistically meaningless
-  6. See .planning/master_roadmap.md for full goal hierarchy and issues to monitor
+## DIAGNOSTICS (safe while bot is live — bypass PID lock)
+  source venv/bin/activate && python3 main.py --report            # today P&L, paper/live split
+  source venv/bin/activate && python3 main.py --graduation-status # Brier + live bet count per strategy
+  source venv/bin/activate && python3 main.py --health            # kill switch + open trades + SDATA quota
+  source venv/bin/activate && python3 -m pytest tests/ -q         # 887/887 required before commit
+
+═══════════════════════════════════════════════════════════════════════
+## AUTONOMOUS OPERATIONS — HARDCODED RESPONSIBILITIES
+## (Applies whenever Matthew says "work autonomously", "I'll be back", or goes offline)
+## THIS IS THE STANDARD LOOP. DO NOT DEVIATE. DO NOT WAIT FOR INSTRUCTIONS.
+═══════════════════════════════════════════════════════════════════════
+
+### STARTUP CHECKLIST (every autonomous session, no exceptions)
+  1. Read SESSION_HANDOFF.md — get exact bot state and pending tasks
+  2. Check bot alive: cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo RUNNING
+  3. If STOPPED: restart immediately using LIVE RESTART COMMAND above
+  4. Run python3 main.py --health → log to /tmp/polybot_autonomous_monitor.md
+  5. Run python3 main.py --graduation-status → log
+  6. Run python3 main.py --report → log current P&L
+
+### MONITORING LOG — MANDATORY
+  File: /tmp/polybot_autonomous_monitor.md
+  Rule: APPEND ONLY — never overwrite. Every action and finding goes here.
+  Format: ## [TIMESTAMP CDT] — [status] — [action taken or NONE]
+  Frequency: log every cycle (every 10-15 min minimum while Matthew is away)
+
+### RESPONSIBILITY 1 — BOT HEALTH (highest priority, every cycle)
+  Every 10-15 minutes:
+    a. Check bot alive (kill -0 check on PID from bot.pid)
+    b. tail -20 /tmp/polybot_session38.log | grep -i "error\|exception\|kill switch\|CRITICAL"
+    c. If no live bets in 24hr: run --health IMMEDIATELY — diagnose kill switch + loop errors
+    d. Log cycle result to /tmp/polybot_autonomous_monitor.md
+  If bot STOPPED:
+    - Restart immediately using LIVE RESTART COMMAND
+    - Log restart with timestamp + reason
+  If kill switch fired (soft stop):
+    - Log it. Do NOT reset. Paper bets continue (correct behavior). Wait for Matthew on hard stop.
+
+### RESPONSIBILITY 2 — LIVE AND PAPER BETS (verify both are firing every cycle)
+  LIVE bets — THREE loops should fire every ~15 min each (combined ~15-25 bets/day):
+    Watch: tail -f /tmp/polybot_session38.log | grep --line-buffered "LIVE\|Trade executed"
+    Expected: btc_drift, eth_drift, sol_drift each placing bets on valid signals
+    If any live loop silent for >2 hours: run --health, check kill switch, look for loop errors
+  PAPER bets — should fire constantly from all 12 paper loops:
+    Watch: tail -f /tmp/polybot_session38.log | grep --line-buffered "paper\|PAPER"
+    btc_daily/eth_daily/sol_daily = hourly paper bets on KXBTCD/KXETHD/KXSOLD (24/day each)
+    sports_futures = paper bets on Polymarket.US bookmaker arb
+    If paper loops also silent: likely a broader loop error — check logs, run --health
+  Data collection always continues even during soft stops (check_paper_order_allowed design).
+
+### RESPONSIBILITY 3 — DEBUGGING (use systematic approach, every cycle)
+  After each monitoring cycle, scan for:
+    - ValueError, TypeError, AttributeError, Exception traces in log
+    - "silent" loops that fire no signals for >6 hours without explanation
+    - Kill switch events that don't match DB data (KILL_SWITCH_EVENT.log pollution)
+    - API connectivity failures (Kalshi 401/404/rate-limit, Binance.US reconnects)
+  IF BUG FOUND:
+    1. Use /superpowers:systematic-debugging to diagnose root cause
+    2. Use /gsd:quick + /superpowers:TDD to fix with test-first approach
+    3. Run 887/887 tests before committing
+    4. Check sibling code for same bug pattern
+    5. Log fix to /tmp/polybot_autonomous_monitor.md
+
+### RESPONSIBILITY 4 — KALSHI MARKET RESEARCH (do when not debugging or monitoring)
+  READ .planning/KALSHI_MARKETS.md RESEARCH DIRECTIVES section before starting.
+  These market types are CONFIRMED to exist but NOT yet documented with tickers:
+    Weekly crypto ($455K vol): probe `client.get_markets(series_ticker="KXBTCW")`
+    Monthly crypto: probe `client.get_markets(series_ticker="KXBTCM")`
+    Annual crypto ($1.4M vol): probe `client.get_markets(series_ticker="KXBTCY")`
+    One-Time events ($14.8M vol — "When will BTC hit $150k?"): series ticker completely unknown
+    DOGE markets: probe `client.get_markets(series_ticker="KXDOGE15M")` and related
+    Other Kalshi categories: Politics, Culture, Climate, Economics, Companies, Financials, Tech
+  HOW TO RESEARCH:
+    a. Probe Kalshi API directly for candidate series tickers (never assume — confirm via API)
+    b. Search reddit.com/r/kalshi for strategy discussions on each market type
+    c. Search GitHub for kalshi python bot + strategy type
+    d. Update .planning/KALSHI_MARKETS.md with confirmed findings
+  DOCUMENT FINDINGS before building anything. Do not build strategies for unproven markets.
+
+### RESPONSIBILITY 5 — DATA COLLECTION (ongoing, no special action needed)
+  All paper loops collect data continuously — do not interrupt them.
+  btc_drift graduation: 37/30 ✅ | eth_drift: 19/30 (11 more needed) | sol_drift: 11/30 (19 more)
+  btc_daily paper: check graduation progress with --graduation-status
+  Monitor btc_drift YES vs NO win rate: BUY YES 35.7% vs BUY NO 55% (clean 35-65¢ data)
+    → Wait for 30 more clean bets before any action on this — monitor only
+  If graduation criteria met (30+ settled + Brier < 0.30) AND expansion gate open:
+    → Log the finding. Do NOT promote to live without Matthew confirming.
+
+### RESPONSIBILITY 6 — SESSION WRAP-UP (before context limit or session end)
+  ALWAYS do this before stopping, even if mid-task:
+  1. python3 main.py --report → capture output
+  2. python3 main.py --graduation-status → capture output
+  3. cat bot.pid && kill -0 $(cat bot.pid) && echo RUNNING → confirm bot alive
+  4. Update SESSION_HANDOFF.md with current state, pending tasks, last actions
+  5. Append entry to .planning/CHANGELOG.md with what was done and WHY
+  6. git add + git commit with descriptive message
+  7. Write handoff summary to /tmp/polybot_autonomous_monitor.md
+
+### TOOLS FOR AUTONOMOUS WORK
+  See .planning/SKILLS_REFERENCE.md for full reference. Every task:
+  | Tool | Cost | When |
+  |------|------|------|
+  | gsd:quick | ~1-2% | ANY focused fix or feature — DEFAULT |
+  | superpowers:TDD | Free | Before writing ANY implementation code |
+  | superpowers:verification-before-completion | Free | Before claiming done |
+  | superpowers:systematic-debugging | Free | Before proposing ANY bug fix |
+  | gsd:add-todo | Free | Any idea or issue |
+  | sc:analyze --focus security | ~1-5% | Security audit on specific file |
+  | sc:troubleshoot --think | ~1-5% | Stuck debugging |
+  SESSION START (once only): /gsd:health then /gsd:progress
+
+### THINGS TO WORK ON (current session priority order)
+  1. Probe API for KXBTCW/KXBTCM/KXBTCY/KXDOGE series tickers — update KALSHI_MARKETS.md
+  2. Search reddit.com/r/kalshi for weekly/annual/one-time event strategies
+  3. Monitor graduation: eth_drift 11 more, sol_drift 19 more live bets needed
+  4. Monitor btc_daily_v1 paper graduation progress
+  5. Scan for log errors + fix anything found with systematic-debugging → gsd:quick
+
+## EXPANSION ROADMAP (gate: 2-3 weeks live data + no kill switch events)
+  Priority order once expansion gate opens:
+  1. KXXRP15M drift — XRP 15-min direction, ~5,900 volume. Same code as sol_drift.
+     min_drift_pct ~0.10-0.12 (XRP ~2x BTC volatility). ~15 min to build once gate opens.
+  2. KXBTCD hourly live — btc_daily_v1 already paper. Promote once paper graduation met (30 bets).
+     Price-level bets (is BTC above/below $X at time T), 24 slots/day. Lower volume, wider spread.
+     Run --graduation-status to check paper bet count and Brier for btc_daily_v1.
+  3. KXNBAGAME/KXNHLGAME — Kalshi game winners (skeleton built, disabled). Gate: sports_futures shows edge.
+  4. KXNBA3D, KXNBAPTS, etc — player props (new Session 36 discovery). Lower priority.
+  DO NOT BUILD any expansion item until gate criteria pass. Log ideas to .planning/todos.md.
+
+### TOOLS CHEAT SHEET
+  See .planning/SKILLS_REFERENCE.md for full reference. Short version:
+  | Tool | Cost | Use when |
+  |------|------|----------|
+  | gsd:quick | ~1-2% | Any fix or feature — DEFAULT for 90% of work |
+  | superpowers:TDD | Free | Before any implementation code |
+  | superpowers:verification-before-completion | Free | Before claiming done |
+  | superpowers:systematic-debugging | Free | Before proposing any fix |
+  | gsd:add-todo | Free | When any idea or issue surfaces |
+  | sc:analyze --focus security | ~1-5% | Security audit on specific file |
+  | gsd:plan-phase + gsd:execute-phase | ~20-40% | ONLY if 5+ tasks, 4+ subsystems, multi-session |
+
+### SECURITY RULES
+  ✅ APPROVED: api.elections.kalshi.com (all Kalshi endpoints)
+  ✅ APPROVED: stream.binance.us:9443 (WebSocket price feeds — binance.com is geo-blocked)
+  ✅ APPROVED: api.polymarket.us/v1 (all /v1 endpoints)
+  ✅ APPROVED: data-api.polymarket.com (public reads, whale activity)
+  ✅ APPROVED: predicting.top/api/leaderboard (public leaderboard)
+  ✅ APPROVED: api.open-meteo.com (weather feed, no key)
+  ✅ APPROVED: api.fred.stlouisfed.org (FRED macro data, FRED_API_KEY in .env)
+  ✅ APPROVED: api.the-odds-api.com (sports data, SDATA_KEY in .env, 500 credits/month max)
+  ✗ NEVER: binance.com (HTTP 451 geo-blocked US) | polymarket.com (geo-restricted, no .COM account)
+  ✗ NEVER: expose .env, .pem files, API keys in logs or output
+  ✗ NEVER: write files outside /Users/matthewshields/Projects/polymarket-bot/
+  ✗ NEVER: delete data/polybot.db or any database file
 
 SECURITY RULES UPDATED FOR POLYMARKET (Sessions 28-30):
   ✅ APPROVED URLs: https://api.polymarket.us (all /v1 endpoints), https://data-api.polymarket.com (public reads)
   ✅ APPROVED: https://predicting.top/api/leaderboard (public leaderboard, no auth)
   ✅ APPROVED: https://gamma-api.polymarket.com/markets (public market catalog)
   ⚠️ polymarket.com CLOB/trading requires ETH wallet auth — NOT covered by existing .us credentials
-  ✗ The 1,000 sports data feed credit cap still applies — DO NOT call sports data feed without QuotaGuard
+  ✗ The 500 sports data feed credit cap applies — DO NOT call sports data feed without QuotaGuard
 
 ═══════════════════════════════════════════════════
 ## PHASE 5 — POLYMARKET.US INTEGRATION (Session 28)

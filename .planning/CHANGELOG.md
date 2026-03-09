@@ -368,3 +368,52 @@ Do not build XRP drift yet.
 3. DOCS — Update POLYBOT_INIT.md with sc:analyze security findings + SKILLS_REFERENCE.md link
 
 ### Test count: 882/882 | Bot: PID 96757, log /tmp/polybot_session38.log
+
+## Session 38 — Close-out (2026-03-09 ~18:00 CDT)
+
+### graduation_stats() is_paper param fix
+- WHY: --graduation-status was showing paper bet counts for live strategies
+  (btc_drift showed 12, was querying all trades including is_paper=1)
+- FIX: graduation_stats(strategy, is_paper: Optional[bool] = True) in src/db.py
+  Both SQL queries now add WHERE is_paper = ? when is_paper is not None
+- CALLERS UPDATED: print_graduation_status() in main.py passes is_paper=False for live strategies
+  _LIVE_STRATEGIES = {"btc_drift_v1", "eth_drift_v1", "sol_drift_v1"} in setup/verify.py
+- sol_drift_v1 ADDED to _GRAD (was missing entirely since Session 36 — never tracked)
+- RESULT: btc_drift 12→37 ✅, eth_drift 0→19, sol_drift not tracked→11
+- Tests: 5 new tests (TestGraduationStatsIsPaperParam). Commit: 2fab9e6, 82c90c7
+
+### POLYBOT_INIT.md full update (Session 31 → Session 38)
+- WHY: CURRENT STATUS was 7 sessions out of date (758 tests, old PID, wrong strategies, stale P&L)
+- WHAT: Full rewrite of CURRENT STATUS section with accurate Session 38 state
+  + Autonomous ops guide (monitoring protocol, development work, security rules, tools cheatsheet)
+  + KXBTCD hourly bets expansion roadmap entry
+  + SKILLS_REFERENCE.md reference added to mandatory reading
+  + Gotcha #24 (live.py security findings) + Gotcha #25 (SKILLS_REFERENCE link) added
+- MANDATORY FILES updated: SESSION_HANDOFF.md, CHANGELOG.md, KALSHI_MARKETS.md, MEMORY.md
+
+### KALSHI_MARKETS.md — major taxonomy expansion
+- WHY: Matthew's kalshi.com Crypto tab screenshot confirmed MULTIPLE undocumented categories:
+  Hourly (8), Weekly (8), Monthly (11), Annual (8), One Time (14) — with $14.8M volume on
+  single "When will Bitcoin hit $150k?" market. DOGE markets (6) never documented.
+- WHAT: Added Categories 2B/2C/2D/2E (Weekly/Monthly/Annual/One-Time crypto price markets)
+  Added DOGE to Category 2A table
+  Updated expansion roadmap with Tier 1/2/3 structure
+  Added RESEARCH DIRECTIVES section with API probe commands + Reddit/GitHub search tasks
+- WHY MATTERS: We have been building strategies for $103K/window markets while ignoring
+  $14.8M markets. Research directives mandatory for new sessions.
+- Full Kalshi top-nav categories documented as undocumented: Politics, Culture, Climate,
+  Economics, Mentions, Companies, Financials, Tech & Science
+
+### P&L at session close
+- Bankroll: ~$84.33 | All-time live: -$13.37 | P&L today (live): +$5.48 (winning day!)
+- btc_drift 14/21 wins, eth_drift 12/19 wins, sol_drift 9/11 wins
+- Kill switch: CLEAR — daily $6.30/$16.88 (37%), consecutive 0/4
+- SDATA: 53/500 (11%)
+
+### Expansion gate
+STILL CLOSED. Two criteria unmet: (1) 2-3 weeks live data, (2) no kill switch events.
+Next expansion = KXXRP15M drift after gate opens.
+
+### Pending todos (0): All cleared this session.
+
+### Test count: 887/887 | Bot: PID 96757, log /tmp/polybot_session38.log
