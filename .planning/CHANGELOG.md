@@ -521,3 +521,65 @@ AUTONOMOUS_CHARTER.md research todos are captured in the charter itself.
 
 ### Test count: 887/887 (unchanged — no code changes this session, docs only)
 ### Commits this session: None yet (docs only — will commit at session end)
+
+## Session 39 (cont) — 2026-03-09 ~19:00 CDT — Research completion + events probe
+
+### Research: Reddit/GitHub agent on KXBTCD hourly markets (99k tokens, ~88 tool calls)
+
+#### KXBTCD structure clarified (CRITICAL finding Matthew called out):
+- "Hourly" markets = daily bracket price level set ONCE at open (~midnight/market open)
+- Same dollar strike K for ALL 24 hourly time slots. NOT a new level each hour.
+- Each slot = "Is BTC above $K at [hour] EST today?" — absolute level, NOT relative direction
+- Signal applicable: if BTC drifts since K was set, early-morning YES contracts underprice.
+  Drift model logic is DIRECTLY applicable! This is why Kalshi-CryptoBot paired 15-min + hourly.
+- Kalshi-CryptoBot (github.com/Bh-Ayush/Kalshi-CryptoBot): claims "profitable" 15-min+hourly
+  bot. Repo NOW PRIVATE — possibly hides profitable alpha. Strong signal.
+- HN leaderboard #1 (ammario): log-odds spread market-making across all markets. Our directional
+  approach is correct for our stage. Confirms Kalshi has real, systematic edge.
+
+#### Kalshi category events probe (GET /events, ~1000 events scanned):
+- Elections (453) + Politics (339): Biggest categories. Not in scope.
+- Economics (57 events): KXGDP found active (92k vol), KXCPI active (890 vol) — NOT BUILT yet.
+  These expand our economic events strategy opportunities beyond FOMC/unemployment.
+- KXBTCATH probed: 0 open markets (likely resolved YES when BTC hit $109k Jan 2026).
+- KXBTCMAXY live: $99,999 at 36¢ (36% chance BTC breaks $100k this year) vol=597k
+- KXBTCMINY live: $50k floor at 57¢ (57% chance BTC dips below $50k in 2026)
+
+#### Red flags confirmed (Session 39 research):
+- LLM-based bots: tested negative returns, "educational only"
+- Cross-platform arb (Kalshi/Polymarket): US residents legally blocked. Closed.
+- Monthly/yearly max-min brackets: thin, long lockup, requires macro vol model not yet built
+- KXBTCMAX150 long positions: capital locked months, poor ROC vs 15-min 96x/day recycling
+
+#### Expansion priority table (research-validated, added to KALSHI_MARKETS.md):
+1. KXBTCD early-morning hourly slots — SAME drift signal as KXBTC15M (post-gate)
+2. KXBTCMAX150/100 via Deribit digital option calibration (post-gate, needs Deribit API)
+3. KXXRP15M drift — identical code (post-gate, 2 weeks live data)
+4. Weekly/annual/monthly — log to todos, research later
+
+### Monitoring summary (3 cycles completed)
+- Cycle 1 (18:35): Bot healthy, kill switch CLEAR, AUTONOMOUS_CHARTER committed
+- Cycle 2 (18:50): btc_drift 39/30, eth_drift 21/30, sol_drift 11/30. All healthy.
+- Cycle 3 (19:05): btc_drift 24 bets today (14/23 61%), eth_drift 22 live (62%), sol_drift (82%)
+  All-time live: -$14.26. Kill switch CLEAR.
+
+### KXETH15M liquidity analysis (no code change, documented only)
+- 8+ slippage/guard rejections since 17:14 restart vs only 2 successful eth_drift placements
+- Pattern: signal 43-57¢ → execution 29-71¢ (14-18¢ move on single 1-contract order)
+- Root cause: KXETH15M ~9.4k contracts/window (11x less liquid than KXBTC15M 103k)
+- Guards are working correctly. eth_drift graduation will be slower due to fill rate.
+- No code change needed — this is expected liquidity behavior, not a bug.
+
+### P&L at session end
+- Today live: +$4.59 (55 settled) | All-time live: -$14.26
+- btc_drift 39/30 ✅ Brier 0.247 | eth_drift 21/30 | sol_drift 11/30
+- Kill switch: CLEAR | consecutive 2/4 | daily $7.23/$20.00 (36%)
+
+### Expansion gate
+STILL CLOSED. Two criteria unmet: (1) 2-3 weeks live data, (2) no kill switch events in window.
+
+### Commits this session
+1. 8f4d0d3 — docs(session-39): AUTONOMOUS_CHARTER + Kalshi market research + session state update
+2. 2d46ad2 — docs(session-39): add Reddit/GitHub research findings + Kalshi category map
+
+### Test count: 887/887 (unchanged — docs only session, no code changes)

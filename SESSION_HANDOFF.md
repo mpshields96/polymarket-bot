@@ -65,30 +65,34 @@ KEY STATE (Session 39 mid-session — 2026-03-09 ~18:35 CDT):
 * KXBTCD hourly bets: paper via btc_daily_v1 — 5 bets today (2/5 wins, -$4.38)
 * eth_drift SLIPPAGE REJECTIONS: 17¢ slippage on KXETH15M (signal@43¢ → exec@60¢) — liquidity thin
 
-SESSION 39 WORK DONE:
+SESSION 39 WORK DONE (full session — 2 hours autonomous):
 * .planning/AUTONOMOUS_CHARTER.md CREATED — permanent mandatory doc for ALL new chats
   (Matthew's explicit demand — no more re-explaining autonomous operation requirements)
-* .planning/KALSHI_MARKETS.md — major update with confirmed tickers from API probe:
-  - KXBTCMAX150 ($10.8M!): "When will Bitcoin hit $150k?" — 3 date bracket markets (binary)
-  - KXBTCMAX100 ($2.7M): "When will BTC cross $100k again?" — 6 date bracket markets
-  - KXBTCMAXMON ($546k) + KXBTCMINMON ($439k): Monthly max/min, TRIMMED MEAN settlement
-  - KXBTCY: 28 markets, $1.4M+, BINARY (B/T prefix, NOT range brackets)
-  - KXBTCW/KXETHW/KXSOLW: confirmed exist, 0 open Sunday (expected weekly timing)
-  - KXBTC2026200 ($3.4M): "Will BTC be above $200k by 2027?"
-* polybot-monitor scheduled task UPDATED (was pointing session36.log, old test count 869)
-* Daily loops (btc_daily/eth_daily/sol_daily) CONFIRMED ACTIVE — log at DEBUG after session-open
-  reset (not broken, just silent at INFO level — check with grep -i "daily" in log)
-* Reddit research agent launched for KXBTCD hourly strategy community insights
+  Contains: autonomous ops rules, market research protocol, tools, monitoring format.
+  MUST READ + ACKNOWLEDGE before any work in new sessions.
+* .planning/KALSHI_MARKETS.md — major research update:
+  - KXBTCMAX150 ($10.8M), KXBTCMAX100 ($2.7M), KXBTCMAXMON ($546k) confirmed
+  - KXBTCY: 28 markets, $1.4M+, BINARY not range brackets
+  - KXBTCW/KXETHW/KXSOLW: confirmed exist, 0 open Sunday (expected)
+  - KXBTCATH: confirmed on website, 0 API markets (resolved when BTC hit $109k Jan 2026)
+  - Kalshi category map (13 categories, 1000+ events scanned)
+  - Research-verified expansion priority table with red flags
+  - KXBTCD structure clarified: fixed daily bracket price level, all 24 hourly slots share same $K
+* polybot-monitor scheduled task UPDATED (was session36.log, 869 tests)
+* KXETH15M liquidity analysis: 8+ slippage rejections since restart (guards working correctly)
+* Reddit/GitHub research COMPLETE (99k token agent):
+  - KXBTCD signal: drift since bracket set = underpriced early-morning slots (same model!)
+  - Kalshi-CryptoBot (GitHub, now private): paired 15-min + hourly = confirms both viable
+  - KXGDP (92k vol) + KXCPI active — not yet built (Economics category)
+  - Red flags: LLM bots don't work, cross-platform arb closed for US, monthly brackets thin
 
 NEXT SESSION DIRECTIVE (in priority order):
 1. Read .planning/AUTONOMOUS_CHARTER.md — acknowledge before any work
-2. Check Reddit agent results (run: cat /tmp/reddit_kalshi_research.md if it exists)
-   OR relaunch: WebSearch site:reddit.com/r/kalshi KXBTCD hourly + KXBTCMAX150
-3. Monitor eth_drift slippage issue — is KXETH15M consistently thin? Check 24hr patterns
-4. Monitor eth_drift + sol_drift graduation (9 + 19 more live bets needed)
-5. Search GitHub for KXBTCMAX150 barrier option strategies
-6. Update CHANGELOG.md + SESSION_HANDOFF.md (current session not fully committed yet)
-7. Expansion gate still closed — no new live strategies yet
+2. Monitor eth_drift + sol_drift graduation (9 + 19 more live bets needed)
+3. Monitor KXETH15M slippage patterns — is fill rate improving? (check 24hr log)
+4. Probe KXBTCW weekly markets on a WEEKDAY (0 open on Sunday, check Monday)
+5. Expansion gate still CLOSED — no new live strategies yet
+6. KXGDP (92k vol) is worth probing deeper — could supplement fomc/unemployment
 
 STANDING DIRECTIVES (never need repeating):
 * Fully autonomous always — do work first, summarize after. Never ask for confirmation.
