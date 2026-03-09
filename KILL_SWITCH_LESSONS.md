@@ -126,6 +126,39 @@ Implement: `kill_switch.log_startup_status()` called after all restores in main.
 
 ---
 
+---
+
+## LESSON 7 — Prolonged silence from the live loop is ALWAYS a signal
+**Session:** 35 | **Root cause of 7-day blockage going undetected**
+The bot appeared "running" from outside (process alive, logs writing) but placed
+zero live bets for 7 days because of a stale kill switch soft stop. There was no
+mechanism to notice this. Zero live bets = something is wrong, always.
+
+**Protocol implemented:**
+- `trading_loop` now emits WARNING at 24hr, CRITICAL at 72hr without a live bet
+- `python main.py --health` — comprehensive diagnostic command:
+  - Kill switch state (hard stop, daily loss, consecutive + staleness, cooling)
+  - Last live bet timestamp + elapsed hours (flags at 24hr and 72hr)
+  - Open trades including any non-Kalshi tickers (settlement orphans)
+  - SDATA quota status
+  - Bot PID and whether process is running
+  - Recent KILL_SWITCH_EVENT.log entries
+  - Summary of all warnings/issues with actionable commands
+
+**Rule:** If no live bet for 24hr+ and btc_drift should be active:
+1. `python main.py --health` — first diagnostic, always
+2. Check the log: `grep 'kill switch blocked\|SOFT STOP\|No open' /tmp/polybot_*.log | tail -30`
+3. Check errors: `grep 'WARNING\|ERROR\|CRITICAL' /tmp/polybot_*.log | tail -20`
+4. Do NOT add new filters or raise thresholds until root cause is confirmed
+5. If it's a kill switch issue: fix the state machine bug (not the threshold)
+6. If it's low signal frequency: that's expected; verify no other blockage first
+
+**Do NOT force live bets.** Zero bets is correct when: market is near-even AND
+signal edge < threshold. Zero bets is wrong when: kill switch is blocking silently,
+or there's a code error, or the loop is crashing silently.
+
+---
+
 ## THE META-RULE
 Before any soft stop or hard stop mechanism goes into production:
 1. Write a test for "window already expired on restart" — the stale case
@@ -135,3 +168,23 @@ Before any soft stop or hard stop mechanism goes into production:
 5. Confirm the log message is visible at INFO level in normal operation
 
 If any of these 5 are missing, the mechanism WILL cause a silent bug.
+
+---
+
+## THE NO-LIVE-BETS WATCHDOG PROTOCOL
+**Added Session 35.** Implemented in main.py:
+
+```
+_NO_LIVE_BETS_WARN_HOURS = 24     # WARNING logged, check --health
+_NO_LIVE_BETS_CRITICAL_HOURS = 72  # CRITICAL logged, systematic debugging required
+```
+
+The trading loop checks at most once/hr. Surfaces the issue. Never forces bets.
+
+**Quick-start diagnostic:**
+```
+python main.py --health                                          # structured overview
+grep 'kill switch blocked\|SOFT STOP' /tmp/polybot_*.log | tail -20  # recent blocks
+grep 'CRITICAL\|ERROR' /tmp/polybot_*.log | tail -20            # loop errors
+python main.py --report                                          # P&L + bet count
+```

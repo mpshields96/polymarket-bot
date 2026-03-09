@@ -55,6 +55,13 @@ POLL_INTERVAL_SEC = 30      # How often to check markets and generate signals
 BANKROLL_SNAPSHOT_SEC = 300  # How often to record bankroll to DB (5 min)
 SETTLEMENT_POLL_SEC = 60    # How often to check for settled markets
 
+# ── No-live-bets watchdog thresholds ───────────────────────────────────
+# If btc_drift (the only live strategy) has been running with 0 new live bets
+# for this long, something is wrong. Does NOT force bets — only surfaces the issue.
+_NO_LIVE_BETS_WARN_HOURS = 24    # WARNING level: review kill switch + signal logs
+_NO_LIVE_BETS_CRITICAL_HOURS = 72  # CRITICAL level: systematic debugging required
+_NO_LIVE_BETS_WARN_INTERVAL_SEC = 3600  # Re-emit watchdog warning at most once/hr
+
 
 async def trading_loop(
     kalshi,
@@ -91,6 +98,9 @@ async def trading_loop(
     # Paper/live mode for dedup and daily-cap filtering — computed once, never changes mid-run
     is_paper_mode = not (live_executor_enabled and live_confirmed)
 
+    # ── No-live-bets watchdog state ────────────────────────────────────
+    _last_no_bets_warn_ts: float = 0.0  # when we last emitted a watchdog warning
+
     while True:
         try:
             # ── Bankroll snapshot ─────────────────────────────────────
@@ -114,6 +124,36 @@ async def trading_loop(
             if kill_switch.is_hard_stopped:
                 logger.critical("Kill switch is HARD STOPPED. Halting loop.")
                 break
+
+            # ── No-live-bets watchdog (live loops only) ───────────────
+            # If the live strategy hasn't generated a bet in too long,
+            # something is objectively wrong. Surfaces it — never forces bets.
+            if (
+                live_executor_enabled
+                and live_confirmed
+                and now - _last_no_bets_warn_ts > _NO_LIVE_BETS_WARN_INTERVAL_SEC
+            ):
+                _last_live_trades = db.get_trades(is_paper=False, limit=1)
+                if _last_live_trades:
+                    _last_live_ts = _last_live_trades[0].get("timestamp") or 0.0
+                    _elapsed_hr = (now - _last_live_ts) / 3600
+                    if _elapsed_hr >= _NO_LIVE_BETS_CRITICAL_HOURS:
+                        logger.critical(
+                            "[%s] NO LIVE BETS in %.0fhr (threshold: %dhr) — "
+                            "something is wrong. Check: kill switch state, signal frequency, "
+                            "strategy thresholds, log errors. "
+                            "Run: python main.py --health",
+                            loop_name, _elapsed_hr, _NO_LIVE_BETS_CRITICAL_HOURS,
+                        )
+                        _last_no_bets_warn_ts = now
+                    elif _elapsed_hr >= _NO_LIVE_BETS_WARN_HOURS:
+                        logger.warning(
+                            "[%s] No live bets in %.0fhr (warn threshold: %dhr). "
+                            "Possible causes: kill switch soft stop, low signal frequency, "
+                            "strict thresholds. Run: python main.py --health",
+                            loop_name, _elapsed_hr, _NO_LIVE_BETS_WARN_HOURS,
+                        )
+                        _last_no_bets_warn_ts = now
 
             # ── Get open BTC markets ──────────────────────────────────
             try:
@@ -1782,6 +1822,257 @@ def print_status(db) -> None:
     print()
 
 
+# ── Health diagnostic command ──────────────────────────────────────────
+
+
+def print_health(db) -> None:
+    """
+    Comprehensive bot health diagnostic. Run via: python main.py --health
+
+    Surfaces ALL known silent failure modes:
+      - Kill switch state (hard stop, daily loss, consecutive streak + staleness)
+      - Last live bet + elapsed time (warns at 24hr, critical at 72hr)
+      - Open trades including any non-Kalshi tickers (settlement orphans)
+      - SDATA quota consumption
+      - Bot PID and whether process is running
+      - Recent KILL_SWITCH_EVENT.log entries
+    """
+    import time as _time
+    import json as _json
+    import os as _os
+    from src.risk.kill_switch import (
+        COOLING_PERIOD_HOURS,
+        CONSECUTIVE_LOSS_LIMIT,
+        DAILY_LOSS_LIMIT_PCT,
+    )
+
+    now = _time.time()
+    width = 70
+    warnings: list[str] = []  # actionable but non-critical
+    issues: list[str] = []    # critical / blocking
+
+    print()
+    print("=" * width)
+    print("  BOT HEALTH DIAGNOSTIC")
+    print(f"  Run at: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
+    print("=" * width)
+
+    # ── 1. Kill switch state ──────────────────────────────────────────
+    print()
+    print("  [1] KILL SWITCH STATE")
+    print("  " + "-" * (width - 2))
+
+    # Hard stop — check lock file
+    lock_path = PROJECT_ROOT / "kill_switch.lock"
+    if lock_path.exists():
+        try:
+            lock_content = lock_path.read_text().strip()
+            print(f"  Hard stopped:      ACTIVE - {lock_content[:55]}")
+            issues.append("HARD STOP active — review KILL_SWITCH_EVENT.log, then --reset-killswitch")
+        except Exception:
+            print(f"  Hard stopped:      ACTIVE (lock file unreadable)")
+            issues.append("Hard stop lock file exists but unreadable")
+    else:
+        print(f"  Hard stopped:      OK (no lock file)")
+
+    # Daily loss
+    daily_loss = db.daily_live_loss_usd()
+    bankroll = db.latest_bankroll() or 50.0
+    daily_limit = bankroll * DAILY_LOSS_LIMIT_PCT
+    daily_pct = (daily_loss / daily_limit * 100) if daily_limit > 0 else 0
+    daily_flag = " -- SOFT STOP ACTIVE" if daily_loss >= daily_limit else ""
+    print(f"  Daily loss (live): ${daily_loss:.2f} / ${daily_limit:.2f} ({daily_pct:.0f}%){daily_flag}")
+    if daily_loss >= daily_limit:
+        warnings.append(f"Daily loss soft stop active: ${daily_loss:.2f} >= ${daily_limit:.2f}")
+
+    # Consecutive losses + staleness
+    streak, last_loss_ts = db.current_live_consecutive_losses()
+    if streak == 0:
+        print(f"  Consecutive:       {streak}/{CONSECUTIVE_LOSS_LIMIT} -- OK")
+    elif last_loss_ts is None:
+        print(f"  Consecutive:       {streak}/{CONSECUTIVE_LOSS_LIMIT} -- AT LIMIT (no timestamp -- conservative block may be active)")
+        warnings.append(f"Consecutive streak {streak} at limit, no timestamp — verify cooling state")
+    else:
+        cooling_window_sec = COOLING_PERIOD_HOURS * 3600
+        elapsed_hr = (now - last_loss_ts) / 3600
+        if streak >= CONSECUTIVE_LOSS_LIMIT and elapsed_hr < COOLING_PERIOD_HOURS:
+            remaining_min = (cooling_window_sec - (now - last_loss_ts)) / 60
+            print(f"  Consecutive:       {streak}/{CONSECUTIVE_LOSS_LIMIT} -- COOLING {remaining_min:.0f}min remaining (last loss {elapsed_hr:.1f}hr ago)")
+            warnings.append(f"Consecutive loss cooling: {remaining_min:.0f}min remaining — live bets blocked")
+        elif streak >= CONSECUTIVE_LOSS_LIMIT:
+            print(f"  Consecutive:       {streak}/{CONSECUTIVE_LOSS_LIMIT} -- stale, last loss {elapsed_hr:.1f}hr ago (cooling already served)")
+        else:
+            print(f"  Consecutive:       {streak}/{CONSECUTIVE_LOSS_LIMIT} -- last loss {elapsed_hr:.1f}hr ago")
+
+    # ── 2. Live trading activity ───────────────────────────────────────
+    print()
+    print("  [2] LIVE TRADING ACTIVITY")
+    print("  " + "-" * (width - 2))
+
+    live_trades_recent = db.get_trades(is_paper=False, limit=1)
+    if not live_trades_recent:
+        print("  Last live bet:     (none -- no live trades ever placed)")
+        warnings.append("No live bets ever placed — bot has never executed a live trade")
+    else:
+        last_live = live_trades_recent[0]
+        last_ts = last_live.get("timestamp") or 0.0
+        elapsed_hr = (now - last_ts) / 3600
+        ts_str = datetime.fromtimestamp(last_ts, timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        ticker = last_live.get("ticker", "?")
+        strategy_name = last_live.get("strategy", "?")
+        result = last_live.get("result") or "open"
+        print(f"  Last live bet:     {ts_str}  [{ticker}]  strategy={strategy_name}  result={result}")
+        if elapsed_hr >= _NO_LIVE_BETS_CRITICAL_HOURS:
+            print(f"  Elapsed:           {elapsed_hr:.0f}hr -- CRITICAL: something is wrong (threshold {_NO_LIVE_BETS_CRITICAL_HOURS}hr)")
+            issues.append(
+                f"NO LIVE BETS in {elapsed_hr:.0f}hr (threshold {_NO_LIVE_BETS_CRITICAL_HOURS}hr). "
+                f"Causes to check: kill switch soft stop | signal too rare | thresholds too strict | loop error. "
+                f"Run: grep 'kill switch blocked\\|SOFT STOP\\|No open' /tmp/polybot_*.log | tail -30"
+            )
+        elif elapsed_hr >= _NO_LIVE_BETS_WARN_HOURS:
+            print(f"  Elapsed:           {elapsed_hr:.0f}hr -- WARNING: no live bet in {_NO_LIVE_BETS_WARN_HOURS}hr+")
+            warnings.append(
+                f"No live bets in {elapsed_hr:.0f}hr. Check: kill switch state above | signal conditions | loop errors"
+            )
+        else:
+            print(f"  Elapsed:           {elapsed_hr:.1f}hr -- OK")
+
+    all_live = db.get_trades(is_paper=False, limit=2000)
+    settled_live = [t for t in all_live if t.get("result")]
+    print(f"  Total live bets:   {len(all_live)} placed, {len(settled_live)} settled")
+
+    # ── 3. Open trades / settlement orphans ───────────────────────────
+    print()
+    print("  [3] OPEN TRADES")
+    print("  " + "-" * (width - 2))
+
+    open_trades = db.get_open_trades()
+    open_live = [t for t in open_trades if not t.get("is_paper")]
+    open_paper = [t for t in open_trades if t.get("is_paper")]
+    non_kx = [t for t in open_trades if not t.get("ticker", "").upper().startswith("KX")]
+
+    print(f"  Open live bets:    {len(open_live)}")
+    print(f"  Open paper bets:   {len(open_paper)}")
+
+    non_kx_live = [t for t in non_kx if not t.get("is_paper")]
+    non_kx_paper = [t for t in non_kx if t.get("is_paper")]
+    if non_kx_live:
+        print(f"  Non-Kalshi LIVE ({len(non_kx_live)} -- these will cause 404 in settlement loop):")
+        for t in non_kx_live[:5]:
+            print(f"    ticker={t.get('ticker', '?')}  strategy={t.get('strategy', '?')}")
+        issues.append(
+            f"{len(non_kx_live)} non-KX LIVE tickers in open trades — settlement loop KX filter may be missing"
+        )
+    elif non_kx_paper:
+        print(f"  Non-Kalshi paper: {len(non_kx_paper)} (all is_paper=1, e.g. sports_futures_v1 -- OK, settlement loop ignores them)")
+    else:
+        print(f"  Non-Kalshi tickers: none (OK)")
+
+    stale_hr = 48
+    stale_open = [
+        t for t in open_trades
+        if (t.get("timestamp") or 0) and (now - (t.get("timestamp") or 0)) / 3600 > stale_hr
+    ]
+    if stale_open:
+        print(f"  Stale open (>{stale_hr}hr): {len(stale_open)} -- may be missed settlements")
+        warnings.append(f"{len(stale_open)} open trades older than {stale_hr}hr — settlement loop may have missed them")
+    else:
+        print(f"  Stale open (>{stale_hr}hr): none (OK)")
+
+    # ── 4. Bot process ─────────────────────────────────────────────────
+    print()
+    print("  [4] BOT PROCESS")
+    print("  " + "-" * (width - 2))
+
+    pid_path = PROJECT_ROOT / "bot.pid"
+    if pid_path.exists():
+        try:
+            pid = int(pid_path.read_text().strip())
+            try:
+                _os.kill(pid, 0)
+                print(f"  Bot PID:           {pid} (running)")
+            except ProcessLookupError:
+                print(f"  Bot PID:           {pid} -- NOT running (stale pid file?)")
+                warnings.append(f"bot.pid has PID {pid} but process not found — stale pid or bot crashed")
+            except PermissionError:
+                print(f"  Bot PID:           {pid} (running, different user)")
+        except (ValueError, OSError) as e:
+            print(f"  Bot PID:           unreadable -- {e}")
+    else:
+        print(f"  Bot PID:           not found (bot not running or clean exit)")
+
+    # ── 5. SDATA quota ─────────────────────────────────────────────────
+    print()
+    print("  [5] SDATA QUOTA")
+    print("  " + "-" * (width - 2))
+
+    sdata_path = PROJECT_ROOT / "data" / "sdata_quota.json"
+    if sdata_path.exists():
+        try:
+            quota_data = _json.loads(sdata_path.read_text())
+            used = quota_data.get("used", 0)
+            qlimit = quota_data.get("limit", 500)
+            year = quota_data.get("year", "?")
+            month = quota_data.get("month", "?")
+            reset_str = f"{year}-{int(month)+1:02d}-01" if year != "?" and month != "?" else "next month"
+            pct = (used / qlimit * 100) if qlimit > 0 else 0
+            flag = " -- HIGH" if pct > 80 else (" -- NEAR CAP" if pct > 95 else "")
+            print(f"  SDATA used:        {used}/{qlimit} ({pct:.0f}%) resets {reset_str}{flag}")
+            if pct > 80:
+                warnings.append(f"SDATA quota at {pct:.0f}% ({used}/{qlimit}) — approaching monthly cap")
+        except Exception as e:
+            print(f"  SDATA quota:       error reading -- {e}")
+    else:
+        print(f"  SDATA quota:       (no quota file -- sports_futures_v1 not yet run this month)")
+
+    # ── 6. Recent kill switch events ──────────────────────────────────
+    print()
+    print("  [6] RECENT KILL SWITCH EVENTS")
+    print("  " + "-" * (width - 2))
+
+    event_log_path = PROJECT_ROOT / "KILL_SWITCH_EVENT.log"
+    if event_log_path.exists():
+        try:
+            lines = event_log_path.read_text().splitlines()
+            real_events = [ln for ln in lines if ln.strip()]
+            recent_events = real_events[-6:]
+            if recent_events:
+                for line in recent_events:
+                    print(f"  {line[:width - 4]}")
+            else:
+                print("  (log exists but empty)")
+        except Exception as e:
+            print(f"  Error reading event log: {e}")
+    else:
+        print(f"  (no event log -- no kill switch hard stops ever fired)")
+
+    # ── 7. Summary ────────────────────────────────────────────────────
+    print()
+    print("=" * width)
+    if issues:
+        print("  CRITICAL:")
+        for issue in issues:
+            print(f"    * {issue}")
+    if warnings:
+        print("  WARNINGS:")
+        for w in warnings:
+            print(f"    * {w}")
+    if not issues and not warnings:
+        print("  All systems healthy -- no active blocks or anomalies detected.")
+    print()
+    print("  Useful commands:")
+    print("  python main.py --status           # recent trades + P&L")
+    print("  python main.py --report           # today's strategy breakdown")
+    print("  python main.py --graduation-status  # live bet progress toward graduation")
+    if issues or warnings:
+        print()
+        print("  If no live bets for 24hr+:")
+        print("    grep 'kill switch blocked\\|SOFT STOP\\|No open' /tmp/polybot_*.log | tail -30")
+        print("    grep 'WARNING\\|ERROR\\|CRITICAL' /tmp/polybot_*.log | tail -20")
+    print("=" * width)
+    print()
+
+
 # ── Main ──────────────────────────────────────────────────────────────
 
 
@@ -1801,6 +2092,9 @@ async def main():
                         help="Print bot status (bankroll, prices, pending bets, recent trades) and exit")
     parser.add_argument("--export-trades", action="store_true",
                         help="Export all trades to reports/trades.csv and exit")
+    parser.add_argument("--health", action="store_true",
+                        help="Comprehensive health diagnostic: surfaces kill switch state, "
+                             "no-live-bets warnings, open trade anomalies, SDATA quota, PID")
     args = parser.parse_args()
 
     # ── --reset-killswitch ────────────────────────────────────────────
@@ -1818,7 +2112,7 @@ async def main():
         sys.exit(result.returncode)
 
     # ── Read-only commands (bypass bot lock — safe while bot is live) ──
-    _read_only_mode = args.status or args.report or args.graduation_status or args.export_trades
+    _read_only_mode = args.status or args.report or args.graduation_status or args.export_trades or args.health
     if _read_only_mode:
         from src.db import load_from_config as db_load
         db = db_load()
@@ -1832,6 +2126,8 @@ async def main():
         elif args.export_trades:
             path = db.export_trades_csv()
             print(f"Exported {path}")
+        elif args.health:
+            print_health(db)
         db.close()
         return
 

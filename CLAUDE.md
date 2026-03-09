@@ -152,7 +152,9 @@ DO NOT: fix symptoms without finding root cause
 - **settlement_loop uses `paper_exec.settle()` for live trades too** — logs say `[paper] Settled` even for live trades. Cosmetic only; P&L math and DB update are correct.
 - **late_penalty in btc_drift reduces `confidence` but NOT `edge_pct`** — so late-reference signals still show high edge_pct. Capped at $5 hard max anyway, so no real money impact.
 - **btc_drift has no price extremes filter** — fires at 3¢/97¢ even though sigmoid was calibrated on near-50¢ data. At extremes the model is extrapolating; HFTs have usually priced in certainty for good reason. Fix: add min_signal_price_cents=10 / max_signal_price_cents=90. See .planning/todos.md.
-- **`--status`, `--report`, `--graduation-status`** all bypass bot PID lock — safe while live
+- **`--status`, `--report`, `--graduation-status`, `--health`** all bypass bot PID lock — safe while live
+- **`python main.py --health`** — comprehensive diagnostic. Run FIRST whenever you notice no live bets for 24hr+. Surfaces: kill switch state + staleness, last live bet timestamp, open trade anomalies (non-KX tickers), SDATA quota, bot PID status, recent kill switch events
+- **No-live-bets watchdog**: trading_loop emits WARNING at 24hr, CRITICAL at 72hr with no live bet. NOT a problem if signal conditions are genuinely absent (btc_drift needs ~0.19% BTC drift). IS a problem if kill switch, loop error, or stale state is blocking. Always check `--health` before concluding signal frequency is the cause.
 - **`--report`**: now shows per-strategy breakdown (bets, W/L, P&L, live/paper emoji)
 - **`scripts/notify_midnight.sh`**: midnight UTC daily P&L Reminders notifier — start once with `& echo $! > /tmp/polybot_midnight.pid`
 - **unemployment_rate_v1**: uses `math.erfc` for normal CDF (no scipy). Shares fred_feed with fomc_loop.
