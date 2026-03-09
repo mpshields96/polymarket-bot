@@ -290,3 +290,59 @@ class TestTotalPnlUsd:
     def test_total_pnl_zero_on_empty(self, fresh_db):
         result = fresh_db.graduation_stats("btc_lag_v1")
         assert result["total_pnl_usd"] == 0.0
+
+
+# ── Test: is_paper param (live vs paper filtering) ────────────────────────
+
+class TestGraduationStatsIsLiveParam:
+    def test_live_param_counts_only_live_trades(self, fresh_db):
+        """is_paper=False must count live trades, ignore paper."""
+        # 5 live wins
+        for i in range(5):
+            _insert_trade(fresh_db, "btc_drift_v1", "yes", "yes", is_paper=False)
+        # 20 paper wins — must NOT be counted
+        for i in range(20):
+            _insert_trade(fresh_db, "btc_drift_v1", "yes", "yes", is_paper=True)
+
+        result = fresh_db.graduation_stats("btc_drift_v1", is_paper=False)
+        assert result["settled_count"] == 5
+
+    def test_live_param_returns_correct_win_rate(self, fresh_db):
+        """Win rate from live trades only."""
+        # 3 live wins, 1 live loss
+        for i in range(3):
+            _insert_trade(fresh_db, "btc_drift_v1", "yes", "yes", is_paper=False)
+        _insert_trade(fresh_db, "btc_drift_v1", "yes", "no", is_paper=False)
+        # Paper loss — must not affect live win rate
+        _insert_trade(fresh_db, "btc_drift_v1", "yes", "no", is_paper=True)
+
+        result = fresh_db.graduation_stats("btc_drift_v1", is_paper=False)
+        assert abs(result["win_rate"] - 0.75) < 0.01
+
+    def test_default_is_paper_true_unchanged(self, fresh_db):
+        """Calling with no is_paper arg still returns paper-only stats."""
+        _insert_trade(fresh_db, "btc_lag_v1", "yes", "yes", is_paper=False)  # live win
+        _insert_trade(fresh_db, "btc_lag_v1", "yes", "no",  is_paper=True)   # paper loss
+
+        result = fresh_db.graduation_stats("btc_lag_v1")  # default is_paper=True
+        assert result["settled_count"] == 1
+        assert result["win_rate"] == 0.0  # only paper loss counted
+
+    def test_is_paper_false_empty_returns_zero(self, fresh_db):
+        """is_paper=False with no live trades returns zero settled count."""
+        result = fresh_db.graduation_stats("btc_drift_v1", is_paper=False)
+        assert result["settled_count"] == 0
+        assert result["win_rate"] is None
+
+    def test_first_trade_ts_from_live_trades_only(self, fresh_db):
+        """first_trade_ts uses live trades when is_paper=False."""
+        early_paper_ts = time.time() - 86400 * 30  # 30 days ago
+        live_ts = time.time() - 86400 * 5           # 5 days ago
+
+        _insert_trade(fresh_db, "btc_drift_v1", "yes", "yes",
+                      is_paper=True, ts=early_paper_ts)
+        _insert_trade(fresh_db, "btc_drift_v1", "yes", "yes",
+                      is_paper=False, ts=live_ts)
+
+        result = fresh_db.graduation_stats("btc_drift_v1", is_paper=False)
+        assert abs(result["first_trade_ts"] - live_ts) < 1.0

@@ -444,26 +444,35 @@ class DB:
         total_cents = row[0] or 0
         return total_cents / 100.0
 
-    def graduation_stats(self, strategy: str) -> dict:
+    def graduation_stats(self, strategy: str, is_paper: Optional[bool] = True) -> dict:
         """
-        Return per-strategy paper trading metrics needed for graduation check.
+        Return per-strategy trading metrics needed for graduation check.
 
-        Only counts paper trades (is_paper=1). Returns a dict with keys:
-            settled_count       int   — number of settled paper trades
+        When is_paper=True (default): counts paper trades only.
+        When is_paper=False: counts live trades only.
+        When is_paper=None: counts all trades regardless of paper/live.
+
+        Returns a dict with keys:
+            settled_count       int   — number of settled trades
             win_rate            float | None — wins/settled (result==side)
             brier_score         float | None — mean((win_prob - outcome)^2), lower is better
             consecutive_losses  int   — current streak of losses at end of trade history
-            first_trade_ts      float | None — unix timestamp of first paper trade
-            days_running        float — calendar days since first paper trade (0 if none)
-            total_pnl_usd       float — sum of settled P&L in USD (paper only)
+            first_trade_ts      float | None — unix timestamp of first trade (filtered by is_paper)
+            days_running        float — calendar days since first trade (0 if none)
+            total_pnl_usd       float — sum of settled P&L in USD
         """
         import time as _time
 
-        # Settled paper trades for this strategy, oldest first
+        # Build is_paper filter clause used in both queries below
+        ip_filter = ""
+        if is_paper is not None:
+            ip_filter = f" AND is_paper = {int(is_paper)}"
+
+        # Settled trades for this strategy, oldest first
         rows = self._conn.execute(
-            """SELECT result, side, win_prob, pnl_cents, timestamp
+            f"""SELECT result, side, win_prob, pnl_cents, timestamp
                FROM trades
-               WHERE strategy = ? AND is_paper = 1 AND result IS NOT NULL
+               WHERE strategy = ?{ip_filter} AND result IS NOT NULL
                ORDER BY timestamp ASC""",
             (strategy,),
         ).fetchall()
@@ -503,9 +512,9 @@ class DB:
             else:
                 break
 
-        # First trade timestamp (paper only, any result — including unsettled)
+        # First trade timestamp (any result — including unsettled), filtered by is_paper
         first_row = self._conn.execute(
-            "SELECT MIN(timestamp) FROM trades WHERE strategy = ? AND is_paper = 1",
+            f"SELECT MIN(timestamp) FROM trades WHERE strategy = ?{ip_filter}",
             (strategy,),
         ).fetchone()
         first_trade_ts = first_row[0] if first_row and first_row[0] else None
