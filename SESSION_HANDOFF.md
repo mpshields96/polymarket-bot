@@ -15,10 +15,11 @@ Health: `python3 main.py --health`
 
 btc_drift MICRO-LIVE (1 contract/bet ~$0.35-0.65, UNLIMITED/day) — thresholds RESTORED 0.05/0.05
 eth_drift MICRO-LIVE (Session 36, same cap) — was paper-only, now live
+sol_drift MICRO-LIVE (Session 36, same cap) — NEW, KXSOL15M, min_drift_pct=0.15 (3x BTC)
 All other strategies: PAPER-ONLY
 Test count: 869/869
 Last commit: aa83e78 (Session 36: thresholds + eth_drift live + CHANGELOG)
-Live bets: 22 placed, 21 settled (needs restart to count new bets)
+Live bets: 22+ (bot restarted with 3 drift loops: btc+eth+sol)
 
 ═══════════════════════════════════════════════════
 

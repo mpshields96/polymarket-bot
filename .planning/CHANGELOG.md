@@ -166,3 +166,14 @@
 ### Why (threshold restore): Session 25 raised btc_drift thresholds from 0.05/0.05 → 0.10/0.08. This was done with only ~12 live trades, violating PRINCIPLES.md's own 30-data-point standard. The result: 1 live bet/day, making calibration take weeks instead of days. Signals with 5-8% edge were firing in logs but being rejected by the 8% floor. Math: at 0.05% drift with sensitivity=800 → raw_prob≈0.599 → edge≈8.1% YES edge. Restoring original thresholds → ~8-15 signals/day, reaching 30 bets in 2-4 days.
 ### Why (eth_drift live): btc_drift already has 12/30 live bets. eth_drift has 62+ paper trades at the SAME thresholds (0.05/0.05). Adding eth_drift micro-live doubles data collection rate. Same 1-contract cap (~$0.35-0.65/bet). Both strategies governed by shared daily loss limit.
 ### Test count: 869/869
+
+---
+
+## Session 36 (cont) — 2026-03-08 — sol_drift_v1 micro-live added
+### Changed
+- src/strategies/btc_drift.py: load_sol_drift_from_config() added
+- main.py: sol_drift_task wired — live_mode, calibration_max_usd=0.01, trade_lock shared, stagger 29s
+- config.yaml: sol_drift section — min_drift_pct=0.15 (3x btc_drift), min_edge_pct=0.05, sensitivity=800
+- btc_imbalance stagger shifted 29s→36s to make room
+### Why: Three concurrent drift loops (BTC+ETH+SOL) maximize calibration data rate at minimal financial risk ($0.35-0.65/bet). SOL ~3x more volatile than BTC → min_drift_pct scaled 3x (0.15%) to maintain same edge quality bar. Combined expected signal rate: 15-25/day.
+### Test count: 869/869 | Commit: 11ff825
