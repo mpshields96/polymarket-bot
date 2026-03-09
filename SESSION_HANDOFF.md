@@ -13,14 +13,16 @@ Read these files immediately before doing anything else:
   3. cat .planning/KALSHI_MARKETS.md <- complete Kalshi market map, volumes, what is built
 Do NOT ask setup questions. Do NOT write code until you have read all three.
 
-KEY STATE:
+KEY STATE (Session 36 close — 2026-03-09):
 * Bot: PID 74462, live mode, log /tmp/polybot_session36.log
 * THREE MICRO-LIVE LOOPS: btc_drift + eth_drift + sol_drift (all ~$0.35-0.65/bet, unlimited/day)
 * All others: PAPER-ONLY. 869/869 tests passing.
-* Last commits: e904715 (todos+roadmap), 3477987 (report fix), 25b5f2b (KALSHI_MARKETS re-probe)
-* Bankroll: ~$79.76 | All-time live P&L: ~-$16.53 (improving) | btc_drift: 12/30 live bets
+* Last commits: 8be7901 (session close), e904715 (todos+roadmap), 3477987 (report fix)
+* Bankroll: ~$79.76 | All-time live P&L: -$16.53 (improving) | btc_drift: 12/30 live bets
 * Protection: 20% daily loss + $20 floor. GSD health: HEALTHY. 0 pending todos.
 * --report correctly splits paper/live by is_paper per trade (two rows on transition days)
+* Autonomous monitoring task ACTIVE: "polybot-monitor" runs every 30 min, logs to
+  /tmp/polybot_autonomous_monitor.md — read this file if resuming after Matthew was asleep
 
 NEXT SESSION DIRECTIVE: DO NOTHING except watch until 30 settled live bets per strategy.
 Run python3 main.py --report to check progress. XRP drift is next IF drift validates.
@@ -31,6 +33,34 @@ STANDING DIRECTIVES (never need repeating):
 * 869 tests must pass before any commit (count updates each session)
 * Read .planning/CHANGELOG.md at session start, append entries at session end
 * Read .planning/KALSHI_MARKETS.md before any Kalshi strategy work
+* Never touch files outside /Users/matthewshields/Projects/polymarket-bot/
+
+TOKEN BUDGET (Matthew's standing permission — never needs repeating):
+* gsd:health + gsd:progress: ONCE at session start only (~1-2% each, ~Low tier)
+* gsd:quick: use freely for any focused task, bug fix, or feature (~1-2%, Low tier)
+* superpowers:TDD, superpowers:verification-before-completion,
+  superpowers:systematic-debugging, gsd:add-todo: ALWAYS FREE (inline markdown, no agent)
+* Tier-expensive (gsd:plan-phase, gsd:execute-phase, gsd:verify-work,
+  superpowers:dispatching-parallel-agents): max 5 uses per 5-hour window, each ~3-5%
+  budget. ONLY when ALL conditions met: 5+ tasks, 4+ subsystems, multi-session, PLAN.md needed.
+* Default: gsd:quick + superpowers:TDD + superpowers:verification-before-completion
+
+AUTONOMOUS OPERATION MODE (active when Matthew is asleep or away):
+* NEVER pause to ask questions. NEVER wait for confirmation. NEVER stop mid-task.
+* All findings + actions → append to /tmp/polybot_autonomous_monitor.md (never overwrite)
+  Format each entry: ## [TIMESTAMP CDT] — [status] — [action taken or NONE]
+* Check bot alive: cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo RUNNING
+* If bot STOPPED: restart immediately using live restart command (COMMANDS section below)
+* If kill switch fired: log it, do NOT reset — daily loss limit governs, leave it alone
+* Run --report + --graduation-status at each monitoring cycle; log results to MD
+* If approaching context limit: update SESSION_HANDOFF.md + append CHANGELOG.md FIRST, then exit
+* At session end (with or without work done): always append CHANGELOG.md entry
+
+RESUMING AFTER AUTONOMOUS PERIOD:
+* cat /tmp/polybot_autonomous_monitor.md  <- what happened while you were away
+* python3 main.py --report                <- current P&L state
+* python3 main.py --graduation-status     <- live bet progress toward Brier
+* python3 main.py --health                <- kill switch + open trades + quota
 
 Once loaded: run /gsd:health then /gsd:progress (session start only, not mid-session).
 Then: gsd:quick + superpowers:TDD + superpowers:verification-before-completion for all work.
