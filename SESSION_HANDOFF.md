@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-09 (Session 36 — complete rewrite)
+# Last updated: 2026-03-09 (Session 36 — final close-out)
 # ═══════════════════════════════════════════════════════════════
 
 ## ▶ COPY-PASTE THIS TO START A NEW SESSION (Session 37+)
@@ -17,9 +17,10 @@ KEY STATE:
 * Bot: PID 74462, live mode, log /tmp/polybot_session36.log
 * THREE MICRO-LIVE LOOPS: btc_drift + eth_drift + sol_drift (all ~$0.35-0.65/bet, unlimited/day)
 * All others: PAPER-ONLY. 869/869 tests passing.
-* Last commits: 3477987 (report fix), 25b5f2b (KALSHI_MARKETS re-probe), 11ff825 (sol_drift)
-* Bankroll: ~$79.76 | All-time live P&L: ~-$18 | Protection: 20% daily loss + $20 floor
-* --report now correctly splits paper/live by is_paper per trade (two rows on transition days)
+* Last commits: e904715 (todos+roadmap), 3477987 (report fix), 25b5f2b (KALSHI_MARKETS re-probe)
+* Bankroll: ~$79.76 | All-time live P&L: ~-$16.53 (improving) | btc_drift: 12/30 live bets
+* Protection: 20% daily loss + $20 floor. GSD health: HEALTHY. 0 pending todos.
+* --report correctly splits paper/live by is_paper per trade (two rows on transition days)
 
 NEXT SESSION DIRECTIVE: DO NOTHING except watch until 30 settled live bets per strategy.
 Run python3 main.py --report to check progress. XRP drift is next IF drift validates.
@@ -62,15 +63,16 @@ copy_trader_v1 (Polymarket.US — 0 matches, platform mismatch confirmed)
 ### Tests: 869/869
 
 ### Last commits:
+- e904715 — chore: todos marked complete + ROADMAP phase 04.2 acknowledged (GSD healthy)
 - 3477987 — fix(report): split paper/live rows by is_paper per-trade (not per-strategy mode)
 - 25b5f2b — docs: full Kalshi live API re-probe — 5 new market categories discovered
-- 7197556 — docs: KALSHI_MARKETS.md created
 - 11ff825 — feat: sol_drift_v1 micro-live (third drift data stream)
 - aa83e78 — feat: eth_drift micro-live + btc_drift thresholds restored 0.05/0.05
 
 ### P&L:
 - Bankroll: ~$79.76
-- All-time live P&L: ~-$18 (improving with 3 loops now running)
+- All-time live P&L: -$16.53 (improving — today +$2.32 live)
+- btc_drift: 12/30 live settled bets. eth_drift: ~3 live. sol_drift: ~2 live.
 - Protection: 20% daily loss limit + $20 bankroll floor. NO lifetime % hard stop.
 
 # ═══════════════════════════════════════════════════════════════
@@ -130,6 +132,12 @@ Polymarket:
 
 8. MEMORY.md rewritten — was over 200-line limit with stale facts. Now current.
 
+9. GSD health W007 FIXED — phase 04.2 added to ROADMAP.md with correct `### Phase 04.2:` format.
+   GSD health now: HEALTHY (0 errors, 0 warnings). Commit: e904715
+
+10. Stale todos CLEARED — 2 todos from 2026-02-28 both completed in Sessions 31/35.
+    Moved to .planning/todos/completed/. Pending queue: 0.
+
 # ═══════════════════════════════════════════════════════════════
 
 ## PENDING DECISIONS + NEXT TASKS
@@ -139,7 +147,7 @@ Polymarket:
    Do NOT change thresholds, caps, or add new strategies until Brier scores computed.
 
 2. Brier score computation — once any strategy hits 30 settled live bets.
-   btc_drift is closest (~7 settled live bets today, was blocked 7 days earlier).
+   btc_drift is closest (12 settled live bets as of 2026-03-09 session close).
    If Brier < 0.30 -> eligible for Stage 2 ($5 cap) and expansion gate opens.
 
 3. XRP drift — NEXT safe expansion after drift validates.

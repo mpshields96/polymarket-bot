@@ -217,3 +217,22 @@
 ### Why (MEMORY.md rewrite): Future chats must never need to re-research what's been confirmed.
   Every session must update MEMORY.md if anything changed. 200-line limit enforced.
 ### Test count: 869/869
+
+---
+
+## Session 36 (cont4) — 2026-03-09 — session close-out: GSD health + todos + verification
+### Changed
+- .planning/ROADMAP.md: added Phase 04.2 entry under Phases 1-4 COMPLETE block.
+  GSD tool expected `## Phase NN.N:` heading with colon — parseInt("04.2")=4 bug in GSD verify.cjs,
+  worked around by using exact `### Phase 04.2:` format so roadmapPhases.has("04.2") = true.
+- .planning/todos/completed/: moved 2 stale 2026-02-28 todos (slippage model, settlement verify).
+  Both were completed in Sessions 31+35. Pending queue is now empty.
+### Why: GSD health W007 was the only degraded signal at session start. Fixed so future sessions
+  start clean. Stale todos removed to prevent confusion about actual pending work.
+### Verification evidence
+- 869/869 tests: CONFIRMED PASSING (python3 -m pytest tests/ -q → 869 passed in 2.24s)
+- GSD health: HEALTHY (0 errors, 0 warnings, 0 info)
+- Bot PID 74462: RUNNING (kill -0 confirmed)
+- Today's P&L: +$3.68 (live: +$2.32, paper: +$1.36). All-time live: -$16.53 (improving).
+- btc_drift live settled: 12/30. eth_drift live: ~3. sol_drift live: ~2.
+### Test count: 869/869 | Commit: e904715
