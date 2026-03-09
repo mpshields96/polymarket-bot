@@ -99,13 +99,33 @@ copy_trader_v1 (Polymarket.US — 0 matches, platform mismatch confirmed)
 - e904715 — chore: todos marked complete + ROADMAP phase 04.2 acknowledged (GSD healthy)
 - 3477987 — fix(report): split paper/live rows by is_paper per-trade (not per-strategy mode)
 
-### P&L (as of 2026-03-10 00:30 CDT — autonomous session update):
-- Bankroll: ~$79.76
-- All-time live P&L: ~-$15.15 (improving)
-- btc_drift: **22/30** live settled bets (P&L -$14.56). eth_drift: 4 live. sol_drift: 3 live.
-- Protection: 20% daily loss limit + $20 bankroll floor. NO lifetime % hard stop.
-- BUG FOUND: --graduation-status shows 12/30 for btc_drift (queries is_paper=1 only).
-  Real count = 22 (is_paper=0). graduation_stats() needs live_only param. Fix next session.
+### P&L (as of 2026-03-10 02:09 CDT — autonomous session final update):
+- Bankroll: ~$79.76 → ~$83.50 (estimated, some bets settled in-session)
+- All-time live P&L: -$14.89 (improving from -$15.15)
+- Today: live $3.96 (btc_drift 9/14, eth_drift 8/13, sol_drift 7/8) — 57% win rate
+- btc_drift: **30/30** live settled bets ✅ | Brier = **0.2526** ✅ (< 0.30 threshold MET)
+- eth_drift: 13 live settled. sol_drift: 8 live settled.
+- Protection: 20% daily loss limit ($3.60 used of $16.70), $20 floor. NO lifetime hard stop.
+
+### EXPANSION GATE STATUS (updated 02:09 CDT):
+| Criterion | Status |
+|-----------|--------|
+| btc_drift 30+ live bets | ✅ MET (exactly 30) |
+| Brier < 0.30 | ✅ MET (0.2526) |
+| 2-3 weeks live P&L data | ❌ NOT MET (~1 day live) |
+| No kill switch events | ❌ NOT MET (soft stop fired 01:49 CDT — 5 consec losses) |
+Gate: STILL CLOSED. Two criteria unmet. Do not build XRP drift until criteria above both pass.
+
+### BUG FOUND (autonomous session, NOT FIXED):
+- --graduation-status shows wrong count for live strategies (graduation_stats queries is_paper=1 only)
+- Real live settled counts come from direct SQL: `WHERE is_paper=0 AND result IS NOT NULL`
+- Fix needed: add is_paper param to graduation_stats(), update print_graduation_status()
+- Reporting bug only — no trading impact
+
+### KILL SWITCH STATE (at shutdown):
+- Soft stop: 5 consecutive losses → 2hr cooling (started 01:49 CDT, expires ~03:49 CDT)
+- Hard stop: CLEAR (no lock file)
+- On restart: consecutive losses will be seeded from DB; cooling may still be active
 
 # ═══════════════════════════════════════════════════════════════
 
@@ -174,13 +194,14 @@ Polymarket:
 
 ## PENDING DECISIONS + NEXT TASKS
 
-1. WATCH AND WAIT — 3 live loops collecting calibration data. Do nothing except monitor.
-   Run python3 main.py --report. Target: 30 settled live bets per strategy.
-   Do NOT change thresholds, caps, or add new strategies until Brier scores computed.
+1. ✅ BRIER GATE MET — btc_drift 30 live bets, Brier 0.2526. Expansion gate criteria check needed.
+   DO NOT build XRP drift yet — 2 remaining criteria unmet (see EXPANSION GATE STATUS table above).
+   Matthew: review kill switch event (5 consec losses, soft stop 01:49 CDT). Decide when to restart.
 
-2. Brier score computation — once any strategy hits 30 settled live bets.
-   btc_drift is closest (12 settled live bets as of 2026-03-09 session close).
-   If Brier < 0.30 -> eligible for Stage 2 ($5 cap) and expansion gate opens.
+2. RESTART CAUTION — kill switch soft stop active at shutdown (expires 03:49 CDT).
+   On restart before 03:49 CDT: cooling period will be seeded from DB and remain active.
+   On restart after 03:49 CDT: cooling expired, consecutive counter resets to 0.
+   Either way: bot is safe to restart.
 
 3. XRP drift — NEXT safe expansion after drift validates.
    Same code as sol_drift, ~15 min. KXXRP15M ~5,900 volume confirmed.

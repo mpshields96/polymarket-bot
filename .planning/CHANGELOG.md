@@ -256,3 +256,30 @@
 - 869/869 tests: CONFIRMED PASSING (autonomous verification)
 - sports_futures_v1: 54 paper bets placed, 0 settled — expected (non-KX tickers, settlement loop ignores them)
 ### Test count: 869/869 | No new commits (docs update only)
+
+---
+
+## Session 37 (autonomous, cont) — 2026-03-10 02:09 CDT — SHUTDOWN + MILESTONE
+### Milestone reached
+- btc_drift_v1: 30 live settled bets. Brier = 0.2526 (computed from live trades, win_prob all present).
+  Brier < 0.30 threshold MET. Trade count gate MET.
+  EXPANSION GATE still CLOSED: 2 criteria unmet:
+    (1) 2-3 weeks live P&L data (currently ~1 day)
+    (2) No kill switch events — soft stop fired 01:49 CDT (5 consecutive losses, 2hr cooling)
+  Matthew must review these before enabling XRP drift or Stage 2 promotion.
+### Kill switch event
+- 01:49 CDT soft stop fired: 5 consecutive losses → 2hr cooling. Correct behavior, left alone.
+  Daily loss at shutdown: $3.60/$16.70 (22% of limit — safe).
+  Hard stop: CLEAR. Cooling expires 03:49 CDT.
+### Overnight monitoring summary
+- Bot ran cleanly 23:23 CDT - 02:09 CDT (shutdown). 3 live loops active throughout.
+- Total live bets placed overnight: ~14 (btc), ~13 (eth), ~8 (sol) drift bets across session.
+- Price guard observation: sol_drift + btc_drift occasionally placing bets 1-4¢ outside 35-65¢ range.
+  Pattern: signal generated at valid price, market moves ~1-4¢ during asyncio queue delay.
+  Not a risk issue at $0.33-0.66 bet sizes. Worth Matthew's review for code robustness.
+- sports_futures_v1: 97 paper bets, 0 settled (expected — non-KX tickers, settlement loop ignores)
+- 869/869 tests: CONFIRMED PASSING
+### Changed
+- SESSION_HANDOFF.md: complete rewrite of P&L section + expansion gate status table + kill switch state
+- .planning/CHANGELOG.md: this entry
+### Test count: 869/869
