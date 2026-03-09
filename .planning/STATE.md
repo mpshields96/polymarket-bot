@@ -57,6 +57,7 @@ None — slippage model and settlement verification complete.
 | 4 | Build real Kalshi-calibrated backtest using Kalshi candlestick API | 2026-03-01 | ecce5be | .planning/quick/4-build-real-kalshi-calibrated-backtest-fr/ |
 | 5 | Probe POST /v1/orders format on polymarket.us — found protobuf (not JSON) | 2026-03-08 | f3a3fef, b0added | .planning/quick/5-probe-post-v1-orders-format-on-polymarke/ |
 | 6 | CryptoDailyStrategy + loops (KXBTCD/KXETHD/KXSOLD, 24 hourly slots, 30 tests) | 2026-03-08 | b815af8, fc03851 | src/strategies/crypto_daily.py |
+| 7 | Add execution-time price guard to live.py (35-65c + 10c max slippage) | 2026-03-10 | 0ca6b5e, 3c8baa9 | .planning/quick/6-add-execution-time-price-guard-to-live-p/ |
 
 ## Phase Plans Completed
 
