@@ -1674,19 +1674,24 @@ def print_report(db):
     print(f"  P&L paper:       ${paper_pnl:>6.2f}  ({len(paper_settled)} settled)")
     print(f"  P&L total:       ${total_pnl_cents/100:>6.2f}")
 
-    # Per-strategy breakdown
-    strategies = sorted({t.get("strategy", "unknown") for t in today_trades if t.get("strategy")})
-    if strategies:
+    # Per-strategy breakdown — split paper vs live using is_paper on each trade
+    # Prevents mixing pre-restart paper bets with post-restart live bets for same strategy
+    strat_mode_keys = sorted({
+        (t.get("strategy", "unknown"), bool(t.get("is_paper", True)))
+        for t in today_trades if t.get("strategy")
+    })
+    if strat_mode_keys:
         print(f"\n  {'Strategy':<28} {'Bets':>4} {'W/L':>5} {'P&L':>8}")
         print("  " + "-" * (width - 2))
-        for strat in strategies:
-            strat_settled = [t for t in settled if t.get("strategy") == strat]
+        for strat, is_paper in strat_mode_keys:
+            strat_all = [t for t in today_trades
+                         if t.get("strategy") == strat and bool(t.get("is_paper", True)) == is_paper]
+            strat_settled = [t for t in strat_all if t.get("result")]
             strat_wins = [t for t in strat_settled if t["result"] == t["side"]]
             strat_pnl = sum(t.get("pnl_cents", 0) or 0 for t in strat_settled) / 100
-            strat_all_today = [t for t in today_trades if t.get("strategy") == strat]
             wl = f"{len(strat_wins)}/{len(strat_settled)}"
-            mode = "📋" if all(t.get("is_paper") for t in strat_all_today) else "🔴"
-            print(f"  {mode} {strat:<26} {len(strat_all_today):>4} {wl:>5} ${strat_pnl:>6.2f}")
+            mode = "📋" if is_paper else "🔴"
+            print(f"  {mode} {strat:<26} {len(strat_all):>4} {wl:>5} ${strat_pnl:>6.2f}")
 
     print(f"\n  All-time P&L (live):   ${db.total_realized_pnl_usd(is_paper=False):>7.2f}")
     print(f"  All-time P&L (paper):  ${db.total_realized_pnl_usd(is_paper=True):>7.2f}")

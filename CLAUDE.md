@@ -162,7 +162,7 @@ DO NOT: fix symptoms without finding root cause
 - **`--status`, `--report`, `--graduation-status`, `--health`** all bypass bot PID lock — safe while live
 - **`python main.py --health`** — comprehensive diagnostic. Run FIRST whenever you notice no live bets for 24hr+. Surfaces: kill switch state + staleness, last live bet timestamp, open trade anomalies (non-KX tickers), SDATA quota, bot PID status, recent kill switch events
 - **No-live-bets watchdog**: trading_loop emits WARNING at 24hr, CRITICAL at 72hr with no live bet. NOT a problem if signal conditions are genuinely absent (btc_drift needs ~0.19% BTC drift). IS a problem if kill switch, loop error, or stale state is blocking. Always check `--health` before concluding signal frequency is the cause.
-- **`--report`**: now shows per-strategy breakdown (bets, W/L, P&L, live/paper emoji)
+- **`--report`**: shows per-strategy breakdown (bets, W/L, P&L, live/paper emoji). Fixed Session 36: emoji (🔴/📋) and bet count are now per-trade is_paper flag, NOT per-strategy current-mode. If a strategy went live mid-day, you'll see TWO rows (📋 for pre-restart bets, 🔴 for post-restart live bets). This is correct and intentional — never mix paper P&L history with live P&L history.
 - **`scripts/notify_midnight.sh`**: midnight UTC daily P&L Reminders notifier — start once with `& echo $! > /tmp/polybot_midnight.pid`
 - **unemployment_rate_v1**: uses `math.erfc` for normal CDF (no scipy). Shares fred_feed with fomc_loop.
 - **KXUNRATE markets**: open ~2 days before BLS release. No open markets outside that window = expected.
@@ -196,7 +196,7 @@ DO NOT: fix symptoms without finding root cause
 - **Paper P&L is structurally optimistic (Session 31)** — three real gaps vs live: (1) slippage: paper 2¢ vs real 2-3¢ on Kalshi BTC; (2) fill queue: paper fills instantly, real orders queue behind HFTs; (3) counterparty: Jane St / Susquehanna reprice within seconds, paper ignores this. Use Brier score + real trade count for graduation decisions, NOT paper P&L magnitude.
 - **Price range guard on orderbook_imbalance.py added (Session 31)** — 35-65¢ guard was already on btc_lag/btc_drift but was MISSING from orderbook_imbalance.py. This caused a $233 fake paper profit (NO@2¢ bet). Any new strategy must add this guard. See `_MIN_SIGNAL_PRICE_CENTS`, `_MAX_SIGNAL_PRICE_CENTS` constants.
 - **calibration_max_usd param on trading_loop (Session 31)** — btc_drift passes `calibration_max_usd=0.01` → live.py always floors to 1 contract (actual cost $0.35-0.65). None = disabled. Only use for micro-live calibration. Do NOT add to other strategies.
-- **Kalshi copy trading is INFEASIBLE — closed permanently (Session 31)** — `GET /market/get-trades` returns zero user attribution. Centralized exchange = private by design. Do not revisit unless Kalshi adds opt-in social trading API.
+- **Kalshi copy trading is INFEASIBLE — closed permanently, re-confirmed Session 36** — `GET /market/get-trades` and the WebSocket public-trades channel both return ZERO user attribution (confirmed via https://docs.kalshi.com/api-reference/market/get-trades). Fields: trade_id, ticker, price, count, taker_side, created_time only. No trader ID, no wallet, no username. Third-party platforms (Duel.trade, FORCASTR, kalshitradingbot.net) exist but their data source is unknown — likely web scraping of opted-in public leaderboard profiles, NOT a public API. Kalshi leaderboard (kalshi.com/social/leaderboard) is opt-in and shows aggregated performance metrics only, not trade history. DO NOT build a Kalshi copy-trading strategy — architectural dead end. The winning pattern on Kalshi is statistical edge (your current approach). All open-source Kalshi bots on GitHub use signal-based trading, zero use copy trading.
 - **Polymarket architecture FINAL (Session 32)** — Matthew is US-based on iOS app (polymarket.US, $60 balance). polymarket.COM is geo-restricted for US users + requires ECDSA/Polygon wallet — that path is CLOSED (no VPN, no .COM account needed). The ENTIRE copy trade system runs on polymarket.US: whale trade data comes from `data-api.polymarket.com` (public, no auth, no geo-block), order execution goes to `api.polymarket.us/v1` (Ed25519 auth, credentials already in .env). Sports whale trades on .COM are matched to .US sports markets by title. This is the correct and final architecture. Do NOT revisit .COM unless Matthew explicitly opens that door.
 - **POST /v1/orders on .US CONFIRMED JSON (Session 34)** — Schema: {marketSlug, intent, type, price:{value,currency}, quantity, tif}. Response: {"id":"...", "executions":[]}. place_order() implemented in src/platforms/polymarket.py. live_executor_enabled=False in copy_trade_loop until 30 paper trades.
 - **Copy trading platform mismatch CONFIRMED (Session 34)** — predicting.top whales ALL trade on polymarket.COM (politics/crypto/culture). Our account is on polymarket.US (sports-only). data-api.polymarket.com covers .COM trades ONLY (separate integer vs hex condition IDs). ALL whale signals are ".com-only" — none match .US sports markets. STRATEGIC DECISION NEEDED: enable sports_futures_v1 bookmaker arbitrage OR find sports-specific whale data source.
@@ -239,43 +239,23 @@ CHECK: `pip freeze | grep <package>` to get current version, then pin it.
 
 Current project state (updated each session):
 - **869/869 tests passing**, verify.py 21/29 (8 advisory WARNs — non-critical)
-- **btc_drift_v1 MICRO-LIVE**: 1 contract/bet (~$0.35-0.65), unlimited/day (daily loss limit governs)
-  - Thresholds RESTORED Session 36: min_drift_pct=0.05, min_edge_pct=0.05 (was 0.10/0.08 since Session 25)
-  - Session 25 tightening was a PRINCIPLES.md violation (done with only ~12 live trades). Restored to original.
-  - At 0.05% drift, sensitivity=800 → raw_prob≈0.599 → edge≈8.1%. Expect 8-15 signals/day.
-  - Paper calibration: slippage 3¢, fill_probability=0.85, signal_price_cents stored in DB
-  - 22 placed / 21 settled (was blocked 7 days by stale kill switch bug, now fixed)
-- **eth_drift_v1 MICRO-LIVE** (enabled Session 36): same 1-contract cap, same thresholds (0.05/0.05)
-  - 62+ paper trades already validated at these thresholds. Added to double calibration data rate.
-  - Shares _live_trade_lock and daily loss limit with btc_drift. calibration_max_usd=0.01.
-  - Note: logs say "[btc_drift]" internally — cosmetic only. btc_feed=eth_feed is correct.
-- All other 8 Kalshi loops PAPER-ONLY: btc_lag (0 signals/week), eth_lag, btc_imbalance, eth_imbalance,
-  weather, fomc, unemployment_rate, sol_lag
-- **POLYMARKET — sports_futures_v1 ACTIVE (paper)**
-  - POST /v1/orders JSON format confirmed (Session 34): place_order() implemented
-  - copy_trade_loop: predicting.top whales trade .COM only — 0 .us matches (platform mismatch confirmed)
-  - sports_futures_v1: team name bug fixed (Session 35), min_books=2 filter, paper-only
-  - src/strategies/copy_trader_v1.py — 6 decoy filters + Signal (29 tests)
-  - Kalshi copy trading: CONFIRMED INFEASIBLE (no public user attribution)
-- **Session 35-36 kill switch + calibration fixes**:
-  - Stale consecutive loss streak bug FIXED: db returns (count, last_loss_ts), restore uses remaining time
-  - Settlement loop KX-prefix filter FIXED: Polymarket tickers no longer hit Kalshi API
-  - --health: 6-section diagnostic — run first when no live bets for 24hr+
-  - trading_loop watchdog: WARNING 24hr, CRITICAL 72hr with no live bet
-  - KILL_SWITCH_LESSONS.md: 7 lessons + no-live-bets protocol
-  - .planning/CHANGELOG.md: CREATED — permanent session log (all future sessions must append)
-- Latest commit: aa83e78 (Session 36, 869 tests)
+- **THREE LIVE DRIFT LOOPS** (all 1 contract/bet ~$0.35-0.65, unlimited/day, daily loss limit governs):
+  - btc_drift_v1 → KXBTC15M | thresholds 0.05/0.05 (RESTORED Session 36) | 7+ live bets today
+  - eth_drift_v1 → KXETH15M | thresholds 0.05/0.05 | enabled Session 36
+  - sol_drift_v1 → KXSOL15M | min_drift_pct=0.15 (3x BTC), min_edge_pct=0.05 | enabled Session 36
+  - All share _live_trade_lock + calibration_max_usd=0.01 + daily loss limit
+  - Combined expected 15-25 signals/day. Target: 30 settled bets each → compute Brier → Stage 2 gate.
+- **--report** fixed Session 36: splits by is_paper per trade — two rows for eth_drift on transition day (📋 paper before restart, 🔴 live after). This is correct. Old data is preserved and queryable.
+- All other Kalshi loops PAPER-ONLY: btc_lag (0 signals/week — HFTs), eth_lag, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag, all 3 crypto daily loops
+- **POLYMARKET — paper-only, platform mismatch confirmed**:
+  - sports_futures_v1: paper, bookmaker arb, min_books=2 filter. Copy_trade: 0 .us matches.
+  - Kalshi copy trading: INFEASIBLE (API returns zero trader attribution — confirmed via API docs + re-confirmed Session 36 research)
+  - Polymarket.COM is geo-restricted for US users. Our account = polymarket.US sports only. CLOSED path.
+- Latest commit: 25b5f2b (Session 36 KALSHI_MARKETS.md re-probe)
 - Kill switch: consecutive_loss_limit=4, daily_loss_limit=20% (~$15.95 on $79.76 bankroll). NO lifetime % hard stop.
-- **Daily loss counter is CST-based (UTC-6)** — resets at midnight CST = 06:00 UTC daily
-- Paper-during-softkill: check_paper_order_allowed() in all paper loops — soft stops block live only
-- **Price range guard 35-65¢** on btc_drift.py, btc_lag.py, AND orderbook_imbalance.py (fixed Session 31)
-- **ALL THREE kill switch counters persist across restarts**: daily loss + lifetime loss + consecutive losses
-- asyncio.Lock (_live_trade_lock) for all live loops (btc_drift + eth_drift) — wraps check→execute→record atomically
-- Bankroll: $79.76 | All-time live P&L: -$18.85 (21 settled, 8W/13L=38%)
-- btc_lag_v1: Brier 0.191 (STRONG signal) but ~0 signals/week — HFTs price Kalshi same minute as BTC moves
-- ⚠️ Polymarket.us: sports-only. Polymarket.COM: full suite (crypto/politics/culture) — where whales trade
+- **Daily loss counter resets at midnight CST (UTC-6 = 06:00 UTC)**
+- Bankroll: ~$79.76 | All-time live P&L: ~-$18 | ~7 live bets today (btc+eth+sol drift)
 - Live restart: `pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session36.log 2>&1 &`
-- Paper restart: `pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid; nohup ./venv/bin/python3 main.py >> /tmp/polybot_session36.log 2>&1 &`
 
 ## Loading Screen Tip — MANDATORY at end of EVERY response
 Every response (with or without code changes) must end with a "💡 Loading Screen Tip" block.

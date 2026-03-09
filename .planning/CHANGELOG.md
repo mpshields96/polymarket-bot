@@ -195,3 +195,25 @@
   player props (6 series), MLB game winners, parlay markets (KXMVE*), Oscars, CPI confirmation.
   Matthew's standing directive: stop steering with a blindfold — complete market knowledge required.
   All future sessions must read KALSHI_MARKETS.md before any strategy work.
+
+---
+
+## Session 36 (cont3) — 2026-03-09 — report bug fix + ecosystem research + docs hardened
+### Changed
+- main.py print_report(): fixed is_paper classification bug.
+  Was: "🔴 if ANY of today's bets for this strategy are live" — mixing pre/post-restart bets.
+  Now: groups by (strategy, is_paper) pairs. Two rows on transition days (📋 + 🔴). Correct.
+  Old data always preserved. is_paper column on each trade = permanent source of truth.
+- CLAUDE.md Gotchas: Kalshi copy trading note expanded with API doc evidence + third-party platforms
+- CLAUDE.md Gotchas: --report split-row behavior documented so future chats never misread report
+- CLAUDE.md Current state: rewritten for 3 live drift loops, report fix, Session 36 research
+- MEMORY.md: Complete rewrite (was 217 lines, over limit, multiple stale facts). Now:
+  mandatory reading order, Kalshi market ecosystem, copy trading research, report fix behavior
+- Kalshi copy trading research (Session 36): Confirmed via API docs that public endpoints return
+  zero trader attribution. Third-party platforms (Duel.trade, FORCASTR, kalshitradingbot.net) exist
+  but source unknown. All GitHub Kalshi bots use statistical edge. Closed permanently.
+### Why (report bug): P&L and bet counts were misleading on strategy-transition days.
+  Fixed so live history and paper history are always cleanly separated and accurate.
+### Why (MEMORY.md rewrite): Future chats must never need to re-research what's been confirmed.
+  Every session must update MEMORY.md if anything changed. 200-line limit enforced.
+### Test count: 869/869
