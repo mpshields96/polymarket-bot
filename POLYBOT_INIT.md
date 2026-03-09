@@ -480,6 +480,29 @@ TESTS — 507/507 passing
 23. MACROS NOTIFICATIONS: `osascript display notification` unreliable on newer macOS.
     Use Reminders app: `tell application "Reminders" to make new reminder`.
 
+24. LIVE.PY SECURITY AUDIT FINDINGS (sc:analyze Session 37-38):
+    Three issues found — two fixed, one documented.
+    FIXED: Execution-time price guard (Sessions 37).
+      Signal at 59¢ passed 35-65¢ check at signal time, then filled at 84¢ due to HFT repricing
+      in the asyncio queue gap. live.py now re-checks YES-equiv price after orderbook fetch and
+      rejects if outside 35-65¢ OR if slippage > 10¢ from signal price. See TestExecutionPriceGuard.
+    FIXED: Canceled order recorded to DB (Session 38).
+      Kalshi can return order.status=="canceled" (no liquidity, market closing mid-execution).
+      Was: db.save_trade() called unconditionally — phantom live bet corrupted calibration + kill switch.
+      Now: `if order.status == "canceled": log warning + return None` before db.save_trade().
+      See TestExecuteOrderStatusGuard. Pattern: always check order.status before recording.
+    KNOWN: strategy_name="unknown" default.
+      execute() signature has `strategy_name: str = "unknown"`. Any call omitting this param silently
+      records trades under "unknown" → corrupts --graduation-status and --report. Always pass explicitly.
+
+25. SKILLS REFERENCE: .planning/SKILLS_REFERENCE.md — complete skill/command map with token costs.
+    Read before each session to pick the right tool. Key tiers:
+    - FREE: gsd:add-todo, superpowers:TDD, superpowers:verification-before-completion
+    - LOW (~1-2%): gsd:quick, sc:analyze, sc:test, sc:git
+    - MEDIUM (~3-5%): sc:troubleshoot --think, sc:research, gsd:add-tests
+    - EXPENSIVE (~15-25%): gsd:plan-phase, gsd:execute-phase, gsd:verify-work
+    Rule: gsd:quick + superpowers:TDD covers 90% of work. Escalate only when ALL 4 conditions met.
+
 ═══════════════════════════════════════════════════
 ## PROJECT STRUCTURE (actual, as built)
 ═══════════════════════════════════════════════════
@@ -488,6 +511,7 @@ polymarket-bot/
 ├── POLYBOT_INIT.md              ← This file. The source of truth.
 ├── SESSION_HANDOFF.md           ← Current state + exact next action (updated each session)
 ├── CLAUDE.md                    ← Claude session startup instructions
+├── .planning/SKILLS_REFERENCE.md ← All available skills/commands with token costs (read each session)
 ├── BLOCKERS.md
 ├── config.yaml                  ← All strategy params, risk limits, series tickers
 ├── pytest.ini                   ← asyncio_mode=auto (required for async tests)
