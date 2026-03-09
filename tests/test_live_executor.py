@@ -664,3 +664,53 @@ class TestExecutionPriceGuard:
         assert result is not None
         kalshi.create_order.assert_called_once()
         db.save_trade.assert_called_once()
+
+
+# ── execute() order status guard ──────────────────────────────────────────
+
+
+class TestExecuteOrderStatusGuard:
+    """Guard: canceled orders must NOT be recorded in DB.
+
+    Kalshi cancels orders that cannot be matched (no liquidity, market closing,
+    risk limit). Recording a canceled order as a live bet corrupts calibration
+    data, inflates the trade counter, and poisons Brier scores.
+
+    'resting' status (GTC order placed but not yet matched) must be recorded
+    normally — the order is live and the settlement loop will handle it.
+    """
+
+    async def test_canceled_order_not_recorded_in_db(
+        self, live_env, bypass_first_run
+    ):
+        """Order status 'canceled' → execute() returns None, db.save_trade NOT called."""
+        ob = make_orderbook(no_bid=45)
+        kalshi = make_kalshi_mock(order=make_order(status="canceled"))
+        db = make_db_mock()
+
+        result = await execute(
+            make_signal(), make_market(), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="btc_drift_v1",
+        )
+
+        assert result is None
+        db.save_trade.assert_not_called()
+        # Order WAS placed — guard fires after create_order, not before
+        kalshi.create_order.assert_called_once()
+
+    async def test_resting_order_recorded_normally(
+        self, live_env, bypass_first_run
+    ):
+        """Order status 'resting' → execute() records trade and returns dict (not None)."""
+        ob = make_orderbook(no_bid=45)
+        kalshi = make_kalshi_mock(order=make_order(status="resting"))
+        db = make_db_mock()
+
+        result = await execute(
+            make_signal(), make_market(), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="btc_drift_v1",
+        )
+
+        assert result is not None
+        assert result["status"] == "resting"
+        db.save_trade.assert_called_once()
