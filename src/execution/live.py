@@ -36,6 +36,14 @@ _FIRST_RUN_CONFIRMED = False  # module-level flag, reset on restart
 # main.py prompts at startup; this prompts at first actual order placement.
 # Both are intentional — defense-in-depth for real money operations.
 
+# ── Execution-time price guard constants ──────────────────────────────────
+# Guard fires AFTER fetching the live orderbook price, immediately before
+# placing the order. Protects against HFT repricing in the 0.1-1s asyncio gap
+# between signal generation and order placement (observed: fill at 84¢ session 37).
+_EXECUTION_MIN_PRICE_CENTS: int = 35
+_EXECUTION_MAX_PRICE_CENTS: int = 65
+_EXECUTION_MAX_SLIPPAGE_CENTS: int = 10
+
 
 async def execute(
     signal: Signal,
@@ -97,6 +105,30 @@ async def execute(
 
     if not (1 <= price_cents <= 99):
         logger.warning("[live] Unreasonable limit price %d¢ — skip", price_cents)
+        return None
+
+    # ── Execution-time price guard ────────────────────────────────────────
+    # Convert execution price to YES-equivalent for range + slippage checks.
+    # Protects against HFT repricing in the asyncio gap after signal generation.
+    execution_yes_price = price_cents if signal.side == "yes" else (100 - price_cents)
+    signal_yes_price = signal.price_cents if signal.side == "yes" else (100 - signal.price_cents)
+
+    if not (_EXECUTION_MIN_PRICE_CENTS <= execution_yes_price <= _EXECUTION_MAX_PRICE_CENTS):
+        logger.warning(
+            "[live] Execution price %d¢ (YES-equiv) outside guard %d-%d¢ — rejecting "
+            "(signal was %d¢, ticker=%s)",
+            execution_yes_price, _EXECUTION_MIN_PRICE_CENTS, _EXECUTION_MAX_PRICE_CENTS,
+            signal_yes_price, signal.ticker,
+        )
+        return None
+
+    slippage_cents = abs(execution_yes_price - signal_yes_price)
+    if slippage_cents > _EXECUTION_MAX_SLIPPAGE_CENTS:
+        logger.warning(
+            "[live] Slippage %d¢ exceeds max %d¢ — rejecting (signal=%d¢, exec=%d¢, ticker=%s)",
+            slippage_cents, _EXECUTION_MAX_SLIPPAGE_CENTS,
+            signal_yes_price, execution_yes_price, signal.ticker,
+        )
         return None
 
     # ── Calculate contracts ────────────────────────────────────────────
