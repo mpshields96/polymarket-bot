@@ -37,11 +37,15 @@ _GRAD = {
     "eth_lag_v1":                   (30, 0,  0.30, 4),
     "btc_drift_v1":                 (30, 0,  0.30, 4),
     "eth_drift_v1":                 (30, 0,  0.30, 4),
+    "sol_drift_v1":                 (30, 0,  0.30, 4),  # LIVE — added Session 36
     "orderbook_imbalance_v1":       (30, 0,  0.30, 4),
     "eth_orderbook_imbalance_v1":   (30, 0,  0.30, 4),
     "weather_forecast_v1":          (30, 0,  0.30, 4),
     "fomc_rate_v1":                 (5,  0,  0.30, 4),  # low frequency — 5 trade minimum
 }
+
+# Strategies currently in LIVE mode — graduation tracked against live trades only
+_LIVE_STRATEGIES: set[str] = {"btc_drift_v1", "eth_drift_v1", "sol_drift_v1"}
 
 
 # ── Check results tracking ────────────────────────────────────────
@@ -291,7 +295,8 @@ def check_graduation_status():
 
         any_ready = False
         for strategy, (min_trades, min_days, max_brier, max_consec) in _GRAD.items():
-            stats = db.graduation_stats(strategy)
+            is_paper = False if strategy in _LIVE_STRATEGIES else True
+            stats = db.graduation_stats(strategy, is_paper=is_paper)
             n = stats["settled_count"]
             days = stats["days_running"]
             brier = stats["brier_score"]

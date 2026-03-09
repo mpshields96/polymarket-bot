@@ -1585,12 +1585,13 @@ def print_banner(mode: str, bankroll: float, stage: int, kill_switch_active: boo
 
 def print_graduation_status(db):
     """
-    Print graduation progress table for all 8 strategies.
+    Print graduation progress table for all tracked strategies.
 
     Imports _GRAD thresholds from setup/verify.py (single source of truth).
+    Live strategies (in _LIVE_STRATEGIES) are checked against live trades only.
     Reads DB only — does NOT start Kalshi or Binance connections.
     """
-    from setup.verify import _GRAD
+    from setup.verify import _GRAD, _LIVE_STRATEGIES
     from datetime import datetime, timezone
 
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -1608,7 +1609,8 @@ def print_graduation_status(db):
 
     ready_count = 0
     for strategy, (min_trades, min_days, max_brier, max_consec) in _GRAD.items():
-        stats = db.graduation_stats(strategy)
+        is_paper = False if strategy in _LIVE_STRATEGIES else True
+        stats = db.graduation_stats(strategy, is_paper=is_paper)
 
         settled = stats["settled_count"]
         days = stats["days_running"]

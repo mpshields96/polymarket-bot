@@ -121,10 +121,10 @@ class TestGraduationStatusPrinter:
             f"Expected READY in btc_lag status, got: {btc_lag_line[0]}"
         )
 
-    def test_zero_of_8_ready_on_empty_db(self, db):
-        """Empty DB should show '0 / 8 strategies ready'."""
+    def test_zero_of_9_ready_on_empty_db(self, db):
+        """Empty DB should show '0 / 9 strategies ready' (sol_drift_v1 added Session 36)."""
         output = _call_print_graduation_status(db)
-        assert "0 / 8" in output, f"Expected '0 / 8' in output, got:\n{output}"
+        assert "0 / 9" in output, f"Expected '0 / 9' in output, got:\n{output}"
 
     def test_exits_without_starting_connections(self, db, tmp_path):
         """
