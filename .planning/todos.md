@@ -426,3 +426,30 @@ feeds already built (fred_feed.py used by fomc/unemployment). Could reuse simila
 have strong directional conviction (Nasdaq is far above/below the strike prices). Market
 has efficiently priced these. DO NOT BUILD any signal strategy for KXNASDAQ100Y — there
 is no near-50¢ market to exploit with a signal edge.
+
+---
+## [RESEARCH] Market-making strategy on Kalshi 15-min markets
+**Added:** Session 43 (2026-03-10) — found during autonomous research
+**Source:** github.com/nikhilnd/kalshi-market-making (QuantSC project)
+**Strategy:** Post resting YES/NO bids symmetric around a probability model.
+  Uses Cauchy distribution for S&P 500, calibrated via MLE from historical data.
+  Inventory control: adjust spread based on position (skew quotes to reduce inventory risk).
+  Result: earns the bid-ask spread passively WITHOUT needing to predict direction.
+**Why interesting:** Fundamentally different from our directional approach. 
+  Market-making earns the spread on EVERY window, not just when signals fire.
+  Spread on 15-min BTC markets is typically 2-4¢ — $0.02-0.04/contract.
+  At 50 contracts/bet with 96 windows/day: could generate $96-192/day if fills are consistent.
+  Key risk: adverse selection (market moves against you before cancel). 
+  Need Cauchy/sigmoid model calibrated to BTC 15-min windows (same data we already have).
+**Prerequisites:**
+  - Expansion gate must be open
+  - Write API calls are rate-limited (5/sec on Kalshi) — order management within limits
+  - Need cancel+replace logic (different from current taker-only approach)
+  - Kalshi WebSocket API for real-time orderbook (current client may need extension)
+**Implementation sketch:**
+  1. Use existing BTC drift sigmoid model as probability estimate
+  2. Post YES bid at P-spread/2, YES ask at P+spread/2
+  3. Adjust spread based on current inventory (positive → lower bid, higher ask)
+  4. Cancel and re-quote every 30s or on significant price move
+  5. Position limit: 20-40 contracts per window
+**DO NOT BUILD:** Gate closed. Post-gate candidate #2 after KXBTCMAX100/150.
