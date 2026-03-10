@@ -243,16 +243,26 @@ CHECK: `pip freeze | grep <package>` to get current version, then pin it.
 3. Announce what you found in 2-3 lines, then proceed
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
-Current project state (updated Session 44 late — 2026-03-10 ~13:30 CDT — BOT STOPPED for analysis):
-- **923/923 tests passing** (13 new regression tests added Session 44)
-- **Bot STOPPED** — analysis/research session. Restart to session45.log when resuming.
-- **SESSION 44 CHANGES** (see .planning/STRATEGY_AUDIT.md + .planning/STRATEGIC_DIRECTION.md):
+Current project state (updated Session 44 autonomous overhaul — 2026-03-10 ~14:30 CDT — BOT STOPPED):
+- **943/943 tests passing** (13 regression tests Session 44 early + 20 fee calculator tests Session 44 auto)
+- **Bot STOPPED** — audit/rebuild session. Restart to session45.log when resuming live trading.
+- **SESSION 44 EARLY CHANGES** (see .planning/STRATEGY_AUDIT.md + .planning/STRATEGIC_DIRECTION.md):
   1. btc_drift.py: late_penalty now gates on edge_pct (was dead code on confidence field)
   2. config.yaml: btc_drift min_drift_pct 0.05→0.10 (47 live bets confirm 20%+ edge = noise)
   3. config.yaml: orderbook_imbalance signal_scaling 1.0→0.5 (-27.2% calibration error fixed)
   4. eth_drift GRADUATED to Stage 1 — calibration_max_usd removed from main.py (30/30, Brier 0.255)
   5. .planning/STRATEGY_AUDIT.md — 11 parts, 25 external cited sources, full analysis
   6. .planning/STRATEGIC_DIRECTION.md — full strategic direction, answers all platform questions
+- **SESSION 44 AUTONOMOUS OVERHAUL** (commit b642f44 — see CHANGES_LOG.md for full log):
+  1. Prompt 1 audit: API v2 ✅, Python 3.13 ✅, no hardcoded creds ✅, no deprecated endpoints ✅
+  2. KEEP/STRIP/REBUILD JSON audit → .planning/CODEBASE_AUDIT.md (17 KEEP, 5 STRIP, 6 REBUILD)
+  3. src/risk/fee_calculator.py (NEW) — Kalshi taker fee formula, fee_survives_fee() gate
+  4. tests/test_fee_calculator.py (NEW) — 20 tests, all passing
+  5. main.py POLL_INTERVAL_SEC 30→10 — 3x latency improvement (0.6 req/s, safe)
+  6. src/db.py _migrate(): 4 tax columns added (exit_price_cents, kalshi_fee_cents, gross_profit_cents, tax_basis_usd)
+  7. src/dashboard.py: CONSECUTIVE_LOSS_LIMIT 4→8, DAILY_LOSS_LIMIT_USD 20→0 (DISABLED label)
+  ⚠️ STRIP items (copy_trader stack, sports_futures+odds_api, eth_imbalance live, sports_game)
+     logged in CODEBASE_AUDIT.md — NOT yet removed. Require Matthew sign-off before deletion.
 - **SIX LIVE LOOPS** (daily loss cap DISABLED Session 42 — bankroll floor + consecutive cooling govern):
   - btc_drift_v1 → KXBTC15M | STAGE 1 ($5 cap, Kelly) | 47/30 ✅ Brier 0.251
     direction_filter="no" ACTIVE (Session 43) — blocks YES. ~20 NO-only bets post-filter (need 30+)
@@ -272,7 +282,7 @@ Current project state (updated Session 44 late — 2026-03-10 ~13:30 CDT — BOT
 - **POLYMARKET**: platform mismatch confirmed PERMANENT for now (see STRATEGIC_DIRECTION.md for full analysis)
   - VPN access to .COM: NOT advisable (ToS violation + CFTC implications). See STRATEGIC_DIRECTION.md Q7.
   - Monitor CFTC regulatory developments for .COM US access monthly.
-- Latest code commit: (see below — session 44 late wrap)
+- Latest code commit: b642f44 (feat+docs: Session 44 autonomous overhaul — fee_calculator, poll 30→10, tax schema, audit)
 - Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime % hard stop.
   Active protection: bankroll floor ($20) + consecutive cooling (8→2hr) + $5/bet hard cap.
 - **--health "Daily loss soft stop active"** = DISPLAY ONLY (kill_switch.py lines 187-189 COMMENTED OUT)
