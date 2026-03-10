@@ -26,9 +26,13 @@ PROJECT_ROOT = Path(__file__).parent.parent
 LOCK_FILE = PROJECT_ROOT / "kill_switch.lock"
 PID_FILE = PROJECT_ROOT / "bot.pid"
 
-# Kill switch constants — must match src/risk/kill_switch.py
-DAILY_LOSS_LIMIT_USD = 20.0
-CONSECUTIVE_LOSS_LIMIT = 4
+# Kill switch constants — updated Session 44 to match src/risk/kill_switch.py
+# NOTE: daily loss cap is DISABLED (lines 187-189 of kill_switch.py commented out).
+#       The DAILY_LOSS_LIMIT_USD below is for display reference only, NOT an active block.
+#       CONSECUTIVE_LOSS_LIMIT raised from 4→8 in Session 41.
+#       ⚠️ If kill_switch.py constants change, update these to match.
+DAILY_LOSS_LIMIT_USD = 0.0      # DISABLED — was 20.0, cap removed Session 42 (display only)
+CONSECUTIVE_LOSS_LIMIT = 8      # Updated Session 41: was 4, now 8
 
 
 def _resolve_db_path() -> Path:

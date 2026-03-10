@@ -118,7 +118,14 @@ class DB:
     def _migrate(self):
         """Apply incremental schema migrations to existing databases."""
         migrations = [
+            # Session 25: add signal price at time of signal generation
             "ALTER TABLE trades ADD COLUMN signal_price_cents INTEGER",
+            # Session 44 overhaul: add tax logging fields per reference doc Section 4.4
+            # These are NULL for historical trades and populated for new trades via settlement.
+            "ALTER TABLE trades ADD COLUMN exit_price_cents INTEGER",     # price at resolution (100=win, 0=loss)
+            "ALTER TABLE trades ADD COLUMN kalshi_fee_cents INTEGER",     # actual taker fee charged
+            "ALTER TABLE trades ADD COLUMN gross_profit_cents INTEGER",   # profit before fees (pnl_cents + kalshi_fee_cents)
+            "ALTER TABLE trades ADD COLUMN tax_basis_usd REAL",           # = net_profit_usd for ordinary income reporting
         ]
         for sql in migrations:
             try:

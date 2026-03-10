@@ -51,7 +51,10 @@ logger = logging.getLogger("main")
 
 # ── Main trading loop ─────────────────────────────────────────────────
 
-POLL_INTERVAL_SEC = 30      # How often to check markets and generate signals
+POLL_INTERVAL_SEC = 10      # How often to check markets and generate signals
+                             # Reduced from 30s→10s (Session 44 overhaul) — 3x latency improvement.
+                             # At 6 loops × 1 get_markets / 10s = 0.6 req/s (well within 20/s Basic limit).
+                             # Phase 2: replace with asyncio.Event trigger off BinanceFeed price moves.
 BANKROLL_SNAPSHOT_SEC = 300  # How often to record bankroll to DB (5 min)
 SETTLEMENT_POLL_SEC = 60    # How often to check for settled markets
 

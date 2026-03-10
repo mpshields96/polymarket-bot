@@ -464,3 +464,155 @@ The infrastructure is almost entirely built. The gate is the single regulatory d
 *Bot stopped for analysis session. Do not restart without completing eth_drift graduation.*
 *Next major decision point: btc_drift NO-only bet #30 (est. 5-10 days at current rate).*
 *Next build: KXCPI strategy (expansion gate: eth_drift + sol_drift both validated).*
+
+---
+
+## BUILD PLAN — SESSION 44 (LATE SESSION ADDENDUM)
+### Answering: "Can we get faster? How do we build the framework? Did someone do this already?"
+### Updated: 2026-03-10 | Author: Claude Sonnet 4.6
+
+---
+
+### Q: CAN WE GET FASTER ON BTC_DRIFT?
+
+**Yes, technically. But speed is NOT the constraint on btc_drift.**
+
+**Current latency breakdown:**
+- BTC price detection: ~100ms (Binance.US @bookTicker, already continuous)
+- Signal generation delay: **0 to 30 seconds** (we poll every 30s via `asyncio.sleep(POLL_INTERVAL_SEC)`)
+- Kalshi market fetch (REST): ~200-500ms
+- Order placement (REST): ~200-500ms
+- **Total: 15-30 seconds average** (dominated by the 30s sleep, not the API calls)
+
+**What WebSocket would give us:**
+Kalshi DOES have a WebSocket API (confirmed: `wss://trading-api/v1/ws`).
+Channels: `ticker` (public, no auth), `trade`, `orderbook`, `user_orders`.
+With WebSocket, we could receive market price updates in <50ms instead of ~500ms REST call.
+
+**The simpler fix (no WebSocket needed):**
+We already have a continuous BTC feed. The problem is we're not using it as a trigger.
+Change from "poll every 30s" to "trigger on BTC price change ≥ threshold":
+
+```python
+# CURRENT (polling):
+await asyncio.sleep(POLL_INTERVAL_SEC)  # blindly waits 30s regardless of BTC movement
+
+# IMPROVED (event-driven):
+try:
+    await asyncio.wait_for(btc_move_event.wait(), timeout=POLL_INTERVAL_SEC)
+    btc_move_event.clear()
+except asyncio.TimeoutError:
+    pass  # run on timeout anyway — keeps fallback behavior
+```
+
+This reduces average latency from 15s to ~1-3s. Implementation: ~30 lines of code.
+
+**Why speed won't fix btc_drift:**
+The YES side has a 30% win rate because HFTs detect BTC moves in ~1ms and reprice the Kalshi
+market before our signal fires. Even at 500ms total latency, we are 500x slower than a
+colocated institution. The YES signal fires AFTER the market has already repriced.
+
+The NO side might have genuine edge independent of speed — the direction_filter hypothesis
+is that the market systematically OVERPRICES YES probability. That's a calibration question,
+not a latency question.
+
+**Where speed improvements actually help:**
+- **SOL 15-min (KXSOL15M):** ~4.2k volume/window, lower HFT saturation. Faster detection
+  of 0.15% SOL drift means entering better price windows.
+- **ETH 15-min (KXETH15M):** ~9.4k volume/window. Marginal but real improvement.
+- **Economics markets:** Speed irrelevant — these events happen once a month.
+
+**Verdict:** The event-driven trigger is worth building for SOL/ETH. Adds ~5-10% improvement
+in signal timing. The 30s poll is also wasting compute checking markets when BTC hasn't moved.
+Build this as a quality-of-life improvement, not a solution to the btc_drift problem.
+
+---
+
+### Q: HOW DO WE BUILD THE FRAMEWORK FOR PATH TO PROFIT?
+
+**The concrete build order, ungated by 2-week windows:**
+
+#### TIER 1 — Right now (while bot is stopped):
+1. **Review and validate the Session 44 fixes** (late_penalty gate, signal_scaling=0.5,
+   min_drift_pct=0.10). These are in the bot and should fire live as soon as we restart.
+
+2. **Event-driven signal trigger** — replace POLL_INTERVAL_SEC sleep with BTC-move event.
+   Impact: SOL/ETH signals fire within 1-3s of BTC threshold crossing (vs 15-30s).
+   Effort: 1-2 hours, ~30 lines, ~8 new tests.
+
+3. **Restart bot with eth_drift at Stage 1** — already graduated. First $5 eth_drift bet
+   is the milestone to watch.
+
+#### TIER 2 — As bets accumulate (no fixed timeline):
+4. **btc_drift NO-only validation** — when 30 NO-only bets are settled, run statistical test.
+   If p < 0.05 sustained: keep direction_filter permanently.
+   If p > 0.05: BTC drift has no edge. Disable live trading, keep paper.
+
+5. **eth_orderbook_imbalance decision** — at bet 22, evaluate Brier score.
+   If Brier < 0.30: keep. If Brier > 0.30: disable live, remove from active development.
+
+6. **SOL drift graduation** — 16 more bets needed. At 30/30: run Stage 1 promotion.
+   SOL has the best evidence. This is the next graduation to watch.
+
+#### TIER 3 — New strategies (EXPANSION GATE: eth_drift + sol_drift both validated):
+7. **KXCPI strategy** — CPI monthly release, Cleveland Fed Nowcast as signal.
+   KEY INSIGHT (new research): Kalshi CPI markets are ALREADY more accurate than the
+   Cleveland Fed Nowcast (per Kalshi's own research). The edge isn't "Nowcast beats market."
+   The edge is the **pre-release window**: 1-3 days before BLS publishes CPI, when the
+   Nowcast has absorbed new daily data (gas prices, oil futures) but the Kalshi market
+   hasn't fully repriced yet. This is a narrow window, maybe 3-5 bets/month.
+   The strategy: daily poll Cleveland Fed Nowcast API → compute implied probability →
+   compare to Kalshi market price → trade if divergence > 3σ of historical spread.
+
+8. **KXGDP strategy** — same approach, Atlanta Fed GDPNow as signal. 8 active markets.
+
+9. **Scale Stage 2** — when eth_drift or sol_drift has 60+ live bets with Brier < 0.25
+   AND bankroll supports it: raise HARD_MAX to $10. Current bankroll ~$68 is borderline.
+
+#### TIER 4 — Platform expansion (external gate):
+10. **Polymarket.COM access** — if CFTC grants US access in 2026, activate copy trading
+    infrastructure (already built, just needs regulatory gate to open).
+    Monitor monthly: check CFTC docket and Polymarket blog.
+
+---
+
+### Q: DID SOMEONE ALREADY BUILD THIS?
+
+**Faster Kalshi execution:**
+- **ammario** (GitHub: `ammario/kalshi`, #1 volume trader on Kalshi): Go client with WebSocket
+  support, operates in log-odds space. He's a market MAKER though — different from our
+  directional approach. His WebSocket implementation is the reference.
+- **BSIC backtesting paper**: Used polling (similar to our current approach), Sharpe 1.47 in
+  simulation. They acknowledge "latency constraints are the primary real-world barrier."
+- **suislanchez**: GitHub bot claiming $1,325 simulation profit. Polling-based. No live data.
+- **No one has published**: event-driven Kalshi drift trading with verified live P&L. We would
+  be among the first. That's a risk (unproven) and an opportunity (first-mover).
+
+**CPI strategy with Nowcast:**
+- The EdgeDesk Substack documented a specific instance where Cleveland Fed nowcast showed
+  the market was mispriced ahead of a CPI release. No public bot implementation found.
+- Kalshi's own research (CoinDesk, Dec 2025): prediction markets beat Wall Street at
+  forecasting CPI. This suggests the CPI market is OFTEN efficient — the edge is episodic.
+
+**Economics strategies on Kalshi generally:**
+- Practitioner community consensus (4AM Club Substack, HN): economics markets are
+  "the best space for retail traders" because they reward domain knowledge over speed.
+- No public bot implementations found with verified live P&L on Kalshi economics markets.
+
+**Bottom line:** Our infrastructure is competitive or better than anything public.
+The gap is live validated edge, which takes time to accumulate. We're in the right place.
+
+---
+
+### CONCRETE NEXT ACTIONS (for the next chat to execute):
+
+1. Implement event-driven trigger in main.py + binance.py (Tier 1 item #2)
+2. Restart bot → session45.log (eth_drift at Stage 1)
+3. Monitor first 5 eth_drift Stage 1 bets (are they $5 bets? Check log)
+4. When user shares Reddit posts/research document → review and update this file
+5. At 30 NO-only btc_drift bets → run analysis, make go/no-go decision
+6. At 30 sol_drift bets → run Stage 1 pre-live audit
+
+---
+
+*Section added Session 44 late session, 2026-03-10. Next review: when expansion gate criteria met.*
