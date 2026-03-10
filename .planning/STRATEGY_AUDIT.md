@@ -444,8 +444,6 @@ These are changes that SHOULD NOT be made, to prevent the Gemini system failure 
 
 ---
 
----
-
 ## PART 9: KALSHI MARKET MECHANICS — WHAT WE ARE ACTUALLY BETTING ON
 
 > This section resolves the single most important open question from the initial audit:

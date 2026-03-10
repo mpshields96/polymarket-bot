@@ -2454,11 +2454,10 @@ async def main():
         ),
         name="drift_loop",
     )
-    # ETH drift: micro-live, stagger 22s
-    # Enabled Session 36: same calibration pattern as btc_drift — 1 contract/bet (~$0.35-0.65).
-    # Purpose: double live data collection rate (ETH + BTC both feeding Brier score).
-    # eth_drift has 62+ paper trades at same thresholds (0.05/0.05), pre-validated.
-    # Do NOT raise cap until: 30+ eth live trades + Brier < 0.30.
+    # ETH drift: STAGE 1 (graduated Session 44 — 30/30 live bets, Brier 0.255 < 0.30 threshold).
+    # Kelly + $5 HARD_MAX governs bet size. calibration_max_usd removed.
+    # Session 36 original: micro-live, 1 contract/bet (~$0.35-0.65) for data collection.
+    # Stage 1 promotion: 30 live bets + Brier 0.255 confirmed by --graduation-status 2026-03-10.
     eth_drift_task = asyncio.create_task(
         trading_loop(
             kalshi=kalshi,
@@ -2475,7 +2474,7 @@ async def main():
             slippage_ticks=paper_slippage_ticks,
             fill_probability=paper_fill_probability,
             trade_lock=_live_trade_lock,
-            calibration_max_usd=_DRIFT_CALIBRATION_CAP_USD,
+            # calibration_max_usd=None: Stage 1, Kelly + $5 cap governs (same as btc_drift)
         ),
         name="eth_drift_loop",
     )
