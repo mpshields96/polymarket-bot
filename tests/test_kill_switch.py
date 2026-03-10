@@ -4,7 +4,7 @@ Kill switch tests — must pass 100%.
 Tests every trigger condition from POLYBOT_INIT.md:
 1. Single trade size cap ($5 hard cap, 5% bankroll)
 2. Daily loss limit (20%)
-3. Consecutive loss cooling (4 losses → 2hr pause)
+3. Consecutive loss cooling (8 losses → 2hr pause)
 4. Hourly rate limit (15 trades/hr)
 5. Auth failure hard stop (3 consecutive)
 6. Bankroll minimum hard stop ($20)
@@ -117,15 +117,15 @@ class TestConsecutiveLossCooling:
         ok, _ = ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=97.0)
         assert ok
 
-    def test_four_losses_triggers_cooling(self, ks):
-        for _ in range(4):
+    def test_eight_losses_triggers_cooling(self, ks):
+        for _ in range(8):
             ks.record_loss(1.0)
-        ok, reason = ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=96.0)
+        ok, reason = ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=92.0)
         assert not ok
         assert "consecutive" in reason.lower() or "cooling" in reason.lower()
 
     def test_cooling_period_is_two_hours(self, ks):
-        for _ in range(4):
+        for _ in range(8):
             ks.record_loss(1.0)
         # Verify cooling_until is ~2 hours from now
         cooling_until = ks._state._cooling_until
@@ -586,10 +586,10 @@ class TestPaperOrderAllowed:
 
     def test_paper_not_blocked_by_consecutive_loss_cooling(self, ks):
         """Consecutive loss cooling period must NOT block paper trades."""
-        for _ in range(4):
-            ks.record_loss(1.0)  # triggers cooling
+        for _ in range(8):
+            ks.record_loss(1.0)  # triggers cooling (limit=8)
         assert ks._state._cooling_until is not None  # cooling is active
-        ok, _ = ks.check_paper_order_allowed(trade_usd=1.0, current_bankroll_usd=96.0)
+        ok, _ = ks.check_paper_order_allowed(trade_usd=1.0, current_bankroll_usd=92.0)
         assert ok, "Paper trade must not be blocked by consecutive loss cooling"
 
     def test_paper_not_blocked_by_hourly_rate_limit(self, ks):
@@ -1018,28 +1018,28 @@ class TestResetSoftStop:
         return KillSwitch(starting_bankroll_usd=100.0)
 
     def test_reset_clears_consecutive_counter(self, ks):
-        for _ in range(4):
+        for _ in range(8):
             ks.record_loss(1.0)
-        assert ks._state._consecutive_losses == 4
+        assert ks._state._consecutive_losses == 8
         ks.reset_soft_stop()
         assert ks._state._consecutive_losses == 0
 
     def test_reset_clears_cooling(self, ks):
-        for _ in range(4):
+        for _ in range(8):
             ks.record_loss(1.0)
         assert ks._state._cooling_until is not None
         ks.reset_soft_stop()
         assert ks._state._cooling_until is None
 
     def test_reset_clears_soft_stop_flag(self, ks):
-        for _ in range(4):
+        for _ in range(8):
             ks.record_loss(1.0)
         assert ks._state._soft_stop is True
         ks.reset_soft_stop()
         assert ks._state._soft_stop is False
 
     def test_reset_allows_order_after_active_cooling(self, ks):
-        for _ in range(4):
+        for _ in range(8):
             ks.record_loss(1.0)
         allowed, _ = ks.check_order_allowed(trade_usd=0.50, current_bankroll_usd=100.0)
         assert allowed is False
@@ -1048,7 +1048,7 @@ class TestResetSoftStop:
         assert allowed is True
 
     def test_reset_does_not_affect_daily_loss(self, ks):
-        for _ in range(4):
+        for _ in range(8):
             ks.record_loss(1.0)
         ks.reset_soft_stop()
-        assert ks._state._daily_loss_usd == pytest.approx(4.0)
+        assert ks._state._daily_loss_usd == pytest.approx(8.0)

@@ -389,3 +389,32 @@ def load_sol_drift_from_config() -> BTCDriftStrategy:
         min_drift_pct=s.get("min_drift_pct", _DEFAULT_MIN_DRIFT_PCT),
         name_override="sol_drift_v1",
     )
+
+
+def load_xrp_drift_from_config() -> BTCDriftStrategy:
+    """Build BTCDriftStrategy for XRP markets from config.yaml strategy.xrp_drift section.
+
+    XRP is ~2x more volatile than BTC/ETH, so min_drift_pct is scaled up accordingly
+    to maintain the same signal quality bar. Falls back to xrp_drift section, then
+    btc_drift section if absent.
+    """
+    import yaml
+
+    config_path = PROJECT_ROOT / "config.yaml"
+    if not config_path.exists():
+        logger.warning("config.yaml not found, using XRP drift defaults")
+        return BTCDriftStrategy(name_override="xrp_drift_v1")
+
+    with open(config_path) as f:
+        cfg = yaml.safe_load(f)
+
+    # Fall back to btc_drift params if xrp_drift section absent
+    s = cfg.get("strategy", {}).get("xrp_drift") or cfg.get("strategy", {}).get("btc_drift", {})
+    return BTCDriftStrategy(
+        sensitivity=s.get("sensitivity", _DEFAULT_SENSITIVITY),
+        min_edge_pct=s.get("min_edge_pct", _DEFAULT_MIN_EDGE_PCT),
+        min_minutes_remaining=s.get("min_minutes_remaining", _DEFAULT_MIN_MINUTES_REMAINING),
+        time_weight=s.get("time_weight", _DEFAULT_TIME_WEIGHT),
+        min_drift_pct=s.get("min_drift_pct", _DEFAULT_MIN_DRIFT_PCT),
+        name_override="xrp_drift_v1",
+    )

@@ -2205,12 +2205,14 @@ async def main():
     from src.data.binance import load_from_config as binance_load
     from src.data.binance import load_eth_from_config as eth_binance_load
     from src.data.binance import load_sol_from_config as sol_binance_load
+    from src.data.binance import load_xrp_from_config as xrp_binance_load
     from src.strategies.btc_lag import load_from_config as strategy_load
     from src.strategies.btc_lag import load_eth_lag_from_config as eth_lag_load
     from src.strategies.btc_lag import load_sol_lag_from_config as sol_lag_load
     from src.strategies.btc_drift import load_from_config as drift_strategy_load
     from src.strategies.btc_drift import load_eth_drift_from_config as eth_drift_load
     from src.strategies.btc_drift import load_sol_drift_from_config as sol_drift_load
+    from src.strategies.btc_drift import load_xrp_drift_from_config as xrp_drift_load
     from src.strategies.orderbook_imbalance import (
         load_btc_imbalance_from_config,
         load_eth_imbalance_from_config,
@@ -2270,6 +2272,10 @@ async def main():
     sol_feed = sol_binance_load()
     await sol_feed.start()
 
+    logger.info("Starting Binance XRP feed...")
+    xrp_feed = xrp_binance_load()
+    await xrp_feed.start()
+
     # ── Load strategies ───────────────────────────────────────────────
     strategy = strategy_load()
     logger.info("Strategy loaded: %s", strategy.name)
@@ -2281,6 +2287,8 @@ async def main():
     logger.info("Strategy loaded: %s (micro-live ETH drift, 1 contract/bet)", eth_drift_strategy.name)
     sol_drift_strategy = sol_drift_load()
     logger.info("Strategy loaded: %s (micro-live SOL drift, 1 contract/bet)", sol_drift_strategy.name)
+    xrp_drift_strategy = xrp_drift_load()
+    logger.info("Strategy loaded: %s (micro-live XRP drift, 1 contract/bet)", xrp_drift_strategy.name)
     btc_imbalance_strategy = load_btc_imbalance_from_config()
     logger.info("Strategy loaded: %s (paper-only BTC orderbook imbalance)", btc_imbalance_strategy.name)
     eth_imbalance_strategy = load_eth_imbalance_from_config()
@@ -2404,13 +2412,10 @@ async def main():
         ),
         name="eth_lag_loop",
     )
-    # BTC drift: MICRO-LIVE calibration phase (Session 31, 2026-03-08).
-    # Paper data structurally unreliable (no slippage, no fill timing).
-    # Micro-live: minimum 1 contract/bet (~$0.35-0.65 at 35-65¢ price guard).
-    # Purpose: collect 30 real settled trades for valid Brier score.
-    # 20 bets/day max — at ~$0.50 avg = $10/day max, within $15.95 daily limit.
-    # Do NOT raise cap or bets/day until: 30+ live trades + Brier < 0.30.
-    _DRIFT_CALIBRATION_CAP_USD = 0.01   # live.py: count=max(1,int(0.01/price)) → always 1 contract
+    # BTC drift: STAGE 1 LIVE (promoted Session 41: 42/30 bets, Brier 0.249 — graduated).
+    # calibration_max_usd removed: Kelly + HARD_MAX_TRADE_USD ($5) now governs bet size.
+    # Daily loss limit is the primary risk governor.
+    _DRIFT_CALIBRATION_CAP_USD = 0.01   # still used by ETH/SOL drift (still in calibration phase)
     drift_task = asyncio.create_task(
         trading_loop(
             kalshi=kalshi,
@@ -2423,11 +2428,11 @@ async def main():
             btc_series_ticker=btc_series_ticker,
             loop_name="drift",
             initial_delay_sec=15.0,
-            max_daily_bets=0,  # unlimited — daily loss limit governs, maximise calibration data
+            max_daily_bets=0,  # unlimited — daily loss limit governs
             slippage_ticks=paper_slippage_ticks,
             fill_probability=paper_fill_probability,
             trade_lock=_live_trade_lock,
-            calibration_max_usd=_DRIFT_CALIBRATION_CAP_USD,
+            # calibration_max_usd=None: Stage 1, Kelly + $5 cap governs
         ),
         name="drift_loop",
     )
@@ -2479,6 +2484,30 @@ async def main():
             calibration_max_usd=_DRIFT_CALIBRATION_CAP_USD,
         ),
         name="sol_drift_loop",
+    )
+    # XRP drift: micro-live, stagger 33s (offset from sol_drift at 29s)
+    # Enabled Session 41: XRP ~2x more volatile than BTC → more frequent signals.
+    # Same 1-contract/bet cap as btc_drift/eth_drift/sol_drift. KXXRP15M series.
+    # Do NOT raise cap until: 30+ xrp live trades + Brier < 0.30.
+    xrp_drift_task = asyncio.create_task(
+        trading_loop(
+            kalshi=kalshi,
+            btc_feed=xrp_feed,
+            strategy=xrp_drift_strategy,
+            kill_switch=kill_switch,
+            db=db,
+            live_executor_enabled=live_mode,
+            live_confirmed=live_confirmed,
+            btc_series_ticker="KXXRP15M",
+            loop_name="xrp_drift",
+            initial_delay_sec=33.0,
+            max_daily_bets=0,  # unlimited — daily loss limit governs
+            slippage_ticks=paper_slippage_ticks,
+            fill_probability=paper_fill_probability,
+            trade_lock=_live_trade_lock,
+            calibration_max_usd=_DRIFT_CALIBRATION_CAP_USD,
+        ),
+        name="xrp_drift_loop",
     )
     # BTC orderbook imbalance: paper-only, stagger 36s (was 29s — shifted for sol_drift)
     btc_imbalance_task = asyncio.create_task(
@@ -2690,6 +2719,7 @@ async def main():
         drift_task.cancel()
         eth_drift_task.cancel()
         sol_drift_task.cancel()
+        xrp_drift_task.cancel()
         btc_imbalance_task.cancel()
         eth_imbalance_task.cancel()
         weather_task.cancel()
@@ -2709,7 +2739,7 @@ async def main():
     try:
         await asyncio.gather(
             trade_task, eth_lag_task, drift_task, eth_drift_task, sol_drift_task,
-            btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task,
+            xrp_drift_task, btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task,
             unemployment_task, sol_task, settle_task,
             btc_daily_task, eth_daily_task, sol_daily_task, copy_task,
             sports_futures_task,
@@ -2722,6 +2752,7 @@ async def main():
         drift_task.cancel()
         eth_drift_task.cancel()
         sol_drift_task.cancel()
+        xrp_drift_task.cancel()
         btc_imbalance_task.cancel()
         eth_imbalance_task.cancel()
         weather_task.cancel()
@@ -2736,7 +2767,7 @@ async def main():
         sports_futures_task.cancel()
         await asyncio.gather(
             trade_task, eth_lag_task, drift_task, eth_drift_task, sol_drift_task,
-            btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task,
+            xrp_drift_task, btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task,
             unemployment_task, sol_task, settle_task,
             btc_daily_task, eth_daily_task, sol_daily_task, copy_task,
             sports_futures_task,
@@ -2746,6 +2777,7 @@ async def main():
         await btc_feed.stop()
         await eth_feed.stop()
         await sol_feed.stop()
+        await xrp_feed.stop()
         await kalshi.close()
         db.close()
         _release_bot_lock()

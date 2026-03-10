@@ -29,6 +29,8 @@ feeds:
   eth_window_seconds: 60               # Rolling window for ETH move detection
   sol_ws_url: wss://stream.binance.us:9443/ws/solusdt@bookTicker      # SOL feed — confirmed on Binance.US
   sol_window_seconds: 60               # Rolling window for SOL move detection
+  xrp_ws_url: wss://stream.binance.us:9443/ws/xrpusdt@bookTicker      # XRP feed — Binance.US bookTicker
+  xrp_window_seconds: 60               # Rolling window for XRP move detection
   reconnect_delay: 5                   # Seconds before reconnecting on disconnect
 
 # ── Strategy ────────────────────────────────────────────────────
@@ -97,6 +99,18 @@ strategy:
     # KXSOL15M series. 1 contract/bet ~$0.35-0.65. Do NOT lower min_drift_pct without 30+ live bets.
     sensitivity: 800.0
     min_drift_pct: 0.15      # 3x btc_drift (SOL 3x more volatile)
+    min_minutes_remaining: 3.0
+    min_edge_pct: 0.05
+    time_weight: 0.7
+
+  xrp_drift:
+    # XRP drift strategy — MICRO-LIVE (Session 41), same BTCDriftStrategy on XRP feed.
+    # XRP ~2x more volatile than BTC → min_drift_pct scaled up 2x (0.05 * 2 = 0.10%)
+    # to maintain same signal quality bar (similar edge_pct distribution to btc_drift).
+    # At 0.10% XRP drift + sensitivity=800: raw_prob≈0.599, edge≈8.1% (same as btc_drift at 0.05%).
+    # KXXRP15M series. 1 contract/bet ~$0.35-0.65. Do NOT lower min_drift_pct without 30+ live bets.
+    sensitivity: 800.0
+    min_drift_pct: 0.10      # 2x btc_drift (XRP ~2x more volatile than BTC)
     min_minutes_remaining: 3.0
     min_edge_pct: 0.05
     time_weight: 0.7

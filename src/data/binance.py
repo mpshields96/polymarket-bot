@@ -37,6 +37,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 _BINANCE_WS_URL = "wss://stream.binance.us:9443/ws/btcusdt@bookTicker"
 _BINANCE_ETH_WS_URL = "wss://stream.binance.us:9443/ws/ethusdt@bookTicker"
 _BINANCE_SOL_WS_URL = "wss://stream.binance.us:9443/ws/solusdt@bookTicker"
+_BINANCE_XRP_WS_URL = "wss://stream.binance.us:9443/ws/xrpusdt@bookTicker"
 _STALE_THRESHOLD_SEC = 35.0     # price older than this = stale feed
                                  # (Binance.US @bookTicker can be silent 10-30s — use 35s to avoid false stale)
 _WINDOW_SEC = 60                 # default rolling window for move detection
@@ -285,5 +286,25 @@ def load_sol_from_config() -> BinanceFeed:
     return BinanceFeed(
         ws_url=feeds.get("sol_ws_url", _BINANCE_SOL_WS_URL),
         window_sec=feeds.get("sol_window_seconds", _WINDOW_SEC),
+        reconnect_delay=feeds.get("reconnect_delay", _RECONNECT_DELAY_SEC),
+    )
+
+
+def load_xrp_from_config() -> BinanceFeed:
+    """Build BinanceFeed for XRP from config.yaml."""
+    import yaml
+
+    config_path = PROJECT_ROOT / "config.yaml"
+    if not config_path.exists():
+        logger.warning("config.yaml not found, using XRP defaults")
+        return BinanceFeed(ws_url=_BINANCE_XRP_WS_URL)
+
+    with open(config_path) as f:
+        cfg = yaml.safe_load(f)
+
+    feeds = cfg.get("feeds", {})
+    return BinanceFeed(
+        ws_url=feeds.get("xrp_ws_url", _BINANCE_XRP_WS_URL),
+        window_sec=feeds.get("xrp_window_seconds", _WINDOW_SEC),
         reconnect_delay=feeds.get("reconnect_delay", _RECONNECT_DELAY_SEC),
     )

@@ -39,7 +39,7 @@ EVENT_LOG = PROJECT_ROOT / "KILL_SWITCH_EVENT.log"
 HARD_MAX_TRADE_USD = 5.00         # Absolute ceiling per trade
 HARD_MIN_BANKROLL_USD = 20.00     # Below $20 = hard stop
 DAILY_LOSS_LIMIT_PCT = 0.20       # 20% daily loss = soft kill (resets midnight)
-CONSECUTIVE_LOSS_LIMIT = 4        # Losses before cooling period
+CONSECUTIVE_LOSS_LIMIT = 8        # Losses before cooling period (raised Session 41: daily limit governs at Stage 1)
 COOLING_PERIOD_HOURS = 2          # Hours to pause after CONSECUTIVE_LOSS_LIMIT
 MAX_HOURLY_TRADES = 15            # Trades per hour before rate-limit pause
 MAX_AUTH_FAILURES = 3             # Consecutive auth failures before halt
