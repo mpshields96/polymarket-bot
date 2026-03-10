@@ -54,7 +54,8 @@ logger = logging.getLogger("main")
 POLL_INTERVAL_SEC = 10      # How often to check markets and generate signals
                              # Reduced from 30s→10s (Session 44 overhaul) — 3x latency improvement.
                              # At 6 loops × 1 get_markets / 10s = 0.6 req/s (well within 20/s Basic limit).
-                             # Phase 2: replace with asyncio.Event trigger off BinanceFeed price moves.
+                             # Phase 2 (Session 45): event-driven asyncio.Condition trigger implemented.
+                             # Drift loops wake on BTC price move OR POLL_INTERVAL_SEC timeout.
 BANKROLL_SNAPSHOT_SEC = 300  # How often to record bankroll to DB (5 min)
 SETTLEMENT_POLL_SEC = 60    # How often to check for settled markets
 
@@ -64,6 +65,88 @@ SETTLEMENT_POLL_SEC = 60    # How often to check for settled markets
 _NO_LIVE_BETS_WARN_HOURS = 24    # WARNING level: review kill switch + signal logs
 _NO_LIVE_BETS_CRITICAL_HOURS = 72  # CRITICAL level: systematic debugging required
 _NO_LIVE_BETS_WARN_INTERVAL_SEC = 3600  # Re-emit watchdog warning at most once/hr
+
+
+# ── Event-driven price trigger ─────────────────────────────────────────
+# Phase 2 latency improvement: instead of sleeping for POLL_INTERVAL_SEC every cycle,
+# drift loops wait on an asyncio.Condition that fires when BTC price moves ≥ threshold.
+# If no BTC move fires within POLL_INTERVAL_SEC, the loop wakes up anyway (fallback).
+# This reduces average latency from 5s (half of 10s) to ~1-3s on active price moves.
+# Benefits sol_drift and eth_drift most — less HFT saturation on those markets.
+# btc_price_monitor() broadcasts to ALL waiting loops simultaneously (notify_all).
+
+
+async def btc_price_monitor(
+    btc_feed,
+    condition: asyncio.Condition,
+    min_move_pct: float = 0.05,
+    check_interval_sec: float = 0.5,
+) -> None:
+    """
+    Monitor BTC price for significant moves; broadcast to all waiting trading loops.
+
+    Fires condition.notify_all() when BTC price moves >= min_move_pct from the
+    last-notified price. Reference price updates after each notification so moves
+    are measured from the new base (not from session start).
+
+    Args:
+        btc_feed: BinanceFeed (or DualPriceFeed). Uses current_price() — no stale check here
+                  (loops handle stale themselves via strategy.generate_signal()).
+        condition: asyncio.Condition shared with all trading_loop callers.
+        min_move_pct: Minimum % price change to trigger a notification. Default 0.05% =
+                      ~$33 move on $67k BTC — fires ~5-15x per hour in normal volatility.
+        check_interval_sec: How often to poll btc_feed.current_price(). Default 0.5s.
+    """
+    last_price: Optional[float] = None
+
+    while True:
+        try:
+            price = btc_feed.current_price()
+            if price is None:
+                pass
+            elif last_price is None:
+                last_price = price
+            else:
+                move_pct = abs(price - last_price) / last_price * 100
+                if move_pct >= min_move_pct:
+                    async with condition:
+                        condition.notify_all()
+                    last_price = price  # reset: next move measured from new base
+                    logger.debug(
+                        "[btc_monitor] BTC moved %.3f%% → notified loops (new ref: $%.2f)",
+                        move_pct, price,
+                    )
+            await asyncio.sleep(check_interval_sec)
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.debug("[btc_monitor] Error: %s", e)
+
+
+async def _wait_for_btc_move(
+    condition: Optional[asyncio.Condition],
+    timeout: float,
+) -> bool:
+    """
+    Wait for a BTC price move notification or timeout.
+
+    Returns:
+        True  — condition was notified (BTC moved) before timeout
+        False — timeout expired, or condition is None (plain sleep fallback)
+
+    When condition is None, falls back to asyncio.sleep(timeout) for backward
+    compatibility with loops that don't receive the BTC condition (weather/fomc/others).
+    """
+    if condition is None:
+        await asyncio.sleep(timeout)
+        return False
+    try:
+        async with asyncio.timeout(timeout):
+            async with condition:
+                await condition.wait()
+        return True
+    except TimeoutError:
+        return False
 
 
 async def trading_loop(
@@ -83,6 +166,7 @@ async def trading_loop(
     trade_lock: Optional[asyncio.Lock] = None,
     calibration_max_usd: Optional[float] = None,
     direction_filter: Optional[str] = None,
+    btc_move_condition: Optional[asyncio.Condition] = None,
 ):
     """Main async loop: poll markets, generate signals, execute trades.
 
@@ -90,6 +174,11 @@ async def trading_loop(
     check_order_allowed() → execute() → record_trade() sequence is atomic,
     preventing two loops from both passing the hourly rate check before either
     records a trade. Paper loops pass None (no lock needed).
+
+    btc_move_condition: asyncio.Condition shared with btc_price_monitor(). When
+    provided, the end-of-loop sleep is replaced by an event-driven wait that wakes
+    early on a significant BTC price move OR after POLL_INTERVAL_SEC (whichever is
+    sooner). Pass None to fall back to plain asyncio.sleep (weather/fomc/daily loops).
     """
     from src.execution import paper as paper_mod
     import time
@@ -339,7 +428,9 @@ async def trading_loop(
         except Exception as e:
             logger.error("Unexpected error in trading loop: %s", e, exc_info=True)
 
-        await asyncio.sleep(POLL_INTERVAL_SEC)
+        # Event-driven: wake early on BTC move, or fall back to full timeout.
+        # btc_move_condition=None uses plain sleep (weather/fomc/daily loops).
+        await _wait_for_btc_move(btc_move_condition, POLL_INTERVAL_SEC)
 
 
 # ── Weather forecast trading loop ─────────────────────────────────────
@@ -2227,6 +2318,7 @@ async def main():
     from src.data.binance import load_eth_from_config as eth_binance_load
     from src.data.binance import load_sol_from_config as sol_binance_load
     from src.data.binance import load_xrp_from_config as xrp_binance_load
+    from src.data.coinbase import CoinbasePriceFeed, DualPriceFeed
     from src.strategies.btc_lag import load_from_config as strategy_load
     from src.strategies.btc_lag import load_eth_lag_from_config as eth_lag_load
     from src.strategies.btc_lag import load_sol_lag_from_config as sol_lag_load
@@ -2296,6 +2388,40 @@ async def main():
     logger.info("Starting Binance XRP feed...")
     xrp_feed = xrp_binance_load()
     await xrp_feed.start()
+
+    # ── Start Coinbase backup feeds (DualPriceFeed = Binance primary + Coinbase backup) ──
+    # If Binance WebSocket goes stale (>35s no tick), DualPriceFeed falls back to Coinbase
+    # REST API (free, no auth, 30s poll). If both stale → current_price() returns None.
+    logger.info("Starting Coinbase backup feeds (BTC/ETH/SOL/XRP)...")
+    btc_coinbase = CoinbasePriceFeed(symbol="BTC")
+    eth_coinbase = CoinbasePriceFeed(symbol="ETH")
+    sol_coinbase = CoinbasePriceFeed(symbol="SOL")
+    xrp_coinbase = CoinbasePriceFeed(symbol="XRP")
+    await btc_coinbase.start()
+    await eth_coinbase.start()
+    await sol_coinbase.start()
+    await xrp_coinbase.start()
+    btc_feed = DualPriceFeed(primary=btc_feed, backup=btc_coinbase)
+    eth_feed = DualPriceFeed(primary=eth_feed, backup=eth_coinbase)
+    sol_feed = DualPriceFeed(primary=sol_feed, backup=sol_coinbase)
+    xrp_feed = DualPriceFeed(primary=xrp_feed, backup=xrp_coinbase)
+    logger.info("DualPriceFeed active: Binance primary + Coinbase backup for BTC/ETH/SOL/XRP")
+
+    # ── Event-driven BTC move trigger (Phase 2 latency reduction) ─────
+    # btc_price_monitor fires asyncio.Condition.notify_all() when BTC moves ≥ 0.05%.
+    # All crypto trading_loop calls wait on this condition instead of sleeping.
+    # Result: loop wakes within 1-3s of a BTC move vs up to 10s (POLL_INTERVAL_SEC) before.
+    _btc_move_condition = asyncio.Condition()
+    btc_monitor_task = asyncio.create_task(
+        btc_price_monitor(
+            btc_feed=btc_feed,
+            condition=_btc_move_condition,
+            min_move_pct=0.05,
+            check_interval_sec=0.5,
+        ),
+        name="btc_price_monitor",
+    )
+    logger.info("BTC price monitor started (event-driven trigger, 0.05%% move threshold)")
 
     # ── Load strategies ───────────────────────────────────────────────
     strategy = strategy_load()
@@ -2407,6 +2533,7 @@ async def main():
             slippage_ticks=paper_slippage_ticks,
             fill_probability=paper_fill_probability,
             trade_lock=_live_trade_lock,
+            btc_move_condition=_btc_move_condition,
         ),
         name="trading_loop",
     )
@@ -2430,6 +2557,7 @@ async def main():
             slippage_ticks=paper_slippage_ticks,
             fill_probability=paper_fill_probability,
             trade_lock=None,
+            btc_move_condition=_btc_move_condition,
         ),
         name="eth_lag_loop",
     )
@@ -2459,6 +2587,7 @@ async def main():
             # before our signal fires — the edge is illusory. Downward drift is slower to
             # price in and retains real edge. Restrict to NO-only until YES edge recovers.
             direction_filter="no",
+            btc_move_condition=_btc_move_condition,
         ),
         name="drift_loop",
     )
@@ -2483,6 +2612,7 @@ async def main():
             fill_probability=paper_fill_probability,
             trade_lock=_live_trade_lock,
             # calibration_max_usd=None: Stage 1, Kelly + $5 cap governs (same as btc_drift)
+            btc_move_condition=_btc_move_condition,
         ),
         name="eth_drift_loop",
     )
@@ -2507,6 +2637,7 @@ async def main():
             fill_probability=paper_fill_probability,
             trade_lock=_live_trade_lock,
             calibration_max_usd=_DRIFT_CALIBRATION_CAP_USD,
+            btc_move_condition=_btc_move_condition,
         ),
         name="sol_drift_loop",
     )
@@ -2531,6 +2662,7 @@ async def main():
             fill_probability=paper_fill_probability,
             trade_lock=_live_trade_lock,
             calibration_max_usd=_DRIFT_CALIBRATION_CAP_USD,
+            btc_move_condition=_btc_move_condition,
         ),
         name="xrp_drift_loop",
     )
@@ -2550,6 +2682,7 @@ async def main():
             max_daily_bets=max_daily_bets_paper,
             slippage_ticks=paper_slippage_ticks,
             fill_probability=paper_fill_probability,
+            btc_move_condition=_btc_move_condition,
         ),
         name="btc_imbalance_loop",
     )
@@ -2574,6 +2707,7 @@ async def main():
             slippage_ticks=paper_slippage_ticks,
             fill_probability=paper_fill_probability,
             trade_lock=_live_trade_lock,
+            btc_move_condition=_btc_move_condition,
         ),
         name="eth_imbalance_loop",
     )
@@ -2744,6 +2878,7 @@ async def main():
 
     def _on_signal(signame: str) -> None:
         logger.info("Received %s — requesting clean shutdown", signame)
+        btc_monitor_task.cancel()
         trade_task.cancel()
         eth_lag_task.cancel()
         drift_task.cancel()
@@ -2768,6 +2903,7 @@ async def main():
 
     try:
         await asyncio.gather(
+            btc_monitor_task,
             trade_task, eth_lag_task, drift_task, eth_drift_task, sol_drift_task,
             xrp_drift_task, btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task,
             unemployment_task, sol_task, settle_task,
@@ -2777,6 +2913,7 @@ async def main():
     except (KeyboardInterrupt, asyncio.CancelledError):
         pass  # Normal shutdown — SIGTERM or Ctrl+C; finally block handles cleanup
     finally:
+        btc_monitor_task.cancel()
         trade_task.cancel()
         eth_lag_task.cancel()
         drift_task.cancel()
@@ -2796,6 +2933,7 @@ async def main():
         copy_task.cancel()
         sports_futures_task.cancel()
         await asyncio.gather(
+            btc_monitor_task,
             trade_task, eth_lag_task, drift_task, eth_drift_task, sol_drift_task,
             xrp_drift_task, btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task,
             unemployment_task, sol_task, settle_task,
