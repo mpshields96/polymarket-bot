@@ -583,3 +583,81 @@ STILL CLOSED. Two criteria unmet: (1) 2-3 weeks live data, (2) no kill switch ev
 2. 2d46ad2 — docs(session-39): add Reddit/GitHub research findings + Kalshi category map
 
 ### Test count: 887/887 (unchanged — docs only session, no code changes)
+
+---
+
+## Session 40 — 2026-03-09 (Autonomous Research Continuation)
+
+Context restore after Session 39/40 compaction. Bot RUNNING PID 96757 throughout.
+
+### Primary work: Kalshi market ecosystem deep research
+
+#### Full /series endpoint audit (51 BTC/ETH series + 46 SOL/XRP/DOGE series)
+Probed all Kalshi series for BTC, ETH, SOL, XRP, DOGE via GET /series?limit=200.
+
+**CRITICAL CORRECTION: Weekly ticker was wrong in Session 39**
+- Session 39 claimed KXBTCW/KXETHW/KXSOLW "confirmed to exist" — THIS WAS WRONG
+- Actual weekly BTC ticker: KXBTCMAXW (confirmed via /series, 5 finalized Nov 2024 markets)
+- KXBTCMAXW currently DORMANT — 0 open markets. May have been discontinued.
+- KXETHW/KXSOLW: DO NOT EXIST at all (no /series entry, no /markets results)
+- Corrected in KALSHI_MARKETS.md Category 2B + AUTONOMOUS_CHARTER.md
+
+**CRITICAL CORRECTION: KXFEDDECISION volume was 5000x understated**
+- Previously documented: ~4,700 volume
+- Actual: 80 open markets, 23,394,968 total volume ($23.4M)
+- March 2026 FOMC alone: 22M+ volume (largest Kalshi market by far)
+- Fee structure: quadratic_with_maker_fees (different from standard)
+- Market structure: H0 (hold), C25 (cut 25bps), H25/H26/C26 per meeting date
+- NBER/Fed study (2026): Kalshi FOMC beats fed funds futures for rate prediction accuracy
+
+#### New markets discovered (Session 40):
+- KXRATECUTCOUNT: 1,548,484 volume — "How many rate cuts in 2026?"
+  T9=0¢, T8=1¢, T7=1¢ → market expects 1-3 cuts total
+- KXBTC2026250: 453,892 volume — "Will BTC hit 250k in 2026?" yes=5¢
+- KXETHMAXY: 1,257,719 volume — "How high will ETH get in 2026?" (8 markets)
+- KXETHY: 692,766 volume — ETH price EOY binary (18 markets, like KXBTCY)
+  Previously estimated ~$350K — corrected to $692K
+- KXETHMINY: 283,017 volume — "How low will ETH fall this year?" (5 markets)
+- KXGDP: 208,040 volume — 8 active markets, quarterly GDP growth
+  T1.0=72¢, T2.0=45¢, T2.5=38¢ → market implies 1.5-2.0% Q1 GDP growth
+- KXDOGEMAXW: freq=weekly (weekly DOGE max market series)
+- KXDOGE15M: series exists but 0 open markets (inactive like KXBNB15M/KXBCH15M)
+- KXDOGE/KXXRP hourly range: markets exist but ZERO volume — not viable
+- KXDOGEMAXM/KXDOGEMINMON/KXDOGEMAXMON/KXSOLMAXMON etc: monthly SOL/DOGE/XRP markets
+
+#### Macro market hierarchy (by volume, largest first):
+1. KXFEDDECISION: $23.4M (80 markets, FOMC per-meeting rate)
+2. KXRATECUTCOUNT: $1.5M (annual rate cut count)
+3. KXBTCMAX150: $10.8M (barrier option "BTC > $150k before date?")
+4. KXBTCMAX100: $2.7M (barrier "BTC > $100k again before date?")
+5. KXBTC2026200: $3.4M + KXBTCMAXY: $2.2M (annual range)
+6. KXETHMAXY: $1.3M | KXBTCY: $1.4M | KXETHY: $693k
+7. KXGDP: $208k | KXSOLMAXY: $205k | KXSOLD26: $117k
+8. KXETHMINY: $283k | KXBTCMINY: $1.1M
+
+#### 15-min direction market landscape (confirmed complete):
+Active: KXBTC15M (103k/window), KXETH15M (9.4k), KXSOL15M (4.2k), KXXRP15M (5.9k)
+Inactive: KXDOGE15M, KXBNB15M, KXBCH15M (all 0 open)
+→ Only 4 viable 15-min markets. KXXRP15M is next expansion target.
+
+### Soft stop event (from Session 39 continuation)
+- Soft stop fired 18:47 CDT: 5 consecutive btc_drift losses → cooling 2hr
+- At 19:08 CDT: 86min remaining (~expires 20:34 CDT)
+- Decision: DO NOT reset (PRINCIPLES.md + AUTONOMOUS_CHARTER.md)
+- Paper loops continue uninterrupted during soft stop
+- btc_drift: 40/30 ✅ Brier degrading slightly 0.247→0.249
+
+### Today P&L (as of 19:08 CDT)
+- Live: +$3.51 (57 settled) — btc_drift 14/24 🔴, eth_drift 13/22 🔴, sol_drift 9/11 🔴
+- Paper: -$4.26 (32 settled) — eth_daily negative (expected, daily bracket model WIP)
+- All-time live: -$15.34
+
+### Commits this session (Session 40, 7 total):
+1. 39c2914 — docs(kalshi): KXGDP probe results (208k vol, quarterly)
+2. 30f7ccc — docs(kalshi): KXFEDDECISION volume corrected (4700→23.4M)
+3. b4304d0 — docs(kalshi): KXRATECUTCOUNT (1.5M), full FOMC hierarchy
+4. db3e673 — docs(kalshi): weekly ticker corrected (KXBTCW→KXBTCMAXW), ETH series
+5. f60705b — docs(charter): correct KXBTCW→KXBTCMAXW in AUTONOMOUS_CHARTER.md
+6. 88af2fc — docs(kalshi): KXDOGE15M probe, SOL/XRP/DOGE series audit
+
+### Test count: 887/887 (unchanged — docs-only session, no code changes)
