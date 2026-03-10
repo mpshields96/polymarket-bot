@@ -42,10 +42,17 @@ _GRAD = {
     "eth_orderbook_imbalance_v1":   (30, 0,  0.30, 4),
     "weather_forecast_v1":          (30, 0,  0.30, 4),
     "fomc_rate_v1":                 (5,  0,  0.30, 4),  # low frequency — 5 trade minimum
+    "xrp_drift_v1":                 (30, 0,  0.30, 4),  # micro-live — added Session 42
 }
 
 # Strategies currently in LIVE mode — graduation tracked against live trades only
-_LIVE_STRATEGIES: set[str] = {"btc_drift_v1", "eth_drift_v1", "sol_drift_v1"}
+_LIVE_STRATEGIES: set[str] = {
+    "btc_drift_v1",
+    "eth_drift_v1",
+    "sol_drift_v1",
+    "xrp_drift_v1",                  # micro-live since Session 42
+    "eth_orderbook_imbalance_v1",    # first live bet trade 556, Session 42
+}
 
 
 # ── Check results tracking ────────────────────────────────────────
