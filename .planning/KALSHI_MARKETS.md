@@ -401,17 +401,27 @@ Calibration: Binance.US 30-day klines (already used in backtest.py)
 
 | Series         | Event                       | Frequency     | Volume (probe) | Status in bot |
 |----------------|-----------------------------|---------------|----------------|---------------|
-| KXFEDDECISION  | Fed funds rate at FOMC      | ~8x/year      | ~4,700         | 📋 PAPER (fomc_rate_v1) |
+| KXFEDDECISION  | Fed funds rate at FOMC      | ~8x/year      | ~23,400,000 ✅ CORRECTED | 📋 PAPER (fomc_rate_v1) |
 | KXUNRATE       | US unemployment (BLS)       | Monthly       | Opens 2d pre-BLS | 📋 PAPER (unemployment_rate_v1) |
 | KXCPI          | CPI inflation print         | Monthly       | ~1,400 ✅ confirmed | NOT BUILT (low freq) |
-| KXJOLTS        | Job openings (JOLTS)        | Monthly       | not probed     | NOT BUILT |
+| KXJOLTS        | Job openings (JOLTS)        | Monthly       | 0 open (probe 2026-03-09, not active) | NOT BUILT |
 | KXGDP          | GDP growth                  | Quarterly     | ~208,000 ✅ confirmed | NOT BUILT |
+| KXPAYROLLS     | Non-farm payrolls (NFP)     | Monthly       | ~1,581 (Nov 2026 pre-release) | NOT BUILT |
 
 **Notes:**
 - KXUNRATE markets open ~2 days before BLS release. No open markets outside that window = expected.
 - KXFEDDECISION: uses FRED yield curve spread (DGS2-DFF) as signal.
+- **KXFEDDECISION VOLUME CORRECTION (Session 40 probe)**: Previous estimate 4,700 was WRONG.
+  Real volume: 80 open markets, 23,394,968 total volume. March 2026 FOMC alone: 22M+ volume.
+  Market structure: each FOMC meeting has 5 markets — H0 (hold/no change), C25 (cut 25bps),
+  C26 (cumulative 26×10bps cut?), H25 (hold at 2.5%?), H26 (hold at 2.6%?).
+  March 2026 pricing: H0=97¢ (hold, 97% prob), C25=1¢ (cut 25bps, 1% prob) — market expects no change.
+  Fee structure: quadratic_with_maker_fees (NOT standard). Higher cost for market orders.
+  NBER/Fed study (2026 Jan): Kalshi FOMC markets beat fed funds futures for rate prediction accuracy.
+  Volume context: $23.4M open > KXBTCMAX150 ($10.8M). This is the LARGEST documented Kalshi market.
 - KXCPI: confirmed ✅ exists (Session 36 probe). ~1,400 volume when open. Not built — low freq.
-- CPI/JOLTS/GDP: not built — low frequency + less reliable signal hypothesis than FOMC.
+- KXJOLTS/KXPCE/KXHOUSING/KXRETAIL/KXNFP: 0 open markets (probed 2026-03-09, not currently active).
+  KXPAYROLLS: 10 markets open for November 2026 NFP release, 1,581 total vol. Very low volume.
 - **KXGDP confirmed active (Session 39 probe)**: 8 open markets Q1 2026, 208,040 total volume.
   Settlement = BEA advance GDP estimate (~late April). Structure: binary "Will real GDP exceed X%?"
   Market pricing (2026-03-09): T1.0=72¢, T1.5=59¢, T2.0=45¢, T2.5=38¢, T3.0=28¢, T3.5=17¢, T4.0=10¢, T4.5=7¢
