@@ -157,11 +157,13 @@ check subreddits for more info because we're wasting time not tracking those."
 - The silence of btc_daily/eth_daily/sol_daily loops MUST be investigated each session
   (post-startup logs are at DEBUG level — check with: grep -i "daily\|KXBTCD" /tmp/polybot_session*.log)
 
-### MEDIUM PRIORITY: Weekly Markets (KXBTCW/KXETHW/KXSOLW)
-- Confirmed to EXIST via API probe (Session 39)
-- 0 open markets on Sundays (expected — markets open Monday, close Friday 5pm EDT)
-- Next session on a weekday: probe again and document the market structure
-- Volume unknown — confirm before building any strategy
+### MEDIUM PRIORITY: Weekly Markets (KXBTCMAXW — NOT KXBTCW)
+- ⚠️ CORRECTION Session 40: KXBTCW/KXETHW/KXSOLW DO NOT EXIST. Session 39 was wrong.
+- Actual weekly BTC ticker: KXBTCMAXW — "How high will BTC get this week?"
+- Series exists (5 finalized markets from Nov 2024) but currently DORMANT — 0 open
+- KXETHW/KXSOLW: NO equivalent weekly ETH/SOL markets confirmed to exist
+- Volume: ~177k historically (Nov 2024 only). Series may be seasonal or discontinued.
+- Next step: probe KXBTCMAXW on weekday to check if new markets open Mon–Fri
 
 ### MEDIUM PRIORITY: One-Time Events (KXBTCMAX150, KXBTCMAX100, KXBTC2026200)
 - KXBTCMAX150: $10,834,502 volume — "When will Bitcoin hit $150k?" (3 date bracket markets)
