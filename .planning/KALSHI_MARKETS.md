@@ -402,6 +402,8 @@ Calibration: Binance.US 30-day klines (already used in backtest.py)
 | Series         | Event                       | Frequency     | Volume (probe) | Status in bot |
 |----------------|-----------------------------|---------------|----------------|---------------|
 | KXFEDDECISION  | Fed funds rate at FOMC      | ~8x/year      | ~23,400,000 ✅ CORRECTED | 📋 PAPER (fomc_rate_v1) |
+| KXRATECUTCOUNT | # of rate cuts this year    | Annual        | ~1,548,484 ✅ confirmed  | NOT BUILT |
+| KXRATECUT      | Will Fed cut at all in 2026 | Annual        | ~3,267 confirmed         | NOT BUILT |
 | KXUNRATE       | US unemployment (BLS)       | Monthly       | Opens 2d pre-BLS | 📋 PAPER (unemployment_rate_v1) |
 | KXCPI          | CPI inflation print         | Monthly       | ~1,400 ✅ confirmed | NOT BUILT (low freq) |
 | KXJOLTS        | Job openings (JOLTS)        | Monthly       | 0 open (probe 2026-03-09, not active) | NOT BUILT |
@@ -422,6 +424,12 @@ Calibration: Binance.US 30-day klines (already used in backtest.py)
 - KXCPI: confirmed ✅ exists (Session 36 probe). ~1,400 volume when open. Not built — low freq.
 - KXJOLTS/KXPCE/KXHOUSING/KXRETAIL/KXNFP: 0 open markets (probed 2026-03-09, not currently active).
   KXPAYROLLS: 10 markets open for November 2026 NFP release, 1,581 total vol. Very low volume.
+- **KXRATECUTCOUNT confirmed (Session 40 probe)**: 20 markets, 1,548,484 volume.
+  Structure: "Will Fed cut rates ≥T times by Dec 31, 2026?" (T9=0¢, T8=1¢, T7=1¢ → market expects 1-3 cuts).
+  Signal: could use FRED CME FedWatch implied probabilities or CME fed funds futures.
+  Priority: research signal model before building — high volume, annual horizon.
+- **KXRATECUT**: 1 market, 3,267 vol — "Will Fed cut at all in 2026?" yes=79¢.
+- Macro market hierarchy (largest to smallest): KXFEDDECISION(23.4M) > KXRATECUTCOUNT(1.5M) > KXGDP(208k) > KXUNRATE(opens near BLS) > KXPAYROLLS(1.6k) > KXCPI(1.4k).
 - **KXGDP confirmed active (Session 39 probe)**: 8 open markets Q1 2026, 208,040 total volume.
   Settlement = BEA advance GDP estimate (~late April). Structure: binary "Will real GDP exceed X%?"
   Market pricing (2026-03-09): T1.0=72¢, T1.5=59¢, T2.0=45¢, T2.5=38¢, T3.0=28¢, T3.5=17¢, T4.0=10¢, T4.5=7¢
