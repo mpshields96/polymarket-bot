@@ -282,6 +282,100 @@ class TestSignalPriceCents:
         assert result["signal_price_cents"] == 45
         assert result["fill_price_cents"] == 47
 
+
+# ── TestTaxFieldsPopulation ────────────────────────────────────────────
+
+
+class TestTaxFieldsPopulation:
+    """Verify settle() populates all 4 tax fields required by reference doc Section 4.4."""
+
+    def test_win_populates_exit_price_100(self, paper_exec_with_db, db):
+        """WIN: exit_price_cents must be 100 (binary resolution pays $1)."""
+        trade_id = _save_paper_trade(db, side="yes", price_cents=50, count=1)
+        paper_exec_with_db.settle(
+            trade_id=trade_id, result="yes", fill_price_cents=50, side="yes", count=1
+        )
+        t = db.get_trades()[0]
+        assert t["exit_price_cents"] == 100
+
+    def test_loss_populates_exit_price_0(self, paper_exec_with_db, db):
+        """LOSS: exit_price_cents must be 0 (contract expires worthless)."""
+        trade_id = _save_paper_trade(db, side="yes", price_cents=50, count=1)
+        paper_exec_with_db.settle(
+            trade_id=trade_id, result="no", fill_price_cents=50, side="yes", count=1
+        )
+        t = db.get_trades()[0]
+        assert t["exit_price_cents"] == 0
+
+    def test_win_kalshi_fee_cents_uses_ceil(self, paper_exec_with_db, db):
+        """WIN: kalshi_fee_cents = ceil(0.07 * price * (1-price) * 100) * count.
+        At 50¢/1 contract: ceil(0.07 * 0.5 * 0.5 * 100) = ceil(1.75) = 2.
+        """
+        trade_id = _save_paper_trade(db, side="yes", price_cents=50, count=1)
+        paper_exec_with_db.settle(
+            trade_id=trade_id, result="yes", fill_price_cents=50, side="yes", count=1
+        )
+        t = db.get_trades()[0]
+        assert t["kalshi_fee_cents"] == 2  # ceil(1.75) = 2
+
+    def test_loss_kalshi_fee_cents_is_zero(self, paper_exec_with_db, db):
+        """LOSS: kalshi_fee_cents = 0 (current model: fee only charged on win)."""
+        trade_id = _save_paper_trade(db, side="yes", price_cents=50, count=1)
+        paper_exec_with_db.settle(
+            trade_id=trade_id, result="no", fill_price_cents=50, side="yes", count=1
+        )
+        t = db.get_trades()[0]
+        assert t["kalshi_fee_cents"] == 0
+
+    def test_win_gross_profit_cents(self, paper_exec_with_db, db):
+        """WIN: gross_profit_cents = (100 - fill_price) * count (before fees)."""
+        trade_id = _save_paper_trade(db, side="yes", price_cents=50, count=2)
+        paper_exec_with_db.settle(
+            trade_id=trade_id, result="yes", fill_price_cents=50, side="yes", count=2
+        )
+        t = db.get_trades()[0]
+        assert t["gross_profit_cents"] == 100  # (100-50)*2 = 100
+
+    def test_loss_gross_profit_cents(self, paper_exec_with_db, db):
+        """LOSS: gross_profit_cents = -fill_price * count."""
+        trade_id = _save_paper_trade(db, side="yes", price_cents=50, count=2)
+        paper_exec_with_db.settle(
+            trade_id=trade_id, result="no", fill_price_cents=50, side="yes", count=2
+        )
+        t = db.get_trades()[0]
+        assert t["gross_profit_cents"] == -100  # -50*2 = -100
+
+    def test_win_tax_basis_usd_is_net_profit(self, paper_exec_with_db, db):
+        """WIN: tax_basis_usd = pnl_cents / 100 (net profit = ordinary income basis)."""
+        trade_id = _save_paper_trade(db, side="yes", price_cents=50, count=1)
+        paper_exec_with_db.settle(
+            trade_id=trade_id, result="yes", fill_price_cents=50, side="yes", count=1
+        )
+        t = db.get_trades()[0]
+        # WIN: gross=50, fee=2, net pnl=48 cents → tax_basis=$0.48
+        assert t["tax_basis_usd"] == pytest.approx(0.48)
+
+    def test_loss_tax_basis_usd_is_negative(self, paper_exec_with_db, db):
+        """LOSS: tax_basis_usd is negative (deductible as loss for tax purposes)."""
+        trade_id = _save_paper_trade(db, side="yes", price_cents=50, count=1)
+        paper_exec_with_db.settle(
+            trade_id=trade_id, result="no", fill_price_cents=50, side="yes", count=1
+        )
+        t = db.get_trades()[0]
+        # LOSS: gross=-50, fee=0, net pnl=-50 cents → tax_basis=-$0.50
+        assert t["tax_basis_usd"] == pytest.approx(-0.50)
+
+    def test_multi_contract_fee_scales(self, paper_exec_with_db, db):
+        """WIN: fee scales linearly with contract count. 7 contracts at 48¢."""
+        trade_id = _save_paper_trade(db, side="yes", price_cents=48, count=7)
+        paper_exec_with_db.settle(
+            trade_id=trade_id, result="yes", fill_price_cents=48, side="yes", count=7
+        )
+        t = db.get_trades()[0]
+        import math
+        expected_fee = math.ceil(0.07 * (48 / 100) * (52 / 100) * 100) * 7
+        assert t["kalshi_fee_cents"] == expected_fee
+
     def test_signal_price_equals_fill_price_with_zero_slippage(self, db):
         """With slippage_ticks=0, signal_price_cents == fill_price_cents."""
         pe = PaperExecutor(db=db, strategy_name="test", slippage_ticks=0)

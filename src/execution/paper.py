@@ -27,6 +27,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from src.db import DB
+from src.risk.fee_calculator import kalshi_taker_fee_cents
 
 logger = logging.getLogger(__name__)
 
@@ -185,24 +186,36 @@ class PaperExecutor:
         """
         # Kalshi pays $1 per contract if you win, $0 if you lose
         # pnl = (payout - cost) * count - fees
-        if side == result:
+        won = (side == result)
+        if won:
             # WIN: each contract pays 100¢
             gross_pnl_cents = (100 - fill_price_cents) * count
+            exit_price_cents = 100
         else:
             # LOSS: contract expires worthless
             gross_pnl_cents = -fill_price_cents * count
+            exit_price_cents = 0
 
-        # Kalshi fee: 0.07 × P × (1-P) per contract, charged on win only
-        p = fill_price_cents / 100.0
-        fee_per_contract_cents = round(0.07 * p * (1 - p) * 100)
-        fees_cents = fee_per_contract_cents * count if side == result else 0
+        # Kalshi fee: ceil(0.07 × P × (1-P) × 100) per contract, charged on win only
+        # Uses fee_calculator for consistency (ceil, not round — per reference doc Section 3.3)
+        fee_per_contract = kalshi_taker_fee_cents(contracts=1, price_cents=fill_price_cents)
+        fees_cents = fee_per_contract * count if won else 0
 
         pnl_cents = gross_pnl_cents - fees_cents
+        tax_basis_usd = round(pnl_cents / 100.0, 4)
 
-        self._db.settle_trade(trade_id, result, pnl_cents)
+        self._db.settle_trade(
+            trade_id=trade_id,
+            result=result,
+            pnl_cents=pnl_cents,
+            exit_price_cents=exit_price_cents,
+            kalshi_fee_cents=fees_cents,
+            gross_profit_cents=gross_pnl_cents,
+            tax_basis_usd=tax_basis_usd,
+        )
         logger.info(
-            "[paper] Settled trade %d: result=%s, P&L=$%.2f",
-            trade_id, result, pnl_cents / 100.0,
+            "[paper] Settled trade %d: result=%s, P&L=$%.2f (fee=$%.2f)",
+            trade_id, result, pnl_cents / 100.0, fees_cents / 100.0,
         )
         return pnl_cents
 

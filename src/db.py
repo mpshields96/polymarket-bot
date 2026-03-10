@@ -184,15 +184,23 @@ class DB:
     def settle_trade(
         self,
         trade_id: int,
-        result: str,         # "yes" | "no"
-        pnl_cents: int,      # net P&L in cents (after fees)
+        result: str,                               # "yes" | "no"
+        pnl_cents: int,                            # net P&L in cents (after fees)
+        exit_price_cents: Optional[int] = None,    # 100 on win, 0 on loss (binary)
+        kalshi_fee_cents: Optional[int] = None,    # actual taker fee charged (cents)
+        gross_profit_cents: Optional[int] = None,  # P&L before fees
+        tax_basis_usd: Optional[float] = None,     # = net_profit_usd for ordinary income
     ):
-        """Record settlement outcome on a trade."""
+        """Record settlement outcome on a trade. Tax fields optional for backward compat."""
         self._conn.execute(
             """UPDATE trades
-               SET result = ?, pnl_cents = ?, settled_at = ?
+               SET result = ?, pnl_cents = ?, settled_at = ?,
+                   exit_price_cents = ?, kalshi_fee_cents = ?,
+                   gross_profit_cents = ?, tax_basis_usd = ?
                WHERE id = ?""",
-            (result, pnl_cents, time.time(), trade_id),
+            (result, pnl_cents, time.time(),
+             exit_price_cents, kalshi_fee_cents, gross_profit_cents, tax_basis_usd,
+             trade_id),
         )
         self._conn.commit()
 
