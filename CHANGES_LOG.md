@@ -139,5 +139,62 @@ Active live strategies: btc_drift (Stage 1, direction_filter=no), eth_drift (Sta
 **Bot state unchanged**: STOPPED, no live bets placed, no strategies modified or deleted.
 **STRIP items** (copy_trader, sports_futures, eth_imbalance-live) require Matthew's explicit sign-off before removing from execution path. Logged in CODEBASE_AUDIT.md.
 
-*Last commit hash: [see git log after commit]*
+**Commit hash: b642f44** (feat+docs: Session 44 autonomous overhaul)
+
+---
+
+## CHANGE #10 — Tax Fields Now Populated on Every Settlement
+
+**Files changed:** `src/db.py`, `src/execution/paper.py`, `tests/test_paper_executor.py`
+**Type:** Bug fix + regression tests
+**What:** Columns `exit_price_cents`, `kalshi_fee_cents`, `gross_profit_cents`, `tax_basis_usd` were added to the
+schema in Change #6 (Session 44) but were NEVER written. `settle_trade()` only wrote `result`, `pnl_cents`,
+`settled_at`. All 4 columns were always NULL. Fixed by:
+  1. `settle_trade()` in db.py gains 4 optional params — backward compatible
+  2. `paper.py settle()` now computes and passes all 4 fields
+  3. Replaced inline fee calculation (`round`) with `kalshi_taker_fee_cents()` (uses `ceil` per ref doc §3.3)
+  4. CSV export `export_trades_csv()` now includes all 4 tax fields
+  5. 9 new regression tests in `TestTaxFieldsPopulation`
+**Why:** Reference doc Section 4.4 requires complete tax logging on every trade. These fields are needed for
+accurate tax reconstruction — Kalshi platform summaries are not reliable for tax purposes.
+**Risk:** Low — purely additive. Old settled trades have NULL for these columns (expected, no backfill).
+**Revert:** `git revert a350152`
+**Commit hash: a350152** (fix: populate tax fields on every settlement)
+
+---
+
+## CHANGE #11 — CLAUDE.md State Update (Session 44 autonomous overhaul)
+
+**Files changed:** `CLAUDE.md`
+**Type:** Documentation
+**What:** Updated "Current project state" section: 923→943 tests, documented Session 44 autonomous changes,
+added commit b642f44, noted STRIP items require sign-off.
+**Commit hash: 578301b** (docs: CLAUDE.md — Session 44 autonomous overhaul state update)
+
+---
+
+## REFERENCE DOC GAP ANALYSIS (2026-03-10 — after reading KALSHI_BOT_COMPLETE_REFERENCE.pdf in full)
+
+Reference doc: KALSHI_BOT_COMPLETE_REFERENCE.pdf (16 pages, 48,069 chars)
+Analyzed against current codebase. Gaps logged below for Matthew's review.
+
+### GAPS — Closed This Session
+| Gap | Status | Commit |
+|-----|--------|--------|
+| Tax fields all NULL on settlement | FIXED | a350152 |
+| Fee formula: round vs ceil | FIXED | a350152 |
+
+### GAPS — Require Matthew's Decision (NOT changing without sign-off)
+| Reference Doc Requirement | Current State | Divergence |
+|---|---|---|
+| $25 daily loss kill switch — NEVER VIOLATE | **DISABLED** (Session 42) | Matthew overrode |
+| Brier < 0.20 for live capital | btc_drift=0.251, eth_drift=0.255 — BOTH ABOVE | Went live at 0.30 gate |
+| 200+ paper trades before live | Went live at 30 | Ship sailed for existing strategies |
+
+### GAPS — Planned (acceptable, non-critical)
+| Gap | Priority | Notes |
+|-----|----------|-------|
+| Coinbase backup price feed | Medium | REBUILD item in CODEBASE_AUDIT.md |
+| Fill-status poll + 60s cancel | Low | Would require design change to trade_lock flow |
+| Streamlit dashboard | Low | Nice-to-have per ref doc |
 

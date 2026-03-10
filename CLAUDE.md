@@ -244,7 +244,7 @@ CHECK: `pip freeze | grep <package>` to get current version, then pin it.
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated Session 44 autonomous overhaul — 2026-03-10 ~14:30 CDT — BOT STOPPED):
-- **943/943 tests passing** (13 regression tests Session 44 early + 20 fee calculator tests Session 44 auto)
+- **952/952 tests passing** (13 regression Session 44 early + 20 fee calculator + 9 tax field tests Session 44 late)
 - **Bot STOPPED** — audit/rebuild session. Restart to session45.log when resuming live trading.
 - **SESSION 44 EARLY CHANGES** (see .planning/STRATEGY_AUDIT.md + .planning/STRATEGIC_DIRECTION.md):
   1. btc_drift.py: late_penalty now gates on edge_pct (was dead code on confidence field)

@@ -275,3 +275,33 @@ Items 1-4 are safe to implement autonomously. Items 5-7 require Matthew's sign-o
 *Audit complete. Reference doc read: KALSHI_BOT_COMPLETE_REFERENCE.pdf (16 pages, 48,069 chars).*
 *Codebase analyzed: 33 Python files, 923 tests, 111 settled live trades.*
 *Generated: Session 44 autonomous overhaul, 2026-03-10.*
+
+---
+
+## UPDATE — Session 44 Late (2026-03-10 ~15:00 CDT)
+
+### Reference Doc Full Read — Critical Divergences from Hard Constraints
+
+After reading the full PDF (not just prompts 1 and 2), the following **NEVER VIOLATE** constraints from Section 1
+are confirmed gaps:
+
+| Hard Constraint | Current Status | Action Required |
+|---|---|---|
+| `$25 daily loss kill switch` | **DISABLED** Session 42 | Matthew must decide: re-enable or formally document override |
+| `Brier < 0.20` before live capital | btc_drift=0.251 (LIVE), eth_drift=0.255 (LIVE) | Accept divergence OR add hard gate |
+| `200+ paper trades` before live | Went live at 30 | Irreversible for existing strategies; enforce for new ones |
+| `DRY_RUN=true` until gates cleared | Never used DRY_RUN flag | Our `is_paper` flag is equivalent |
+| Fill-status poll every 10s + 60s cancel | Not implemented | PLANNED — see todos.md |
+
+### Section 4.4 Tax Fields — FIXED (commit a350152)
+All 4 required tax fields (`exit_price_cents`, `kalshi_fee_cents`, `gross_profit_cents`, `tax_basis_usd`)
+now populated on every settlement call. Fee formula updated from `round` → `ceil` for Section 3.3 compliance.
+9 regression tests added. 952/952 tests passing.
+
+### Matthew's Strategic Decisions Needed (before restart)
+1. **Daily loss cap**: Reference doc says $25/day is a NEVER VIOLATE hard constraint. It was disabled
+   Session 42. Do you want to re-enable it? (Bot was bleeding $24/day — that's why it was disabled.)
+2. **Strip sign-off**: copy_trader_v1.py, sports_futures_v1.py, eth_orderbook_imbalance live trading —
+   all confirmed OUT OF SCOPE by reference doc. Ready to remove from execution path on your approval.
+3. **Kalshi CSV comparison**: When you download and share the CSV, we'll compare against our DB to
+   validate P&L tracking accuracy and catch any settlement discrepancies.
