@@ -568,6 +568,8 @@ class DB:
             "id", "placed_at", "settled_at", "ticker", "strategy",
             "side", "action", "price_cents", "count", "cost_usd",
             "edge_pct", "win_prob", "is_paper", "result", "pnl_usd", "won",
+            # Tax fields (ref doc Section 4.4) — populated from Session 45 onward
+            "exit_price_cents", "kalshi_fee_usd", "gross_profit_usd", "tax_basis_usd",
             "client_order_id", "server_order_id",
         ]
 
@@ -601,11 +603,93 @@ class DB:
                     "result": r.get("result", ""),
                     "pnl_usd": round(r["pnl_cents"] / 100, 2) if r.get("pnl_cents") is not None else "",
                     "won": won if won is not None else "",
+                    # Tax fields — may be None for trades settled before Session 45
+                    "exit_price_cents": r.get("exit_price_cents", ""),
+                    "kalshi_fee_usd": round(r["kalshi_fee_cents"] / 100, 4) if r.get("kalshi_fee_cents") is not None else "",
+                    "gross_profit_usd": round(r["gross_profit_cents"] / 100, 4) if r.get("gross_profit_cents") is not None else "",
+                    "tax_basis_usd": r.get("tax_basis_usd", ""),
                     "client_order_id": r.get("client_order_id", ""),
                     "server_order_id": r.get("server_order_id", ""),
                 })
 
         logger.info("Trades exported to %s (%d rows)", output_path, len(rows))
+        return output_path
+
+    def export_tax_csv(self, output_path: Optional[Path] = None) -> Path:
+        """
+        Export resolved LIVE trades to a tax-ready CSV with all Section 4.4 fields.
+
+        Per reference doc Section 4.4: every trade must have timestamp, market_ticker,
+        side, contracts, entry_price, exit_price, gross_profit, kalshi_fee, net_profit,
+        tax_basis. Only resolved, non-paper trades are included.
+
+        Default path: <project_root>/reports/tax_trades.csv
+        """
+        if output_path is None:
+            output_path = PROJECT_ROOT / "reports" / "tax_trades.csv"
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        rows = self._conn.execute(
+            """SELECT * FROM trades
+               WHERE result IS NOT NULL
+               AND is_paper = 0
+               ORDER BY settled_at ASC"""
+        ).fetchall()
+
+        # Section 4.4 required field names
+        fieldnames = [
+            "id",
+            "timestamp_utc",       # ISO 8601, UTC
+            "settled_utc",
+            "market_ticker",       # Kalshi market ID
+            "side",                # YES or NO
+            "contracts",           # integer count
+            "entry_price_cents",   # price at entry (0-99)
+            "exit_price_cents",    # 100 on win, 0 on loss
+            "gross_profit_usd",    # profit before fees
+            "kalshi_fee_usd",      # actual fee charged
+            "net_profit_usd",      # gross - fee (= pnl_cents / 100)
+            "tax_basis_usd",       # = net_profit for ordinary income reporting
+            "win_prob",            # brier_input: probability forecast at entry
+            "outcome",             # 1 if correct, 0 if wrong
+            "strategy",
+        ]
+
+        def _ts(unix: float) -> str:
+            if not unix:
+                return ""
+            return datetime.datetime.fromtimestamp(
+                unix, tz=datetime.timezone.utc
+            ).strftime("%Y-%m-%d %H:%M:%S")
+
+        with open(output_path, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            for r in rows:
+                r = dict(r)
+                won = r.get("result") and r.get("side") and r["result"] == r["side"]
+                outcome = 1 if won else 0
+                net_usd = round(r["pnl_cents"] / 100, 4) if r.get("pnl_cents") is not None else ""
+                writer.writerow({
+                    "id": r["id"],
+                    "timestamp_utc": _ts(r.get("timestamp") or r.get("created_at")),
+                    "settled_utc": _ts(r.get("settled_at")),
+                    "market_ticker": r["ticker"],
+                    "side": r["side"].upper(),
+                    "contracts": r["count"],
+                    "entry_price_cents": r["price_cents"],
+                    "exit_price_cents": r.get("exit_price_cents", ""),
+                    "gross_profit_usd": round(r["gross_profit_cents"] / 100, 4) if r.get("gross_profit_cents") is not None else "",
+                    "kalshi_fee_usd": round(r["kalshi_fee_cents"] / 100, 4) if r.get("kalshi_fee_cents") is not None else "",
+                    "net_profit_usd": net_usd,
+                    "tax_basis_usd": r.get("tax_basis_usd", net_usd),  # fallback to net if not set
+                    "win_prob": r.get("win_prob", ""),
+                    "outcome": outcome,
+                    "strategy": r.get("strategy", ""),
+                })
+
+        logger.info("Tax CSV exported to %s (%d live resolved trades)", output_path, len(rows))
         return output_path
 
 

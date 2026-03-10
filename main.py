@@ -2118,6 +2118,8 @@ async def main():
                         help="Print bot status (bankroll, prices, pending bets, recent trades) and exit")
     parser.add_argument("--export-trades", action="store_true",
                         help="Export all trades to reports/trades.csv and exit")
+    parser.add_argument("--export-tax", action="store_true",
+                        help="Export resolved live trades to reports/tax_trades.csv (Section 4.4 fields) and exit")
     parser.add_argument("--health", action="store_true",
                         help="Comprehensive health diagnostic: surfaces kill switch state, "
                              "no-live-bets warnings, open trade anomalies, SDATA quota, PID")
@@ -2152,6 +2154,9 @@ async def main():
         elif args.export_trades:
             path = db.export_trades_csv()
             print(f"Exported {path}")
+        elif args.export_tax:
+            path = db.export_tax_csv()
+            print(f"Tax CSV exported to {path}")
         elif args.health:
             print_health(db)
         db.close()
