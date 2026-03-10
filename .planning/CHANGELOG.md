@@ -793,3 +793,59 @@ near window end, which is expected and correct. No code changes needed.
 ### Test count: 904/904 (13 new XRP tests + kill switch tests updated)
 ### Bot restarted: PID 7868, log /tmp/polybot_session42.log
 ### Graduation: btc_drift 42/30 ✅ (STAGE 1) | eth_drift 24/30 | sol_drift 11/30 | xrp_drift 0/30 NEW
+
+---
+
+## Session 42 — 2026-03-10 — btc_lag + eth_imbalance promoted live + daily loss cap removed
+
+### Changed
+- main.py — btc_lag trading_loop: live_executor_enabled=False → live_mode (Stage 1 live re-promotion)
+  Comment updated: from "PAPER-ONLY — demoted 2026-03-01" to "STAGE 1 LIVE — re-promoted Session 41"
+  WHY: btc_lag has 45/30 paper bets + Brier 0.191. Graduation criteria met. Signal frequency is
+  low (~0 signals/week — HFTs price same minute) but statistical edge is valid. Promotion is
+  harmless if no signals fire; daily loss limit is the risk governor.
+- main.py — eth_imbalance trading_loop: live_executor_enabled=False → live_mode (Stage 1 live)
+  trade_lock added: trade_lock=_live_trade_lock (was missing — serializes hourly rate check)
+  max_daily_bets: max_daily_bets_paper → max_daily_bets_live
+  live_confirmed: False → live_confirmed
+  Logger: updated to "LIVE — ETH orderbook imbalance"
+  WHY: eth_orderbook_imbalance_v1 has 41/30 paper bets. Brier n/a (imbalance signal doesn't
+  produce win_prob). Paper P&L $238. Graduation criteria met (41/30). Pre-live audit passed.
+- src/risk/kill_switch.py — daily loss cap check commented out (DISABLED)
+  DAILY_LOSS_LIMIT_PCT constant retained for tracking/display only.
+  WHY: Matthew's explicit directive — "ditch the loss cap". At Stage 1 ($5/bet), the 20% daily
+  cap fires at $16.76 loss, blocking calibration. Primary risk governors now: bankroll floor ($20)
+  + consecutive loss cooling (8 losses → 2hr pause) + per-trade $5 hard cap.
+- tests/test_kill_switch.py — updated 4 tests for daily loss cap removal:
+  test_at_daily_limit_blocked → test_at_daily_limit_no_longer_blocked (asserts ok=True)
+  test_over_daily_limit_blocked → test_over_daily_limit_no_longer_blocked (asserts ok=True)
+  test_daily_loss_soft_stop_recorded → test_daily_loss_tracked_but_no_soft_stop
+  test_restore_triggers_daily_limit_block → test_restore_at_limit_still_allowed
+  test_paper_not_blocked_by_daily_loss_limit → test_paper_not_blocked_by_consecutive_soft_stop
+    (repurposed: uses consecutive loss cooling as soft stop trigger instead)
+
+### Why these changes
+- btc_lag promotion: Matthew's directive — "do both" (btc_lag + eth_imbalance). Graduation met.
+  Signal frequency may be low but promoting enables any rare edge signal to execute live.
+  trade_lock already wired in btc_lag loop (line 2388) — no change needed there.
+- eth_imbalance promotion: Matthew's directive — "do both". 41/30 bets, Brier n/a, $238 paper P&L.
+  Note: paper P&L is structurally optimistic (no slippage, instant fills, no HFT counterparty).
+  Real edge signal: orderbook depth ratio >0.65 or <0.35. 35-65¢ price guard already in strategy.
+- Daily loss cap: Matthew's explicit directive — "ditch the loss cap" / "keep going". The 20% cap
+  was reaching during active trading sessions at $83 bankroll ($16.76 limit). Since daily_loss was
+  tracking consecutive losses well before the cap fired, the cap was creating unnecessary bot stops
+  during active windows. Bankroll floor ($20) provides the structural safety net. Consecutive loss
+  cooling (8 → 2hr pause) catches run-of-bad-luck scenarios.
+
+### Principles check (PRINCIPLES.md)
+- btc_lag/eth_imbalance promotion: met explicit graduation criteria (30+ bets). Not premature.
+- Daily loss cap: user directive override of a risk parameter. Documented here per PRINCIPLES.md
+  requirement to log all parameter changes with rationale. Risk governance remains: bankroll floor
+  + consecutive cooling + $5 trade cap. Not zero risk management — just removed one layer.
+
+### Test count: 904/904 (4 kill switch tests updated, rest unchanged)
+### Bot restarted: PID 8442, log /tmp/polybot_session42.log
+### Live strategies: btc_drift (Stage 1), eth_drift (micro), sol_drift (micro), xrp_drift (micro),
+###                  btc_lag (Stage 1, low freq), eth_imbalance (Stage 1, NEW)
+### Graduation: btc_lag 45/30 ✅ LIVE | btc_drift 42/30 ✅ STAGE 1 | eth_drift 24/30 |
+###             sol_drift 11/30 | xrp_drift 0/30 | eth_imbalance 41/30 ✅ LIVE

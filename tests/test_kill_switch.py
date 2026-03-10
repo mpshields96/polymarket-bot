@@ -83,29 +83,33 @@ class TestTradeSizeCaps:
         assert not ok2
 
 
-# ── 2. Daily loss limit ────────────────────────────────────────────
+# ── 2. Daily loss tracking (cap DISABLED — user directive Session 41) ────────
+# Daily loss cap was removed. Tracking still active for --health display.
+# Bankroll floor ($20) + consecutive loss cooling are the primary risk governors.
 
 class TestDailyLossLimit:
     def test_under_daily_limit_allowed(self, ks):
-        ks.record_loss(19.0)  # 19% of $100 — under new 20% limit
+        ks.record_loss(19.0)  # daily loss tracked but no longer blocks
         ok, _ = ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=81.0)
         assert ok
 
-    def test_at_daily_limit_blocked(self, ks):
-        ks.record_loss(20.0)  # exactly 20%
+    def test_at_daily_limit_no_longer_blocked(self, ks):
+        """Daily loss cap removed — 20% loss no longer blocks trades (Session 41)."""
+        ks.record_loss(20.0)  # previously triggered soft stop
         ok, reason = ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=80.0)
-        assert not ok
-        assert "daily" in reason.lower() or "loss" in reason.lower()
+        assert ok, f"Daily loss cap removed — should be allowed, got: {reason}"
 
-    def test_over_daily_limit_blocked(self, ks):
+    def test_over_daily_limit_no_longer_blocked(self, ks):
+        """Daily loss cap removed — even large daily loss no longer blocks (Session 41)."""
         ks.record_loss(25.0)
         ok, _ = ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=75.0)
-        assert not ok
+        assert ok, "Daily loss cap removed — should be allowed"
 
-    def test_daily_loss_soft_stop_recorded(self, ks):
+    def test_daily_loss_tracked_but_no_soft_stop(self, ks):
+        """Daily loss is tracked for display but does NOT trigger soft stop (Session 41)."""
         ks.record_loss(20.0)
         ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=80.0)
-        assert ks.is_soft_stopped
+        assert not ks.is_soft_stopped, "Soft stop must NOT be set by daily loss cap (cap disabled)"
 
 
 # ── 3. Consecutive loss cooling ────────────────────────────────────
@@ -324,7 +328,7 @@ class TestSettlementIntegration:
         ks = KillSwitch(starting_bankroll_usd=100.0)
         ks.record_loss(50.0)  # well above any old 30% threshold
         assert not ks.is_hard_stopped, (
-            "Lifetime loss must NOT trigger hard stop (removed — rely on daily limit + floor)"
+            "Lifetime loss must NOT trigger hard stop (removed — rely on bankroll floor + consecutive cooling)"
         )
 
     def test_record_loss_zero_is_ignored(self, ks):
@@ -576,13 +580,16 @@ class TestPaperOrderAllowed:
         assert ok
         assert reason == "OK"
 
-    def test_paper_not_blocked_by_daily_loss_limit(self, ks):
-        """Daily loss soft stop must NOT block paper trades."""
-        ks.record_loss(20.0)  # exceeds $20 daily limit
-        ks.check_order_allowed(trade_usd=1.0, current_bankroll_usd=80.0)  # trigger soft stop
-        assert ks.is_soft_stopped  # confirm soft stop is set
-        ok, _ = ks.check_paper_order_allowed(trade_usd=1.0, current_bankroll_usd=80.0)
-        assert ok, "Paper trade must not be blocked by daily loss soft stop"
+    def test_paper_not_blocked_by_consecutive_soft_stop(self, ks):
+        """Consecutive loss cooling (soft stop) must NOT block paper trades.
+        Uses cooling period to trigger soft stop since daily loss cap was removed (Session 41).
+        """
+        for _ in range(8):
+            ks.record_loss(1.0)  # triggers consecutive loss cooling
+        # confirm soft stop state is active via cooling
+        assert ks._state._cooling_until is not None, "Cooling must be active"
+        ok, _ = ks.check_paper_order_allowed(trade_usd=1.0, current_bankroll_usd=92.0)
+        assert ok, "Paper trade must not be blocked by consecutive loss cooling (soft stop)"
 
     def test_paper_not_blocked_by_consecutive_loss_cooling(self, ks):
         """Consecutive loss cooling period must NOT block paper trades."""
@@ -714,14 +721,13 @@ class TestRestoreDailyLoss:
         status = ks.get_status()
         assert status["daily_loss_usd"] == pytest.approx(0.0)
 
-    def test_restore_triggers_daily_limit_block(self, ks):
-        """If restored loss >= daily limit, next trade must be blocked.
+    def test_restore_at_limit_still_allowed(self, ks):
+        """Daily loss cap disabled (Session 41) — restoring any amount no longer blocks trades.
         Use bankroll=100 and trade=2.0 to avoid pct_cap check ($2 < 5% of $100)."""
         daily_limit = 100.0 * DAILY_LOSS_LIMIT_PCT  # $20
         ks.restore_daily_loss(daily_limit)
         ok, reason = ks.check_order_allowed(trade_usd=2.0, current_bankroll_usd=100.0)
-        assert not ok
-        assert "Daily loss" in reason
+        assert ok, f"Daily loss cap disabled — restore should not block trades, got: {reason}"
 
     def test_restore_partial_does_not_block(self, ks):
         """Restored loss below daily limit should not block trading.

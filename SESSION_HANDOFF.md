@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-10 (Session 41 continued — btc_drift Stage 1 + KXXRP15M)
+# Last updated: 2026-03-10 (Session 42 — btc_lag + eth_imbalance LIVE + daily loss cap REMOVED)
 # ═══════════════════════════════════════════════════════════════
 
 ## ▶ COPY-PASTE THIS TO START A NEW SESSION (Session 43+)
@@ -68,44 +68,48 @@ STEP 4 — MANDATORY RULES:
 
 ══════════════════════════════════════════════════════
 
-KEY STATE (Session 41 continued — 2026-03-10 ~21:40 CDT):
-* Bot: PID 7868, LIVE mode, log /tmp/polybot_session42.log
-* FOUR LIVE DRIFT LOOPS (last restart):
-  - btc_drift_v1: STAGE 1 ($5 max/bet, Kelly governs) — calibration cap REMOVED
+KEY STATE (Session 42 — 2026-03-10 ~22:00 CDT):
+* Bot: PID 8442, LIVE mode, log /tmp/polybot_session42.log
+* SIX LIVE LOOPS (daily loss cap REMOVED this session):
+  - btc_drift_v1: STAGE 1 ($5 max/bet, Kelly governs) — calibration cap removed Session 41
   - eth_drift_v1: MICRO-LIVE (1 contract ~$0.45/bet, calibration_max_usd=0.01)
   - sol_drift_v1: MICRO-LIVE (1 contract ~$0.45/bet, calibration_max_usd=0.01)
-  - xrp_drift_v1: MICRO-LIVE NEW (1 contract ~$0.45/bet, calibration_max_usd=0.01) ← NEW Session 41
+  - xrp_drift_v1: MICRO-LIVE (1 contract ~$0.45/bet, calibration_max_usd=0.01) — Session 41
+  - btc_lag_v1: STAGE 1 LIVE (re-promoted Session 42) — low freq (0 signals/week — HFTs)
+  - eth_orderbook_imbalance_v1: STAGE 1 LIVE (promoted Session 42) — 41/30 ✅
+* Kill switch: daily_loss_cap=DISABLED (Session 42), consecutive_loss_limit=8
+  Active protection: bankroll floor $20 + 8 consecutive losses → 2hr pause + $5/bet hard cap
 * 904/904 tests passing
-* Last commit: 1c8a270 — feat: add KXXRP15M micro-live drift loop + btc_drift Stage 1 promotion
-* Bankroll: ~$83.81 | All-time live P&L: -$15.28 (as of session end)
-* Kill switch: CONSECUTIVE_LOSS_LIMIT=8 (raised from 4 this session)
-* btc_drift: 42/30 ✅ Brier 0.249 STAGE 1 | eth_drift: 24/30 | sol_drift: 11/30 | xrp_drift: 0/30 NEW
+* Last commit: Session 42 (see git log)
+* Bankroll: ~$83 | All-time live P&L: ~-$15 (as of session)
+* Graduation: btc_lag 45/30 ✅ LIVE | btc_drift 42/30 ✅ STAGE 1 | eth_drift 24/30 |
+  sol_drift 11/30 | xrp_drift 0/30 | eth_imbalance 41/30 ✅ LIVE
 
-SESSION 41 CONTINUED WORK DONE:
-* btc_drift Stage 1 promotion: removed calibration_max_usd cap from trading_loop. 42/30 live bets,
-  Brier 0.249. Kelly + $5 HARD_MAX now governs. Up from ~$0.45/bet to up to $5/bet.
-* CONSECUTIVE_LOSS_LIMIT raised 4→8: daily loss limit governs at Stage 1 before consecutive fires.
-  Not a statistical-outcome reaction — structural redesign of which gate governs at Stage 1.
-* KXXRP15M drift loop built and deployed:
-  - src/data/binance.py: _BINANCE_XRP_WS_URL + load_xrp_from_config()
-  - src/strategies/btc_drift.py: load_xrp_drift_from_config()
-  - config.yaml: xrp_drift section (min_drift_pct=0.10, 2x BTC) + xrp_ws_url feed
-  - main.py: xrp_drift_task (KXXRP15M, stagger=33s, calibration_max_usd=0.01)
-  - tests/test_xrp_strategy.py: 13 new tests (all passing)
-  - tests/test_kill_switch.py: 8 tests updated to match new limit of 8
-* Bot restarted with new code, confirmed running as PID 7868
-* All 4 drift loops confirmed in startup log: [xrp_drift] Startup delay 33s ✅
+SESSION 42 WORK DONE:
+* btc_lag_v1 promoted to LIVE (re-promotion): live_executor_enabled=live_mode
+  Pre-live audit passed. trade_lock=_live_trade_lock already wired. 45/30 bets, Brier 0.191.
+  Signal frequency low (HFTs) but statistical edge valid. Harmless if 0 signals fire.
+* eth_orderbook_imbalance_v1 promoted to LIVE: live_executor_enabled=live_mode
+  trade_lock=_live_trade_lock ADDED (was missing). max_daily_bets → max_daily_bets_live.
+  Pre-live audit passed. 41/30 paper bets, $238 paper P&L (optimistic — slippage/HFT gap).
+* Daily loss cap REMOVED from kill_switch.py (user directive — "ditch the loss cap"):
+  check_order_allowed() block commented out with restore instructions.
+  DAILY_LOSS_LIMIT_PCT constant retained for --health / --status display only.
+  4 kill switch tests updated to assert cap no longer blocks trades.
+* Bot restarted with all changes, confirmed running as PID 8442
+* XRP drift confirmed active in log: [xrp_drift] Startup delay 33s ✅
 
 NEXT SESSION DIRECTIVES (in priority order):
 1. RESTART BOT FIRST (log to session43.log) — ALWAYS, no exceptions
 2. Run --health, --report, --graduation-status → log to /tmp/polybot_autonomous_monitor.md
-3. Monitor xrp_drift live bets placing (first live bet should happen within ~1-2 hours of restart)
-4. Monitor btc_drift Stage 1 bets: should see larger bet sizes now (~$1-5 vs prior ~$0.45)
-5. eth_drift graduation: 6 more live bets needed (24/30 as of this session)
-6. sol_drift graduation: 19 more live bets needed (11/30)
-7. xrp_drift calibration: target 30 live bets (0/30 NEW)
-8. Probe KXBTCMAXW on WEEKDAY (dormant Sunday — check Mon-Fri for open weekly markets)
-9. Check fomc paper bets progress: KXFEDDECISION-26MAR closes March 18
+3. Monitor xrp_drift live bets placing (first live bet should happen within ~1-2 hours)
+4. Monitor eth_imbalance live bets (first live bet expected soon — active signal engine)
+5. Monitor btc_drift Stage 1 bet sizes (~$1-5 range, confirm not still ~$0.45)
+6. eth_drift graduation: 6 more live bets needed (24/30)
+7. sol_drift graduation: 19 more live bets needed (11/30)
+8. xrp_drift calibration: target 30 live bets (0/30)
+9. Probe KXBTCMAXW on WEEKDAY (dormant Sunday — check Mon-Fri for open weekly markets)
+10. Check fomc paper bets progress: KXFEDDECISION-26MAR closes March 18
 
 STANDING DIRECTIVES (never need repeating):
 * Fully autonomous always — do work first, summarize after. Never ask for confirmation.
@@ -132,7 +136,7 @@ TOKEN BUDGET (Matthew's standing permission — never needs repeating):
 
 ## EXACT CURRENT STATE
 
-Bot RUNNING — PID 7868, live mode, log: /tmp/polybot_session42.log
+Bot RUNNING — PID 8442, live mode, log: /tmp/polybot_session42.log
 Check:  cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"
 Watch:  tail -f /tmp/polybot_session42.log
 Health: source venv/bin/activate && python3 main.py --health

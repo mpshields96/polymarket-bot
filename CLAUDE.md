@@ -193,7 +193,7 @@ DO NOT: fix symptoms without finding root cause
 - **Consecutive loss counter now persists across restarts (Session 25)**: `_consecutive_losses` was in-memory only — a restart mid-streak reset the counter to 0, letting the bot place extra losing bets (trades 86, 88, 90 = $14.74 loss after counter reset). Fix: `db.current_live_consecutive_losses()` walks live settled trades newest-first counting tail losses; `kill_switch.restore_consecutive_losses(n)` seeds the counter on startup; if n >= 4 it fires a fresh 2hr cooling period immediately. Same pattern as daily/lifetime. All three counters now survive restarts.
 - **asyncio race condition on hourly limit fixed (Session 24)**: Two live loops could both pass `check_order_allowed()` before either called `record_trade()`, exceeding hourly limit by 1. Fix: `_live_trade_lock = asyncio.Lock()` created in `main()`, passed to all 3 live loops via `trade_lock=` param. Wraps check→execute→record_trade atomically. Paper loops use `None` (no lock needed, no hourly rate limit in paper path).
 - **Paper-during-softkill (Session 23)**: Soft stops (daily loss, consecutive losses, hourly rate) block LIVE bets only. Paper data collection continues uninterrupted during soft kills. `check_paper_order_allowed()` is used in all paper paths; only hard stops + bankroll floor block paper trades. btc_lag/eth_lag/btc_drift live paths still use `check_order_allowed()` (all stops apply).
-- **Kill switch thresholds (Session 23)**: consecutive_loss_limit=4 (was 5), daily_loss_limit=20% ($20 on $100 bankroll, was 15%). Both updated in `src/risk/kill_switch.py` constants.
+- **Kill switch thresholds**: consecutive_loss_limit=8 (raised Session 41 from 4), daily_loss_cap=DISABLED (Session 42 — user directive). Active risk governors: bankroll floor ($20) + consecutive cooling (8→2hr) + $5/bet hard cap. `DAILY_LOSS_LIMIT_PCT` constant kept in kill_switch.py for display only (not a blocker).
 - **KXBTC1H does NOT exist** — Kalshi has no hourly BTC/ETH price-direction markets. Only 15-min series: KXBTC15M, KXETH15M, KXSOL15M, KXXRP15M, KXBNB15M, KXBCH15M. Confirmed by probing all 8,719 Kalshi series (Session 23).
 - **sol_lag_v1** (Session 23): paper-only KXSOL15M loop, SOL feed at `wss://stream.binance.us:9443/ws/solusdt@bookTicker`, min_btc_move_pct=0.8 (SOL ~3x more volatile than BTC). Reuses BTCLagStrategy with name_override="sol_lag_v1".
 - **Sports data feed — 500 credit/month hard cap** — enforced by _QuotaGuard in src/data/odds_api.py, resets monthly, persisted to data/sdata_quota.json. Sports props/moneyline are for a SEPARATE system. Do not mix.
@@ -243,25 +243,28 @@ CHECK: `pip freeze | grep <package>` to get current version, then pin it.
 
 Current project state (updated each session):
 - **904/904 tests passing**, verify.py 21/29 (8 advisory WARNs — non-critical)
-- **FOUR LIVE DRIFT LOOPS** (unlimited/day, daily loss limit governs):
-  - btc_drift_v1 → KXBTC15M | STAGE 1 ($5 cap, Kelly) | 42/30 ✅ Brier 0.249 | calibration cap REMOVED Session 41
+- **SIX LIVE LOOPS** (daily loss cap REMOVED Session 42 — bankroll floor + consecutive cooling govern):
+  - btc_drift_v1 → KXBTC15M | STAGE 1 ($5 cap, Kelly) | 42/30 ✅ Brier 0.249
   - eth_drift_v1 → KXETH15M | micro-live 1 contract/bet | 24/30 (6 more needed)
   - sol_drift_v1 → KXSOL15M | micro-live 1 contract, min_drift_pct=0.15 (3x BTC) | 11/30 (19 more needed)
-  - xrp_drift_v1 → KXXRP15M | micro-live 1 contract, min_drift_pct=0.10 (2x BTC) | 0/30 NEW Session 41
+  - xrp_drift_v1 → KXXRP15M | micro-live 1 contract, min_drift_pct=0.10 (2x BTC) | 0/30 Session 41
+  - btc_lag_v1 → KXBTC15M | STAGE 1 ($5 cap) | 45/30 ✅ Brier 0.191 | low freq (0 signals/week — HFTs)
+  - eth_orderbook_imbalance_v1 → KXETH15M | STAGE 1 | 41/30 ✅ Brier n/a | promoted Session 42
   - btc_drift: Kelly + $5 HARD_MAX governs. eth/sol/xrp: calibration_max_usd=0.01 still active.
-  - Combined expected 20-35 signals/day (4 markets). Target: 30 live bets each → Brier → Stage 2.
+  - Combined expected 20-35 signals/day (4 drift + 2 lag/imbalance). Target: 30 live bets each → Brier → Stage 2.
 - **fomc_rate_v1 + unemployment_rate_v1 NOW WORKING (Session 40 fix)**: shared fred_feed bug fixed.
   Both strategies were silently placing 0 paper trades since built (internal FREDFeed never refreshed).
   Now confirmed generating signals and placing paper trades.
-- All other Kalshi loops PAPER-ONLY: btc_lag (0 signals/week — HFTs), eth_lag, btc_imbalance, eth_imbalance, weather, sol_lag, all 3 crypto daily loops
+- PAPER-ONLY Kalshi: eth_lag, btc_imbalance, weather, sol_lag, all 3 crypto daily loops
 - **POLYMARKET — paper-only, platform mismatch confirmed**:
   - sports_futures_v1: paper, bookmaker arb, min_books=2 filter. Copy_trade: 0 .us matches.
   - Kalshi copy trading: INFEASIBLE (API returns zero trader attribution — confirmed via API docs + re-confirmed Session 36 research)
   - Polymarket.COM is geo-restricted for US users. Our account = polymarket.US sports only. CLOSED path.
-- Latest commit: 1c8a270 — feat: add KXXRP15M micro-live drift loop + btc_drift Stage 1 promotion
-- Kill switch: consecutive_loss_limit=8 (raised from 4 Session 41), daily_loss_limit=20%. NO lifetime % hard stop.
-- **Daily loss counter resets at midnight CST (UTC-6 = 06:00 UTC)**
-- Bankroll: ~$83.81 | All-time live P&L: -$15.28 | Bot PID: 7868 | Log: /tmp/polybot_session42.log
+- Latest commit: Session 42 (see git log)
+- Kill switch: consecutive_loss_limit=8, **daily_loss_cap=DISABLED (Session 42)**, NO lifetime % hard stop.
+  Active protection: bankroll floor ($20) + consecutive cooling (8→2hr) + $5/bet hard cap.
+- **Daily loss counter still tracked for --health display (not a blocker)**
+- Bankroll: ~$83 | All-time live P&L: ~-$15 | Bot PID: 8442 | Log: /tmp/polybot_session42.log
 - Live restart (update session number each restart):
   `pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session43.log 2>&1 &`
 

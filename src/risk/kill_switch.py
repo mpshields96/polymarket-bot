@@ -178,14 +178,19 @@ class KillSwitch:
                 f"(max {MAX_TRADE_PCT:.0%})"
             )
 
-        # ── Daily loss limit ──────────────────────────────────────
-        daily_limit_usd = state.starting_bankroll * DAILY_LOSS_LIMIT_PCT
-        if state._daily_loss_usd >= daily_limit_usd:
-            reason = f"Daily loss ${state._daily_loss_usd:.2f} >= limit ${daily_limit_usd:.2f}"
-            state._soft_stop = True
-            state._soft_stop_reason = reason
-            state._soft_stop_until = None  # resets at midnight
-            return False, f"SOFT STOP: {reason}"
+        # ── Daily loss limit (DISABLED — user directive Session 41) ────────
+        # Daily loss cap removed: bankroll floor ($20) + consecutive loss cooling
+        # are the primary risk governors. Daily % cap was too conservative at
+        # Stage 1 ($5/bet) where the floor triggers well before a 20% drawdown.
+        # Tracking still active for --health / --status display.
+        # Restore by re-enabling the block below:
+        # daily_limit_usd = state.starting_bankroll * DAILY_LOSS_LIMIT_PCT
+        # if state._daily_loss_usd >= daily_limit_usd:
+        #     reason = f"Daily loss ${state._daily_loss_usd:.2f} >= limit ${daily_limit_usd:.2f}"
+        #     state._soft_stop = True
+        #     state._soft_stop_reason = reason
+        #     state._soft_stop_until = None  # resets at midnight
+        #     return False, f"SOFT STOP: {reason}"
 
         # ── Consecutive loss cooling ──────────────────────────────
         if state._cooling_until and time.time() < state._cooling_until:

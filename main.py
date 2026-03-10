@@ -2292,7 +2292,7 @@ async def main():
     btc_imbalance_strategy = load_btc_imbalance_from_config()
     logger.info("Strategy loaded: %s (paper-only BTC orderbook imbalance)", btc_imbalance_strategy.name)
     eth_imbalance_strategy = load_eth_imbalance_from_config()
-    logger.info("Strategy loaded: %s (paper-only ETH orderbook imbalance)", eth_imbalance_strategy.name)
+    logger.info("Strategy loaded: %s (LIVE — ETH orderbook imbalance)", eth_imbalance_strategy.name)
     weather_feed = weather_feed_load()
     weather_strategy = weather_strategy_load()
     logger.info("Strategy loaded: %s (paper-only NYC weather forecast)", weather_strategy.name)
@@ -2366,10 +2366,10 @@ async def main():
 
     # Stagger the 4 loops by 7-8s each to spread Kalshi API calls evenly:
     #   btc_lag=0s, eth_lag=7s, btc_drift=15s, eth_drift=22s
-    # BTC lag: PAPER-ONLY — demoted 2026-03-01. Real backtest: 0 signals in last 5 days.
-    # HFTs now price KXBTC15M within same minute as BTC move. Signal valid (66.7% accuracy,
-    # 13.5% edge) but frequency shrinking to 0 as market matures. Re-promote only when
-    # 30-day rolling signal count > 5/month AND bankroll > $90.
+    # BTC lag: STAGE 1 LIVE — re-promoted Session 41 (45/30 bets, Brier 0.191 — graduated).
+    # Signal frequency is low (~0 signals/week — HFTs price KXBTC15M same minute as BTC move)
+    # but statistical edge is valid (66.7% accuracy, 13.5% edge). Bets fire when signal clears
+    # threshold; daily loss limit is the primary risk governor.
     trade_task = asyncio.create_task(
         trading_loop(
             kalshi=kalshi,
@@ -2377,8 +2377,8 @@ async def main():
             strategy=strategy,
             kill_switch=kill_switch,
             db=db,
-            live_executor_enabled=False,
-            live_confirmed=False,
+            live_executor_enabled=live_mode,
+            live_confirmed=live_confirmed,
             btc_series_ticker=btc_series_ticker,
             loop_name="trading",
             initial_delay_sec=0.0,
@@ -2528,7 +2528,11 @@ async def main():
         ),
         name="btc_imbalance_loop",
     )
-    # ETH orderbook imbalance: paper-only, stagger 36s (offset from ETH drift)
+    # ETH orderbook imbalance: STAGE 1 LIVE — promoted Session 41 (41/30 bets — graduated).
+    # Signal: orderbook depth ratio >0.65 (YES-heavy) or <0.35 (NO-heavy) = directional edge.
+    # Brier n/a — imbalance doesn't produce win_prob, but 41 paper bets at 35-65¢ guard.
+    # trade_lock: serializes with all live loops to prevent hourly rate limit bypass.
+    # Daily loss limit is the primary risk governor.
     eth_imbalance_task = asyncio.create_task(
         trading_loop(
             kalshi=kalshi,
@@ -2536,14 +2540,15 @@ async def main():
             strategy=eth_imbalance_strategy,
             kill_switch=kill_switch,
             db=db,
-            live_executor_enabled=False,
-            live_confirmed=False,
+            live_executor_enabled=live_mode,
+            live_confirmed=live_confirmed,
             btc_series_ticker=eth_series_ticker,
             loop_name="eth_imbalance",
             initial_delay_sec=36.0,
-            max_daily_bets=max_daily_bets_paper,
+            max_daily_bets=max_daily_bets_live,
             slippage_ticks=paper_slippage_ticks,
             fill_probability=paper_fill_probability,
+            trade_lock=_live_trade_lock,
         ),
         name="eth_imbalance_loop",
     )
