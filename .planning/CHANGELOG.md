@@ -749,3 +749,47 @@ near window end, which is expected and correct. No code changes needed.
 ### Test count: 891/891 (no code changes this session)
 ### Live bets session 41: 2 placed, 2 settled (1 WIN +$0.49, 1 LOSS -$0.52, net -$0.03)
 ### Graduation: btc_drift 41/30 ✅ | eth_drift 23/30 | sol_drift 11/30
+
+## Session 41 (continued) — 2026-03-10 — btc_drift Stage 1 promotion + KXXRP15M + consecutive limit raise
+
+### Changed
+- src/risk/kill_switch.py — CONSECUTIVE_LOSS_LIMIT 4→8
+  WHY: At Stage 1 ($5/bet), daily loss limit fires at loss #3-4 before the consecutive limit
+  ever fires. Limit of 4 was calibration-blocking — firing too early and delaying live bet
+  accumulation. 8 provides genuine safety net while allowing more calibration data.
+- main.py — btc_drift trading_loop: removed calibration_max_usd cap (Stage 1 promotion)
+  WHY: btc_drift has 42/30 live bets + Brier 0.249. Met graduation criteria. Kelly + $5
+  HARD_MAX now governs bet size (vs previous 1-contract $0.45/bet micro-live cap).
+- src/data/binance.py — added _BINANCE_XRP_WS_URL + load_xrp_from_config()
+- src/strategies/btc_drift.py — added load_xrp_drift_from_config()
+  Config: min_drift_pct=0.10 (2x BTC, matches XRP ~2x BTC volatility), min_edge_pct=0.05
+- config.yaml — added xrp_drift strategy section + xrp_ws_url/xrp_window_seconds feeds
+- main.py — xrp_drift_task added: KXXRP15M series, calibration_max_usd=0.01 (micro-live),
+  stagger 33s (sol_drift=29s, xrp_drift=33s, btc_imbalance=36s), cancels/gathers correctly
+- tests/test_xrp_strategy.py — 13 new tests: XRP feed factory, strategy factory, volatility
+  threshold, signal generation (first-call reference, above/below threshold, price range guard)
+- tests/test_kill_switch.py — updated 8 tests: changed 4-loss trigger loops to 8-loss
+  (test docstring, test names, and loop counts updated to match new limit)
+
+### Why these changes
+- CONSECUTIVE_LOSS_LIMIT: Matthew's directive — "stop limiting bets, get live bets for data"
+  The 4-loss cooling was blocking calibration. At $5/bet Stage 1, the daily limit ($20/20%)
+  fires at loss #3-4 anyway, making the consecutive limit redundant at that level.
+  This is NOT a statistical-outcome reaction — it's a structural redesign of which gate governs.
+- btc_drift Stage 1: Matthew's directive — "update that promotion". 42 live bets / Brier 0.249.
+  Graduation criteria met (30+ bets, Brier < 0.30). Expanded from ~$0.45/bet to up to $5/bet.
+- KXXRP15M: Matthew's directive — "do option b". More live markets = more bet frequency.
+  XRP is confirmed active on Kalshi (1 open market @ 43¢ probed Session 41). 2x BTC volatility
+  suggests 0.10% min_drift threshold. Expected signal frequency: 5-12 signals/day.
+  Same micro-live cap as eth_drift/sol_drift (1 contract ~$0.45/bet) until 30 live bets + Brier.
+
+### Principles check
+- Consecutive limit: not a statistical-outcome reaction. The 4-loss limit was an infrastructure
+  design choice (Stage 1 risk governance). Raising it is recognizing the daily limit governs first.
+- btc_drift promotion: met explicit graduation criteria (30+ bets, Brier < 0.30). Not premature.
+- KXXRP15M: new strategy follows the established micro-live calibration pattern. Starting
+  micro-live (not Stage 1). This is expansion gate compliant — btc_drift now graduated.
+
+### Test count: 904/904 (13 new XRP tests + kill switch tests updated)
+### Bot restarted: PID 7868, log /tmp/polybot_session42.log
+### Graduation: btc_drift 42/30 ✅ (STAGE 1) | eth_drift 24/30 | sol_drift 11/30 | xrp_drift 0/30 NEW

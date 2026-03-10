@@ -174,6 +174,9 @@ DO NOT: fix symptoms without finding root cause
 - **`src/execution/live.py` now has unit tests** (Sessions 37-38) — `TestExecutionPriceGuard` (6 tests) and `TestExecuteOrderStatusGuard` (2 tests). Before adding any new live strategy, write integration tests for the full execute() path.
 - **`order.status == "canceled"` must be checked before `db.save_trade()`** (fixed Session 38) — Kalshi can return `status="canceled"` if no liquidity or market closes mid-execution. Previously this was recorded as a real live bet, corrupting calibration data, graduation counters, and potentially triggering the consecutive-loss kill switch with a "loss" that never happened. Guard added at lines 175-183 of live.py: `if order.status == "canceled": log warning + return None`. Regression tests in `TestExecuteOrderStatusGuard`.
 - **`calculate_size()` signature requires `payout_per_dollar`, NOT `price_cents`** — paper loops (weather/fomc/unemployment) had this bug (Session 22). Always compute `payout = kalshi_payout(yes_price, side)` first, then pass `payout_per_dollar=payout`. Bug pattern: `calculate_size(price_cents=..., ...)` raises TypeError silently caught by outer except. Regression tests in TestPaperLoopSizingCallSignature.
+- **xrp_drift_v1 added Session 41** — KXXRP15M series, min_drift_pct=0.10 (2x BTC volatility), micro-live cap. Same BTCDriftStrategy class, same price guard (35-65¢), same calibration pattern as sol_drift. 13 tests in tests/test_xrp_strategy.py. Do NOT lower threshold without 30+ live bets.
+- **btc_drift promoted to Stage 1 Session 41** — calibration_max_usd cap removed. 42/30 live bets, Brier 0.249. Kelly + $5 HARD_MAX now governs. eth/sol/xrp remain micro-live (calibration_max_usd=0.01).
+- **CONSECUTIVE_LOSS_LIMIT raised 4→8 Session 41** — at Stage 1 ($5/bet), daily loss limit fires at loss #3-4 before consecutive limit fires. The limit of 4 was calibration-blocking. Tests updated in test_kill_switch.py.
 - **Stage promotion is gated on Kelly calibration, not just bankroll** — bankroll crossed $100 (Stage 2 threshold) but Stage 2 ($10 max/bet) requires 30+ live settled bets with `limiting_factor=="kelly"` + Brier < 0.25 on live bets. See docs/GRADUATION_CRITERIA.md v1.1 Stage Promotion section. Do NOT raise bet cap yet.
 - **Kelly sizing is invisible at Stage 1** — $5 cap always binds before Kelly; we can't evaluate Kelly calibration until Stage 2+ where bet can be between $5 and $10. Don't trust Kelly for promotion decisions until ~30 live settled bets at Stage 2.
 - **Volatility × Kelly interaction** — static signal thresholds (min_edge_pct) mean no signals on calm days; Kelly scales bet size with edge within the stage cap. Both are intentional. See .planning/todos.md "Volatility-Adaptive Parameters" for future roadmap item (don't build yet).
@@ -239,13 +242,14 @@ CHECK: `pip freeze | grep <package>` to get current version, then pin it.
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- **891/891 tests passing**, verify.py 21/29 (8 advisory WARNs — non-critical)
-- **THREE LIVE DRIFT LOOPS** (all 1 contract/bet ~$0.35-0.65, unlimited/day, daily loss limit governs):
-  - btc_drift_v1 → KXBTC15M | thresholds 0.05/0.05 (RESTORED Session 36) | 41/30 ✅ Brier 0.247
-  - eth_drift_v1 → KXETH15M | thresholds 0.05/0.05 | 23/30 (7 more needed)
-  - sol_drift_v1 → KXSOL15M | min_drift_pct=0.15 (3x BTC), min_edge_pct=0.05 | 11/30 (19 more needed)
-  - All share _live_trade_lock + calibration_max_usd=0.01 + daily loss limit
-  - Combined expected 15-25 signals/day. Target: 30 settled bets each → compute Brier → Stage 2 gate.
+- **904/904 tests passing**, verify.py 21/29 (8 advisory WARNs — non-critical)
+- **FOUR LIVE DRIFT LOOPS** (unlimited/day, daily loss limit governs):
+  - btc_drift_v1 → KXBTC15M | STAGE 1 ($5 cap, Kelly) | 42/30 ✅ Brier 0.249 | calibration cap REMOVED Session 41
+  - eth_drift_v1 → KXETH15M | micro-live 1 contract/bet | 24/30 (6 more needed)
+  - sol_drift_v1 → KXSOL15M | micro-live 1 contract, min_drift_pct=0.15 (3x BTC) | 11/30 (19 more needed)
+  - xrp_drift_v1 → KXXRP15M | micro-live 1 contract, min_drift_pct=0.10 (2x BTC) | 0/30 NEW Session 41
+  - btc_drift: Kelly + $5 HARD_MAX governs. eth/sol/xrp: calibration_max_usd=0.01 still active.
+  - Combined expected 20-35 signals/day (4 markets). Target: 30 live bets each → Brier → Stage 2.
 - **fomc_rate_v1 + unemployment_rate_v1 NOW WORKING (Session 40 fix)**: shared fred_feed bug fixed.
   Both strategies were silently placing 0 paper trades since built (internal FREDFeed never refreshed).
   Now confirmed generating signals and placing paper trades.
@@ -254,12 +258,12 @@ Current project state (updated each session):
   - sports_futures_v1: paper, bookmaker arb, min_books=2 filter. Copy_trade: 0 .us matches.
   - Kalshi copy trading: INFEASIBLE (API returns zero trader attribution — confirmed via API docs + re-confirmed Session 36 research)
   - Polymarket.COM is geo-restricted for US users. Our account = polymarket.US sports only. CLOSED path.
-- Latest commit: (Session 41 docs commit — see git log)
-- Kill switch: consecutive_loss_limit=4, daily_loss_limit=20%. NO lifetime % hard stop.
+- Latest commit: 1c8a270 — feat: add KXXRP15M micro-live drift loop + btc_drift Stage 1 promotion
+- Kill switch: consecutive_loss_limit=8 (raised from 4 Session 41), daily_loss_limit=20%. NO lifetime % hard stop.
 - **Daily loss counter resets at midnight CST (UTC-6 = 06:00 UTC)**
-- Bankroll: ~$83.81 | All-time live P&L: -$15.37 | Bot PID: 4799 | Log: /tmp/polybot_session41.log
+- Bankroll: ~$83.81 | All-time live P&L: -$15.28 | Bot PID: 7868 | Log: /tmp/polybot_session42.log
 - Live restart (update session number each restart):
-  `pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session42.log 2>&1 &`
+  `pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session43.log 2>&1 &`
 
 ## Loading Screen Tip — MANDATORY at end of EVERY response
 Every response (with or without code changes) must end with a "💡 Loading Screen Tip" block.
