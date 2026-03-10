@@ -310,12 +310,33 @@ FORMAT (always use this exactly):
 
 RULES:
 - Show at most ONE recommendation per response (the most objectively useful)
-- Only recommend if there is a genuinely applicable skill/command for the immediate next step
-- If no command is appropriate, show "No skill needed — inline work is sufficient" instead
-- Token cost tiers (from mandatory-skills-workflow.md):
-  - Free (~0-1%): superpowers:TDD, superpowers:verification-before-completion, superpowers:systematic-debugging, gsd:add-todo
-  - Low (~1-2%): gsd:quick, gsd:health, gsd:progress
-  - Expensive (~15-25%): gsd:plan-phase, gsd:execute-phase, gsd:verify-work, superpowers:dispatching-parallel-agents
+- Only recommend if there is a genuinely applicable skill for the immediate next step
+- If no skill needed, show "No skill needed — inline work is sufficient"
+- Pick the FIRST match from this decision matrix:
+
+| SITUATION | SKILL | COST |
+|-----------|-------|------|
+| Designing/building something NEW, approach unclear | `superpowers:brainstorm` | Expensive ~15% |
+| About to write ANY implementation code | `superpowers:TDD` | Free |
+| Design approved — multi-file plan needed | `superpowers:write-plan` | Low ~2% |
+| Plan in hand — ready to execute | `superpowers:execute-plan` or `gsd:execute-phase` | Expensive ~20% |
+| Bug to investigate | `superpowers:systematic-debugging` | Free |
+| Claiming work is done | `superpowers:verification-before-completion` | Free |
+| Formal phase (5+ tasks, 4+ subsystems, multi-session) | `gsd:discuss-phase` → `gsd:plan-phase` → `gsd:execute-phase` | Expensive |
+| One-off fix, small feature (90% of work) | `gsd:quick` | Low ~1% |
+| High-risk change (live.py, kill_switch) | `gsd:quick --full` + `sc:analyze --focus security` | Low ~3% |
+| Pre-live strategy audit | `sc:analyze --focus security` | Low ~2% |
+| Code/architecture understanding | `sc:explain --think` | Low ~2% |
+| Need test coverage report | `sc:test` or `gsd:add-tests` | Low ~2% |
+| Bug resists 2+ inline attempts | `gsd:debug` or `sc:troubleshoot --think` | Medium ~5% |
+| Kalshi API / market research | `sc:research` | Medium ~5% |
+| Brownfield audit before major feature | `gsd:map-codebase` | Expensive ~20% |
+| Session START (once only) | `gsd:health` + `gsd:progress` | Free |
+| Any idea or issue surfaces | `gsd:add-todo` | Free |
+| Session END | `wrap-up` | Free |
+| Context limit approaching | `titanium-context-monitor` | Free |
+
+- Full skill reference: `.planning/SKILLS_REFERENCE.md`
 - If "run autonomously: yes", Matthew can respond "yes" and Claude proceeds without further questions
 
 ## Workflow — ALWAYS AUTONOMOUS (Matthew's standing directive, never needs repeating)
