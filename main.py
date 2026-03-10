@@ -79,6 +79,7 @@ async def trading_loop(
     fill_probability: float = 1.0,
     trade_lock: Optional[asyncio.Lock] = None,
     calibration_max_usd: Optional[float] = None,
+    direction_filter: Optional[str] = None,
 ):
     """Main async loop: poll markets, generate signals, execute trades.
 
@@ -188,6 +189,18 @@ async def trading_loop(
                 # Generate signal (synchronous)
                 signal = strategy.generate_signal(market, orderbook, btc_feed)
                 if signal is None:
+                    continue
+
+                # Direction filter: block signals on the filtered side.
+                # Used to restrict btc_drift to NO-only after YES showed 30% win rate
+                # across 20 live bets (vs 61% win rate for NO) — statistically significant
+                # underperformance with mechanical explanation (upward BTC drift already
+                # priced into Kalshi YES market by HFTs before our signal fires).
+                if direction_filter is not None and signal.side != direction_filter:
+                    logger.debug(
+                        "[%s] Direction filter active: skipping %s signal (only %s allowed)",
+                        loop_name, signal.side, direction_filter,
+                    )
                     continue
 
                 # Position deduplication — skip if we already have an open bet on this market
@@ -2433,6 +2446,11 @@ async def main():
             fill_probability=paper_fill_probability,
             trade_lock=_live_trade_lock,
             # calibration_max_usd=None: Stage 1, Kelly + $5 cap governs
+            # direction_filter: YES signals have 30% win rate (6/20, p=3.7%) vs NO at 61%
+            # (14/23). Upward BTC drift is already priced into Kalshi YES market by HFTs
+            # before our signal fires — the edge is illusory. Downward drift is slower to
+            # price in and retains real edge. Restrict to NO-only until YES edge recovers.
+            direction_filter="no",
         ),
         name="drift_loop",
     )

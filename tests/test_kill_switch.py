@@ -15,6 +15,7 @@ import json
 import os
 import time
 from pathlib import Path
+from typing import Optional
 from unittest.mock import patch
 
 import pytest
@@ -1014,6 +1015,49 @@ class TestCalibrationCap:
         trade_usd = min(size_from_sizing, hard_cap)
         trade_usd = min(trade_usd, calibration_max_usd)
         assert trade_usd == pytest.approx(0.50)
+
+
+class TestDirectionFilter:
+    """Regression tests for trading_loop direction_filter parameter.
+
+    direction_filter="no" was added to btc_drift after YES showed 30% win rate (6/20)
+    vs NO at 61% (14/23) across 43 live bets — p≈3.7%, statistically significant.
+    Mechanical explanation: upward BTC drift is already priced into Kalshi YES market
+    by HFTs before our signal fires. Downward drift retains real edge.
+
+    Tests verify the filter logic directly (the conditional in trading_loop is trivial
+    but must be correctly applied to prevent YES bets from sneaking through).
+    """
+
+    def _filter_signal(self, signal_side: str, direction_filter: Optional[str]) -> bool:
+        """Returns True if signal should be kept (not filtered), False if it should be skipped."""
+        if direction_filter is not None and signal_side != direction_filter:
+            return False
+        return True
+
+    def test_no_filter_passes_yes_signal(self):
+        """direction_filter=None passes YES signals through."""
+        assert self._filter_signal("yes", None) is True
+
+    def test_no_filter_passes_no_signal(self):
+        """direction_filter=None passes NO signals through."""
+        assert self._filter_signal("no", None) is True
+
+    def test_no_filter_blocks_yes_signal(self):
+        """direction_filter='no' blocks YES signals."""
+        assert self._filter_signal("yes", "no") is False
+
+    def test_no_filter_passes_no_signal_when_filter_no(self):
+        """direction_filter='no' passes NO signals through."""
+        assert self._filter_signal("no", "no") is True
+
+    def test_yes_filter_blocks_no_signal(self):
+        """direction_filter='yes' blocks NO signals (future use if needed)."""
+        assert self._filter_signal("no", "yes") is False
+
+    def test_yes_filter_passes_yes_signal(self):
+        """direction_filter='yes' passes YES signals through."""
+        assert self._filter_signal("yes", "yes") is True
 
 
 class TestResetSoftStop:
