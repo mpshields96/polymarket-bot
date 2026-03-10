@@ -347,21 +347,28 @@ class FOMCRateStrategy(BaseStrategy):
 # ── Factory ───────────────────────────────────────────────────────────
 
 
-def load_from_config() -> FOMCRateStrategy:
-    """Build FOMCRateStrategy from config.yaml strategy.fomc section."""
+def load_from_config(fred_feed: Optional[FREDFeed] = None) -> FOMCRateStrategy:
+    """Build FOMCRateStrategy from config.yaml strategy.fomc section.
+
+    Args:
+        fred_feed: Shared FREDFeed instance to use. If None, creates a new one.
+                   Pass the shared instance from main() so the strategy uses the
+                   same FREDFeed that the loop refreshes — prevents stale-feed
+                   silent signal blocking.
+    """
     import yaml
     from src.data.fred import load_from_config as fred_load
 
     config_path = PROJECT_ROOT / "config.yaml"
     if not config_path.exists():
-        return FOMCRateStrategy(fred_feed=fred_load())
+        return FOMCRateStrategy(fred_feed=fred_feed or fred_load())
 
     with open(config_path) as f:
         cfg = yaml.safe_load(f)
 
     f_cfg = cfg.get("strategy", {}).get("fomc", {})
     return FOMCRateStrategy(
-        fred_feed=fred_load(),
+        fred_feed=fred_feed or fred_load(),
         min_edge_pct=f_cfg.get("min_edge_pct", _DEFAULT_MIN_EDGE_PCT),
         min_minutes_remaining=f_cfg.get("min_minutes_remaining", _DEFAULT_MIN_MINUTES_REMAINING),
         days_before_meeting=f_cfg.get("days_before_meeting", _DEFAULT_DAYS_BEFORE_MEETING),

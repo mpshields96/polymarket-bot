@@ -243,6 +243,19 @@ class TestFOMCFactory:
         assert isinstance(s, FOMCRateStrategy)
         assert s.name == "fomc_rate_v1"
 
+    def test_load_from_config_without_shared_feed_is_stale(self):
+        """Regression: load_from_config() without fred_feed creates its own stale instance."""
+        s = load_from_config()
+        # A freshly constructed FREDFeed has never been refreshed → always stale
+        assert s._fred.is_stale is True
+
+    def test_load_from_config_shares_passed_fred_feed(self):
+        """Regression: load_from_config(fred_feed=...) uses the provided (non-stale) instance."""
+        shared_feed = _make_fred(_make_snap(), stale=False)
+        s = load_from_config(fred_feed=shared_feed)
+        assert s._fred is shared_feed, "Strategy must use the same FREDFeed instance passed to it"
+        assert s._fred.is_stale is False
+
 
 # ── Gate 1: FOMC timing ───────────────────────────────────────────────
 
