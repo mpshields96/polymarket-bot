@@ -240,6 +240,19 @@ class BTCDriftStrategy(BaseStrategy):
         # No effect in the first 2 minutes; full penalty if we joined at minute 10+.
         late_penalty = max(0.5, 1.0 - max(0.0, minutes_late - 2.0) / 16.0)
 
+        # Apply late_penalty to effective edge — MECHANICAL FIX (was applied to dead field).
+        # A stale reference (joined mid-window) means our drift measure is relative to a
+        # mid-window BTC price, not the market open. This inflates edge_pct vs true edge.
+        # Reduce effective edge proportionally; skip if it falls below the floor.
+        if minutes_late > 2.0:
+            effective_edge = edge_pct * late_penalty
+            if effective_edge < self._min_edge_pct:
+                logger.debug(
+                    "[%s] Late reference (%.1f min) reduces effective edge %.1f%%→%.1f%% — skip %s",
+                    self.name, minutes_late, edge_pct * 100, effective_edge * 100, market.ticker,
+                )
+                return None
+
         # Confidence: how far prob is from 0.5, scaled by time_factor and late_penalty
         confidence = min(1.0, abs(prob_yes - 0.5) * 2 * (0.3 + 0.7 * time_factor) * late_penalty)
 

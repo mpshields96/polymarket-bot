@@ -68,9 +68,16 @@ strategy:
     #     PRINCIPLES.md note: the Session 25 tightening itself lacked 30 data points.
     #     Do NOT re-tighten until 30+ settled live bets + Brier score computed.
     sensitivity: 800.0               # Sigmoid steepness — calibrated from 30d backtest
-    min_drift_pct: 0.05              # BTC must drift ≥ 0.05% from market open (restored from 0.10)
+    min_drift_pct: 0.10              # BTC must drift ≥ 0.10% from market open (raised Session 44)
+                                     # REASON: 47 live bets confirm 0.05% fires at extreme prices
+                                     # generating 20%+ edge signals with 0/3 win rate. Data in
+                                     # .planning/STRATEGY_AUDIT.md Part 3.1 Problem 2.
+                                     # Threshold matches XRP (0.10=2x BTC volatility corrected), consistent.
+                                     # Previous change comment preserved below for history:
+                                     # Restored from 0.10 in Session 36 (Session 25 raised with only ~12 live trades)
+                                     # Now re-raised with 47 live bets — the 30-point PRINCIPLES.md threshold is met.
     min_minutes_remaining: 3.0       # Don't enter with ≤ 3 min left
-    min_edge_pct: 0.05               # Net edge > 5% (restored from 0.08 — was original value)
+    min_edge_pct: 0.05               # Net edge > 5% (correct — do not raise, sweet spot is 8-20%)
     time_weight: 0.7                 # How much time remaining blends probability (0=ignore, 1=full)
 
   eth_lag:
@@ -126,7 +133,10 @@ strategy:
     depth_top_n: 10               # Only consider top 10 price levels
     min_edge_pct: 0.05            # 5% edge required after fees
     min_minutes_remaining: 3.0
-    signal_scaling: 1.0           # Scale imbalance→probability mapping
+    signal_scaling: 0.5           # Scale imbalance→probability mapping
+                                  # REDUCED Session 44: was 1.0 → overconfident (-27.2% calibration error)
+                                  # At 0.95 imbalance, old: prob_yes=0.929. New: prob_yes=0.65.
+                                  # Data: 10 live bets, 40% actual win vs 67.2% model. See STRATEGY_AUDIT.md.
 
   weather:
     # Weather forecast vs Kalshi temperature market strategy — paper-only.
