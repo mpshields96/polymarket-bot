@@ -183,6 +183,7 @@ Volume confirmed via Session 36 live probe (contracts per current window):
 | KXXRP15M  | XRP   | 📋 NOT YET BUILT                            | Next expansion after drift validates |
 | KXBNB15M  | BNB   | ❌ NO OPEN MARKETS (Session 36 probe)       | Inactive series |
 | KXBCH15M  | BCH   | ❌ NO OPEN MARKETS (Session 36 probe)       | Inactive series |
+| KXDOGE15M | DOGE  | ❌ NO OPEN MARKETS (Session 40 probe)       | Series exists via /series endpoint, 0 open (inactive like BNB/BCH) |
 
 **Strategy used:** BTCDriftStrategy (sigmoid probability model)
   - min_drift_pct: 0.05% for BTC/ETH, 0.15% for SOL (3x volatility)
