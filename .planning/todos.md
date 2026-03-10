@@ -334,3 +334,67 @@ Paper-only. Has not placed any trades recently.
 
 **DO NOT BUILD:** Until expansion gate opens + fomc_rate_v1 has 5+ paper trades per FOMC cycle.
 **Action:** Log here, revisit after btc_drift/eth_drift/sol_drift graduate.
+
+---
+## [RESEARCH] Barrier event strategy: KXBTCMAX100 / KXBTCMAX150 (first-passage-time model)
+**Added:** Session 42 (2026-03-10)
+**Priority:** Medium-High — post-expansion-gate research
+**Volume:** KXBTCMAX100=$2.7M (5 open mkts) | KXBTCMAX150=$10.8M (3 open mkts)
+
+**Market structure:**
+- "When will BTC cross $100k again?" — date-bracketed barrier events (MAR/MAY/JUNE/SEP/DEC 2026)
+- "When will BTC hit $150k?" — date-bracketed (MAR/APR/MAY 2026 now, very low odds)
+- Settlement: YES if BTC touches the barrier level before the date deadline
+
+**Pricing model needed:**
+- NOT simple drift (σ√T) — this is a first-passage-time probability
+- Correct formula: P(τ ≤ T | S_0 = current_price, K = barrier)
+  = Φ((-ln(K/S) + μT)/(σ√T)) + (S/K)^(2μ/σ²) × Φ((-ln(K/S) - μT)/(σ√T))
+  Where μ=drift (log), σ=realized vol (log), Φ=normal CDF
+- Input data: Binance.US 30-day realized vol + drift (already in backtest.py)
+
+**Session 42 probe data (BTC ~$82k, Tuesday Mar 10):**
+- KXBTCMAX100 DEC 2026: Kalshi prices at 41/42c → GBM should give ~40-45% first-passage-time
+- KXBTCMAX100 JUNE 2026: 21/22c → GBM gives lower? Need to compute to see if edge exists
+- KXBTCMAX150 MAY 2026: 4/5c → BTC needs +83% in 12 weeks, GBM says ~1-2%? Possible edge.
+
+**Reddit/GitHub research (Session 42):**
+- NO open-source bots or strategy posts for barrier event markets found
+- Markets appear algorithmically underexplored (HFTs focus on 15-min direction, not barriers)
+- Potential first-mover edge for a first-passage-time model
+
+**Spread quality:**
+- KXBTCMAX100: ~1c spread on 15-42c markets → tradeable (3-7% effective spread)
+- KXBTCMAX150: ~1c spread on 2-5c markets → wide effective spread (20-50%), harder
+
+**DO NOT BUILD:** Until (a) expansion gate opens (btc_drift 30+ live + Brier + 2+ weeks P&L),
+(b) first-passage-time model coded + backtested, (c) paper traded 10+ signals.
+**Next step when gate opens:** Code GBM first-passage-time formula, compare vs KXBTCMAX100 DEC pricing.
+
+---
+## [RESEARCH] KXBTCMAXW weekly BTC max — CLOSED (confirmed dormant)
+**Added:** Session 42 (2026-03-10)
+**Priority:** DO NOT BUILD — series inactive
+**Finding:** 0 open markets on Tuesday Mar 10 (and Sunday Mar 9). Was seasonal Nov 2024.
+**Conclusion:** KXBTCMAXW is a discontinued or seasonal series. Not worth building for.
+**Action:** Archive this research item. Do not revisit unless new open markets appear.
+
+
+---
+## [RESEARCH] KXNASDAQ100Y — Annual Nasdaq range markets (same model as KXBTCMAXY)
+**Added:** Session 42 (2026-03-10)
+**Priority:** Low — post-gate research, well after crypto graduate
+**Volume:** $516,451 total (top market $467,972) — decent annual market
+
+**Market structure:** "Will Nasdaq be above X by Dec 31, 2026?"
+  - Same barrier option structure as KXBTCMAXY (annual max)
+  - 5 open markets with T33000 (33k threshold) at 2/6c
+  - Priced very low suggesting Nasdaq is significantly above previous targets
+
+**Why interesting:** Same model as KXBTCMAXY. If/when we build annual BTC max pricing,
+reuse for KXNASDAQ100Y. Different underlying (Nasdaq vs BTC) but identical market structure.
+Input data: Binance.US equivalent = would need a Nasdaq data feed (Yahoo Finance or FRED).
+
+**DO NOT BUILD:** Gate closed. Log for post-expansion roadmap only.
+**Next step:** After building KXBTCMAXY model, evaluate reuse for KXNASDAQ100Y.
+

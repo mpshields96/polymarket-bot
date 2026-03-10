@@ -724,3 +724,87 @@ Reddit/GitHub research (Session 41):
 - Implication: markets remain potentially underexploited by retail algorithmic traders.
 
 ═══════════════════════════════════════════════════════════════
+
+### Session 42 Probe Results (2026-03-10, 22:16 CDT — Tuesday)
+
+**KXBTCMAXW**: 0 open markets on TUESDAY — CONFIRMED DORMANT (not seasonal to weekday)
+  → Previously hypothesized it might open Mon-Fri. Tested on a Tuesday: still 0 open.
+  → Conclusion: KXBTCMAXW was a one-time Nov 2024 series. DO NOT build for this.
+
+**KXBTCMAX100 pricing update (BTC ~$82k, down from $84k)**:
+  - MAR 2026: 1/3c (vol=999k) — expires ~Apr 1, essentially impossible
+  - MAY 2026: 15/16c (vol=363k)
+  - JUNE 2026: 21/22c (vol=515k)
+  - SEP 2026: 29/30c (vol=62k)
+  - DEC 2026: 41/42c (vol=88k)
+  → DEC went from 38¢ → 41¢ despite BTC dropping $2k (market sees longer term recovery path)
+  → Note: added JUNE contract (21c) vs Session 41 which showed only 6 contracts total
+
+**KXBTCMAX150 pricing update (BTC at $82k, target=$150k = +83% away)**:
+  - 26MAR31: 0/2c (vol=3.7M) — expires in 3 weeks, essentially 0%
+  - 26APR30: 2/3c (vol=2.7M) — 7 weeks, ~2% implied
+  - 26MAY31: 4/5c (vol=4.5M) — 12 weeks, ~4% implied
+  → Still heavily priced toward NO. $10.8M volume but wide spreads (1c wide on 2-4c markets)
+  → Wide spreads suggest market maker dominated, hard to trade efficiently
+
+**KXBTC2026200**: 8/9c (vol=3.4M) — stable. Binary "Will BTC be above $200k by Jan 1, 2027?"
+
+**KXBTCMAXY** (How high will BTC get in 2026?):
+  - $100k: 37/38c | $110k: 29/30c | $130k: 17/19c | $140k: 14/15c | $150k: 12/13c
+
+**KXBTCY** (EOY binary):
+  - T20000: 4/4c | T149999: 5/5c | B97500: 3/3c | B92500: 3/3c | B87500: 4/4c
+
+**KXETHMAXY**: $4250=21c | $4500=17c | $4750=14c | $5000=13c | $6000=9c
+
+**Reddit/GitHub Research (Session 42)**:
+- NO Reddit r/kalshi posts discussing KXBTCMAX100/150 barrier event strategies found
+- NO GitHub bots using first-passage-time models for barrier events
+- Kalshi barrier markets appear algorithmically UNDEREXPLORED — all GitHub bots use 15-min direction
+- HFTs do NOT appear to dominate barrier markets (unlike KXBTC15M directional)
+- Potential edge: first-passage-time GBM pricing vs market odds for KXBTCMAX100/150
+- However: wide spreads on KXBTCMAX150 (1c wide on 2-4c markets) limit profitability
+- KXBTCMAX100 has tighter spreads (1c wide on 15-41c) — more tradeable if edge exists
+- CONCLUSION: Log to todos.md post-gate. Legitimate research opportunity, not ready to build.
+
+
+### Session 42 Extended Probe — Non-Crypto Financial Series
+
+Probed all 8,947 Kalshi series for financial/macro categories beyond crypto.
+Key findings:
+
+**NEW DISCOVERY: KXNASDAQ100Y** — Annual Nasdaq range (same structure as KXBTCMAXY)
+  - 5 open markets | $516,451 total vol (top mkt: $467,972)
+  - Sample: KXNASDAQ100Y-26DEC31H1600-T33000 | yes=2/6c
+  - Structure: "Will Nasdaq be above X by Dec 31, 2026?"
+  - SAME barrier option model as KXBTCMAXY — could reuse model when/if built
+  - Volume is significant ($516k). Log to todos as future candidate.
+
+**KXGDP** — US GDP quarterly growth: $199,493 total vol (already in doc from Session 39/40)
+  - 5 open Q2/Q3/Q4 2026 markets, 97k top vol
+  - Sample: KXGDP-26APR30-T4.5 | yes=7/8c (7% chance GDP >4.5%)
+
+**KXGDPUSMAX** — "Will US GDP peak at X%?": $169,297 vol (1 open mkt at 56/59c)
+  - 1 open market: KXGDPUSMAX-28-5 (will US GDP growth peak above 5% by 2028?)
+
+**DORMANT series (not worth building):**
+  - KXOILW (oil weekly): $14,601 total vol — too thin
+  - KXGOLDW (gold weekly): 5 open but only $131 vol — no liquidity
+  - KXINXMINW (S&P weekly knockout): $4,293 total — dormant
+  - KXNASDAQ100Z (Nasdaq up binary): $21,484 — too thin
+  - KXCPICORE: $35,431 — very thin
+  - KXPCECORE: $63 vol — no liquidity
+  - KXHOUSINGSTART: 5 open but $0 vol — brand new with no liquidity yet
+
+**Confirmed non-existent on Kalshi (no series found):**
+  - KXSPX / KXSPY: No daily or weekly S&P 500 direction bets
+  - KXNFP: No Non-Farm Payrolls markets
+  - KXDXY: No Dollar index markets
+  - KXVIX: No volatility index bets
+  - Individual stocks (NVDA, AAPL, MSFT): No individual stock prediction markets
+
+**Conclusion for expansion roadmap:**
+  - KXNASDAQ100Y is a legitimate future candidate (same model as KXBTCMAXY, $516k vol)
+  - Everything else in non-crypto is too thin or dormant
+  - Macro focus should remain on KXGDP/KXFEDDECISION which already have infrastructure
+
