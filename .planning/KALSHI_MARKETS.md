@@ -14,10 +14,23 @@
 #   - CONFIRMED: KXBTCMAX100 ($2.7M), KXBTCMAXY ($2.2M), KXBTC2026200 ($3.4M)
 #   - CONFIRMED: KXBTCMAXMON/KXBTCMINMON (monthly max/min, trimmed mean, ~$550k/mo)
 #   - CONFIRMED: KXBTCY (annual year-end, 28 mkts, $1.4M) is BINARY not range-bracket
-#   - CONFIRMED: KXBTCW/KXETHW/KXSOLW exist — 0 open on Sunday (expected, weekly timing)
 #   - EVENTS ENDPOINT: GET /events?status=open scans all Kalshi categories
 #   - ALL KALSHI CATEGORIES CONFIRMED: Crypto, Politics, Financials, Companies,
 #     Mentions, Climate, Economics, Science, Sports, Entertainment, Elections, World
+#
+# SESSION 40 KEY CORRECTIONS + DISCOVERIES (2026-03-09 series endpoint /series?limit=100 probe):
+#   - CORRECTION: KXBTCW/KXETHW/KXSOLW DO NOT EXIST. Weekly ticker is KXBTCMAXW (not KXBTCW).
+#     0 open (expected Sunday). 5 finalized markets from Nov 2024. May be dormant series.
+#   - CONFIRMED: KXBTCMAXW exists, KXBTCMAXM (monthly, 860k vol finalized) exists
+#   - CORRECTION: KXFEDDECISION volume was 4,700 — WRONG. Actual: 23,394,968 (23.4M open)
+#     March 2026 FOMC alone has 22M+ volume. Largest documented Kalshi market.
+#   - CONFIRMED: KXRATECUTCOUNT (1.5M vol) — 'How many rate cuts in 2026?'
+#   - CONFIRMED: KXBTC2026250 (454k vol) — 'Will BTC hit 250k in 2026?' yes=5c
+#   - CONFIRMED: KXETHMAXY (1.26M vol) — 'How high will ETH get this year?' (8 markets)
+#   - CONFIRMED: KXETHY (693k vol) — ETH price EOY binary (18 markets, like KXBTCY)
+#   - CONFIRMED: KXETHMINY (283k vol) — 'How low will ETH fall this year?' (5 markets)
+#   - CONFIRMED: KXBTCMAXD freq=daily (BTC daily max), KXBTCMINMAXY (annual min+max) — 0 open
+#   - ETH market ecosystem discovered: KXETH (hourly range) + KXETHD (hourly above/below) exists
 # ══════════════════════════════════════════════════════════════
 
 ## ⚠️ CRITICAL UPDATE — Session 38 Screenshot Confirms More Market Types Than Documented
@@ -205,28 +218,26 @@ Each daily series generates ~24 hourly markets. Kalshi UI shows these as "Hourly
 
 ═══════════════════════════════════════════════════════════════
 
-## CATEGORY 2B — Crypto Price Level (Weekly) ✅ TICKER CONFIRMED — 0 OPEN MARKETS NOW
+## CATEGORY 2B — Crypto Price Level (Weekly) ⚠️ TICKER CORRECTED Session 40
 
-"Will [asset] be ABOVE or BELOW $[strike] on [day of week] at [time]?"
-UI shows "Weekly (8)" under Crypto. Example: "Bitcoin price on Friday at 5pm EDT?"
+"How high will [asset] get this week?" — multi-strike range market, settles Friday 5pm EDT
 
-| Series  | Asset | Vol (UI screenshot) | Status in bot | Notes |
-|---------|-------|---------------------|---------------|-------|
-| KXBTCW  | BTC   | ~$455,661 vol       | ❌ NOT BUILT  | ✅ ticker confirmed, 0 open NOW (Session 39 probe) |
-| KXETHW  | ETH   | unknown             | ❌ NOT BUILT  | ✅ ticker confirmed, 0 open now |
-| KXSOLW  | SOL   | unknown             | ❌ NOT BUILT  | ✅ ticker confirmed, 0 open now |
-| KXBTCWK | BTC   | -                   | ❌ NOT BUILT  | ✅ confirmed exists, 0 open |
-| KXBTCFRI| BTC   | -                   | ❌ NOT BUILT  | ✅ confirmed exists, 0 open |
+| Series    | Asset | Vol (all-time finalized) | Status in bot | Notes |
+|-----------|-------|--------------------------|---------------|-------|
+| KXBTCMAXW | BTC   | ~177k (5 finalized mkts from Nov 2024) | ❌ NOT BUILT | Series exists, currently DORMANT (no open) |
+| KXETHW    | ETH   | unknown                  | ❌ NOT BUILT  | ❌ NOT A REAL TICKER — does not exist |
+| KXSOLW    | SOL   | unknown                  | ❌ NOT BUILT  | ❌ NOT A REAL TICKER — does not exist |
 
-**Key findings (Session 39 API probe):**
-- KXBTCW, KXETHW, KXSOLW tickers ARE REAL — series confirmed to exist via API
-- All return "0 open markets" currently — weekly markets may only open Mon–Fri
-- Session 39 probed on a Sunday → 0 open is EXPECTED (opens Monday, closes Friday 5pm EDT)
-- Same multi-strike structure as KXBTCD (multiple price levels = B/T suffix)
-- $455K volume per week = ~90x more liquid than KXBTCD daily slots
-- Strategy potential: same as KXBTCD but with weekly settlement. Research after expansion gate.
+**⚠️ CRITICAL CORRECTION (Session 40, 2026-03-09):**
+- KXBTCW, KXETHW, KXSOLW DO NOT EXIST. Series endpoint returns 404. Markets API returns 0.
+- Session 39 incorrectly confirmed these. The actual weekly BTC ticker is KXBTCMAXW.
+- KXBTCMAXW structure: "How high will BTC get this week?" — same multi-strike as KXBTCMAXMON
+  Last active: November 2024 (5 finalized markets). Currently dormant — may reopen seasonally.
+  Nov 2024 strikes: $95k-$99k range at BTC ATH. Volume 177k total across 5 markets.
+- Strategy: NOT a priority — dormant series. Probe on weekdays to check if open.
+- UI "Weekly (8)" count may refer to events or be inaccurate — don't rely on UI count.
 
-**Next step:** Probe on a weekday to see open markets. Should work same as KXBTCD structure.
+**Next step:** On a weekday, probe: `markets?series_ticker=KXBTCMAXW&limit=20&status=open`
 
 ═══════════════════════════════════════════════════════════════
 
@@ -271,7 +282,7 @@ Ticker structure: KXBTCY-27JAN0100-B82500 = "Will BTC be BELOW $82,500 on Jan 1,
 | Series  | Asset | Vol (Session 39)  | Markets | Status  | Description |
 |---------|-------|-------------------|---------|---------|-------------|
 | KXBTCY  | BTC   | ~$1.4M+  (28 mkts)| 28      | ❌ NOT BUILT | BTC price on Jan 1, 2027 |
-| KXETHY  | ETH   | ~$350K+ (18 mkts) | 18      | ❌ NOT BUILT | ETH price on Jan 1, 2027 |
+| KXETHY  | ETH   | ~$692K (18 mkts) ✅ | 18      | ❌ NOT BUILT | ETH price on Jan 1, 2027 |
 | KXSOLD26| SOL   | $116,979 (8 mkts) | 8       | ❌ NOT BUILT | SOL price on Jan 1, 2027 |
 
 **Most liquid KXBTCY markets (Session 39 live probe):**
