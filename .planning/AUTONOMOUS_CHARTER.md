@@ -185,26 +185,35 @@ DO NOT build new live strategies.
 DO NOT raise bet sizes.
 
 Gate stays CLOSED until ALL criteria met:
-- [ ] btc_drift: 30+ live settled bets ✅ (37+ met)
-- [ ] Brier score < 0.30 ✅ (0.247 met)
-- [ ] 2-3 weeks of live P&L data ❌ NOT MET (~2 days live)
+- [ ] btc_drift: 30+ live settled bets ✅ (43+ met)
+- [ ] Brier score < 0.30 ✅ (0.250 met — close to edge, do NOT change thresholds)
+- [ ] 2-3 weeks of live P&L data ❌ NOT MET
 - [ ] No kill switch events in the window ❌ NOT MET (multiple soft stops)
 
-Next expansion candidate (when gate opens): KXXRP15M drift (same code as sol_drift, ~15 min to enable)
+Next expansion candidate (when gate opens): KXBTCMAX100/150 barrier event model (post-research)
 
-## BOT ARCHITECTURE SNAPSHOT (Session 39)
+## BOT ARCHITECTURE SNAPSHOT (Session 42 — 2026-03-10)
 
 ```
-THREE MICRO-LIVE LOOPS (all ~$0.35-0.65/bet, 1 contract):
-  btc_drift_v1  → KXBTC15M | 37/30 ✅ Brier 0.247 | min_drift=0.05 min_edge=0.05
-  eth_drift_v1  → KXETH15M | 19/30 (11 more needed) | same thresholds
-  sol_drift_v1  → KXSOL15M | 11/30 (19 more needed) | min_drift=0.15 (3x BTC)
-  All share: _live_trade_lock | calibration_max_usd=0.01 | price guard 35-65¢
+SIX LIVE LOOPS:
+  btc_drift_v1  → KXBTC15M | 43/30 ✅ Brier 0.250 | STAGE 1 ($5 cap, Kelly sizing)
+  eth_drift_v1  → KXETH15M | 24/30 (6 more needed) | calibration_max_usd=0.01
+  sol_drift_v1  → KXSOL15M | 12/30 (18 more needed) | min_drift=0.15 (3x BTC)
+  xrp_drift_v1  → KXXRP15M | 1/30 (29 more needed) | min_drift=0.10, calibration_max_usd=0.01
+  btc_lag_v1    → KXBTC15M | LIVE but 0 signals/week (HFTs priced out the lag edge)
+  eth_orderbook_imbalance_v1 → KXETH15M | 1/30 live | STAGE 1 LIVE (trade 556 = first live bet)
 
-PAPER-ONLY (12 loops):
-  btc_lag, eth_lag, sol_lag (0 signals/week — HFTs closed the lag)
-  orderbook_imbalance, eth_orderbook_imbalance
-  btc_daily, eth_daily, sol_daily (KXBTCD 24 hourly price-level slots)
+DAILY LOSS CAP: DISABLED (Session 42). Governors: bankroll floor $20 + 8 consecutive losses → 2hr pause.
+GRADUATION TRACKING: xrp_drift and eth_imbalance now tracked against live trades (fix Session 42).
+btc_daily/eth_daily/sol_daily: PAPER-ONLY, logs at DEBUG level — silence in INFO log is EXPECTED.
+  DO NOT investigate daily loop silence — it is not a bug. Confirmed Session 42.
+
+PAPER-ONLY (10 loops):
+
+PAPER-ONLY (10 loops):
+  btc_lag (live but 0 signals/week — HFTs, tracked paper), eth_lag, sol_lag
+  orderbook_imbalance (btc_imbalance paper only)
+  btc_daily, eth_daily, sol_daily (KXBTCD 24 hourly slots — DEBUG level logs, silence = expected)
   weather_forecast, fomc_rate, unemployment_rate
   sports_futures_v1, copy_trader_v1 (0 .us matches — platform mismatch)
 ```
@@ -219,7 +228,8 @@ PAPER-ONLY (12 loops):
 - Kill switch counters ALL persist across restarts (daily, consecutive, lifetime) — seeded from DB
 - Price range guard 35-65¢: bets near window expiry show 2-10¢ — this is expected, not a bug
 - config dict only exists in main() — never reference config inside loop functions (pass as params)
-- Kill switch: consecutive_loss_limit=4, daily_loss_limit=20%, NO lifetime % hard stop
+- Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED (Session 42), NO lifetime % hard stop
+  Only active protection: bankroll floor $20 + 8 consecutive losses → 2hr pause
 - KXBTC1H DOES NOT EXIST — hourly BTC bets live inside KXBTCD (24 slots/day)
 - order.status=="canceled" → return None before db.save_trade() (fixed Session 38 — guard exists)
 - 887/887 tests must pass before ANY commit
@@ -280,3 +290,39 @@ New sessions: confirm you've read this file by stating:
 
 Do NOT proceed with any work until you've confirmed receipt of this charter.
 Do NOT summarize this document — it exists precisely because summarizing loses critical context.
+
+## CURRENT BOT STATE (Session 42 end — 2026-03-10 ~22:45 CDT)
+- PID: 8442 (check bot.pid for current)
+- Log: /tmp/polybot_session42.log
+- Next session log: /tmp/polybot_session43.log
+- SIX LIVE LOOPS: btc_drift(Stage1 $5 cap) + eth_drift(micro) + sol_drift(micro) + xrp_drift(micro) + btc_lag(live but 0 signals) + eth_imbalance(Stage1 live, 1/30)
+- Daily loss cap: DISABLED — bankroll floor $20 + 8 consecutive losses = the risk governors
+- Graduation fix: xrp_drift_v1 + eth_orderbook_imbalance_v1 now tracked as live (was paper bug)
+- 904/904 tests passing
+- Last commit: f6ccec6 (fix: graduation tracking for xrp_drift + eth_imbalance)
+- Bankroll: ~$83.57 | All-time live P&L: -$14.62 | Today: +$0.72
+
+## AUTONOMOUS WINDOW — MATTHEW GOING TO SLEEP (~22:45 CDT)
+**Session 43 must run autonomously for 2 hours 30 minutes (until ~01:15 CDT).**
+
+During this window Session 43 must:
+1. RESTART bot to session43.log FIRST — always
+2. Log initial state to /tmp/polybot_autonomous_monitor.md
+3. Run --health, --report, --graduation-status → log all outputs
+4. Monitor every 10-15 min: check log for live bets, log to MD
+5. If bot STOPS: restart immediately per SESSION_HANDOFF.md procedure
+6. If HARD STOP fires: log it, DO NOT restart, wait for Matthew
+7. Research between health checks per RESEARCH PRIORITY list below
+
+RESEARCH PRIORITY for autonomous window (in order):
+1. Read KALSHI_MARKETS.md RESEARCH DIRECTIVES — probe any undocumented series
+2. Monitor eth_drift graduation progress (6 more live bets from 24/30)
+3. Check fomc paper bet activity (KXFEDDECISION-26MAR closes March 18)
+4. If anything anomalous in logs: diagnose and fix (use systematic-debugging)
+5. Document all findings in /tmp/polybot_autonomous_monitor.md
+
+DO NOT:
+- Change any strategy thresholds
+- Promote any strategy
+- Build new code
+- Ask Matthew questions (he is asleep)

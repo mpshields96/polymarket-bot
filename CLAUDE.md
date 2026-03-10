@@ -245,14 +245,14 @@ CHECK: `pip freeze | grep <package>` to get current version, then pin it.
 Current project state (updated each session):
 - **904/904 tests passing**, verify.py 21/29 (8 advisory WARNs — non-critical)
 - **SIX LIVE LOOPS** (daily loss cap REMOVED Session 42 — bankroll floor + consecutive cooling govern):
-  - btc_drift_v1 → KXBTC15M | STAGE 1 ($5 cap, Kelly) | 42/30 ✅ Brier 0.249
+  - btc_drift_v1 → KXBTC15M | STAGE 1 ($5 cap, Kelly) | 43/30 ✅ Brier 0.250
   - eth_drift_v1 → KXETH15M | micro-live 1 contract/bet | 24/30 (6 more needed)
-  - sol_drift_v1 → KXSOL15M | micro-live 1 contract, min_drift_pct=0.15 (3x BTC) | 11/30 (19 more needed)
-  - xrp_drift_v1 → KXXRP15M | micro-live 1 contract, min_drift_pct=0.10 (2x BTC) | 0/30 Session 41
-  - btc_lag_v1 → KXBTC15M | STAGE 1 ($5 cap) | 45/30 ✅ Brier 0.191 | low freq (0 signals/week — HFTs)
-  - eth_orderbook_imbalance_v1 → KXETH15M | STAGE 1 | 41/30 ✅ Brier n/a | promoted Session 42
-  - btc_drift: Kelly + $5 HARD_MAX governs. eth/sol/xrp: calibration_max_usd=0.01 still active.
-  - Combined expected 20-35 signals/day (4 drift + 2 lag/imbalance). Target: 30 live bets each → Brier → Stage 2.
+  - sol_drift_v1 → KXSOL15M | micro-live 1 contract, min_drift_pct=0.15 (3x BTC) | 12/30 (18 more needed)
+  - xrp_drift_v1 → KXXRP15M | micro-live 1 contract, min_drift_pct=0.10 (2x BTC) | 1/30 (LIVE, grad tracking fixed Session 42)
+  - btc_lag_v1 → KXBTC15M | STAGE 1 ($5 cap) | 45/30 ✅ Brier 0.191 | LIVE BUT 0 signals/week (HFTs) — tracked paper
+  - eth_orderbook_imbalance_v1 → KXETH15M | STAGE 1 | 1/30 LIVE (grad tracking fixed Session 42 — was counting paper)
+  - btc_drift: Kelly + $5 HARD_MAX governs. eth/sol/xrp/eth_imbalance: calibration_max_usd=0.01 still active.
+  - Bankroll: ~$83.57 | All-time live P&L: -$14.62 | Today: +$0.72
 - **fomc_rate_v1 + unemployment_rate_v1 NOW WORKING (Session 40 fix)**: shared fred_feed bug fixed.
   Both strategies were silently placing 0 paper trades since built (internal FREDFeed never refreshed).
   Now confirmed generating signals and placing paper trades.
@@ -261,11 +261,11 @@ Current project state (updated each session):
   - sports_futures_v1: paper, bookmaker arb, min_books=2 filter. Copy_trade: 0 .us matches.
   - Kalshi copy trading: INFEASIBLE (API returns zero trader attribution — confirmed via API docs + re-confirmed Session 36 research)
   - Polymarket.COM is geo-restricted for US users. Our account = polymarket.US sports only. CLOSED path.
-- Latest commit: Session 42 (see git log)
+- Latest commit: f6ccec6 (fix: graduation tracking for xrp_drift_v1 and eth_orderbook_imbalance_v1)
 - Kill switch: consecutive_loss_limit=8, **daily_loss_cap=DISABLED (Session 42)**, NO lifetime % hard stop.
   Active protection: bankroll floor ($20) + consecutive cooling (8→2hr) + $5/bet hard cap.
 - **Daily loss counter still tracked for --health display (not a blocker)**
-- Bankroll: ~$83 | All-time live P&L: ~-$15 | Bot PID: 8442 | Log: /tmp/polybot_session42.log
+- Bankroll: ~$83.57 | All-time live P&L: -$14.62 | Bot PID: 8442 | Log: /tmp/polybot_session42.log
 - Live restart (update session number each restart):
   `pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session43.log 2>&1 &`
 

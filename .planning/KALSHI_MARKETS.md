@@ -201,6 +201,12 @@ Volume confirmed via Session 36 live probe (contracts per current window):
 the SAME 15-minute window as Binance.US ticks. HFTs (Jane Street, Susquehanna) closed the lag.
 The drift model is different — it bets on momentum continuation, not price lag.
 
+**Confirmed mechanism (Session 42, Protos article Feb 2026):** Polymarket previously had a 500ms
+taker order delay. Quants exploited this by hedging Polymarket 5-min BTC bets through Kalshi 15-min
+markets. This created massive HFT arbitrage pressure that efficiently priced Kalshi 15-min markets.
+Polymarket removed the speed bump (Feb 2026) — but Kalshi 15-min markets remain very efficient.
+Net effect: btc_lag remains 0 signals/week. btc_drift (momentum, not lag) is the viable strategy.
+
 ═══════════════════════════════════════════════════════════════
 
 ## CATEGORY 2A — Crypto Price Level (Hourly + Daily, KXBTCD structure)

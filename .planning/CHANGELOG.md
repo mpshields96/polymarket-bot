@@ -849,3 +849,46 @@ near window end, which is expected and correct. No code changes needed.
 ###                  btc_lag (Stage 1, low freq), eth_imbalance (Stage 1, NEW)
 ### Graduation: btc_lag 45/30 ✅ LIVE | btc_drift 42/30 ✅ STAGE 1 | eth_drift 24/30 |
 ###             sol_drift 11/30 | xrp_drift 0/30 | eth_imbalance 41/30 ✅ LIVE
+
+---
+
+## Session 42 continued — 2026-03-10 — Graduation tracking fix + btc_daily investigation
+
+### Changed
+- setup/verify.py — Added xrp_drift_v1 to _GRAD dict (was completely absent — live bets untracked)
+- setup/verify.py — Added xrp_drift_v1 + eth_orderbook_imbalance_v1 to _LIVE_STRATEGIES
+  (both live; eth_imbalance first live bet = trade 556 today, $4.24 WIN)
+- tests/test_graduation_reporter.py — Updated count assertion: 9 → 10 strategies
+- CLAUDE.md — Added gotcha: btc_daily/eth_daily/sol_daily evaluation logs at DEBUG level,
+  filtered by main.py basicConfig(level=INFO). Silence in INFO log = EXPECTED, not a bug.
+- .planning/AUTONOMOUS_CHARTER.md — Updated architecture snapshot, expansion gate, kill switch
+  thresholds (daily_loss_cap DISABLED), added autonomous window directive for next session.
+- SESSION_HANDOFF.md — Full update with current state, graduation counts, pending tasks.
+- /tmp/polybot_autonomous_monitor.md — Three entries appended this session.
+
+### Why
+- Graduation tracking bug: xrp_drift and eth_imbalance were enabled live in Session 42 but
+  the graduation tracking code in setup/verify.py was never updated. xrp_drift was absent
+  entirely. eth_imbalance showed 42/30 "READY FOR LIVE" counting paper bets instead of live.
+  This made the status report misleading. Fix makes both track real live bet counts (1/30 each).
+- btc_daily investigation: charter mandates investigating daily loop silence each session.
+  Confirmed it's expected: evaluation logs at DEBUG level, filtered by INFO basicConfig.
+  Documented as gotcha in CLAUDE.md so future sessions don't waste time re-investigating.
+
+### Live bet activity today (Session 42)
+- Trade 554: btc_drift YES@49¢ $3.43 → LOSS
+- Trade 555: xrp_drift NO@64¢ $0.64 → LOSS
+- Trade 556: eth_imbalance YES@45¢ $3.60 → WIN +$4.24 (FIRST LIVE eth_imbalance bet)
+- Net today live: +$0.72 | All-time live P&L: -$14.62 | Bankroll: ~$83.57
+
+### Kalshi research (Session 42 earlier)
+- KXBTCMAXW: dormant confirmed (0 open Tuesday) — not seasonal. Archived in todos.md.
+- KXBTCMAX100 pricing updated: DEC contract now at 41/42¢ (was 38¢)
+- KXNASDAQ100Y discovered: $516k vol annual Nasdaq range markets (post-gate candidate)
+- Polymarket BTC loophole documented: 500ms taker delay removed Feb 2026 (explains btc_lag silence)
+- Non-crypto financial series mapped: KXGDP ($199k), KXOILW/KXGOLDW dormant
+- GitHub research: btc_drift/orderbook_imbalance approaches absent from all public repos (novel edge)
+
+### Test count: 904/904
+### Bot: RUNNING PID 8442, log /tmp/polybot_session42.log
+### Graduation: btc_drift 43/30 ✅ | eth_drift 24/30 | sol_drift 12/30 | xrp_drift 1/30 (live) | eth_imbalance 1/30 (live)
