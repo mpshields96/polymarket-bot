@@ -398,3 +398,31 @@ Input data: Binance.US equivalent = would need a Nasdaq data feed (Yahoo Finance
 **DO NOT BUILD:** Gate closed. Log for post-expansion roadmap only.
 **Next step:** After building KXBTCMAXY model, evaluate reuse for KXNASDAQ100Y.
 
+
+---
+## [CONFIRMED DORMANT] KXBTCMAXW — Weekly BTC Max series
+**Confirmed:** Session 43 (2026-03-10) — probed on weekday, 0 markets ANY status
+**Previous note:** Session 39 error listed as dormant; Session 40 re-noted
+**Action:** Confirmed dead. Remove from future research priority. If it ever reopens, KALSHI_MARKETS.md update needed.
+
+---
+## [RESEARCH] KXCPI — Monthly CPI direction markets
+**Added:** Session 43 (2026-03-10)
+**Volume:** 6,729 total (50 open markets) — VERY LOW LIQUIDITY
+**Structure:** "Will CPI rise more than X% in month Y?" — binary over monthly BLS release
+  - Near-mid markets (30-70¢): 14 markets available for Aug/Sep/Oct/Nov 2026
+  - Best: KXCPI-26SEP-T0.2 (49¢), KXCPI-26AUG-T0.2 (42¢), KXCPI-26JUN-T0.2 (59¢)
+**Why potentially interesting:** CPI monthly release is predictable event window. FRED data
+feeds already built (fred_feed.py used by fomc/unemployment). Could reuse similar approach.
+**Blocker:** Volume 6.7k total (vs KXFEDDECISION 23.4M). Max 50 contracts/bet with no market impact = ~$25 max position. Not worth engineering effort given low liquidity.
+**DO NOT BUILD:** Gate closed + insufficient volume. Low priority even post-gate.
+**Note:** KXPCE (PCE inflation, similar to CPI) and KXJOLTS (job openings) both have 0 open markets.
+
+---
+## [CONFIRMED] KXNASDAQ100Y — Updated volume
+**Session 43 probe:** 30 open markets, 773,906 total vol (up from 516k estimate)
+**All markets:** Extreme prices only — YES=2-10¢ or 88-97¢. Zero near mid-price.
+**Assessment:** High volume but completely unsuitable for signal-based trading. All markets
+have strong directional conviction (Nasdaq is far above/below the strike prices). Market
+has efficiently priced these. DO NOT BUILD any signal strategy for KXNASDAQ100Y — there
+is no near-50¢ market to exploit with a signal edge.

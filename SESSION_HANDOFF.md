@@ -1,12 +1,12 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-10 (Session 42 continued — graduation tracking fix + btc_daily gotcha)
+# Last updated: 2026-03-10 (Session 43 — direction_filter + Kalshi research)
 # ═══════════════════════════════════════════════════════════════
 
-## ▶ COPY-PASTE THIS TO START A NEW SESSION (Session 43+)
+## ▶ COPY-PASTE THIS TO START A NEW SESSION (Session 44+)
 
 ```
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 43).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 44).
 
 ══════════════════════════════════════════════════════
 MANDATORY: BEFORE WRITING A SINGLE LINE OF CODE, DO ALL OF THIS:
@@ -24,7 +24,7 @@ STEP 2 — RESTART THE BOT FIRST. ALWAYS. NO EXCEPTIONS.
     pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null
     sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid
     echo "CONFIRM" > /tmp/polybot_confirm.txt
-    nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session43.log 2>&1 &
+    nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session44.log 2>&1 &
     sleep 8 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
   Verify: ps aux | grep "[m]ain.py" | wc -l should show 1 (exactly one process).
 
@@ -56,6 +56,8 @@ STEP 4 — MANDATORY RULES:
 
   RULE C — KALSHI MARKET RESEARCH (cannot be skipped every session):
     ACTION: Read RESEARCH DIRECTIVES in KALSHI_MARKETS.md. Probe API for undocumented series.
+    Session 43 COMPLETED: KXBTCMAXW dormant, KXNASDAQ100Y extreme prices, KXCPI low vol.
+    GDP (KXGDP) confirmed active. KXPCE + KXJOLTS dormant.
 
   RULE D — SESSION WRAP-UP (mandatory before any session end):
     1. python3 main.py --report → capture output
@@ -68,10 +70,12 @@ STEP 4 — MANDATORY RULES:
 
 ══════════════════════════════════════════════════════
 
-KEY STATE (Session 42 end — 2026-03-10 ~22:40 CDT):
-* Bot: PID 8442, LIVE mode, log /tmp/polybot_session42.log
+KEY STATE (Session 43 end — 2026-03-10 ~23:10 CDT):
+* Bot: PID 11839, LIVE mode, log /tmp/polybot_session43.log
 * SIX LIVE LOOPS (daily loss cap REMOVED Session 42):
   - btc_drift_v1: STAGE 1 ($5 max/bet, Kelly governs) — 43/30 ✅ Brier 0.250
+    ⚠️ direction_filter="no" ACTIVE — Session 43 change — blocks ALL YES signals
+    Reason: YES 30% win rate vs NO 61% win rate (p=3.7%). First NO-only bet: trade 567.
   - eth_drift_v1: MICRO-LIVE (1 contract ~$0.45/bet) — 24/30 (6 more needed)
   - sol_drift_v1: MICRO-LIVE (1 contract ~$0.45/bet) — 12/30 (18 more needed)
   - xrp_drift_v1: MICRO-LIVE (1 contract ~$0.45/bet) — 1/30 (29 more needed)
@@ -79,47 +83,46 @@ KEY STATE (Session 42 end — 2026-03-10 ~22:40 CDT):
   - eth_orderbook_imbalance_v1: LIVE — 1/30 live bets (trade 556 today, first live WIN $4.24)
 * Kill switch: daily_loss_cap=DISABLED, consecutive_loss_limit=8
   Active protection: bankroll floor $20 + 8 consecutive → 2hr pause + $5/bet hard cap
-* 904/904 tests passing
-* Last commit: f6ccec6 — fix: graduation tracking for xrp_drift_v1 and eth_orderbook_imbalance_v1
+* 910/910 tests passing
+* Last commit: e085536 — feat: block btc_drift YES signals via direction_filter
 * Bankroll: ~$83.57 | All-time live P&L: -$14.62 | Today live P&L: +$0.72
-* Graduation: btc_drift 43/30 ✅ | eth_drift 24/30 | sol_drift 12/30 | xrp_drift 1/30 (live) | eth_imbalance 1/30 (live)
+* Graduation: btc_drift 43/30 ✅ | eth_drift 24/30 | sol_drift 12/30 | xrp_drift 1/30 | eth_imbalance 1/30
 * SDATA quota: 74/500 (15%) — resets 2026-04-01
 
-SESSION 42 WORK DONE (this session and continuation):
-* btc_lag_v1 promoted to LIVE: live_executor_enabled=live_mode. Pre-live audit passed.
-* eth_orderbook_imbalance_v1 promoted to LIVE: first live bet = trade 556 (WIN +$4.24)
-* Daily loss cap REMOVED from kill_switch.py (user directive). Only: bankroll floor + consecutive cooling.
-* Bot restarted: PID 8442. XRP drift confirmed active in log.
-* Kalshi market research: KXBTCMAXW confirmed dormant (0 open on both Sunday and Tuesday).
-  KXBTCMAX100 updated pricing (DEC 41/42c). KXNASDAQ100Y discovered ($516k vol).
-  Non-crypto series map complete in KALSHI_MARKETS.md.
-  Polymarket BTC loophole mechanism documented (btc_lag HFT arbitrage explanation).
-* GRADUATION TRACKING BUG FIXED (end of session):
-  - xrp_drift_v1: was absent from _GRAD entirely → now tracked live (1/30)
-  - eth_orderbook_imbalance_v1: was tracked against paper trades → now tracked live (1/30)
-  - Test count assertion: 9 → 10 strategies. 904/904 passing.
-* btc_daily/eth_daily/sol_daily silence CONFIRMED NOT A BUG: evaluation logs at DEBUG level,
-  filtered by main.py basicConfig(level=INFO). Startup messages (INFO) confirm they run.
-  Gotcha documented in CLAUDE.md. DO NOT RE-INVESTIGATE this in future sessions.
+SESSION 43 WORK DONE:
+* btc_drift direction_filter="no" DEPLOYED:
+  - Statistical basis: YES side 6/20 wins (30%), -$30.07 | NO side 14/23 wins (61%), +$11.49
+  - p-value ≈ 3.7% (significant). Mechanical cause: HFTs price YES momentum before signal fires.
+  - Added `direction_filter: Optional[str] = None` param to trading_loop() in main.py
+  - btc_drift call: direction_filter="no" (blocks YES, only fires NO signals)
+  - 6 new tests in TestDirectionFilter (test_kill_switch.py)
+  - First NO-only live bet: trade 567, btc_drift NO@37¢ $4.07 (KXBTC15M-26MAR100015-15, open)
+  - COMMITTED e085536, pushed
+* Kalshi market research COMPLETED (all AUTONOMOUS_CHARTER.md research directives):
+  - KXBTCMAXW: CONFIRMED dormant (0 markets in ANY status on weekday)
+  - KXNASDAQ100Y: 30 markets, 773,906 vol, but ALL extreme prices — unsuitable
+  - KXCPI: 50 markets, 6,729 vol (too low) — 14 near-mid markets but $25 max position
+  - KXGDP: 8 open markets active (Q1 2026, closes Apr 30)
+  - KXPCE + KXJOLTS: 0 open markets (dormant)
+  - All logged to .planning/todos.md. No build — expansion gate closed.
 
 NEXT SESSION DIRECTIVES (in priority order):
-1. RESTART BOT FIRST (log to session43.log) — ALWAYS, no exceptions
+1. RESTART BOT FIRST (log to session44.log) — ALWAYS, no exceptions
 2. Run --health, --report, --graduation-status → log to /tmp/polybot_autonomous_monitor.md
-3. Monitor all 6 live loops — focus on eth_drift (6 more bets to graduation)
-4. Watch eth_orderbook_imbalance live bets accumulate (1/30 — just started live)
-5. Watch xrp_drift live bets accumulate (1/30 — just started live, micro-live)
-6. sol_drift graduation: 18 more live bets needed (12/30)
-7. Probe KXBTCMAXW on WEEKDAY to confirm dormant (last probe was Tuesday confirmed 0 open)
-8. IMPROVE LIVE P&L — currently -$14.62 all-time. btc_drift Brier=0.250 is at the edge.
-   Do NOT change thresholds without 30+ live trades + PRINCIPLES.md review first.
-   Focus: ensure no silent blockers, price guard not overfiring, signals timing correctly.
-9. Check fomc paper bets progress: KXFEDDECISION-26MAR closes March 18
+3. ⚠️ MONITOR direction_filter="no" bets: are NO-only btc_drift bets winning at 61% rate?
+   After 10+ NO-only live bets settled, run SQL to check win rate on new filter regime.
+   If NO win rate < 50% over 15+ bets: revisit filter (may need to remove or reconsider)
+4. Monitor eth_drift graduation: 6 more live bets needed (24/30)
+5. Watch eth_orderbook_imbalance live bets: 29 more needed (1/30)
+6. Watch xrp_drift live bets accumulate (1/30)
+7. sol_drift graduation: 18 more live bets needed (12/30)
+8. Check fomc paper bets: KXFEDDECISION-26MAR closes March 18
 
 STANDING DIRECTIVES (never need repeating):
 * Fully autonomous always — do work first, summarize after. Never ask for confirmation.
-* EXPANSION GATE: closed for new strategy TYPES. btc_drift graduated; expansion order is
+* EXPANSION GATE: closed for new strategy TYPES. Expansion order:
   KXXRP15M micro-live (done ✅) → KXBTCMAX100/150 (post-research, post-gate) → annual markets
-* 904 tests must pass before any commit (count updates each session)
+* 910 tests must pass before any commit (count updates each session)
 * Read .planning/CHANGELOG.md at session start, append entries at session end
 * Read .planning/KALSHI_MARKETS.md BEFORE any Kalshi strategy or market work
 * Read .planning/SKILLS_REFERENCE.md BEFORE choosing any implementation tool
@@ -140,18 +143,19 @@ TOKEN BUDGET (Matthew's standing permission — never needs repeating):
 
 ## EXACT CURRENT STATE
 
-Bot RUNNING — PID 8442, live mode, log: /tmp/polybot_session42.log
+Bot RUNNING — PID 11839, live mode, log: /tmp/polybot_session43.log
 Check:  cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"
-Watch:  tail -f /tmp/polybot_session42.log
+Watch:  tail -f /tmp/polybot_session43.log
 Health: source venv/bin/activate && python3 main.py --health
 
 ### SIX Live loops:
 - btc_drift_v1 → KXBTC15M | min_drift=0.05, min_edge=0.05 | 43/30 ✅ Brier 0.250 | STAGE 1 ($5 cap, Kelly)
+  ⚠️ direction_filter="no" ACTIVE — only fires NO signals (Session 43 change)
 - eth_drift_v1 → KXETH15M | min_drift=0.05, min_edge=0.05 | 24/30 needs 6 more | micro-live
 - sol_drift_v1 → KXSOL15M | min_drift=0.15, min_edge=0.05 | 12/30 needs 18 more | micro-live
 - xrp_drift_v1 → KXXRP15M | min_drift=0.10, min_edge=0.05 | 1/30 needs 29 more | micro-live
 - btc_lag_v1   → KXBTC15M | 0 signals/week (HFTs) | tracked paper (45/30) | live but silent
-- eth_orderbook_imbalance_v1 → KXETH15M | 1/30 live | STAGE 1 live (first live bet trade 556 today)
+- eth_orderbook_imbalance_v1 → KXETH15M | 1/30 live | STAGE 1 live (first live bet trade 556)
 
 Kill switch: CONSECUTIVE_LOSS_LIMIT=8, daily_loss_cap=DISABLED, bankroll floor $20.
 btc_drift: Kelly sizing + $5 hard max. All others: calibration_max_usd=0.01 (1 contract).
@@ -166,19 +170,25 @@ unemployment_rate (~12x/year — WORKING Session 40)
 sports_futures_v1 (Polymarket.US bookmaker arb, paper-only, min_books=2)
 copy_trader_v1 (Polymarket.US — 0 matches, platform mismatch confirmed)
 
-### Tests: 904/904
+### Tests: 910/910
 
 ### Last commits:
+- e085536 — feat: block btc_drift YES signals via direction_filter — statistical basis
 - f6ccec6 — fix: graduation tracking for xrp_drift_v1 and eth_orderbook_imbalance_v1
 - e7ac3ae — docs: Session 42 Kalshi market research — barrier events + non-crypto probes
-- 3f4611c — feat: btc_lag + eth_imbalance live + remove daily loss cap
 
-### P&L (as of 2026-03-10 22:40 CDT):
+### P&L (as of 2026-03-10 23:10 CDT):
 - Bankroll: ~$83.57
 - All-time live P&L: -$14.62
 - Today live P&L: +$0.72 (8 settled, 61% win rate)
 - Kill switch: consecutive=2, daily=DISABLED, hard stop CLEAR
 - SDATA quota: 74/500 (15%) — resets 2026-04-01
+
+### direction_filter tracking (NEW — Session 43):
+- YES bets before filter: 20 live settled, 6 wins (30%), -$30.07
+- NO bets before filter: 23 live settled, 14 wins (61%), +$11.49
+- First NO-only bet: trade 567, btc_drift NO@37¢ $4.07 (KXBTC15M-26MAR100015-15)
+- Monitor: after 10+ NO-only settled bets → run SQL to validate ongoing NO win rate
 
 ### EXPANSION GATE STATUS:
 | Criterion | Status |
@@ -192,12 +202,20 @@ KXXRP15M added as micro-live (Session 41) — calibration, not new type.
 eth_imbalance live since Session 42 — already built/tested strategy.
 
 ### PENDING TODOS:
+- ⚠️ Monitor NO-only btc_drift bets: 10+ settled → SQL win rate check
 - eth_drift graduation: 6 more live bets needed (24/30)
 - sol_drift graduation: 18 more live bets needed (12/30)
 - xrp_drift calibration: 29 more live bets needed (1/30)
 - eth_imbalance live calibration: 29 more live bets needed (1/30)
-- Probe KXBTCMAXW weekday (Tuesday: 0 open, not seasonal — may be permanently dormant)
 - Check fomc paper bets: KXFEDDECISION-26MAR closes March 18
+
+### Kalshi market research status (Session 43 complete):
+- KXBTCMAXW: DORMANT (0 markets any status, confirmed weekday)
+- KXNASDAQ100Y: Active (773k vol) but extreme prices — unsuitable for signal strategy
+- KXCPI: Active (6.7k vol, too low) — 14 near-mid markets but insufficient volume
+- KXGDP: Active (8 markets, Q1 2026)
+- KXPCE + KXJOLTS: Dormant (0 open markets)
+- All logged to todos.md — no build under expansion gate
 
 # ═══════════════════════════════════════════════════════════════
 
@@ -224,17 +242,18 @@ Then: gsd:quick + superpowers:TDD + superpowers:verification-before-completion f
 
 # ═══════════════════════════════════════════════════════════════
 
-## CURRENT BOT ARCHITECTURE (16 loops total — updated Session 42)
+## CURRENT BOT ARCHITECTURE (16 loops total — updated Session 43)
 
-main.py asyncio event loop [LIVE MODE — PID 8442]
+main.py asyncio event loop [LIVE MODE — PID 11839]
 
 Kalshi 15-min loops:
   [trading]       btc_lag_v1             LIVE BUT SILENT (0 signals/week — HFTs, tracked paper)
   [eth_trading]   eth_lag_v1             PAPER-ONLY
   [drift]         btc_drift_v1           STAGE 1 LIVE | KXBTC15M | drift=0.05 edge=0.05 | $5 cap
+                                         ⚠️ direction_filter="no" — NO signals only (Session 43)
   [eth_drift]     eth_drift_v1           MICRO-LIVE | KXETH15M | drift=0.05 edge=0.05
   [sol_drift]     sol_drift_v1           MICRO-LIVE | KXSOL15M | drift=0.15 edge=0.05
-  [xrp_drift]     xrp_drift_v1           MICRO-LIVE | KXXRP15M | drift=0.10 edge=0.05
+  [xrp_drift]     xrp_drift_v1          MICRO-LIVE | KXXRP15M | drift=0.10 edge=0.05
   [btc_imbalance] orderbook_imb_v1       PAPER-ONLY
   [eth_imbalance] eth_orderbook_imb_v1   STAGE 1 LIVE | KXETH15M | 1/30 live
   [weather]       weather_forecast_v1    PAPER-ONLY (weekdays only)
@@ -262,21 +281,24 @@ Polymarket:
   pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null
   sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid
   echo "CONFIRM" > /tmp/polybot_confirm.txt
-  nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session43.log 2>&1 &
+  nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session44.log 2>&1 &
   sleep 10 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
 
 ### Watch drift loops (most active — live bets fire here)
-  tail -f /tmp/polybot_session42.log | grep --line-buffered "drift\|LIVE\|Trade executed\|Kill switch"
+  tail -f /tmp/polybot_session43.log | grep --line-buffered "drift\|LIVE\|Trade executed\|Kill switch"
 
 ### Watch everything
-  tail -f /tmp/polybot_session42.log
+  tail -f /tmp/polybot_session43.log
 
 ### Diagnostics
   source venv/bin/activate && python3 main.py --report            # today P&L, paper/live split
   source venv/bin/activate && python3 main.py --graduation-status # Brier + live bet count
   source venv/bin/activate && python3 main.py --health            # kill switch + open trades + SDATA
-  source venv/bin/activate && python3 -m pytest tests/ -q         # 904/904 required before commit
-  grep "xrp_drift" /tmp/polybot_session42.log                     # check xrp_drift signals/bets
+  source venv/bin/activate && python3 -m pytest tests/ -q         # 910/910 required before commit
+  grep "direction_filter\|btc_drift" /tmp/polybot_session43.log   # check NO-filter working
+
+### SQL: check direction_filter effectiveness (run after 10+ NO-only bets)
+  sqlite3 data/polybot.db "SELECT side, COUNT(*) bets, SUM(CASE WHEN result=side THEN 1 ELSE 0 END) wins, ROUND(AVG(CASE WHEN result=side THEN 1.0 ELSE 0.0 END)*100,1) win_pct, ROUND(SUM(pnl_cents)/100.0,2) pnl FROM trades WHERE is_paper=0 AND strategy='btc_drift_v1' AND result IS NOT NULL GROUP BY side ORDER BY side;"
 
 # ═══════════════════════════════════════════════════════════════
 

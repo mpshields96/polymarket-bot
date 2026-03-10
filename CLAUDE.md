@@ -160,6 +160,7 @@ DO NOT: fix symptoms without finding root cause
 - **settlement_loop uses `paper_exec.settle()` for live trades too** — logs say `[paper] Settled` even for live trades. Cosmetic only; P&L math and DB update are correct.
 - **late_penalty in btc_drift reduces `confidence` but NOT `edge_pct`** — so late-reference signals still show high edge_pct. Capped at $5 hard max anyway, so no real money impact.
 - **btc_drift has no price extremes filter** — fires at 3¢/97¢ even though sigmoid was calibrated on near-50¢ data. At extremes the model is extrapolating; HFTs have usually priced in certainty for good reason. Fix: add min_signal_price_cents=10 / max_signal_price_cents=90. See .planning/todos.md.
+- **btc_drift direction_filter="no" ACTIVE (Session 43)** — YES side showed 30% win rate (6/20), -$30.07 vs NO side 61% (14/23), +$11.49. p≈3.7% (significant). `direction_filter` param added to `trading_loop()` in main.py. After 30+ NO-only settled bets, re-evaluate: if NO regresses to 50%, remove filter. If NO stays 60%+, keep permanent. First NO-only bet: trade 567 (KXBTC15M-26MAR100015-15).
 - **`--status`, `--report`, `--graduation-status`, `--health`** all bypass bot PID lock — safe while live
 - **`python main.py --health`** — comprehensive diagnostic. Run FIRST whenever you notice no live bets for 24hr+. Surfaces: kill switch state + staleness, last live bet timestamp, open trade anomalies (non-KX tickers), SDATA quota, bot PID status, recent kill switch events
 - **No-live-bets watchdog**: trading_loop emits WARNING at 24hr, CRITICAL at 72hr with no live bet. NOT a problem if signal conditions are genuinely absent (btc_drift needs ~0.19% BTC drift). IS a problem if kill switch, loop error, or stale state is blocking. Always check `--health` before concluding signal frequency is the cause.
@@ -243,9 +244,10 @@ CHECK: `pip freeze | grep <package>` to get current version, then pin it.
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- **904/904 tests passing**, verify.py 21/29 (8 advisory WARNs — non-critical)
+- **910/910 tests passing**, verify.py 21/29 (8 advisory WARNs — non-critical)
 - **SIX LIVE LOOPS** (daily loss cap REMOVED Session 42 — bankroll floor + consecutive cooling govern):
   - btc_drift_v1 → KXBTC15M | STAGE 1 ($5 cap, Kelly) | 43/30 ✅ Brier 0.250
+    ⚠️ direction_filter="no" ACTIVE (Session 43): YES side had 30% win rate (6/20), NO had 61% (14/23), p=3.7%
   - eth_drift_v1 → KXETH15M | micro-live 1 contract/bet | 24/30 (6 more needed)
   - sol_drift_v1 → KXSOL15M | micro-live 1 contract, min_drift_pct=0.15 (3x BTC) | 12/30 (18 more needed)
   - xrp_drift_v1 → KXXRP15M | micro-live 1 contract, min_drift_pct=0.10 (2x BTC) | 1/30 (LIVE, grad tracking fixed Session 42)
@@ -261,13 +263,13 @@ Current project state (updated each session):
   - sports_futures_v1: paper, bookmaker arb, min_books=2 filter. Copy_trade: 0 .us matches.
   - Kalshi copy trading: INFEASIBLE (API returns zero trader attribution — confirmed via API docs + re-confirmed Session 36 research)
   - Polymarket.COM is geo-restricted for US users. Our account = polymarket.US sports only. CLOSED path.
-- Latest commit: f6ccec6 (fix: graduation tracking for xrp_drift_v1 and eth_orderbook_imbalance_v1)
+- Latest commit: e085536 (feat: block btc_drift YES signals via direction_filter — statistical basis)
 - Kill switch: consecutive_loss_limit=8, **daily_loss_cap=DISABLED (Session 42)**, NO lifetime % hard stop.
   Active protection: bankroll floor ($20) + consecutive cooling (8→2hr) + $5/bet hard cap.
 - **Daily loss counter still tracked for --health display (not a blocker)**
-- Bankroll: ~$83.57 | All-time live P&L: -$14.62 | Bot PID: 8442 | Log: /tmp/polybot_session42.log
+- Bankroll: ~$83.57 | All-time live P&L: -$14.62 | Bot PID: 11839 | Log: /tmp/polybot_session43.log
 - Live restart (update session number each restart):
-  `pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session43.log 2>&1 &`
+  `pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session44.log 2>&1 &`
 
 ## Loading Screen Tip — MANDATORY at end of EVERY response
 Every response (with or without code changes) must end with a "💡 Loading Screen Tip" block.

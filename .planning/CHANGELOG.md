@@ -892,3 +892,47 @@ near window end, which is expected and correct. No code changes needed.
 ### Test count: 904/904
 ### Bot: RUNNING PID 8442, log /tmp/polybot_session42.log
 ### Graduation: btc_drift 43/30 ✅ | eth_drift 24/30 | sol_drift 12/30 | xrp_drift 1/30 (live) | eth_imbalance 1/30 (live)
+
+---
+
+## Session 43 — 2026-03-10 — btc_drift direction_filter + Kalshi market research
+
+### Changed
+- **main.py** — added `direction_filter: Optional[str] = None` param to `trading_loop()`:
+  - After signal generation, if `direction_filter` is set and `signal.side != direction_filter`, skip signal
+  - btc_drift call now passes `direction_filter="no"` — blocks YES signals entirely
+  - Comment explains statistical basis (YES 30% win rate vs NO 61% win rate, p=3.7%)
+- **tests/test_kill_switch.py** — added `TestDirectionFilter` class with 6 tests covering:
+  - No filter passes any signal side
+  - "no" filter blocks YES, passes NO
+  - "yes" filter blocks NO, passes YES
+
+### Why
+Statistical analysis of btc_drift live trades revealed severe YES/NO asymmetry:
+- YES side: 6/20 wins (30%), P&L -$30.07 — statistically significant underperformance
+- NO side: 14/23 wins (61%), P&L +$11.49 — profitable
+- p-value ≈ 3.7% (binomial test, significant at 5% level)
+- Mechanical explanation: HFTs price upward BTC drift into Kalshi YES market before
+  our sigmoid model fires. When BTC drifts up, HFTs have already bought YES; we're
+  buying behind them into a market that's moved. Downward drift (NO signals) is slower
+  to reprice — our edge persists there.
+- Fix: block all YES signals until we have 30+ NO-only bets to validate the hypothesis.
+  If NO continues to outperform, direction_filter="no" becomes permanent. If NO regresses
+  to 50%, revisit both sides and consider model recalibration.
+
+### Kalshi market research (AUTONOMOUS_CHARTER.md directive)
+- **KXBTCMAXW**: Confirmed COMPLETELY DORMANT — 0 markets in ANY status on weekday
+  (not just dormant on weekends — the series doesn't have active markets at all)
+- **KXNASDAQ100Y**: 30 open markets, 773,906 total vol. BUT all extreme prices (2-10¢ or 88-97¢).
+  Zero near-mid markets — Nasdaq is far from strike prices. Unsuitable for signal strategy.
+- **KXCPI**: 50 open markets, 6,729 vol (very low). 14 near-mid markets (30-70¢) for monthly BLS
+  releases. Reuses FRED data feed concept. BUT insufficient volume (max ~$25/bet position size).
+- **KXGDP**: 8 open markets confirmed active (Q1 2026, closes Apr 30)
+- **KXPCE**: 0 open markets | **KXJOLTS**: 0 open markets — both dormant
+- All findings logged to .planning/todos.md. No action — expansion gate closed.
+
+### Test count: 910/910 (6 new TestDirectionFilter tests)
+### Bot: RUNNING PID 11839, log /tmp/polybot_session43.log
+### Graduation: btc_drift 43/30 ✅ Brier 0.250 | eth_drift 24/30 | sol_drift 12/30 | xrp_drift 1/30 | eth_imbalance 1/30
+### Live P&L: -$14.62 all-time | Today: +$0.72 (8 settled) | Bankroll: ~$83.57
+### First direction_filter live bet: id=567 btc_drift NO@37¢ $4.07 KXBTC15M-26MAR100015-15 (open)
