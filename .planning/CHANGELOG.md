@@ -936,3 +936,40 @@ Statistical analysis of btc_drift live trades revealed severe YES/NO asymmetry:
 ### Graduation: btc_drift 43/30 ✅ Brier 0.250 | eth_drift 24/30 | sol_drift 12/30 | xrp_drift 1/30 | eth_imbalance 1/30
 ### Live P&L: -$14.62 all-time | Today: +$0.72 (8 settled) | Bankroll: ~$83.57
 ### First direction_filter live bet: id=567 btc_drift NO@37¢ $4.07 KXBTC15M-26MAR100015-15 (open)
+
+---
+
+## Session 43 AUTONOMOUS — 2026-03-10 23:01-01:15 CDT — 2.5hr autonomous monitoring
+
+### Summary
+Matthew went to bed. Ran 2.5hr autonomous session monitoring live bets, validating direction_filter, and catching operational issues. No code changes. Bot ran continuously PID 11839.
+
+### Live bet performance (11 bets placed 23:01-01:00 CDT)
+- 567: btc_drift NO@37¢ → LOSS -$4.07 (first direction_filter bet; BTC went UP)
+- 568: eth_imbalance YES@56¢ → WIN +$2.52 | 569: eth_drift YES@41¢ → WIN +$0.57
+- 570: sol_drift YES@61¢ → WIN +$0.37 | 576: eth_imbalance NO@45¢ → LOSS -$3.60
+- 577: eth_drift YES@44¢ → WIN +$0.54 | 584: eth_imbalance YES@40¢ → LOSS -$3.60
+- 591: **btc_drift NO@35¢ → WIN +$6.30** (direction_filter NO confirmed working — 10 contracts)
+- 592: eth_drift NO@54¢ → WIN +$0.44 | 593: eth_imbalance NO@50¢ → LOSS -$3.00
+- 600: eth_imbalance YES@45¢ — OPEN at session end
+- Session win rate: 6W/5L = 55% | Session net: ~-$3.03
+
+### Key operational findings
+- Daily soft stop CONFIRMED DISABLED: lines 187-189 of kill_switch.py are commented out.
+  --health shows "Daily loss soft stop active $17.88 >= $16.19" but this is DISPLAY ONLY.
+  Verified by reading code: blocking logic is commented. All bets placed normally.
+- "Trade executed" log line appears for BOTH paper and live — must grep "LIVE BET" for live-only
+- Price guard correctly blocks during extreme windows (BTC YES=99¢ → 0 bets, as designed)
+- direction_filter="no" on btc_drift: NO signals fire when YES=35-50¢, blocks when YES>50¢ or NO>65¢
+  Sweet spot: YES between 35-50¢ AND drift ≥0.050% downward
+- bet rate: 5.4/hr steady (spike to 8.6/hr when multiple strategies aligned, flat during extreme windows)
+
+### Graduation update
+- btc_drift: 45/30 ✅ Brier 0.250 | streak=0 (trade 591 WIN reset from 3)
+- eth_drift: 27/30 (was 24 — 3 more needed for graduation!) | Brier 0.251
+- sol_drift: 13/30, Brier 0.151 🔥 | eth_imbalance: 5/30, Brier 0.264, streak=3
+
+### Live P&L update
+- All-time live P&L: -$18.15 | Today: -$2.81 (18 settled)
+- Bot still running: PID 11839 | Log: /tmp/polybot_session43.log
+

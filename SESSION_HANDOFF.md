@@ -70,53 +70,49 @@ STEP 4 — MANDATORY RULES:
 
 ══════════════════════════════════════════════════════
 
-KEY STATE (Session 43 end — 2026-03-10 ~23:10 CDT):
+KEY STATE (Session 43 AUTONOMOUS end — 2026-03-10 ~01:15 CDT):
 * Bot: PID 11839, LIVE mode, log /tmp/polybot_session43.log
+* All-time live P&L: -$18.15 | Today live: -$2.81 (18 settled) | Bankroll: ~$80+
 * SIX LIVE LOOPS (daily loss cap REMOVED Session 42):
-  - btc_drift_v1: STAGE 1 ($5 max/bet, Kelly governs) — 43/30 ✅ Brier 0.250
-    ⚠️ direction_filter="no" ACTIVE — Session 43 change — blocks ALL YES signals
-    Reason: YES 30% win rate vs NO 61% win rate (p=3.7%). First NO-only bet: trade 567.
-  - eth_drift_v1: MICRO-LIVE (1 contract ~$0.45/bet) — 24/30 (6 more needed)
-  - sol_drift_v1: MICRO-LIVE (1 contract ~$0.45/bet) — 12/30 (18 more needed)
-  - xrp_drift_v1: MICRO-LIVE (1 contract ~$0.45/bet) — 1/30 (29 more needed)
-  - btc_lag_v1: LIVE but 0 signals/week (HFTs priced out the lag edge — tracked paper)
-  - eth_orderbook_imbalance_v1: LIVE — 1/30 live bets (trade 556 today, first live WIN $4.24)
+  - btc_drift_v1: STAGE 1 ($5 max/bet, Kelly governs) — 45/30 ✅ Brier 0.250 streak=0
+    ⚠️ direction_filter="no" ACTIVE — blocks YES signals. Session 43 autonomous: trade 591 NO won +$6.30!
+    To validate: 30+ NO-only bets → if win rate stays >55% → filter becomes permanent
+  - eth_drift_v1: MICRO-LIVE — 27/30 (**3 MORE BETS NEEDED FOR GRADUATION!**) | Brier 0.251
+  - sol_drift_v1: MICRO-LIVE — 13/30 (17 more needed) | Brier 0.151 🔥
+  - xrp_drift_v1: MICRO-LIVE — 1/30 (29 more needed) | streak=1
+  - eth_orderbook_imbalance_v1: STAGE 1 — 5/30 (25 more needed) | Brier 0.264 | streak=3 ⚠️
+  - btc_lag_v1: STAGE 1 — 45/30 ✅ Brier 0.191 | LIVE but 0 signals/week (HFTs)
+* DAILY SOFT STOP: CONFIRMED DISPLAY-ONLY — lines 187-189 in kill_switch.py are COMMENTED OUT
+  --health shows "Daily loss soft stop active" — this is tracking only, NOT blocking bets
 * Kill switch: daily_loss_cap=DISABLED, consecutive_loss_limit=8
   Active protection: bankroll floor $20 + 8 consecutive → 2hr pause + $5/bet hard cap
 * 910/910 tests passing
-* Last commit: e085536 — feat: block btc_drift YES signals via direction_filter
-* Bankroll: ~$83.57 | All-time live P&L: -$14.62 | Today live P&L: +$0.72
-* Graduation: btc_drift 43/30 ✅ | eth_drift 24/30 | sol_drift 12/30 | xrp_drift 1/30 | eth_imbalance 1/30
-* SDATA quota: 74/500 (15%) — resets 2026-04-01
+* Last commit: e085536 — feat: block btc_drift YES signals via direction_filter (AUTONOMOUS updated CHANGELOG)
+* All-time live P&L: -$18.15 | Today: -$2.81 (18 settled) | Bankroll: ~$80+
+* SDATA quota: 80/500 (16%) — resets 2026-04-01
 
-SESSION 43 WORK DONE:
-* btc_drift direction_filter="no" DEPLOYED:
+SESSION 43 WORK DONE (code) + AUTONOMOUS NIGHT MONITORING:
+* btc_drift direction_filter="no" DEPLOYED (Session 43 code):
   - Statistical basis: YES side 6/20 wins (30%), -$30.07 | NO side 14/23 wins (61%), +$11.49
-  - p-value ≈ 3.7% (significant). Mechanical cause: HFTs price YES momentum before signal fires.
-  - Added `direction_filter: Optional[str] = None` param to trading_loop() in main.py
-  - btc_drift call: direction_filter="no" (blocks YES, only fires NO signals)
-  - 6 new tests in TestDirectionFilter (test_kill_switch.py)
-  - First NO-only live bet: trade 567, btc_drift NO@37¢ $4.07 (KXBTC15M-26MAR100015-15, open)
-  - COMMITTED e085536, pushed
-* Kalshi market research COMPLETED (all AUTONOMOUS_CHARTER.md research directives):
-  - KXBTCMAXW: CONFIRMED dormant (0 markets in ANY status on weekday)
-  - KXNASDAQ100Y: 30 markets, 773,906 vol, but ALL extreme prices — unsuitable
-  - KXCPI: 50 markets, 6,729 vol (too low) — 14 near-mid markets but $25 max position
-  - KXGDP: 8 open markets active (Q1 2026, closes Apr 30)
-  - KXPCE + KXJOLTS: 0 open markets (dormant)
-  - All logged to .planning/todos.md. No build — expansion gate closed.
+  - p-value ≈ 3.7% (significant). Mechanical: HFTs front-run YES drift, NO side preserves edge.
+  - 6 new tests in TestDirectionFilter — COMMITTED e085536, pushed
+* AUTONOMOUS MONITORING (2.5hr session): 11 live bets placed, 5.4/hr
+  - direction_filter NO bet validated: trade 591 btc_drift NO@35¢ +$6.30 WIN
+  - Key finding: daily soft stop CONFIRMED DISPLAY-ONLY (kill_switch.py lines 187-189 COMMENTED)
+  - Key finding: "Trade executed" log appears for BOTH paper AND live — must grep "LIVE BET"
+  - No kill switch events, no soft stops, no bot errors during autonomous period
+  - eth_imbalance streak=3 consecutive losses — watch (limit is 8)
 
 NEXT SESSION DIRECTIVES (in priority order):
 1. RESTART BOT FIRST (log to session44.log) — ALWAYS, no exceptions
 2. Run --health, --report, --graduation-status → log to /tmp/polybot_autonomous_monitor.md
-3. ⚠️ MONITOR direction_filter="no" bets: are NO-only btc_drift bets winning at 61% rate?
-   After 10+ NO-only live bets settled, run SQL to check win rate on new filter regime.
-   If NO win rate < 50% over 15+ bets: revisit filter (may need to remove or reconsider)
-4. Monitor eth_drift graduation: 6 more live bets needed (24/30)
-5. Watch eth_orderbook_imbalance live bets: 29 more needed (1/30)
-6. Watch xrp_drift live bets accumulate (1/30)
-7. sol_drift graduation: 18 more live bets needed (12/30)
-8. Check fomc paper bets: KXFEDDECISION-26MAR closes March 18
+3. ⚠️ MONITOR direction_filter="no" bets: eth_imbalance streak=3 (check global consecutive)
+   After 10+ NO-only btc_drift bets settled: SQL win rate check on new filter regime
+   If NO win rate < 50% over 15+ bets: revisit filter
+4. **eth_drift graduation: 27/30 — only 3 more live bets needed!** Watch this actively
+5. Watch eth_orderbook_imbalance: 5/30, streak=3 consecutive losses
+6. sol_drift graduation: 13/30 (17 more needed) | Brier 0.151 🔥 exceptional calibration
+7. Check fomc paper bets: KXFEDDECISION-26MAR closes March 18 (0 settled of 19 placed)
 
 STANDING DIRECTIVES (never need repeating):
 * Fully autonomous always — do work first, summarize after. Never ask for confirmation.
