@@ -239,24 +239,27 @@ CHECK: `pip freeze | grep <package>` to get current version, then pin it.
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
 Current project state (updated each session):
-- **869/869 tests passing**, verify.py 21/29 (8 advisory WARNs — non-critical)
+- **891/891 tests passing**, verify.py 21/29 (8 advisory WARNs — non-critical)
 - **THREE LIVE DRIFT LOOPS** (all 1 contract/bet ~$0.35-0.65, unlimited/day, daily loss limit governs):
-  - btc_drift_v1 → KXBTC15M | thresholds 0.05/0.05 (RESTORED Session 36) | 7+ live bets today
-  - eth_drift_v1 → KXETH15M | thresholds 0.05/0.05 | enabled Session 36
-  - sol_drift_v1 → KXSOL15M | min_drift_pct=0.15 (3x BTC), min_edge_pct=0.05 | enabled Session 36
+  - btc_drift_v1 → KXBTC15M | thresholds 0.05/0.05 (RESTORED Session 36) | 40/30 ✅ Brier 0.249
+  - eth_drift_v1 → KXETH15M | thresholds 0.05/0.05 | 22/30 (8 more needed)
+  - sol_drift_v1 → KXSOL15M | min_drift_pct=0.15 (3x BTC), min_edge_pct=0.05 | 11/30 (19 more needed)
   - All share _live_trade_lock + calibration_max_usd=0.01 + daily loss limit
   - Combined expected 15-25 signals/day. Target: 30 settled bets each → compute Brier → Stage 2 gate.
-- **--report** fixed Session 36: splits by is_paper per trade — two rows for eth_drift on transition day (📋 paper before restart, 🔴 live after). This is correct. Old data is preserved and queryable.
-- All other Kalshi loops PAPER-ONLY: btc_lag (0 signals/week — HFTs), eth_lag, btc_imbalance, eth_imbalance, weather, fomc, unemployment_rate, sol_lag, all 3 crypto daily loops
+- **fomc_rate_v1 + unemployment_rate_v1 NOW WORKING (Session 40 fix)**: shared fred_feed bug fixed.
+  Both strategies were silently placing 0 paper trades since built (internal FREDFeed never refreshed).
+  Now confirmed generating signals and placing paper trades.
+- All other Kalshi loops PAPER-ONLY: btc_lag (0 signals/week — HFTs), eth_lag, btc_imbalance, eth_imbalance, weather, sol_lag, all 3 crypto daily loops
 - **POLYMARKET — paper-only, platform mismatch confirmed**:
   - sports_futures_v1: paper, bookmaker arb, min_books=2 filter. Copy_trade: 0 .us matches.
   - Kalshi copy trading: INFEASIBLE (API returns zero trader attribution — confirmed via API docs + re-confirmed Session 36 research)
   - Polymarket.COM is geo-restricted for US users. Our account = polymarket.US sports only. CLOSED path.
-- Latest commit: 25b5f2b (Session 36 KALSHI_MARKETS.md re-probe)
-- Kill switch: consecutive_loss_limit=4, daily_loss_limit=20% (~$15.95 on $79.76 bankroll). NO lifetime % hard stop.
+- Latest commit: 8d3ab06 (Session 40 fomc/unemployment shared fred_feed fix)
+- Kill switch: consecutive_loss_limit=4, daily_loss_limit=20%. NO lifetime % hard stop.
 - **Daily loss counter resets at midnight CST (UTC-6 = 06:00 UTC)**
-- Bankroll: ~$79.76 | All-time live P&L: ~-$18 | ~7 live bets today (btc+eth+sol drift)
-- Live restart: `pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session36.log 2>&1 &`
+- Bankroll: ~$84.33 | All-time live P&L: -$15.34 | Bot PID: 3964 | Log: /tmp/polybot_session40.log
+- Live restart (update session number each restart):
+  `pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session41.log 2>&1 &`
 
 ## Loading Screen Tip — MANDATORY at end of EVERY response
 Every response (with or without code changes) must end with a "💡 Loading Screen Tip" block.

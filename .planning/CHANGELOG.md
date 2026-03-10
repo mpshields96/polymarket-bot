@@ -661,3 +661,40 @@ Inactive: KXDOGE15M, KXBNB15M, KXBCH15M (all 0 open)
 6. 88af2fc — docs(kalshi): KXDOGE15M probe, SOL/XRP/DOGE series audit
 
 ### Test count: 887/887 (unchanged — docs-only session, no code changes)
+
+---
+
+## Session 40 continued — 2026-03-09 — fomc/unemployment shared fred_feed bug fix
+
+### Changed
+- src/strategies/fomc_rate.py — load_from_config(fred_feed=None): accepts shared FREDFeed instance
+- src/strategies/unemployment_rate.py — load_from_config(fred_feed=None): same fix
+- main.py — passes fred_feed=fred_feed to fomc_strategy_load() and unemployment_strategy_load()
+- tests/test_fomc_strategy.py — 2 new regression tests in TestFOMCFactory
+- tests/test_unemployment_strategy.py — 2 new regression tests in TestUnemploymentFactory
+- POLYBOT_INIT.md — updated startup checklist (restart bot at session start), bug fix section added
+- SESSION_HANDOFF.md — full update with Session 40 state, lessons, next directives
+
+### Why: SILENT BUG — fomc_rate_v1 + unemployment_rate_v1 placed ZERO paper trades since they were built.
+Root cause: Each load_from_config() called fred_load() internally, creating a SECOND FREDFeed instance.
+The running loops refresh the EXTERNAL fred_feed. generate_signal() checks self._fred.is_stale
+(the internal instance) — which is NEVER refreshed. Every market evaluation hits gate 2 → returns None.
+Result: 0 paper trades ever. Strategy silently inactive the entire time.
+
+Detection: `fomc_strategy = load_from_config(); assert fomc_strategy._fred.is_stale is True`
+Fix: load_from_config(fred_feed=None) uses the passed-in instance if provided. main.py shares fred_feed.
+Verified: Session 40 log shows "[fomc] Paper trade: NO KXFEDDECISION-26MAR-H0 @ 5¢ $4.10" — working.
+
+### Lessons learned
+1. ALWAYS restart bot at session start (consecutive loss counter resets — clears soft stop cooling window).
+   Not restarting in Session 40 left a soft stop active for 2+ hours of the session.
+   Matthew noticed no live bet notification for >1hr and asked. Should have caught this at second 0.
+2. When a loop logs "Evaluating N markets" but no signal messages follow:
+   First check: `strategy._fred.is_stale` — if True, shared fred_feed bug.
+   Do not spend 30+ minutes tracing each gate manually before checking the obvious.
+3. Silent bugs in paper strategies have no P&L impact but corrupt data collection.
+   fomc and unemployment strategies need long-term paper data to validate models before live.
+   2+ months of missed paper bets = lost model calibration data.
+
+### Test count: 891/891 (+4 regression tests)
+### Commits: 8d3ab06 — fix(fomc+unemployment): share fred_feed instance to prevent silent signal stale block

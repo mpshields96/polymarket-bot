@@ -45,31 +45,29 @@
 ## CURRENT STATUS — (updated each session)
 ═══════════════════════════════════════════════════
 
-BUILD COMPLETE. 887/887 tests passing. verify.py 21/29 (8 advisory WARNs — non-critical).
-Last commit: c2a2192 (Session 38 — POLYBOT_INIT docs update with live.py security findings + SKILLS_REFERENCE link)
-  4. .planning/SKILLS_REFERENCE.md — all GSD/sc:/superpowers commands with token cost tiers
-  5. .planning/PRINCIPLES.md     — before ANY strategy/risk parameter change
+BUILD COMPLETE. 891/891 tests passing. verify.py 21/29 (8 advisory WARNs — non-critical).
+Last commit: 8d3ab06 (Session 40 — fix fomc+unemployment shared fred_feed bug)
 
-## BOT STATE — Session 38 (2026-03-09)
+## BOT STATE — Session 40 (2026-03-09)
 
-BOT IS RUNNING: PID 96757 in bot.pid | Log: /tmp/polybot_session38.log | Mode: LIVE
+BOT IS RUNNING: PID 3964 in bot.pid | Log: /tmp/polybot_session40.log | Mode: LIVE
 Check:  cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "RUNNING" || echo "STOPPED"
-Watch:  tail -f /tmp/polybot_session38.log | grep --line-buffered "drift\|LIVE\|Trade executed\|Kill switch"
+Watch:  tail -f /tmp/polybot_session40.log | grep --line-buffered "drift\|LIVE\|Trade executed\|Kill switch"
 
-Bankroll: ~$84.33 | All-time live P&L: -$13.37 | Tests: 887/887
-Kill switch: CLEAR — daily $6.30/$16.88 (37%), consecutive 0/4, hard stop CLEAR, SDATA 53/500
+Bankroll: ~$84.33 | All-time live P&L: -$15.34 | Tests: 891/891
+Kill switch: CLEAR (restarted — consecutive count reset) | SDATA 53/500
 
 ## THREE MICRO-LIVE DRIFT LOOPS (all 1 contract/bet ~$0.35-0.65, unlimited/day, daily loss limit governs)
 
   🔴 btc_drift_v1 → KXBTC15M | min_drift=0.05, min_edge=0.05 | calibration_max_usd=0.01
-     Graduation: 37/30 ✅ | Brier: 0.247 | Status: READY FOR LIVE (expansion gate still closed)
+     Graduation: 40/30 ✅ | Brier: 0.249 | Status: READY FOR LIVE (expansion gate still closed)
      NOTE: BUY YES 35.7% win rate vs BUY NO 55% — directional asymmetry, monitor after 30 more bets
 
   🔴 eth_drift_v1 → KXETH15M | min_drift=0.05, min_edge=0.05 | calibration_max_usd=0.01
-     Graduation: 19/30 | Brier: 0.247 | Status: needs 11 more live bets
+     Graduation: 22/30 | Status: needs 8 more live bets
 
   🔴 sol_drift_v1 → KXSOL15M | min_drift=0.15 (3x BTC), min_edge=0.05 | calibration_max_usd=0.01
-     Graduation: 11/30 | Brier: 0.156 | Status: needs 19 more live bets
+     Graduation: 11/30 | Status: needs 19 more live bets
 
   All three share: _live_trade_lock (asyncio), calibration_max_usd=0.01, price guard 35-65¢
   Expected: ~15-25 live bets/day combined across all three strategies
@@ -79,7 +77,8 @@ Kill switch: CLEAR — daily $6.30/$16.88 (37%), consecutive 0/4, hard stop CLEA
   📋 orderbook_imbalance_v1, eth_orderbook_imbalance_v1 — paper, price guard added
   📋 btc_daily_v1, eth_daily_v1, sol_daily_v1 — KXBTCD/KXETHD/KXSOLD 24 hourly slots/day
   📋 weather_forecast_v1 — HIGHNY weekdays only
-  📋 fomc_rate_v1 — ~8x/year | unemployment_rate_v1 — ~12x/year
+  📋 fomc_rate_v1 — NOW WORKING (Session 40 fix) | ~8x/year | fires near FOMC meetings
+  📋 unemployment_rate_v1 — NOW WORKING (Session 40 fix) | ~12x/year | fires near BLS releases
   📋 sports_futures_v1 — Polymarket.US bookmaker arb, min_books=2
   📋 copy_trader_v1 — Polymarket.US, 0 .US matches (platform mismatch confirmed)
 
@@ -103,6 +102,27 @@ Kill switch: CLEAR — daily $6.30/$16.88 (37%), consecutive 0/4, hard stop CLEA
      Tests: TestExecuteOrderStatusGuard (2 tests) in test_live_executor.py
   ✅ sports_futures ValueError fix (Session 38): %.1%% → %.1f%% in logger (was spamming logs)
 
+## BUG FIX — SESSION 40: fomc_rate_v1 + unemployment_rate_v1 shared fred_feed
+
+  SYMPTOM: fomc_rate_v1 and unemployment_rate_v1 had placed ZERO paper trades since being built.
+  ROOT CAUSE: Both load_from_config() functions created an INTERNAL FREDFeed instance (`fred_load()`).
+    The fomc_loop and unemployment_loop each refresh an EXTERNAL fred_feed object.
+    But generate_signal() checks self._fred.is_stale (the internal instance) — which is NEVER refreshed.
+    Result: every call to generate_signal() hit gate 2 (FRED stale check) → returned None → 0 trades.
+  FIX: load_from_config(fred_feed=None) now accepts a shared FREDFeed instance.
+    main.py passes fred_feed=fred_feed to both fomc_strategy_load() and unemployment_strategy_load().
+    Both strategies now use the SAME FREDFeed object that the loops refresh.
+  HOW TO DETECT THIS BUG IN OTHER STRATEGIES:
+    Any strategy that has `self._fred.is_stale` check in generate_signal() AND loads its own
+    internal FREDFeed (via fred_load() inside __init__ or load_from_config) has this bug.
+    Test: `fomc_strategy = load_from_config(); assert fomc_strategy._fred.is_stale is True`
+    (before fix, this was True; after fix with shared feed, it's False)
+  REGRESSION TESTS: TestFOMCFactory.test_load_from_config_without_shared_feed_is_stale,
+                    TestFOMCFactory.test_load_from_config_shares_passed_fred_feed,
+                    TestUnemploymentFactory (same 2 tests) — all in test_fomc_strategy.py / test_unemployment_strategy.py
+  VERIFICATION: After restart, grep for "[fomc] Signal:" and "[fomc] Paper trade:" in session log.
+    Should appear within 2 min of startup (51s stagger + time for first cycle).
+
 ## GRADUATION_STATS FIX (Session 38)
   graduation_stats() in src/db.py now accepts is_paper: Optional[bool] = True
   main.py print_graduation_status() passes is_paper=False for live strategies
@@ -110,18 +130,22 @@ Kill switch: CLEAR — daily $6.30/$16.88 (37%), consecutive 0/4, hard stop CLEA
   sol_drift_v1 added to _GRAD (was missing — never tracked until Session 38)
   Result: btc_drift now correctly shows 37/30 ✅ (was showing 12 — was querying paper trades)
 
-## LIVE RESTART COMMAND (always use this exact form)
+## LIVE RESTART COMMAND (always use this exact form — increment session number each restart)
   pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null
   sleep 3; rm -f bot.pid
   echo "CONFIRM" > /tmp/polybot_confirm.txt
-  nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session38.log 2>&1 &
+  nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session40.log 2>&1 &
   sleep 10 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
+
+  ⚠️ macOS note: pkill may not kill the process on macOS (different Python binary path).
+  If old PID still shows after pkill: kill -9 <OLD_PID>, then proceed with restart.
+  Always verify exactly 1 process after restart: ps aux | grep "[m]ain.py" | wc -l should show 1.
 
 ## DIAGNOSTICS (safe while bot is live — bypass PID lock)
   source venv/bin/activate && python3 main.py --report            # today P&L, paper/live split
   source venv/bin/activate && python3 main.py --graduation-status # Brier + live bet count per strategy
   source venv/bin/activate && python3 main.py --health            # kill switch + open trades + SDATA quota
-  source venv/bin/activate && python3 -m pytest tests/ -q         # 887/887 required before commit
+  source venv/bin/activate && python3 -m pytest tests/ -q         # 891/891 required before commit
 
 ═══════════════════════════════════════════════════════════════════════
 ## AUTONOMOUS OPERATIONS — HARDCODED RESPONSIBILITIES
@@ -131,11 +155,24 @@ Kill switch: CLEAR — daily $6.30/$16.88 (37%), consecutive 0/4, hard stop CLEA
 
 ### STARTUP CHECKLIST (every autonomous session, no exceptions)
   1. Read SESSION_HANDOFF.md — get exact bot state and pending tasks
-  2. Check bot alive: cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo RUNNING
-  3. If STOPPED: restart immediately using LIVE RESTART COMMAND above
-  4. Run python3 main.py --health → log to /tmp/polybot_autonomous_monitor.md
-  5. Run python3 main.py --graduation-status → log
-  6. Run python3 main.py --report → log current P&L
+  2. RESTART THE BOT IMMEDIATELY — ALWAYS — EVERY SESSION START. No exceptions.
+     Restart clears the consecutive loss soft stop counter (it reseeds from DB but cooling window clears).
+     This is the #1 oversight that wastes hours of live bet time.
+     Command (update log path to current session number):
+       pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null
+       sleep 3; rm -f bot.pid
+       echo "CONFIRM" > /tmp/polybot_confirm.txt
+       nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_sessionNN.log 2>&1 &
+       sleep 8 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
+  3. Run python3 main.py --health → ALWAYS — log result to /tmp/polybot_autonomous_monitor.md
+     If "Consecutive loss cooling" warning appears: RESTART ALREADY HANDLES THIS (step 2 clears it)
+     If "HARD STOP" warning appears: do NOT restart — log it, wait for Matthew
+  4. Run python3 main.py --graduation-status → log
+  5. Run python3 main.py --report → log current P&L
+
+  ⚠️ SESSION 40 LESSON: Not restarting at session start left a soft stop active for 2 hours.
+     Restart = manual consecutive loss counter reset. The bot continued paper bets but no live bets
+     fired the entire session. Kalshi sends Matthew notifications on live bet wins — silence = problem.
 
 ### MONITORING LOG — MANDATORY
   File: /tmp/polybot_autonomous_monitor.md
@@ -152,8 +189,14 @@ Kill switch: CLEAR — daily $6.30/$16.88 (37%), consecutive 0/4, hard stop CLEA
   If bot STOPPED:
     - Restart immediately using LIVE RESTART COMMAND
     - Log restart with timestamp + reason
-  If kill switch fired (soft stop):
-    - Log it. Do NOT reset. Paper bets continue (correct behavior). Wait for Matthew on hard stop.
+  If kill switch fired (soft stop / consecutive loss cooling):
+    - RESTART THE BOT IMMEDIATELY. Restart clears the consecutive loss counter.
+      The daily loss limit counter PERSISTS through restart (seeded from DB) — that stays.
+      But consecutive loss cooling (2hr window) is cleared by restart by design.
+    - Do NOT manually --reset-killswitch. Just restart.
+    - Log the restart with timestamp + reason to /tmp/polybot_autonomous_monitor.md.
+  If kill switch hard stop (bankroll floor or daily loss > 20%):
+    - Do NOT restart. Log it. This is a real safety stop. Wait for Matthew.
 
 ### RESPONSIBILITY 2 — LIVE AND PAPER BETS (verify both are firing every cycle)
   LIVE bets — THREE loops should fire every ~15 min each (combined ~15-25 bets/day):
@@ -228,11 +271,13 @@ Kill switch: CLEAR — daily $6.30/$16.88 (37%), consecutive 0/4, hard stop CLEA
   | sc:troubleshoot --think | ~1-5% | Stuck debugging |
   SESSION START (once only): /gsd:health then /gsd:progress
 
-### THINGS TO WORK ON (current session priority order)
-  1. Probe API for KXBTCW/KXBTCM/KXBTCY/KXDOGE series tickers — update KALSHI_MARKETS.md
-  2. Search reddit.com/r/kalshi for weekly/annual/one-time event strategies
-  3. Monitor graduation: eth_drift 11 more, sol_drift 19 more live bets needed
-  4. Monitor btc_daily_v1 paper graduation progress
+### THINGS TO WORK ON (current session priority order — updated Session 40)
+  1. Verify fomc_rate_v1 and unemployment_rate_v1 are placing paper bets after Session 40 fix
+     - grep "[fomc] Paper trade:" /tmp/polybot_session40.log
+     - Should see KXFEDDECISION-26MAR-H0 (NO@2¢ edge=31%) and KXFEDDECISION-26MAR-C25 (YES@1¢ edge=22%)
+  2. Monitor graduation: eth_drift 8 more, sol_drift 19 more live bets needed
+  3. Probe API for KXBTCW/KXBTCM/KXBTCY/KXDOGE series tickers — update KALSHI_MARKETS.md
+  4. Search reddit.com/r/kalshi for weekly/annual/one-time event strategies
   5. Scan for log errors + fix anything found with systematic-debugging → gsd:quick
 
 ## EXPANSION ROADMAP (gate: 2-3 weeks live data + no kill switch events)

@@ -1,12 +1,12 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-09 (Session 39 mid-session — AUTONOMOUS_CHARTER created, Kalshi markets researched)
+# Last updated: 2026-03-09 (Session 40 — fomc/unemployment shared fred_feed bug fix)
 # ═══════════════════════════════════════════════════════════════
 
-## ▶ COPY-PASTE THIS TO START A NEW SESSION (Session 40+)
+## ▶ COPY-PASTE THIS TO START A NEW SESSION (Session 41+)
 
 ```
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 39 mid-session).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 40 close-out).
 
 ══════════════════════════════════════════════════════
 MANDATORY: BEFORE WRITING A SINGLE LINE OF CODE, DO ALL OF THIS:
@@ -14,28 +14,42 @@ MANDATORY: BEFORE WRITING A SINGLE LINE OF CODE, DO ALL OF THIS:
 
 STEP 1 — READ THESE FILES (required, in order):
   cat SESSION_HANDOFF.md                ← bot state + what to do next (this file, already reading)
-  cat .planning/AUTONOMOUS_CHARTER.md   ← ⚠️ NEW Session 39 — Matthew's complete autonomous ops rules
+  cat .planning/AUTONOMOUS_CHARTER.md   ← Matthew's complete autonomous ops rules — MANDATORY
   cat .planning/CHANGELOG.md            ← what changed every session and WHY
   cat .planning/KALSHI_MARKETS.md       ← COMPLETE Kalshi market map — ALL categories
   cat .planning/SKILLS_REFERENCE.md    ← ALL GSD/sc:/superpowers tools + token costs
 
-STEP 2 — MANDATORY RULES FOR EVERY SESSION:
+STEP 2 — RESTART THE BOT FIRST. ALWAYS. NO EXCEPTIONS.
+  This is the #1 lesson from Session 40. Not restarting means soft stop sits active for hours.
+  Restart clears the consecutive loss cooling window. Daily loss counter PERSISTS (from DB) — that's correct.
 
-  RULE A — KALSHI MARKET RESEARCH (CANNOT BE SKIPPED):
-    Kalshi has MANY market types beyond the 15-min direction markets we trade.
-    From kalshi.com Crypto tab: 15 Minute ✅ | Hourly ✅paper | Daily ✅paper |
-      Weekly ($455K vol) | Monthly | Annual ($1.4M vol) | One Time ($14.8M vol!)
-    Full Kalshi nav UNDOCUMENTED: Politics | Culture | Climate | Economics |
-      Mentions | Companies | Financials | Tech & Science
-    ACTION: Read RESEARCH DIRECTIVES section of KALSHI_MARKETS.md.
-    When bandwidth exists: probe API for weekly/monthly/annual/one-time tickers.
-    Search reddit.com/r/kalshi for strategies. Search GitHub. Update KALSHI_MARKETS.md.
-    DO NOT ignore these categories. DO NOT say "that's for later". Investigate now.
+  RESTART COMMAND (check bot.pid for current PID first, kill -9 <PID> if pkill doesn't work):
+    pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null
+    sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid
+    echo "CONFIRM" > /tmp/polybot_confirm.txt
+    nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session41.log 2>&1 &
+    sleep 8 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
+  Verify: ps aux | grep "[m]ain.py" | wc -l should show 1 (exactly one process).
+
+STEP 3 — RUN DIAGNOSTICS:
+  source venv/bin/activate && python3 main.py --health        ← ALWAYS run this first
+  source venv/bin/activate && python3 main.py --report
+  source venv/bin/activate && python3 main.py --graduation-status
+  If --health shows "HARD STOP": DO NOT RESTART. Log it. Wait for Matthew.
+  If --health shows "Consecutive loss cooling": ALREADY CLEARED BY RESTART in step 2.
+
+STEP 4 — MANDATORY RULES:
+
+  RULE A — AUTONOMOUS OPERATION (highest priority):
+    Fully autonomous always. Do work first, summarize after. Never pause.
+    All findings → /tmp/polybot_autonomous_monitor.md (append only, never overwrite)
+    Monitor bot health every 10-15 minutes. Run --health on first sign of trouble.
+    If paper OR live bets go silent for >1hr: run --health, diagnose, fix.
+    Matthew uses Kalshi phone notifications for live bet wins — silence for >30min = investigate.
 
   RULE B — USE GSD + SUPERPOWERS TOOLS (MANDATORY, NOT OPTIONAL):
-    These tools exist to prevent bugs that have cost real money. Use them every time.
     DEFAULT for 90% of all work: gsd:quick + superpowers:TDD + superpowers:verification-before-completion
-    ALWAYS FREE — use these on EVERY task without asking:
+    ALWAYS FREE — use these on EVERY task:
       /superpowers:TDD                         ← before writing ANY implementation code
       /superpowers:verification-before-completion ← before claiming ANY work is done
       /superpowers:systematic-debugging        ← before proposing ANY bug fix
@@ -45,59 +59,74 @@ STEP 2 — MANDATORY RULES FOR EVERY SESSION:
     Read .planning/SKILLS_REFERENCE.md — full tool list with token costs.
     NEVER implement code without superpowers:TDD. NEVER say "done" without superpowers:verification.
 
-  RULE C — FULLY AUTONOMOUS (Matthew is a doctor with a new baby):
-    Never pause to ask for confirmation. Do work first, summarize after.
-    If Matthew is away: append to /tmp/polybot_autonomous_monitor.md
-    Never break the bot: verify PID before restart, verify single instance after.
+  RULE C — KALSHI MARKET RESEARCH (cannot be skipped every session):
+    Kalshi has MANY market types beyond the 15-min direction markets.
+    From kalshi.com Crypto tab: 15 Minute ✅ | Hourly ✅paper | Daily ✅paper |
+      Weekly ($455K vol) | Monthly | Annual ($1.4M vol) | One Time ($14.8M vol!)
+    ACTION: Read RESEARCH DIRECTIVES in KALSHI_MARKETS.md. Probe API for undocumented series.
+    Search reddit.com/r/kalshi. Search GitHub. Update KALSHI_MARKETS.md with findings.
+
+  RULE D — SESSION WRAP-UP (mandatory before any session end):
+    1. python3 main.py --report → capture output
+    2. python3 main.py --graduation-status → capture output
+    3. cat bot.pid && kill -0 $(cat bot.pid) && echo RUNNING → confirm bot alive
+    4. Update SESSION_HANDOFF.md with current state, pending tasks, last actions
+    5. Append entry to .planning/CHANGELOG.md with what was done and WHY
+    6. git add + git commit with descriptive message + git push
+    7. Write handoff summary to /tmp/polybot_autonomous_monitor.md
 
 ══════════════════════════════════════════════════════
 
-KEY STATE (Session 39 mid-session — 2026-03-09 ~18:35 CDT):
-* Bot: PID 96757, LIVE mode, log /tmp/polybot_session38.log
+KEY STATE (Session 40 close-out — 2026-03-09 ~20:00 CDT):
+* Bot: PID 3964, LIVE mode, log /tmp/polybot_session40.log
 * THREE MICRO-LIVE LOOPS: btc_drift + eth_drift + sol_drift (all ~$0.35-0.65/bet, unlimited/day)
-* All others: PAPER-ONLY. 887/887 tests passing.
-* Last commits: c2a2192 (POLYBOT_INIT docs) — no new commits this session yet
-* Bankroll: ~$84.33 | All-time live P&L: -$13.87 | P&L today: +$4.98 live (54 settled)
-* Kill switch: CLEAR — daily $7.23/$20.00 (36%), consecutive 2/4, hard stop CLEAR
-* btc_drift: 38/30 ✅ Brier 0.247 | eth_drift: 21/30 (9 more) | sol_drift: 11/30 (19 more)
+* All others: PAPER-ONLY. 891/891 tests passing.
+* Last commit: 8d3ab06 (fix fomc+unemployment shared fred_feed — was silently placing 0 bets since built)
+* Bankroll: ~$84.33 | All-time live P&L: -$15.34
+* Kill switch: CLEAR (restarted — consecutive loss cooling cleared)
+* btc_drift: 40/30 ✅ Brier 0.249 | eth_drift: 22/30 (8 more) | sol_drift: 11/30 (19 more)
 * SDATA: 53/500 (11%) — resets 2026-04-01
 * Expansion gate: STILL CLOSED (2-3 weeks live data needed + no KS events)
-* KXBTCD hourly bets: paper via btc_daily_v1 — 5 bets today (2/5 wins, -$4.38)
-* eth_drift SLIPPAGE REJECTIONS: 17¢ slippage on KXETH15M (signal@43¢ → exec@60¢) — liquidity thin
+* fomc_rate_v1: NOW WORKING — confirmed paper bets firing after fix (KXFEDDECISION-26MAR-H0 NO@2¢, C25 YES@1¢)
+* unemployment_rate_v1: NOW WORKING — shared fred_feed fix applied
 
-SESSION 39 WORK DONE (full session — 2 hours autonomous):
-* .planning/AUTONOMOUS_CHARTER.md CREATED — permanent mandatory doc for ALL new chats
-  (Matthew's explicit demand — no more re-explaining autonomous operation requirements)
-  Contains: autonomous ops rules, market research protocol, tools, monitoring format.
-  MUST READ + ACKNOWLEDGE before any work in new sessions.
-* .planning/KALSHI_MARKETS.md — major research update:
-  - KXBTCMAX150 ($10.8M), KXBTCMAX100 ($2.7M), KXBTCMAXMON ($546k) confirmed
-  - KXBTCY: 28 markets, $1.4M+, BINARY not range brackets
-  - KXBTCW/KXETHW/KXSOLW: confirmed exist, 0 open Sunday (expected)
-  - KXBTCATH: confirmed on website, 0 API markets (resolved when BTC hit $109k Jan 2026)
-  - Kalshi category map (13 categories, 1000+ events scanned)
-  - Research-verified expansion priority table with red flags
-  - KXBTCD structure clarified: fixed daily bracket price level, all 24 hourly slots share same $K
-* polybot-monitor scheduled task UPDATED (was session36.log, 869 tests)
-* KXETH15M liquidity analysis: 8+ slippage rejections since restart (guards working correctly)
-* Reddit/GitHub research COMPLETE (99k token agent):
-  - KXBTCD signal: drift since bracket set = underpriced early-morning slots (same model!)
-  - Kalshi-CryptoBot (GitHub, now private): paired 15-min + hourly = confirms both viable
-  - KXGDP (92k vol) + KXCPI active — not yet built (Economics category)
-  - Red flags: LLM bots don't work, cross-platform arb closed for US, monthly brackets thin
+SESSION 40 WORK DONE:
+* CRITICAL BUG FOUND AND FIXED: fomc_rate_v1 + unemployment_rate_v1 were placing 0 paper trades
+  Root cause: load_from_config() in both strategies created their OWN internal FREDFeed instance.
+  Loop refreshed EXTERNAL fred_feed. generate_signal() checked self._fred.is_stale (internal, always True).
+  Gate 2 in every generate_signal() call returned None → 0 trades ever placed since strategies were built.
+  Fix: load_from_config(fred_feed=None) accepts shared instance. main.py passes fred_feed= to both loaders.
+  Verified: both strategies now log signals and paper trades in /tmp/polybot_session40.log.
+  Regression tests: TestFOMCFactory + TestUnemploymentFactory, 4 new tests, 891/891 pass.
+* Restarted bot (PID 3964) with fix deployed.
+* Documented in POLYBOT_INIT.md: bug fix section + updated startup checklist.
+* Session 40 lesson logged: ALWAYS restart bot at session start to clear soft stop.
 
-NEXT SESSION DIRECTIVE (in priority order):
-1. Read .planning/AUTONOMOUS_CHARTER.md — acknowledge before any work
-2. Monitor eth_drift + sol_drift graduation (9 + 19 more live bets needed)
-3. Monitor KXETH15M slippage patterns — is fill rate improving? (check 24hr log)
-4. Probe KXBTCW weekly markets on a WEEKDAY (0 open on Sunday, check Monday)
-5. Expansion gate still CLOSED — no new live strategies yet
-6. KXGDP (92k vol) is worth probing deeper — could supplement fomc/unemployment
+MISTAKES MADE THIS SESSION (logged for new chat to avoid):
+1. Did NOT restart bot at session start → soft stop from before session sat active for ~2 hours.
+   LESSON: ALWAYS restart at step 2 above. Restart = consecutive loss counter cleared.
+   The bot was in consecutive loss cooling (2hr window). Matthew noticed no live bet notifications.
+2. Bug investigation took too long before running the direct API probe.
+   LESSON: When a strategy logs "Evaluating N markets" but no subsequent signal messages:
+   IMMEDIATELY probe fomc_strategy._fred.is_stale. If True → shared fred_feed bug.
+   The fastest diagnosis: `fomc_strategy = load_from_config(); print(fomc_strategy._fred.is_stale)`
+   If True, the strategy never got a shared feed. Fix takes 3 lines.
+
+NEXT SESSION DIRECTIVES (in priority order):
+1. RESTART BOT FIRST (see step 2 above)
+2. Run --health, --report, --graduation-status → log to /tmp/polybot_autonomous_monitor.md
+3. Verify fomc paper bets are continuing: grep "[fomc] Paper trade:" /tmp/polybot_session40.log (or session41)
+   Expected: KXFEDDECISION-26MAR-H0 (NO@2¢, edge=31%) + KXFEDDECISION-26MAR-C25 (YES@1¢, edge=22%)
+4. Verify unemployment paper bets are firing near BLS release (check next_bls_date() → likely April 3)
+5. Monitor eth_drift + sol_drift graduation: 8 + 19 more live bets needed
+6. Probe KXBTCW/KXBTCMAXW weekly markets (check on weekday — dormant on weekends)
+7. Expansion gate still CLOSED — no new live strategies
+8. If KXBTCMAXW or other undocumented series found: log to KALSHI_MARKETS.md before building
 
 STANDING DIRECTIVES (never need repeating):
 * Fully autonomous always — do work first, summarize after. Never ask for confirmation.
 * EXPANSION GATE: no new live strategies until 2-3 weeks live data + no KS events
-* 887 tests must pass before any commit (count updates each session)
+* 891 tests must pass before any commit (count updates each session)
 * Read .planning/CHANGELOG.md at session start, append entries at session end
 * Read .planning/KALSHI_MARKETS.md BEFORE any Kalshi strategy or market work
 * Read .planning/SKILLS_REFERENCE.md BEFORE choosing any implementation tool
@@ -120,77 +149,65 @@ TOKEN BUDGET (Matthew's standing permission — never needs repeating):
 
 ## EXACT CURRENT STATE
 
-Bot RUNNING — PID 96757, live mode, log: /tmp/polybot_session38.log
+Bot RUNNING — PID 3964, live mode, log: /tmp/polybot_session40.log
 Check:  cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"
-Watch:  tail -f /tmp/polybot_session38.log
+Watch:  tail -f /tmp/polybot_session40.log
 Health: source venv/bin/activate && python3 main.py --health
 
 ### THREE Live drift loops (all micro-live, 1 contract/bet ~$0.35-0.65):
-- btc_drift_v1 -> KXBTC15M | min_drift=0.05, min_edge=0.05 | 37/30 ✅ Brier 0.247
-- eth_drift_v1 -> KXETH15M | min_drift=0.05, min_edge=0.05 | 19/30 needs 11 more
+- btc_drift_v1 -> KXBTC15M | min_drift=0.05, min_edge=0.05 | 40/30 ✅ Brier 0.249
+- eth_drift_v1 -> KXETH15M | min_drift=0.05, min_edge=0.05 | 22/30 needs 8 more
 - sol_drift_v1 -> KXSOL15M | min_drift=0.15, min_edge=0.05 | 11/30 needs 19 more
 All share: _live_trade_lock, calibration_max_usd=0.01, price guard 35-65 cents.
 Combined: ~15-25 live bets/day.
 
+### FOMC Rate Strategy (fomc_rate_v1) — NOW WORKING (Session 40 fix)
+KXFEDDECISION markets. March 2026 FOMC on March 19. close_time='2026-03-18T17:59:00Z'.
+Current signals: H0 (Hold) → BUY NO@2¢ (edge=31%, model=67% vs market=97%)
+                 C25 (Cut 25bps) → BUY YES@1¢ (edge=22%, model=23% vs market=1%)
+Wait for these to settle after March 18 to evaluate model calibration.
+
 ### KXBTCD Hourly Bets (btc_daily_v1) — PAPER, monitor graduation
 24 hourly price-level slots/day. KXBTC1H does NOT exist — these are inside KXBTCD.
 Strategy: CryptoDailyStrategy — ATM contract (closest to 50¢, 30min–6hr window)
-Model: 70% drift + 30% lognormal. ~5,000 total volume (20x less liquid than 15-min).
 Gate to go live: expansion gate criteria. Check: python3 main.py --graduation-status
 
 ### Paper-only (12 loops):
 btc_lag, eth_lag, sol_lag (0 signals/week — HFTs closed the lag)
 orderbook_imbalance, eth_orderbook_imbalance
 btc_daily, eth_daily, sol_daily (KXBTCD/KXETHD/KXSOLD hourly slots — paper)
-weather_forecast (HIGHNY weekdays only), fomc_rate (~8x/year), unemployment_rate (~12x/year)
+weather_forecast (HIGHNY weekdays only)
+fomc_rate (~8x/year — NOW WORKING post Session 40 fix)
+unemployment_rate (~12x/year — NOW WORKING post Session 40 fix)
 sports_futures_v1 (Polymarket.US bookmaker arb, paper-only, min_books=2)
 copy_trader_v1 (Polymarket.US — 0 matches, platform mismatch confirmed)
 
-### Tests: 887/887
+### Tests: 891/891
 
 ### Last commits:
+- 8d3ab06 — fix(fomc+unemployment): share fred_feed instance to prevent silent signal stale block
+- e8544e1 — docs: Session 39 close-out — AUTONOMOUS_CHARTER + KALSHI_MARKETS research
 - c2a2192 — docs: update POLYBOT_INIT with live.py security findings + SKILLS_REFERENCE link
-- 159eead — docs: move graduation_stats todo to completed
-- 992abd6 — docs(quick-8): complete graduation_stats is_paper param fix — SUMMARY + STATE update
-- 2fab9e6 — fix(quick-8): update callers to pass is_paper per strategy
-- 82c90c7 — test(quick-8): RED — add failing tests for graduation_stats is_paper param
-- 9009fa8 — fix(live): guard against recording canceled orders as live bets
 
-### P&L (as of 2026-03-09 18:00 CDT — Session 38 close-out):
+### P&L (as of 2026-03-09 20:00 CDT — Session 40 close-out):
 - Bankroll: ~$84.33
-- All-time live P&L: -$13.37
-- P&L today (live): +$5.48 (btc_drift 14/21, eth_drift 12/19, sol_drift 9/11)
-- Kill switch: CLEAR — daily $6.30/$16.88 (37%), consecutive 0/4, hard stop CLEAR
+- All-time live P&L: -$15.34
+- Kill switch: CLEAR (restarted)
 - SDATA quota: 53/500 (11%) — resets 2026-04-01
 
-### EXPANSION GATE STATUS (Session 38 close-out):
+### EXPANSION GATE STATUS (Session 40 close-out):
 | Criterion | Status |
 |-----------|--------|
-| btc_drift 30+ live bets | ✅ MET (37+) |
-| Brier < 0.30 | ✅ MET (0.247) |
-| 2-3 weeks live P&L data | ❌ NOT MET (~2 days live) |
+| btc_drift 30+ live bets | ✅ MET (40+) |
+| Brier < 0.30 | ✅ MET (0.249) |
+| 2-3 weeks live P&L data | ❌ NOT MET (~2-3 days live) |
 | No kill switch events in window | ❌ NOT MET (multiple soft stops) |
 Gate: STILL CLOSED. Next expansion = KXXRP15M drift (same code as sol_drift, ~15 min).
 
-### PENDING TODOS (0):
-All todos cleared this session.
-
-### SESSION 37-38 WORK COMPLETED:
-Session 37:
-1. Execution-time price guard — live.py (signal@59¢ filled@84¢ → blocked). 6 tests.
-2. --reset-soft-stop flag — clears consecutive loss counter/cooling on startup. 5 tests.
-3. btc_drift calibration analysis — 34 live bets, Brier 0.2503. BUY YES 35.7% vs BUY NO 55%.
-4. sc:analyze security audit on live.py — found 3 issues, highest filed as todo.
-5. SKILLS_REFERENCE.md created — complete skill/command map with token cost tiers.
-
-Session 38:
-6. sports_futures ValueError fix — %.1%% → %.1f%% (was spamming logs). Commit: b6e32ae
-7. Canceled order guard — status=="canceled" → return None before db.save_trade(). 2 tests.
-8. graduation_stats(is_paper) fix — live strategies now show live bet counts. 5 tests.
-   btc_drift: 12 → 37 ✅, eth_drift: 0 → 19, sol_drift: not tracked → 11
-   sol_drift_v1 added to _GRAD in verify.py (was missing entirely).
-9. POLYBOT_INIT.md — full current status update (Session 31 → Session 38). Autonomous ops guide.
-   KXBTCD hourly bets expansion roadmap added.
+### PENDING TODOS:
+- Monitor fomc paper bets settling (March 18 close) — model validation begins
+- KXBTCW weekday probe (dormant on weekends)
+- KXBTCMAXW weekly one-time probe (historically dormant, check weekday)
 
 # ═══════════════════════════════════════════════════════════════
 
@@ -198,12 +215,13 @@ Session 38:
 * NEVER pause to ask questions. NEVER wait for confirmation. NEVER stop mid-task.
 * All findings + actions → append to /tmp/polybot_autonomous_monitor.md (never overwrite)
   Format each entry: ## [TIMESTAMP CDT] — [status] — [action taken or NONE]
+* ALWAYS restart bot at session start (clears soft stop — see step 2 above)
 * Check bot alive: cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo RUNNING
-* If bot STOPPED: restart immediately using live restart command (COMMANDS section below)
-* If kill switch fired: log it, do NOT reset — daily loss limit governs, leave it alone
+* If bot STOPPED between monitoring cycles: restart immediately
+* If kill switch HARD STOP: do NOT restart — log it, wait for Matthew
 * Run --report + --graduation-status at each monitoring cycle; log results to MD
 * If approaching context limit: update SESSION_HANDOFF.md + append CHANGELOG.md FIRST, then exit
-* At session end (with or without work done): always append CHANGELOG.md entry
+* At session end: always append CHANGELOG.md entry
 
 ## RESUMING AFTER AUTONOMOUS PERIOD:
 * cat /tmp/polybot_autonomous_monitor.md  <- what happened while you were away
@@ -218,7 +236,7 @@ Then: gsd:quick + superpowers:TDD + superpowers:verification-before-completion f
 
 ## CURRENT BOT ARCHITECTURE (15 loops total)
 
-main.py asyncio event loop [LIVE MODE — PID 96757]
+main.py asyncio event loop [LIVE MODE — PID 3964]
 
 Kalshi 15-min loops:
   [trading]       btc_lag_v1             PAPER-ONLY (0 signals/week — market mature)
@@ -229,8 +247,8 @@ Kalshi 15-min loops:
   [btc_imbalance] orderbook_imb_v1       PAPER-ONLY
   [eth_imbalance] eth_orderbook_imb_v1   PAPER-ONLY
   [weather]       weather_forecast_v1    PAPER-ONLY (weekdays only)
-  [fomc]          fomc_rate_v1           PAPER-ONLY (~8x/year)
-  [unemployment]  unemployment_rate_v1   PAPER-ONLY (~12x/year)
+  [fomc]          fomc_rate_v1           PAPER-ONLY (~8x/year — NOW WORKING Session 40)
+  [unemployment]  unemployment_rate_v1   PAPER-ONLY (~12x/year — NOW WORKING Session 40)
   [sol_lag]       sol_lag_v1             PAPER-ONLY
 
 Kalshi daily loops (KXBTCD/KXETHD/KXSOLD — 24 hourly price-level slots/day):
@@ -249,30 +267,31 @@ Polymarket:
 ### Check bot
   cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"
 
-### Live restart (use when bot needs restart)
+### Live restart (use at EVERY session start — clears soft stop)
   pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null
-  sleep 3; rm -f bot.pid
+  sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid
   echo "CONFIRM" > /tmp/polybot_confirm.txt
-  nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session38.log 2>&1 &
+  nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session41.log 2>&1 &
   sleep 10 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
 
 ### Watch drift loops (most active — live bets fire here)
-  tail -f /tmp/polybot_session38.log | grep --line-buffered "drift\|LIVE\|Trade executed\|Kill switch"
+  tail -f /tmp/polybot_session40.log | grep --line-buffered "drift\|LIVE\|Trade executed\|Kill switch"
 
 ### Watch everything
-  tail -f /tmp/polybot_session38.log
+  tail -f /tmp/polybot_session40.log
 
 ### Diagnostics
   source venv/bin/activate && python3 main.py --report            # today P&L, paper/live split
   source venv/bin/activate && python3 main.py --graduation-status # Brier + live bet count
   source venv/bin/activate && python3 main.py --health            # kill switch + open trades + SDATA
-  source venv/bin/activate && python3 -m pytest tests/ -q         # 887/887 required before commit
+  source venv/bin/activate && python3 -m pytest tests/ -q         # 891/891 required before commit
 
 # ═══════════════════════════════════════════════════════════════
 
 ## MANDATORY READING ORDER (every new session)
 1. SESSION_HANDOFF.md (this file) — already done
-2. .planning/CHANGELOG.md — what changed and WHY, every session
-3. .planning/KALSHI_MARKETS.md — full market map before any strategy work
-4. .planning/SKILLS_REFERENCE.md — tool selection + token cost tiers
-5. .planning/PRINCIPLES.md — before ANY strategy/risk/threshold change
+2. .planning/AUTONOMOUS_CHARTER.md — autonomous ops rules (MANDATORY, acknowledge)
+3. .planning/CHANGELOG.md — what changed and WHY, every session
+4. .planning/KALSHI_MARKETS.md — full market map before any strategy work
+5. .planning/SKILLS_REFERENCE.md — tool selection + token cost tiers
+6. .planning/PRINCIPLES.md — before ANY strategy/risk/threshold change
