@@ -1076,3 +1076,147 @@ You are better than me if you do these things:
    This one's job is operational. Research is bonus, not primary.
 6. **Use gsd:add-todo** the MOMENT you spot an issue. Don't keep mental notes.
 
+---
+
+## Session 44 — 2026-03-10 — AUDIT/REBUILD (BOT STOPPED ALL DAY)
+
+### Context
+Full audit and rebuild session. Bot stopped at start and never restarted. Matthew stepped away
+mid-session to move; session continued autonomously through three phases: strategy audit,
+autonomous overhaul, and reference doc gap analysis.
+
+### Phase 1: Strategy Audit + Config Fixes (commits: a350152 precursor, b642f44 precursor)
+
+1. **btc_drift.py — late_penalty gate fixed (dead code bug)**
+   - Was: `if signal.confidence < late_penalty_threshold` — `confidence` field is never populated
+   - Now: `if signal.edge_pct < late_penalty_threshold` — gates on the field that actually exists
+   - WHY: Dead code gate never fired. Late-reference BTC prices were not being penalized.
+
+2. **config.yaml — btc_drift min_drift_pct 0.05→0.10**
+   - WHY: 47 live bets confirm ≥20% edge signals = noise at 0.05% threshold. HFTs reprice within
+     the drift window. Raising threshold requires 0.19% BTC drift in 60s — filters out HFT-priced moves.
+   - PRINCIPLES: Not a reaction to losses. 47 data points confirm the mechanical defect.
+
+3. **config.yaml — eth_imbalance signal_scaling 1.0→0.5**
+   - WHY: -27.2% calibration error identified. strategy generates YES signals at 72% raw but
+     market prices say 50%. Halving scaling brings it in line. 10 live bets at 0.5 to assess.
+
+4. **eth_drift GRADUATED to Stage 1**
+   - main.py: calibration_max_usd removed from eth_drift trading_loop call
+   - WHY: 30/30 live bets ✅ Brier 0.255 ✅ — graduation criteria met. Kelly + $5 HARD_MAX now governs.
+
+5. **.planning/STRATEGY_AUDIT.md — created**
+   - 11-part audit covering all live strategies, 25 external cited sources
+   - Covers: calibration, edge, HFT dynamics, Brier interpretation, direction filter analysis
+
+6. **.planning/STRATEGIC_DIRECTION.md — created**
+   - Full strategic direction document: answers all 11 open questions on strategy/platform decisions
+   - Key conclusions: SOL drift = best signal, CPI economics = best future opportunity,
+     Polymarket.COM VPN = do not pursue, BTC 15-min = wrong market long-term
+
+### Phase 2: Autonomous Overhaul (commit b642f44 — 2026-03-10 ~14:30 CDT)
+
+7. **PROMPT 1 AUDIT — all 4 checks PASS**
+   - Kalshi API v2: ✅ all endpoints use /v2/ or /trade-api/v2/
+   - Python 3.13: ✅ no deprecated syntax found
+   - Hardcoded credentials: ✅ none (all via .env / kalshi_private_key.pem)
+   - Deprecated endpoints: ✅ none found
+
+8. **.planning/CODEBASE_AUDIT.md — created**
+   - KEEP/STRIP/REBUILD JSON audit: 17 KEEP, 5 STRIP, 6 REBUILD
+   - STRIP items (copy_trader stack, sports_futures+odds_api, eth_imbalance live, sports_game):
+     Matthew confirmed KEEP for now — store for later, don't delete
+
+9. **src/risk/fee_calculator.py — NEW FILE**
+   - `kalshi_taker_fee_cents(contracts, price_cents)`: Kalshi taker fee formula
+     `ceil(0.07 × contracts × price × (1 - price) × 100)` — matches reference doc Section 3.3
+   - `fee_survives_fee(trade_usd, fee_cents)`: gate to verify trade is profitable after fee
+   - WHY: Fee was computed inline in paper.py using `round()` — reference doc requires `ceil()`.
+     Centralized in a single file so formula stays consistent across all callers.
+
+10. **tests/test_fee_calculator.py — NEW FILE**
+    - 20 tests covering: boundary values, ceil vs round difference, fee_survives_fee gate,
+      multi-contract scaling, edge cases (0-price, 100-price contracts)
+
+11. **main.py — POLL_INTERVAL_SEC 30→10**
+    - WHY: 3x latency improvement (0.19% drift threshold at 10s vs 30s significantly more windows).
+      0.6 req/s still well within Kalshi rate limits. No API quota impact.
+
+12. **src/db.py — 4 tax columns added via _migrate()**
+    - New columns: exit_price_cents, kalshi_fee_cents, gross_profit_cents, tax_basis_usd
+    - Safe additive migration: `try/except sqlite3.OperationalError: pass`
+    - WHY: Required for Section 4.4 compliance per reference doc. Columns were designed but never populated.
+
+13. **src/dashboard.py — stale constants fixed**
+    - CONSECUTIVE_LOSS_LIMIT 4→8 (matches kill_switch.py after Session 41 raise)
+    - DAILY_LOSS_LIMIT_USD 20→0 with "DISABLED" label (matches Session 42 removal)
+    - WHY: Dashboard was showing wrong thresholds — 4 consecutive instead of 8, $20 cap instead of DISABLED.
+
+### Phase 3: Reference Doc Gap Analysis + Tax Fields Fix (commits a350152, 21089bf — 2026-03-10 ~16:30 CDT)
+
+14. **KALSHI_BOT_COMPLETE_REFERENCE.pdf — read in full (16 pages, 48,069 chars)**
+    - Reference doc confirmed: Section 4.4 requires tax fields on every settlement
+    - Fee formula: confirms `ceil()` not `round()`
+    - Brier gate: doc says 0.20; current bot uses 0.30 (see decision below)
+    - $25 daily cap: doc says "never violate"; Matthew: "skip for now" (testing mode)
+    - STRIP items: Matthew: "keep stored for later"
+
+15. **src/db.py — settle_trade() updated to write tax fields (commit a350152)**
+    - Added 4 optional keyword parameters: exit_price_cents, kalshi_fee_cents,
+      gross_profit_cents, tax_basis_usd
+    - SQL UPDATE now includes all 4 columns
+    - Backward compatible: existing callers with no kwargs continue to write NULL for those columns
+    - WHY: Tax columns existed in schema since early Session 44 but settle_trade() never wrote them.
+      ALL historical settlements have NULL tax fields — no retroactive fix (would require Kalshi CSV).
+
+16. **src/execution/paper.py — settle() fee formula fixed + tax fields passed (commit a350152)**
+    - Replaced inline `round(0.07 * p * (1 - p) * 100)` with `kalshi_taker_fee_cents()` (uses ceil)
+    - Now computes and passes all 4 tax fields to settle_trade():
+      - exit_price_cents: 100 on WIN, 0 on LOSS
+      - kalshi_fee_cents: ceil formula on WIN, 0 on LOSS (current model: fees waived on losing bets)
+      - gross_profit_cents: (100 - fill_price) × contracts on WIN, -fill_price × contracts on LOSS
+      - tax_basis_usd: net P&L (gross - fee) / 100, rounded to 4 decimal places
+    - WHY: This is the critical live-data fix. Every paper settlement now writes full tax record.
+
+17. **tests/test_paper_executor.py — 9 new tests in TestTaxFieldsPopulation (commit a350152)**
+    - TDD: all 9 written as failing tests first, then implementation made them pass
+    - Tests: exit_price WIN=100/LOSS=0, fee ceil vs round, fee=0 on loss, gross profit WIN/LOSS,
+      tax_basis_usd net calculation, multi-contract fee scaling
+
+18. **src/db.py — export_tax_csv() method added (commit 21089bf)**
+    - Exports live resolved trades only (WHERE result IS NOT NULL AND is_paper = 0)
+    - All 14 Section 4.4 fields: id, timestamp_utc, settled_utc, market_ticker, side, contracts,
+      entry_price_cents, exit_price_cents, gross_profit_usd, kalshi_fee_usd, net_profit_usd,
+      tax_basis_usd, win_prob, outcome, strategy
+    - Default output: reports/tax_trades.csv
+    - WHY: Separate from export_trades_csv() — tax-only view with clean field names for accountant
+
+19. **main.py — --export-tax CLI flag added (commit 21089bf)**
+    - `python3 main.py --export-tax` → exports reports/tax_trades.csv and prints path
+    - WHY: Section 4.4 compliance. Matthew will download Kalshi CSV and cross-reference.
+
+20. **CHANGES_LOG.md — updated with changes #10 and #11, gap analysis table**
+    - CHANGE #10: tax fields fix (a350152)
+    - CHANGE #11: CLAUDE.md update (578301b)
+    - Reference doc gap analysis table: closed gaps, decisions, planned gaps
+
+21. **SESSION_HANDOFF.md — full rewrite for Session 45**
+    - Bot state: STOPPED | 952/952 tests | latest commit 21089bf
+    - All 14 Session 44 changes documented
+    - Session 45 priorities: restart bot, eth_drift Stage 1 first bets, Kalshi CSV comparison,
+      optional Coinbase backup feed, optional event-driven asyncio.Event trigger
+
+### Decisions made (Matthew's directives)
+- Daily loss cap ($25 per ref doc): SKIP for now — testing mode, not production scale
+- Brier gate 0.20 vs 0.30: Keep 0.30 for existing strategies; enforce 0.20 for new strategies
+  built post-Grand Rounds (~March 20, 2026)
+- STRIP items (copy_trader, sports_futures, eth_imbalance live, sports_game): KEEP — useful later
+
+### P&L at session end (bot stopped all day — no live bets during Session 44)
+- All-time live P&L: **-$39.53** | Bankroll: ~$68.16
+- Strategy status unchanged from Session 43 wrap-up (no live bets placed)
+
+### Test count: 952/952 (+42 new: 20 fee_calculator + 9 tax fields + 13 others from Session 44 early)
+### Commits: 578301b (CLAUDE.md), a350152 (tax fields fix), 84c9735 (gap analysis docs), 21089bf (--export-tax)
+### Bot: STOPPED | No bot.pid | Restart to /tmp/polybot_session45.log next session
+
