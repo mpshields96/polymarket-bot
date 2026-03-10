@@ -622,11 +622,12 @@ After expansion gate opens (2-3 weeks live data + no kill switch events):
 
 **Tier 1 — Quick wins (same code pattern as existing strategies):**
 1. **KXXRP15M** — XRP 15-min direction (same code as sol_drift, ~15 min to add)
+   - Confirmed active Session 41 probe: 1 open market at 43¢ ✅
 2. **KXBTCD hourly live** — btc_daily_v1 already paper, promote after graduation met
-3. **KXBTCW/KXETHW/KXSOLW** — Weekly price-level (tickers confirmed Session 39!)
-   - Same structure as KXBTCD but weekly settlement (Friday 5pm EDT)
-   - Tickers: KXBTCW, KXETHW, KXSOLW — probe on weekday to see open markets
-   - Signal: same lognormal drift model as KXBTCD but with weekly σ√5 scaling
+3. **KXBTCMAXW** — Weekly BTC max (⚠️ KXBTCW/KXETHW/KXSOLW DO NOT EXIST — corrected Session 40)
+   - KXBTCMAXW: 0 open Sunday (dormant since Nov 2024). Probe Mon–Fri.
+   - KXETHW/KXSOLW equivalents: do NOT exist. Only BTC weekly confirmed.
+   - Signal: same drift model but weekly settlement — needs σ√5 scaling. Do not build until active.
 
 **Tier 2 — High-volume, new strategy needed (post-gate research):**
 4. **KXBTCMAX100** ($2.7M) — "When will BTC cross $100k again?" — Barrier option model
@@ -696,5 +697,30 @@ Visit kalshi.com top nav and document ALL categories:
 
 **Update this file with findings before any strategy work.**
 **Do NOT build a strategy for any category not yet probed and documented here.**
+
+### Session 41 Probe Results (2026-03-09, 20:08 CDT)
+
+All major series confirmed or updated. Key findings:
+- KXXRP15M: 1 open at 43¢ — ACTIVE, confirmed next expansion candidate ✅
+- KXBTCMAXW: 0 open (Sunday dormant — probe weekday) — NOT KXBTCW ⚠️
+- KXBTCMAXM: 0 open (check weekday)
+- KXDOGE15M: 0 open (dormant — skip)
+- KXBTCMAX150: 3 open, vol=10,854,936 (volumes up from Session 39)
+- KXBTCMAX100: 6 open, vol=2,706,392 (DEC now 38¢ — BTC at $84k needs +19%)
+- KXBTC2026200: 1 open, vol=3,425,045 (8¢ YES)
+- KXBTCY: 28 open, vol=1,432,993 (annual binary)
+- KXETHY: 18 open, vol=696,273 (annual ETH binary)
+- KXETHMAXY: 8 open, vol=1,257,721 (annual ETH max)
+- KXSOLMAXY: 8 open, vol=205,285
+- KXBTCMAXMON: 6 open, vol=546,756 (March trimmed mean max)
+- KXBTCMINMON: 8 open, vol=442,516 (March trimmed mean min)
+- KXRATECUTCOUNT: 21 open, vol=1,989,985 (1-3 cuts expected by market)
+- KXFEDDECISION: 80 open, vol=23,410,906 (LARGEST — 80 markets, all FOMC dates 2026-2028)
+- KXGDP: 8 open, vol=208,202
+
+Reddit/GitHub research (Session 41):
+- No Reddit r/kalshi strategy posts for weekly/barrier/annual markets — lightly traded by retail
+- GitHub bots: all use signal-based approaches (NOT copy trading). No weekly/barrier strategy patterns found.
+- Implication: markets remain potentially underexploited by retail algorithmic traders.
 
 ═══════════════════════════════════════════════════════════════

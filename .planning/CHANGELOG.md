@@ -698,3 +698,54 @@ Verified: Session 40 log shows "[fomc] Paper trade: NO KXFEDDECISION-26MAR-H0 @ 
 
 ### Test count: 891/891 (+4 regression tests)
 ### Commits: 8d3ab06 — fix(fomc+unemployment): share fred_feed instance to prevent silent signal stale block
+
+---
+
+## Session 41 — 2026-03-09 — Soft stop clear, live bets placed, series probe, execution guard validation
+
+### Changed
+- SESSION_HANDOFF.md — full update with Session 41 state, lessons, next directives
+- .planning/KALSHI_MARKETS.md — corrected EXPANSION ROADMAP (KXBTCW/KXETHW/KXSOLW DO NOT EXIST → KXBTCMAXW correct), added Session 41 probe results to RESEARCH DIRECTIVES
+
+### What happened
+1. Applied Session 40 lesson: restarted bot immediately at session start (PID 4799)
+2. --health showed consecutive loss cooling still active from prior sessions
+3. Restarted again with --reset-soft-stop flag → clearing confirmed in log
+4. Two live bets placed and settled:
+   - trade_id=513: btc_drift_v1 NO KXBTC15M @ 49¢ → SETTLED WIN +$0.49
+   - trade_id=514: eth_drift_v1 YES KXETH15M @ 52¢ → SETTLED LOSS -$0.52
+5. Execution-time price guard validated in volatile market:
+   - sol_drift signal 61¢ → execution price 82¢ (slippage 21¢) → REJECTED ✅
+   - eth_drift signal 50¢ → execution price 75¢ (slippage 25¢) → REJECTED ✅
+   These are correct rejections. BTC/ETH were swinging wildly (50¢ → 8¢ → 75¢ in one window).
+6. Kalshi series probe (Sunday):
+   - KXXRP15M: 1 open market @ 43¢ — CONFIRMED ACTIVE (next expansion candidate)
+   - KXDOGE15M: 0 open markets — INACTIVE
+   - KXBTCMAXW: 0 open markets — dormant Sunday (needs weekday probe)
+7. Reddit/GitHub research: no major new insights found Sunday
+
+### Why no changes to strategy code
+Bot is correctly behaving under volatile conditions. Price guard is protecting from slippage.
+The primary blocker on more live bets is BTC/ETH market volatility — prices hitting 2-12¢ range
+near window end, which is expected and correct. No code changes needed.
+
+### Lessons learned
+1. --reset-soft-stop is separate from regular restart. If consecutive loss cooling active from
+   prior session, MUST use --reset-soft-stop flag in restart command (not just regular restart).
+   Regular restart clears in-memory counter but keep reading from DB: restore_consecutive_losses()
+   is called at startup and will re-trigger the cooling if 5+ losses still in DB sequence.
+   LESSON: check consecutive losses count BEFORE restart with: python3 main.py --health
+   If cooling active → use --reset-soft-stop; if clear → use regular restart.
+2. sol_drift 0.150% threshold is very tight. SOL oscillated 0.070%–0.147% all session.
+   Even when signal DID fire at 0.258%, execution price slipped to 82¢ (signal was 61¢).
+   Consider: sol_drift signals near 65¢ (high end of guard) are particularly prone to rejection.
+3. eth_drift streak=3 from graduation-status. This is 3 consecutive live losses for eth_drift.
+   Not a mechanical defect — ETH drift model may be less calibrated than BTC. 23/30 live bets.
+   Monitor Brier score as more bets accumulate. Brier=0.256 is still within acceptable range.
+4. Execution-time price guard (Sessions 37-38) is working as intended and preventing bad bets
+   in volatile markets. This is a feature, not a bug. Matthew should expect fewer completed live
+   bets on high-volatility days.
+
+### Test count: 891/891 (no code changes this session)
+### Live bets session 41: 2 placed, 2 settled (1 WIN +$0.49, 1 LOSS -$0.52, net -$0.03)
+### Graduation: btc_drift 41/30 ✅ | eth_drift 23/30 | sol_drift 11/30

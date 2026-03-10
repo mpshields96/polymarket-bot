@@ -241,8 +241,8 @@ CHECK: `pip freeze | grep <package>` to get current version, then pin it.
 Current project state (updated each session):
 - **891/891 tests passing**, verify.py 21/29 (8 advisory WARNs — non-critical)
 - **THREE LIVE DRIFT LOOPS** (all 1 contract/bet ~$0.35-0.65, unlimited/day, daily loss limit governs):
-  - btc_drift_v1 → KXBTC15M | thresholds 0.05/0.05 (RESTORED Session 36) | 40/30 ✅ Brier 0.249
-  - eth_drift_v1 → KXETH15M | thresholds 0.05/0.05 | 22/30 (8 more needed)
+  - btc_drift_v1 → KXBTC15M | thresholds 0.05/0.05 (RESTORED Session 36) | 41/30 ✅ Brier 0.247
+  - eth_drift_v1 → KXETH15M | thresholds 0.05/0.05 | 23/30 (7 more needed)
   - sol_drift_v1 → KXSOL15M | min_drift_pct=0.15 (3x BTC), min_edge_pct=0.05 | 11/30 (19 more needed)
   - All share _live_trade_lock + calibration_max_usd=0.01 + daily loss limit
   - Combined expected 15-25 signals/day. Target: 30 settled bets each → compute Brier → Stage 2 gate.
@@ -254,12 +254,12 @@ Current project state (updated each session):
   - sports_futures_v1: paper, bookmaker arb, min_books=2 filter. Copy_trade: 0 .us matches.
   - Kalshi copy trading: INFEASIBLE (API returns zero trader attribution — confirmed via API docs + re-confirmed Session 36 research)
   - Polymarket.COM is geo-restricted for US users. Our account = polymarket.US sports only. CLOSED path.
-- Latest commit: 8d3ab06 (Session 40 fomc/unemployment shared fred_feed fix)
+- Latest commit: (Session 41 docs commit — see git log)
 - Kill switch: consecutive_loss_limit=4, daily_loss_limit=20%. NO lifetime % hard stop.
 - **Daily loss counter resets at midnight CST (UTC-6 = 06:00 UTC)**
-- Bankroll: ~$84.33 | All-time live P&L: -$15.34 | Bot PID: 3964 | Log: /tmp/polybot_session40.log
+- Bankroll: ~$83.81 | All-time live P&L: -$15.37 | Bot PID: 4799 | Log: /tmp/polybot_session41.log
 - Live restart (update session number each restart):
-  `pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session41.log 2>&1 &`
+  `pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session42.log 2>&1 &`
 
 ## Loading Screen Tip — MANDATORY at end of EVERY response
 Every response (with or without code changes) must end with a "💡 Loading Screen Tip" block.
