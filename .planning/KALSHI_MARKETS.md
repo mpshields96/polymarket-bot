@@ -1,9 +1,15 @@
 # KALSHI MARKETS — Complete Reference
-# Last updated: Session 39 (2026-03-09) — FULL TAXONOMY + EVENTS ENDPOINT DISCOVERY
+# Last updated: Session 40 (2026-03-09) — FULL TAXONOMY + CORRECTIONS + DEEP PROBE
 # Source: Live API probe (Session 23, all 8,719 series) + full re-probe Session 36
 #         + Matthew's kalshi.com Crypto tab screenshot (Session 38)
 #         + Events endpoint paginated search (Session 39) — 3,000 events scanned
-#         Confirmed via get_markets() + GET /events against api.elections.kalshi.com
+#         + /series?limit=200 endpoint probe (Session 40) — 44,735 TOTAL SERIES confirmed
+#         Confirmed via get_markets() + GET /events + GET /series against api.elections.kalshi.com
+#
+# TOTAL KALSHI SCALE (Session 40): 44,735 series
+#   Politics: ~12,335 | Entertainment: ~10,355 | Sports: ~7,605 | Elections: ~2,140
+#   Mentions: ~1,365 | Companies: ~1,520 | Economics: ~1,230 | Crypto: ~600+
+#   Viable for statistical-edge bot: ONLY Crypto + Economics + Sports(futures)
 #
 # PURPOSE: All future Claude sessions read this FIRST before any strategy work.
 #          STANDING DIRECTIVE: New sessions must research undocumented categories.
