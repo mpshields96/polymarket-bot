@@ -70,25 +70,29 @@ STEP 4 — MANDATORY RULES:
 
 ══════════════════════════════════════════════════════
 
-KEY STATE (Session 43 AUTONOMOUS end — 2026-03-10 ~01:15 CDT):
-* Bot: PID 11839, LIVE mode, log /tmp/polybot_session43.log
-* All-time live P&L: -$18.15 | Today live: -$2.81 (18 settled) | Bankroll: ~$80+
-* SIX LIVE LOOPS (daily loss cap REMOVED Session 42):
-  - btc_drift_v1: STAGE 1 ($5 max/bet, Kelly governs) — 45/30 ✅ Brier 0.250 streak=0
-    ⚠️ direction_filter="no" ACTIVE — blocks YES signals. Session 43 autonomous: trade 591 NO won +$6.30!
-    To validate: 30+ NO-only bets → if win rate stays >55% → filter becomes permanent
-  - eth_drift_v1: MICRO-LIVE — 27/30 (**3 MORE BETS NEEDED FOR GRADUATION!**) | Brier 0.251
-  - sol_drift_v1: MICRO-LIVE — 13/30 (17 more needed) | Brier 0.151 🔥
-  - xrp_drift_v1: MICRO-LIVE — 1/30 (29 more needed) | streak=1
-  - eth_orderbook_imbalance_v1: STAGE 1 — 5/30 (25 more needed) | Brier 0.264 | streak=3 ⚠️
-  - btc_lag_v1: STAGE 1 — 45/30 ✅ Brier 0.191 | LIVE but 0 signals/week (HFTs)
-* DAILY SOFT STOP: CONFIRMED DISPLAY-ONLY — lines 187-189 in kill_switch.py are COMMENTED OUT
-  --health shows "Daily loss soft stop active" — this is tracking only, NOT blocking bets
-* Kill switch: daily_loss_cap=DISABLED, consecutive_loss_limit=8
-  Active protection: bankroll floor $20 + 8 consecutive → 2hr pause + $5/bet hard cap
+KEY STATE (Session 43 END — 2026-03-10 ~07:15 CDT — BOT STOPPED):
+* Bot: STOPPED MANUALLY at ~07:15 CDT. No bot.pid.
+* Restart to session44.log — see restart command below.
+* All-time live P&L: -$31.84 | Today live: -$16.50 (28 settled, 43%) | Bankroll: ~$68.16
+* Total live bets all-time: 106 placed, 106 settled (52% win rate overall)
+
+LIVE STRATEGY STATUS (as of stop):
+  - btc_drift_v1: STAGE 1 — 47/30 ✅ Brier 0.251 streak=2 | P&L ALL-TIME -$23.37 (main bleeder)
+    ⚠️ direction_filter="no" ACTIVE — blocks YES. Today: 2/7 (29%) — filter NOT validated yet.
+    Need 30+ NO-only settled bets to assess. Currently ~12 NO-only bets post-filter.
+  - eth_drift_v1: MICRO-LIVE — **29/30 (ONE BET FROM GRADUATION!)** | Brier 0.253 streak=2
+    🚨 PRIORITY #1 NEXT SESSION: restart, watch for graduation, promote if Brier < 0.30
+  - sol_drift_v1: MICRO-LIVE — 13/30 (17 more needed) | Brier 0.151 🔥 | P&L +$2.52
+  - xrp_drift_v1: MICRO-LIVE — 2/30 (28 more needed) | Brier 0.425 (!) streak=2
+  - eth_orderbook_imbalance_v1: STAGE 1 — 10/30 (20 more needed) | Brier 0.300 streak=1
+  - btc_lag_v1: STAGE 1 — 45/30 ✅ | LIVE but 0 signals/week (HFTs)
+
+* DAILY SOFT STOP: CONFIRMED DISPLAY-ONLY — lines 187-189 in kill_switch.py COMMENTED OUT
+  --health "Daily loss soft stop active" = tracking only, does NOT block bets
+* Kill switch on stop: consecutive=1, hard stop CLEAR, daily DISPLAY-ONLY
 * 910/910 tests passing
-* Last commit: e085536 — feat: block btc_drift YES signals via direction_filter (AUTONOMOUS updated CHANGELOG)
-* All-time live P&L: -$18.15 | Today: -$2.81 (18 settled) | Bankroll: ~$80+
+* Last code commit: e085536 — feat: block btc_drift YES signals via direction_filter
+* Last docs commit: 242f663 — docs: capture todo — eth_drift graduation
 * SDATA quota: 80/500 (16%) — resets 2026-04-01
 
 SESSION 43 WORK DONE (code) + AUTONOMOUS NIGHT MONITORING:
@@ -104,15 +108,18 @@ SESSION 43 WORK DONE (code) + AUTONOMOUS NIGHT MONITORING:
   - eth_imbalance streak=3 consecutive losses — watch (limit is 8)
 
 NEXT SESSION DIRECTIVES (in priority order):
-1. RESTART BOT FIRST (log to session44.log) — ALWAYS, no exceptions
-2. Run --health, --report, --graduation-status → log to /tmp/polybot_autonomous_monitor.md
-3. ⚠️ MONITOR direction_filter="no" bets: eth_imbalance streak=3 (check global consecutive)
-   After 10+ NO-only btc_drift bets settled: SQL win rate check on new filter regime
-   If NO win rate < 50% over 15+ bets: revisit filter
-4. **eth_drift graduation: 27/30 — only 3 more live bets needed!** Watch this actively
-5. Watch eth_orderbook_imbalance: 5/30, streak=3 consecutive losses
-6. sol_drift graduation: 13/30 (17 more needed) | Brier 0.151 🔥 exceptional calibration
-7. Check fomc paper bets: KXFEDDECISION-26MAR closes March 18 (0 settled of 19 placed)
+1. 🚨 RESTART BOT FIRST (log to session44.log) — ALWAYS, no exceptions
+2. Run --health, --report, --graduation-status
+3. 🚨 eth_drift GRADUATION IMMINENT: 29/30 — ONE more live settled bet → graduation
+   Pre-live audit checklist (CLAUDE.md Step 5) → remove calibration_max_usd=0.01 from eth_drift
+   Promote to Stage 1 ($5 cap) — DO THIS as soon as 30/30 shows in --graduation-status
+4. btc_drift direction_filter="no" still unvalidated (need 30+ NO-only bets; ~12 now)
+   Today was 2/7 (29%) — do NOT declare filter validated or remove it yet
+   SQL check: after 20+ NO-only settled: compare NO win rate to pre-filter YES (30%)
+5. btc_drift is the main P&L bleeder: -$23.37 all-time on 47 bets (44% win rate)
+   Do NOT change thresholds yet — need 30+ more bets under direction_filter="no"
+6. xrp_drift Brier 0.425 (!) on only 2 bets — tiny sample, not actionable yet
+7. Check fomc paper bets: KXFEDDECISION-26MAR closes March 18 (19 placed, 0 settled)
 
 STANDING DIRECTIVES (never need repeating):
 * Fully autonomous always — do work first, summarize after. Never ask for confirmation.
@@ -139,19 +146,19 @@ TOKEN BUDGET (Matthew's standing permission — never needs repeating):
 
 ## EXACT CURRENT STATE
 
-Bot RUNNING — PID 11839, live mode, log: /tmp/polybot_session43.log
-Check:  cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"
-Watch:  tail -f /tmp/polybot_session43.log
+Bot STOPPED — restart to session44.log before any work.
+Check:  ps aux | grep "[m]ain.py" | grep -v grep
+Restart: see command above
 Health: source venv/bin/activate && python3 main.py --health
 
-### SIX Live loops:
-- btc_drift_v1 → KXBTC15M | min_drift=0.05, min_edge=0.05 | 43/30 ✅ Brier 0.250 | STAGE 1 ($5 cap, Kelly)
-  ⚠️ direction_filter="no" ACTIVE — only fires NO signals (Session 43 change)
-- eth_drift_v1 → KXETH15M | min_drift=0.05, min_edge=0.05 | 24/30 needs 6 more | micro-live
-- sol_drift_v1 → KXSOL15M | min_drift=0.15, min_edge=0.05 | 12/30 needs 18 more | micro-live
-- xrp_drift_v1 → KXXRP15M | min_drift=0.10, min_edge=0.05 | 1/30 needs 29 more | micro-live
+### SIX Live loops (status at stop):
+- btc_drift_v1 → KXBTC15M | min_drift=0.05, min_edge=0.05 | 47/30 ✅ Brier 0.251 | STAGE 1
+  ⚠️ direction_filter="no" ACTIVE — only fires NO signals (Session 43 change) — UNVALIDATED (n≈12)
+- eth_drift_v1 → KXETH15M | min_drift=0.05, min_edge=0.05 | 29/30 **1 MORE TO GRADUATE** | micro-live
+- sol_drift_v1 → KXSOL15M | min_drift=0.15, min_edge=0.05 | 13/30 needs 17 more | micro-live
+- xrp_drift_v1 → KXXRP15M | min_drift=0.10, min_edge=0.05 | 2/30 needs 28 more | micro-live
 - btc_lag_v1   → KXBTC15M | 0 signals/week (HFTs) | tracked paper (45/30) | live but silent
-- eth_orderbook_imbalance_v1 → KXETH15M | 1/30 live | STAGE 1 live (first live bet trade 556)
+- eth_orderbook_imbalance_v1 → KXETH15M | 10/30 live | STAGE 1 live | Brier 0.300
 
 Kill switch: CONSECUTIVE_LOSS_LIMIT=8, daily_loss_cap=DISABLED, bankroll floor $20.
 btc_drift: Kelly sizing + $5 hard max. All others: calibration_max_usd=0.01 (1 contract).

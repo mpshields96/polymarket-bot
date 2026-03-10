@@ -243,30 +243,34 @@ CHECK: `pip freeze | grep <package>` to get current version, then pin it.
 3. Announce what you found in 2-3 lines, then proceed
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
-Current project state (updated Session 43 autonomous — 2026-03-10 ~01:15 CDT):
+Current project state (updated Session 43 wrap-up — 2026-03-10 ~07:15 CDT — BOT STOPPED):
 - **910/910 tests passing**, verify.py 21/29 (8 advisory WARNs — non-critical)
+- **Bot STOPPED manually** — restart to session44.log before any work
 - **SIX LIVE LOOPS** (daily loss cap REMOVED Session 42 — bankroll floor + consecutive cooling govern):
-  - btc_drift_v1 → KXBTC15M | STAGE 1 ($5 cap, Kelly) | 45/30 ✅ Brier 0.250 streak=0
-    ⚠️ direction_filter="no" ACTIVE (Session 43): blocks YES. Validated: trade 591 NO@35¢ +$6.30 WIN
-  - eth_drift_v1 → KXETH15M | micro-live 1 contract/bet | 27/30 (3 more needed!) Brier 0.251
-  - sol_drift_v1 → KXSOL15M | micro-live 1 contract, min_drift_pct=0.15 (3x BTC) | 13/30 (17 more needed) Brier 0.151 🔥
-  - xrp_drift_v1 → KXXRP15M | micro-live 1 contract, min_drift_pct=0.10 (2x BTC) | 1/30
-  - btc_lag_v1 → KXBTC15M | STAGE 1 ($5 cap) | 45/30 ✅ Brier 0.191 | LIVE BUT 0 signals/week (HFTs) — tracked paper
-  - eth_orderbook_imbalance_v1 → KXETH15M | STAGE 1 | 5/30 LIVE | Brier 0.264 | streak=3 ⚠️
+  - btc_drift_v1 → KXBTC15M | STAGE 1 ($5 cap, Kelly) | 47/30 ✅ Brier 0.251 streak=2
+    ⚠️ direction_filter="no" ACTIVE (Session 43) — blocks YES. NOT YET VALIDATED (n≈12 NO-only bets)
+    ⚠️ MAIN P&L BLEEDER: -$23.37 all-time (44% win rate over 47 settled bets)
+  - eth_drift_v1 → KXETH15M | micro-live | **29/30 (ONE BET FROM GRADUATION!)** Brier 0.253 streak=2
+    🚨 NEXT SESSION PRIORITY #1: Watch for 30th live bet → run pre-live audit → promote to Stage 1
+  - sol_drift_v1 → KXSOL15M | micro-live, min_drift_pct=0.15 (3x BTC) | 13/30 Brier 0.151 🔥 P&L +$2.52
+  - xrp_drift_v1 → KXXRP15M | micro-live, min_drift_pct=0.10 (2x BTC) | 2/30 Brier 0.425 (too few bets)
+  - btc_lag_v1 → KXBTC15M | STAGE 1 | 45/30 ✅ Brier 0.191 | LIVE BUT 0 signals/week (HFTs)
+  - eth_orderbook_imbalance_v1 → KXETH15M | STAGE 1 | 10/30 LIVE | Brier 0.300 streak=1
   - btc_drift: Kelly + $5 HARD_MAX governs. eth/sol/xrp/eth_imbalance: calibration_max_usd=0.01 still active.
-  - Bankroll: ~$80+ | All-time live P&L: -$18.15 | Today: -$2.81 (18 settled)
-- **fomc_rate_v1 + unemployment_rate_v1 NOW WORKING (Session 40 fix)**: 19 paper fomc bets placed, 0 settled yet (KXFEDDECISION-26MAR closes March 18)
+  - Bankroll: ~$68.16 | All-time live P&L: -$31.84 | Today: -$16.50 (28 settled, 43%)
+- **fomc_rate_v1 + unemployment_rate_v1 WORKING**: 19 paper fomc bets placed, 0 settled (KXFEDDECISION-26MAR closes March 18)
 - PAPER-ONLY Kalshi: eth_lag, btc_imbalance, weather, sol_lag, all 3 crypto daily loops
 - **POLYMARKET — paper-only, platform mismatch confirmed**:
   - sports_futures_v1: paper, bookmaker arb, min_books=2 filter. Copy_trade: 0 .us matches.
   - Kalshi copy trading: INFEASIBLE (API returns zero trader attribution — confirmed via API docs + re-confirmed Session 36 research)
   - Polymarket.COM is geo-restricted for US users. Our account = polymarket.US sports only. CLOSED path.
-- Latest commit: e085536 (feat: block btc_drift YES signals via direction_filter — statistical basis)
+- Latest code commit: e085536 (feat: block btc_drift YES signals via direction_filter)
+- Latest docs commit: 242f663 (docs: capture todo — eth_drift graduation)
 - Kill switch: consecutive_loss_limit=8, **daily_loss_cap=DISABLED (Session 42)**, NO lifetime % hard stop.
   Active protection: bankroll floor ($20) + consecutive cooling (8→2hr) + $5/bet hard cap.
 - **Daily loss counter still tracked for --health display (not a blocker)**
   ⚠️ --health shows "Daily loss soft stop active $X.XX >= $X.XX" — THIS IS DISPLAY ONLY. Lines 187-189 of kill_switch.py are COMMENTED OUT. NOT blocking bets.
-- Bot PID: 11839 | Log: /tmp/polybot_session43.log
+- Bot: STOPPED | Next log: /tmp/polybot_session44.log
 - Live restart (update session number each restart):
   `pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session44.log 2>&1 &`
 

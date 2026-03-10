@@ -973,3 +973,106 @@ Matthew went to bed. Ran 2.5hr autonomous session monitoring live bets, validati
 - All-time live P&L: -$18.15 | Today: -$2.81 (18 settled)
 - Bot still running: PID 11839 | Log: /tmp/polybot_session43.log
 
+
+---
+
+## Session 43 WRAP-UP — 2026-03-10 ~07:15 CDT — Matthew's "pack it up" directive
+
+### Context
+Continuation of Session 43 autonomous period. Matthew woke up, stopped the bot manually,
+requested full wrap-up: log data, update all MDs, self-critique, prepare successor chat.
+
+### What happened overnight (after autonomous session ended ~01:15 CDT):
+Bot continued running for ~6 more hours. Final numbers diverged significantly from
+what the autonomous session recorded as "final."
+
+### Final P&L (all-time live, bot stopped at ~07:15 CDT):
+- **All-time: -$31.84** (was -$18.15 at autonomous wrap ~01:15 CDT — $13.69 more losses)
+- **Today: -$16.50** (28 settled, 43% win rate — rough day)
+- **Bankroll: ~$68.16** (from $100 start)
+- **106 live bets all-time, 56/106 won = 52% overall**
+
+### By strategy (all-time settled):
+| Strategy | W/Settled | Win% | P&L |
+|----------|-----------|------|-----|
+| btc_drift_v1 | 21/47 | 44% | -$23.37 |
+| eth_drift_v1 | 17/29 | 58% | +$1.38 |
+| sol_drift_v1 | 11/13 | 84% | +$2.52 |
+| eth_imbalance | 4/10 | 40% | -$8.62 |
+| xrp_drift | 0/2 | 0% | -$1.29 |
+| btc_lag | 2/2 | 100% | +$4.07 |
+
+### Graduation at stop:
+- btc_drift: 47/30 ✅ Brier 0.251
+- **eth_drift: 29/30 — ONE BET FROM GRADUATION**
+- sol_drift: 13/30 Brier 0.151 🔥
+- eth_imbalance: 10/30 Brier 0.300
+- xrp_drift: 2/30 Brier 0.425
+
+### Files updated:
+- SESSION_HANDOFF.md — accurate graduation counts, bot stopped, next session directives
+- CLAUDE.md — accurate P&L, bankroll, graduation, direction_filter status
+- MEMORY.md — key constants updated with real numbers
+- .planning/todos/ — eth_drift graduation todo committed
+
+### ═══ SELF-CRITIQUE — HONEST POST-MORTEM ═══
+(Written for the successor chat: learn from this)
+
+**FAILURE 1 — I reported stale P&L as "final"**
+At 01:15 CDT I called -$18.15 "final" and updated all MD files. The bot kept running.
+By 07:15 CDT the real number was -$31.84. The docs were wrong within 2 hours.
+LESSON: Never write "final" P&L to MD files while the bot is still running.
+Write: "P&L at time of wrap, bot still running." Or stop the bot first.
+
+**FAILURE 2 — Premature direction_filter "validation"**
+After trade 591 (one NO bet won +$6.30), I wrote "direction_filter validated" in CLAUDE.md
+and MEMORY.md. Today that same filter produced 2/7 = 29% — WORSE than the YES historical
+baseline I was trying to beat. One data point validates nothing.
+LESSON: Never claim a filter is "validated" until 30+ bets. Write "promising signal" at best.
+Required language: "UNVALIDATED (n=X, need 30+ to assess)."
+
+**FAILURE 3 — Harped on research instead of live bets**
+Matthew had to explicitly correct me mid-session: "don't harp on research so much."
+I spent monitoring cycles analyzing Kalshi economics markets while missing the actual
+directive: maintain live bet frequency, watch graduation counts.
+LESSON: During autonomous monitoring, the job is: (1) live bets healthy? (2) graduation progress.
+Research is a distant 5th priority. If Matthew didn't mention it in the session, don't do it.
+
+**FAILURE 4 — Buried eth_drift graduation urgency**
+When I wrote the directives at 01:15 CDT, eth_drift was 27/30 (3 more needed) and I listed
+it as priority #4. It's now 29/30 — one bet from promotion to Stage 1. It should have been
+marked PRIORITY #1 at 27/30. 3 bets at the signal frequency we see takes ~2-4 hours.
+LESSON: Any strategy within 5 bets of graduation = PRIORITY #1 in directives. Flag it clearly.
+
+**FAILURE 5 — btc_drift is the main bleeder and I didn't flag it hard enough**
+btc_drift: 47 settled, 44% win rate, -$23.37 all-time. That's the biggest single drain on
+the bankroll. The direction_filter helps conceptually but hasn't proven itself. The strategy
+may simply be getting arbitraged faster than we can adapt.
+LESSON: A strategy with 44% win rate over 47 bets is a real signal. It's not bad luck.
+The successor chat should present this data to Matthew explicitly and ask whether
+btc_drift should be paused pending filter validation, or kept live as calibration data.
+
+**FAILURE 6 — Background tasks with 10-minute timeouts**
+Several monitoring tasks ran as background processes with 600000ms timeouts. They timed
+out without completing, wasting cycles. Should have used direct synchronous Bash calls.
+LESSON: For monitoring scripts that run < 30 seconds: never use background tasks.
+Use direct Bash calls. Background tasks = for long-running operations only.
+
+### What went RIGHT tonight:
+- direction_filter="no" was added cleanly with 6 tests, committed properly (e085536)
+- Daily soft stop confirmed display-only — prevented false alarm investigation next session
+- "Trade executed" = both paper and live discovered and documented permanently
+- Bot ran 8+ hours without error, no kill switch events, no crashes
+- sol_drift continues to perform: 11/13 = 84%, best calibrated strategy by far
+
+### ═══ SUCCESSOR CHAT — READ THIS ═══
+You are better than me if you do these things:
+1. **Stop the bot BEFORE writing final P&L to docs.** Numbers will be accurate.
+2. **Never say "validated" for anything with n < 30.** Write "n=X, unvalidated."
+3. **eth_drift is 29/30 — first thing you do after restart is watch for #30.**
+4. **btc_drift -$23.37 is a real problem.** Present it to Matthew. Don't hide behind "the
+   filter will fix it." You have 47 data points. 44% win rate on a near-50/50 market is bad.
+5. **Focus on live bet frequency, not research.** Matthew runs two parallel chats.
+   This one's job is operational. Research is bonus, not primary.
+6. **Use gsd:add-todo** the MOMENT you spot an issue. Don't keep mental notes.
+
