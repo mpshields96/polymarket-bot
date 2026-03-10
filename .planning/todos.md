@@ -309,3 +309,28 @@ polymarket-copytrade/          # SEPARATE REPO from polymarket-bot
 
 **Decision gate:** Do NOT build until (a) Kalshi btc_drift at 30+ live trades + Brier < 0.30
 and (b) 2-3 weeks of stable live P&L. Until then: credentials setup only (no code).
+
+---
+## [RESEARCH] KXFEDDECISION strategy improvement (fomc_rate_v1)
+**Added:** Session 40 (2026-03-09)
+**Priority:** Medium — post-gate research
+**Volume:** $23.4M (largest Kalshi market by far, CORRECTED from 4,700)
+
+**Current state:** fomc_rate_v1 uses FRED yield curve spread (DGS2-DFF) as signal.
+Paper-only. Has not placed any trades recently.
+
+**Research finding (Session 40):** CME FedWatch vs Kalshi arbitrage is the key edge.
+- Near FOMC meeting: Kalshi is already efficient (near-perfect day-before accuracy per NBER paper)
+- 2-4 WEEKS before meeting: CME FedWatch often diverges from Kalshi pricing
+- The "54% spread" example (Feb 2026): CME=90% hold, Kalshi priced cut possibility much higher
+- This spread = the edge window for fomc_rate_v1
+
+**Proposed improvement:**
+1. Add CME FedWatch scraper: fetch implied probability from cmegroup.com/markets/interest-rates/cme-fedwatch-tool
+2. Compare CME implied probability vs Kalshi KXFEDDECISION H0/C25 for each meeting
+3. When spread > threshold (e.g., 5%): take position in Kalshi market
+4. Signal fires only 2+ weeks before meeting (where spread is largest)
+5. Fee structure note: KXFEDDECISION uses quadratic_with_maker_fees — model this in sizing
+
+**DO NOT BUILD:** Until expansion gate opens + fomc_rate_v1 has 5+ paper trades per FOMC cycle.
+**Action:** Log here, revisit after btc_drift/eth_drift/sol_drift graduate.
