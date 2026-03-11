@@ -471,18 +471,19 @@ The window is short (2 days pre-decision). When it fires, the edge is substantia
 
 ---
 
-## [ ] Maker (Limit) Orders — Eliminate Taker Fees on Drift Strategies
+## [ ] Maker (Limit) Orders — Reduced Taker Fees on Drift Strategies
 **Added:** Session 48 (2026-03-11) via market research
-**Finding:** Kalshi charges taker fees on market orders but NOT on limit/maker orders that
-add liquidity to the order book. Our current code uses taker orders (fill-or-kill IOC/FOK).
-Switching to passive limit orders eliminates fees but introduces fill uncertainty.
-**Current fee impact:** ~2-3% taker fee per trade. At $5/bet, $0.10-0.15 saved per bet.
-~$0.30-0.45/day on 3 live bets/day = ~$100/year in fee savings if fill rate stays high.
-**Tradeoff:** Limit orders may not fill if market moves away. Miss some signals entirely.
-**Assessment:** Worth investigating AFTER current strategies validate (30+ live bets each).
-Particularly relevant for btc_drift/eth_drift where the signal is directional — we can
-post a passive bid/ask at our target price and let the market come to us.
-**Unlock:** After expansion gate clears. Requires cancel/replace API logic in live.py.
+**CORRECTED Session 50 (2026-03-11):** Kalshi DOES charge maker fees (changed April 2025).
+Taker fee: 0.07 × C × P × (1-P). Maker fee: 0.0175 × C × P × (1-P). Makers pay 25% of taker rate.
+At 50¢ price: taker = 1.75¢/contract, maker = 0.44¢/contract. Saving: 1.31¢/contract.
+For 5 USD bet (10 contracts at 50¢): taker fee = 17.5¢, maker fee = 4.4¢. Savings: 13.1¢/bet.
+~10 live bets/day × 13.1¢ = ~$1.31/day savings. Over 3 days = ~$4. Meaningful but not game-changing.
+**ADVERSE SELECTION RISK:** Limit orders fill only when market moves against you (adverse selection).
+When your 48¢ bid fills, conditions have typically worsened. This offsets part of the fee advantage.
+For momentum signals (drift), timing matters — missed fill = missed signal. Real implementation risk.
+**Tradeoff:** 75% fee savings vs fill uncertainty + adverse selection + implementation complexity.
+**Assessment:** Net benefit unclear without simulation. Defer until after expansion gate.
+**Unlock:** After expansion gate clears + simulation confirms net positive after adverse selection.
 **DO NOT BUILD YET:** Log only.
 
 ---
@@ -496,3 +497,65 @@ at ~$1,000 deployed capital per round-trip.
 Polymarket.US (sports-only). These were .COM 5-min crypto markets.
 Within Kalshi alone, YES+NO always = exactly $1.00 — no internal arb possible.
 **Status:** Permanently closed for our setup. Archived so we don't waste time revisiting.
+
+---
+
+## [PRIORITY — Session 50 finding] sol_drift direction_filter="no" — STRONG SIGNAL
+**Discovered:** 2026-03-11 Session 50 directional analysis
+
+**Data (19 settled live bets):**
+- YES bets: 9 bets, 5/9 wins (55.6%), P&L +0.04 USD (barely breakeven)
+- NO bets:  10 bets, 10/10 wins (100%), P&L +5.84 USD (ALL profits from NO side)
+
+**Statistical significance:**
+- P(10/10 NO wins if 50-50) = (0.5)^10 = 0.001 — extraordinary
+- Pattern mirrors btc_drift which got direction_filter="no" at Session 43 (20 YES, 23 NO, p=3.7%)
+- SOL evidence is STRONGER statistically than btc_drift was at filter decision time
+
+**Hypothesis:** SOL's downward drift predicts NO outcomes reliably; upward drift is noisy
+(higher volatility, more mean-reversion on up-moves than down-moves for SOL)
+
+**Action needed (NOT autonomous — requires Matthew sign-off):**
+- Apply direction_filter="no" to sol_drift_v1 in main.py (2-line change, identical to btc_drift)
+- Wait until 15+ YES bets for fuller data, OR decide now given extraordinary evidence
+- If filter applied: after 30 NO-only settled bets, re-evaluate same as btc_drift protocol
+
+**Precedent:** btc_drift direction_filter="no" changed main.py line only:
+  `trading_loop(strategy=sol_strategy, ..., direction_filter="no")`
+
+**XRP drift note (opposite pattern):**
+- YES: 1/1 (100%), NO: 0/5 (0%) — XRP seems to do opposite of sol
+- Too few bets (6 total) to conclude. Document only, do not act yet.
+- Likely mean-reversion pattern already noted in CLAUDE.md gotchas.
+
+**Gate:** 19/30 bets. Wait for Matthew's explicit authorization before implementing.
+
+
+---
+
+## [ ] KXCPI strategy — RESEARCH NOTE (Session 50, 2026-03-11)
+**Current KXCPI market state (pulled from Kalshi API 14:15 UTC):**
+- 30 open KXCPI markets total across 5 CPI dates
+- KXCPI-26MAR: 5 markets, total vol=2229 (best near-term volume)
+- KXCPI-26NOV: 7 markets, total vol=1590
+- Volume per market is low (52-965) — suitable for paper, borderline for live
+
+**Cleveland Fed Nowcast (2026-03-11):**
+- March 2026 MoM CPI: 0.47% (YoY: 2.87%)
+- Core CPI MoM: 0.20%
+
+**Potential edge detected:**
+- KXCPI-26MAR-T0.6 (Will March MoM >= 0.6%?): YES=40c
+- With Nowcast at 0.47% and typical uncertainty ~0.15%: P(CPI >= 0.6%) ≈ 19%
+- Market is pricing 40% → OVERPRICED YES side → potential NO edge
+- If edge is real: BET NO on KXCPI-26MAR-T0.6 (currently 60c NO bid)
+
+**Why not build now:**
+- Expansion gate IS technically open (btc_drift 49 bets, Brier 0.252)
+- But "when Matthew has bandwidth" per Session 49 handoff
+- Requires: FRED/Nowcast data feed integration, CPI series parser, new strategy file
+- Timeline: ~3-4 hours to build + test. March CPI closes April 10-11. 30 days.
+- Recommended: discuss with Matthew, then build if desired
+
+**Data source:** Cleveland Fed Nowcast updates daily at https://www.clevelandfed.org/indicators-and-data/inflation-nowcasting
+

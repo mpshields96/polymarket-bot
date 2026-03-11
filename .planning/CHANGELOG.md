@@ -1613,3 +1613,80 @@ WHAT SESSION 50 SHOULD DO DIFFERENTLY:
 
 ### COMMITS THIS SESSION:
 No code commits (monitoring session only). Doc updates committed: see session_wrap commit.
+
+---
+
+## SESSION 50 — 2026-03-11
+
+### SESSION START STATE:
+Bot was paused at Matthew's request (PID 47874 stopped). polybot-monitor immediately restarted it at PID 61919. Matthew arrived at work, restarted to session50.log at PID 63581.
+
+### AUTONOMOUS WORK COMPLETED (Session 50):
+
+**1. Bot Health Verified:**
+- Daily soft stop re-confirmed DISPLAY ONLY (lines 187-193 kill_switch.py commented out)
+- eth_imbalance confirmed correctly set to live_executor_enabled=False (main.py line 2707)
+- Historical eth_imbalance bets in --report are settled LIVE bets from before Session 47 disable — correct
+
+**2. polybot-monitor Scheduled Task Updated:**
+- Updated PID: 61919 → 63581, log: session48 → session50
+- Updated prompt with accurate SSL alert removal, current state, 60 USD deposit detection logic
+- Updated description to reflect Session 50 state
+
+**3. Directional Analysis — sol_drift CRITICAL FINDING:**
+YES bets: 9/19 settled, 5/9 wins (55.6%), P&L +0.04 USD (breakeven)
+NO bets:  10/19 settled, 10/10 wins (100%), P&L +5.84 USD (ALL profits)
+Statistical significance: P(10/10 by chance) = 0.001 — extraordinary
+Mirrors btc_drift directional bias that led to direction_filter="no" at Session 43.
+XRP drift OPPOSITE: YES 1/1 wins, NO 1/6 wins. Small sample, document only.
+LOGGED to todos.md: high-priority entry. Awaiting Matthew explicit sign-off.
+NOT implemented autonomously — per PRINCIPLES.md (too few YES bets at 9).
+
+**4. Edge Quality Analysis:**
+Counter-intuitive finding: winning bets have LOWER average edge than losing bets.
+eth_drift: wins 9.5% avg edge, losses 10.2% avg edge.
+sol_drift: wins 11.4%, losses 13.3%.
+Hypothesis: High-edge signals = later in window, price already moved = market makers priced in.
+Lower-edge (earlier) signals may be more predictive. Logged to todos.md.
+
+**5. KXCPI Research:**
+30 open KXCPI markets. Cleveland Fed Nowcast for March 2026: CPI MoM 0.47% (YoY 2.87%).
+KXCPI-26MAR-T0.6 (>=0.6% threshold) priced at YES=40c.
+Nowcast implies ~19% probability of >=0.6%. Market may be OVERPRICING YES at 40c.
+Potential NO edge on KXCPI-26MAR-T0.6. Expansion gate open. Build only when Matthew has bandwidth.
+LOGGED to todos.md. DO NOT build yet.
+
+**6. FOMC Paper Bets Status:**
+15 paper bets exist (all result=None). KXFEDDECISION-26MAR closes March 18.
+2 bets (#495, #496) will settle March 18 → first 2/5 paper settlements toward graduation.
+FRED refresh failing in bot (fomc loop logs "skipping cycle") — expected, harmless.
+Graduation status shows 0/5 because none settled yet.
+
+**7. sol_drift Graduation Pace:**
+19 bets → 30 needed (11 more). At 5-6 bets/day rate → ~2 more days (est. March 13).
+All current Stage 1 already. Graduation = formal 30-bet verification threshold.
+
+**8. Session 50 Live Bets (so far by end of entry):**
+5 live bets placed: xrp NO (WIN), eth NO (WIN), eth NO (open), sol YES (open), xrp YES (open)
+Pattern: both settled NO bets WON. Directional analysis holds.
+Today P&L: +10.48 USD (36 settled, 54% win rate). Session 50 settled: +3.86 USD.
+
+### BOT STATE (Session 50 mid-session — 14:22 UTC):
+PID: 63581 | Log: /tmp/polybot_session50.log | Single process confirmed
+All-time live P&L: approx -38.90 USD (improving)
+Bankroll: 57.30 USD — 60 USD Polymarket deposit NOT YET arrived
+Consecutive losses: 0 (clean). Kill switch: healthy.
+Markets: returning to 35-65c range (was extreme 77-90c earlier). Bets firing.
+
+### GRADUATION STATUS (Session 50 mid):
+btc_drift: 49/30 ✅ Brier 0.252 | direction_filter="no" | 6 NO-only settled | P&L -24.95
+eth_drift: 57/30 ✅ Brier 0.250 | P&L +6.77 USD | 54% win rate
+sol_drift: 19/30 STAGE 1 Brier 0.169 BEST | P&L +5.88 | 15/19 wins (79%) — graduation ~March 13
+xrp_drift: 7/30 Brier 0.351 | P&L -2.08 | 2/7 wins (29%) — concerning
+eth_imbalance: 15/30 Brier 0.337 ❌ PAPER-ONLY
+
+### PROCESS VERIFICATION (Session 50):
+Single process confirmed: 1 instance (PID 63581). No dual process issues.
+Kill switch: no hard stop, no cooling, 0 consecutive losses.
+Daily loss display only (not blocking). All loops evaluating.
+
