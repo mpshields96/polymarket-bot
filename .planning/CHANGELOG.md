@@ -1892,3 +1892,83 @@ WHAT SESSION 53 SHOULD DO DIFFERENTLY:
 6. FOMC window: closes March 18 — 0/5 settled, no live promotion possible this cycle
 7. btc_drift NO-only: 8 post-filter bets at 37.5% — needs 30 for analysis
 
+
+---
+
+## SESSION 53 — 2026-03-11 ~19:00 UTC
+
+### CONTEXT NOTE:
+Continuation of Session 52 findings. Matthew gave explicit sign-off on eth_drift direction_filter="yes"
+after reviewing directional analysis data. Session 53 restarts bot to session53.log with filter active.
+
+### FIXES APPLIED:
+
+**1. eth_drift direction_filter="yes" — IMPLEMENTED (Matthew signed off):**
+Data from S52 directional audit (67 live settled eth_drift bets):
+  - YES side: 36 bets, 61.1% wins, +25.58 USD, +0.711 USD/bet EV
+  - NO side:  31 bets, 48.4% wins, -6.58 USD, -0.212 USD/bet EV
+  - Z=1.04, p=0.148 — not stat significant at 5% but EV gap +0.923/bet is practically large
+  - Worst bucket: NO at 45-49c = 0% wins (9 bets, -5.66 USD)
+  - Best bucket: NO at 50-54c = 86% wins (+5.51 USD)
+Why Option A (full direction filter) over Option B (price bucket filter):
+  - Option B (min_no_price_cents=50) had only 9 bets in problem bucket — <30 PRINCIPLES.md threshold
+  - Option A has 36 YES bets + 31 NO bets, both sides ≥30 — PRINCIPLES.md compliant
+  - Same pattern as btc_drift (direction_filter="no") and sol_drift (direction_filter="no")
+  - eth_drift is the ONLY drift strategy where YES outperforms NO (reversed pattern)
+Code: main.py eth_drift_task trading_loop(direction_filter="yes") added
+Estimated impact: +2.54 USD/day improvement (at current bet frequency)
+Re-evaluate at 30+ YES-only settled bets post-filter activation.
+Commit: 7db9c32
+
+**2. Pre-existing test fix — TestATMPrioritySlot::test_no_regression_without_21utc_slot:**
+Root cause: make_rel_market() helper in test file used `if close_dt.hour == avoid_hour: +timedelta(minutes=10)`.
+At UTC ~19:00-19:39, market_a (120 min offset) could land at e.g. 21:10, then shift to 21:20 (still h21).
+This caused market_a to get priority_21=True score despite worse ATM quality than market_b.
+Fix: changed `if` → `while` loop with `+timedelta(hours=1)` per iteration — guarantees leaving h21.
+Tests: 1002/1003 → 1003/1003 all passing.
+Commit: 7db9c32 (combined with eth_drift filter)
+
+### BOT RESTART:
+- Killed: PID 72269 (session52.log)
+- Restarted: PID 75130 (session53.log, ~19:00 UTC)
+- Command: bash scripts/restart_bot.sh 53 (safety guard confirmed working)
+- Single process verified. All loops started cleanly.
+
+### SESSION 53 MONITORING NOTES:
+- 186 open trades >48hr in --health: ALL paper sports_futures_v1 bets on future events.
+  These are sports championship markets months from settlement. Not a settlement loop bug.
+- --health "Daily loss soft stop active": DISPLAY ONLY (lines 187-189 commented out).
+  Does NOT block bets. Verified by code inspection.
+- eth_drift direction filter confirmed working: during 14:15-14:30 window, saw
+  drift=-0.044% which would have generated NO signal → correctly blocked by filter.
+  First YES signal since filter: trade 1198 (YES @ 47¢, trade_id=1198, 14:16 UTC).
+
+### LIVE PERFORMANCE (Session 53 ~14:30 UTC):
+Today live P&L: +17.51 USD (70 settled, 58% win rate) — solid day
+All-time live P&L: -28.01 USD (deteriorated from -19.09 at session start due to
+  session52 eth_drift NO bets settling after restart)
+Most recent consecutive loss run (global): 4 (1185/1186/1187/1192) — then filter activated
+Post-filter run: consecutive=1 (trade 1198 outcome pending at time of writing)
+
+### GRADUATION STATUS (Session 53 — 14:29 UTC):
+btc_drift: 53/30 ✅ Brier 0.249 direction_filter="no" ACTIVE | 0 consec
+eth_drift: 73/30 ✅ STAGE 1 Brier 0.246 | 3 consec (per-strategy) | direction_filter="yes" ACTIVE
+sol_drift: 25/30 STAGE 1 Brier 0.171 BEST | 0 consec | direction_filter="no" ACTIVE
+xrp_drift: 15/30 Brier 0.264 | 1 consec | reversed (YES wins, NO loses — filter="yes" eval at 30)
+eth_imbalance: 15/30 Brier 0.337 PAPER-ONLY DISABLED LIVE
+
+### polybot-monitor SCHEDULED TASK UPDATED:
+PID updated: 72269 → 75130. Log updated: session52 → session53.
+Task continues running every 30 min autonomously while Matthew is away.
+
+### COMMITS THIS SESSION:
+7db9c32 — feat: eth_drift direction_filter="yes" + fix TestATMPrioritySlot test
+
+### PENDING ACTIONS FOR SESSION 54:
+1. sol_drift graduation: 25/30 → 5 more bets. At 30, run formal graduation check.
+2. xrp_drift: 15/30 → evaluate direction_filter="yes" at 30 bets (YES +0.38 vs NO -0.45 EV)
+3. eth_drift YES filter validation: accumulate 30 YES-only bets, then check if win rate holds 60%+
+4. btc_drift NO-only: ~8 post-filter bets — weeks away from 30-bet validation
+5. eth_imbalance: paper watchdog, re-evaluate if Brier < 0.25 at 30 bets
+6. FOMC window: closes March 18 — 0/5 settled, no live promotion this cycle
+
