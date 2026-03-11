@@ -13,8 +13,10 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/SKILLS_REFERENCE.md
 
-⚠️ BOT STATE (Session 51 mid-session — 2026-03-11 ~11:50 CDT / 16:50 UTC):
-  Bot RUNNING PID 69626 → /tmp/polybot_session51.log
+⚠️ BOT STATE (Session 52 start — 2026-03-11 ~12:27 CDT / 17:27 UTC):
+  Bot RUNNING PID 72269 → /tmp/polybot_session52.log
+  NOTE: Bot restarted from PID 69626 due to accidental script kill during Session 51.
+  All state restored correctly (daily loss, consecutive losses). Clean startup confirmed.
   sol_drift direction_filter="no" ACTIVE (committed 61bc33b, Matthew signed off S51).
   btc_drift direction_filter="no" ACTIVE (long-running, S43).
   DualPriceFeed active (Coinbase fallback for Binance.US cold starts — normal).
@@ -23,18 +25,22 @@ MANDATORY READING BEFORE ANY ACTION:
 
 CHECK BOT HEALTH FIRST (Session 52 start):
   ps aux | grep "[m]ain.py" | wc -l        (should be 1)
-  cat bot.pid                               (should be 69626)
+  cat bot.pid                               (should be 72269)
   venv/bin/python3 main.py --health
   venv/bin/python3 main.py --report
   venv/bin/python3 main.py --graduation-status
 
-RESTART COMMAND (session51.log) — ONLY IF BOT DIED:
+RESTART COMMAND (session52.log) — ONLY IF BOT DIED:
   pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null
   sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid
   echo "CONFIRM" > /tmp/polybot_confirm.txt
-  nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session51.log 2>&1 &
+  nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session52.log 2>&1 &
   sleep 8 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
 Verify: ps aux | grep "[m]ain.py" | wc -l should show 1 (exactly one process).
+
+SAFE RESTART SCRIPT (use instead of manual command):
+  bash scripts/restart_bot.sh 52
+  (Requires SESSION_NUM arg — exits safely if not provided, preventing accidental kills)
 
 If --health shows "HARD STOP": DO NOT RESTART. Log it. Wait for Matthew.
 "Daily loss soft stop active" = DISPLAY ONLY (lines 187-193 kill_switch.py commented out).
@@ -42,13 +48,13 @@ If --health shows "HARD STOP": DO NOT RESTART. Log it. Wait for Matthew.
 
 ---
 
-KEY STATE (Session 51 mid — 2026-03-11 ~11:50 CDT):
-* Bot: RUNNING (PID 69626) → /tmp/polybot_session51.log
-* All-time live P&L: -8.60 USD (was -40.09 USD at S49 end — gained +31.49 USD in S50+S51!)
-* 1003/1003 tests passing (+18 new tests added in quick task 10)
-* Last code commits: d8385f4 (plan artifact) → 424368c (quick-10 complete) → 7a09d74 (direction_filter loop) → e71c498 (HOURLY_VOL fix) → 61bc33b (sol_drift direction_filter)
-* Today live P&L: +36.92 USD (54 settled, 61% win rate) — EXCEPTIONAL day
-* Consecutive losses: 0 (healthy)
+KEY STATE (Session 52 start — 2026-03-11 ~12:30 CDT):
+* Bot: RUNNING (PID 72269) → /tmp/polybot_session52.log
+* All-time live P&L: approx -18.64 USD (was -8.60 at peak today — NO losses pulled it down)
+* 1003/1003 tests passing
+* Last code commits: eb1d265 (restart_bot.sh safety fix) → 6414ac7 (eth NO price analysis) → ea25e41 (eth directional bias)
+* Today live P&L: approx +26 USD (declining from +37 peak — eth NO losses at 40-44c prices)
+* Consecutive losses: 1 (restored from DB on restart, healthy)
 
 LIVE STRATEGY STATUS (from --graduation-status at Session 51 mid):
   - btc_drift_v1: STAGE 1 — 50/30 Brier 0.254 | P&L -26.87 USD | 1 consec
