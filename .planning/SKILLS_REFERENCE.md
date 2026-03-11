@@ -220,11 +220,14 @@ Install: `claude mcp add context7 -- npx -y @upstash/context7-mcp@latest`
 | Need tests for a module | `gsd:add-tests` or `sc:test` | Close coverage gaps fast |
 | New strategy planning (formal phase) | `gsd:discuss-phase` → `gsd:plan-phase` | Discuss first |
 | Kalshi API/market research | `sc:research` | Web + doc synthesis |
+| **Statistical performance analysis of live bets** | **`sc:analyze --think`** | **Directional bias, Brier trends, price bucket analysis — MUCH better than manual SQL** |
+| **Before claiming any analysis is complete** | **`superpowers:verification-before-completion`** | **Free — validates findings, catches missed edge cases** |
 | Session start | `gsd:health` + `gsd:progress` (once each) | Check state before work |
 | Session end | `wrap-up` | Never skip — updates handoff |
 | Context limit approaching | `titanium-context-monitor` → `wrap-up` | Save state before forced stop |
 | New milestone (Stage 2 unlock) | `gsd:new-milestone` | Proper ceremony |
 | Domain-specific skill creation | `anthropic-skills:skill-creator` | Feed it reference docs |
+| **Capturing multiple pending items at once** | **`gsd:add-todo` (multiple times)** | **FREE — should be used for EVERY pending item, not just one** |
 
 ---
 
