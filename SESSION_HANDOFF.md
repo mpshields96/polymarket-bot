@@ -95,9 +95,20 @@ $125 PROFIT GOAL — UPDATED ASSESSMENT (after sol_drift Stage 1 overnight valid
   At +$3/day (quiet days): ~55 days.
   sol_drift Stage 1 is working as expected. This IS the right strategy.
 
-RESPONSE FORMAT RULE (permanent — Matthew's instruction):
+RESPONSE FORMAT RULES (permanent — Matthew's instructions, both mandatory):
+
+RULE 1 — NO MARKDOWN TABLES:
   NEVER use markdown table syntax (| --- | --- |) in any response.
-  Tables render in a different font in Claude Code UI. Plain text only, always.
+  Tables render in wrong font in Claude Code UI.
+
+RULE 2 — NO DOLLAR SIGNS IN PROSE:
+  NEVER write $X.XX in responses (e.g. $40.09, $5.43, $2.44).
+  Dollar signs trigger LaTeX/KaTeX math mode in Claude Code UI — everything between two $ signs
+  renders in italic math font causing garbled text.
+  INSTEAD use: USD 40.09 | +40.09 | 40.09 dollars | P&L: -40.09
+  This applies to ALL dollar amounts: P&L, bet sizes, bankroll, profit goals.
+  Example wrong:  "All-time P&L: -$40.09 (was -$41.58)"
+  Example right:  "All-time P&L: -40.09 USD (was -41.58 at last wrap)"
 
 SCHEDULED MONITOR:
   polybot-monitor: every 30 minutes, enabled, PID 47874, session48.log

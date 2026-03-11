@@ -253,8 +253,12 @@ Current project state (updated Session 49 wrap-up — 2026-03-11 ~07:15 CDT — 
   sol_drift overnight: 3 bets placed, 3/3 wins, +$4.03. Stage 1 promotion was correct call.
   xrp_drift UNBLOCKED: was blocked at 5 consecutive, overnight win cleared streak. 0 consec now.
   eth_drift: Brier improved 0.252 → 0.249. 23 overnight bets, 12/23 (52%), +$1.81.
-  FONT FORMAT RULE: plain text only in all responses. NEVER use markdown table syntax (| --- |).
-  Tables render in wrong font in Claude Code UI. Matthew will terminate chat for violations.
+  FONT FORMAT RULES — TWO RULES, BOTH MANDATORY:
+  1. NEVER use markdown table syntax (| --- |). Tables render in wrong font.
+  2. NEVER write dollar signs ($) in responses. Dollar signs trigger LaTeX math mode in Claude Code UI
+     — everything between two $ signs renders in italic math font causing garbled text.
+     Use: "40.09 USD" or "P&L: -40.09" or "+5.43 live today". NEVER write "$40.09" or "-$5.43".
+  Matthew will terminate chat for violations of either rule.
 - **SESSION 48 BUILDS**:
   1. main.py: sol_drift_v1 PROMOTED TO STAGE 1 — calibration_max_usd=None (was =0.01)
      Matthew explicit instruction: "alter the bet sizes, just don't exceed $5 max bet"
