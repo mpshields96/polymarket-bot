@@ -2231,7 +2231,7 @@ async def main():
         sys.exit(result.returncode)
 
     # ── Read-only commands (bypass bot lock — safe while bot is live) ──
-    _read_only_mode = args.status or args.report or args.graduation_status or args.export_trades or args.health
+    _read_only_mode = args.status or args.report or args.graduation_status or args.export_trades or args.export_tax or args.health
     if _read_only_mode:
         from src.db import load_from_config as db_load
         db = db_load()

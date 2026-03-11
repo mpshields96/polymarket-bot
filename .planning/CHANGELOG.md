@@ -1220,3 +1220,49 @@ autonomous overhaul, and reference doc gap analysis.
 ### Commits: 578301b (CLAUDE.md), a350152 (tax fields fix), 84c9735 (gap analysis docs), 21089bf (--export-tax)
 ### Bot: STOPPED | No bot.pid | Restart to /tmp/polybot_session45.log next session
 
+
+## Session 45 — 2026-03-10
+
+### Bot: RUNNING (PID 36660 → session45.log) | All-time live P&L: -$45.52
+
+### BUILDS COMPLETED (priorities 5 + 7 from CODEBASE_AUDIT.md):
+
+1. **src/data/coinbase.py (NEW) — Coinbase backup price feed**
+   - CoinbasePriceFeed: polls api.coinbase.com/v2/prices/{SYMBOL}-USD/spot (free, no auth, REST)
+   - 30s poll interval, 120s stale threshold
+   - DualPriceFeed: wraps BinanceFeed + CoinbasePriceFeed; primary always Binance; falls back to
+     Coinbase when Binance stale; is_stale=True only when BOTH stale
+   - DualPriceFeed.stop() stops both feeds; tolerates primary without stop() method
+   - 20 tests in tests/test_coinbase_feed.py; DualPriceFeed CONFIRMED working on restart
+     (Coinbase fallback fired at startup while Binance WebSocket reconnected)
+
+2. **Event-driven asyncio.Condition trigger (main.py)**
+   - btc_price_monitor(): polls btc_feed every 0.5s, fires asyncio.Condition.notify_all() on
+     >= 0.05% BTC price move. Reference price resets after each fire.
+   - _wait_for_btc_move(): replaces asyncio.sleep(POLL_INTERVAL) in all trading_loop calls.
+     Returns True (BTC moved) or False (timeout). None fallback = plain sleep.
+   - All 8 crypto loops now wake within 1-3s of BTC move vs up to 10s before.
+   - 8 tests in tests/test_event_trigger.py (TDD: tests written first, then implementation)
+   - Bug fixed in test: track_notify() was incorrectly async (asyncio.Condition.notify_all is sync)
+   - Bug fixed in implementation: sleep was BEFORE price check; moved sleep to END of loop body
+     so that with N successful sleeps we check N+1 prices instead of N
+
+3. **main.py wiring**
+   - DualPriceFeed wraps all 4 Binance feeds (BTC/ETH/SOL/XRP) with Coinbase backup
+   - btc_price_monitor task added to asyncio.gather, signal handler, finally cleanup
+   - btc_move_condition (asyncio.Condition) passed to all 8 crypto trading_loop calls:
+     trade_task, eth_lag_task, drift_task, eth_drift_task, sol_drift_task, xrp_drift_task,
+     btc_imbalance_task, eth_imbalance_task
+
+4. **--export-tax PID lock bypass fix**
+   - args.export_tax was missing from _read_only_mode check → blocked while bot running
+   - Added `or args.export_tax` to _read_only_mode line; now bypasses PID lock like --report
+
+### Kalshi CSV cross-reference ATTEMPTED:
+- Matthew provided CSV at /Downloads/Kalshi Advanced Portfolio (2).csv
+- File was EMPTY (3-byte UTF-8 BOM only) — download failed
+- Matthew needs to re-download from Kalshi; run --export-tax then cross-reference
+
+### Test count: 980/980 (+28 new: 20 coinbase + 8 event trigger)
+### Commits: 3fef17a (Coinbase + event trigger), pending (export-tax fix + handoff)
+### Bot: RUNNING | PID 36660 | session45.log
