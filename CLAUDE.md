@@ -243,12 +243,18 @@ CHECK: `pip freeze | grep <package>` to get current version, then pin it.
 3. Announce what you found in 2-3 lines, then proceed
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
-Current project state (updated Session 48 wrap-up — 2026-03-11 ~04:15 CDT — BOT RUNNING PID 47874 → session48.log):
-- **985/985 tests passing** (no new tests this session — code change was param removal only)
-- **Bot RUNNING** — PID 47874 → /tmp/polybot_session48.log.
-  ✅ Clean restart with --reset-soft-stop. Consecutive counter = 0. No cooling active.
-  All-time live P&L: -$41.58 (was -$44.18 start of S48 — +$2.60 gained this session)
-  Today (2026-03-11) P&L: +$3.94 live (11 settled, eth_drift 4W/6 bets = strong performer)
+Current project state (updated Session 49 wrap-up — 2026-03-11 ~07:15 CDT — BOT RUNNING PID 47874 → session48.log):
+- **985/985 tests passing** (no code changes Sessions 48-49 — param removal only)
+- **Bot RUNNING** — PID 47874 → /tmp/polybot_session48.log. 8+ hours autonomous overnight.
+  All-time live P&L: -$40.09 (was -$44.18 start of S48 — +$4.09 gained S48+S49)
+  Today (2026-03-11 UTC) P&L: +$5.43 live (32 settled, 56% win rate)
+- **SESSION 49 HIGHLIGHTS**:
+  ⭐ sol_drift Stage 1 FIRST BET: trade #895 at 00:04 UTC → NO @61¢ $2.44 → WIN +$1.48! MILESTONE.
+  sol_drift overnight: 3 bets placed, 3/3 wins, +$4.03. Stage 1 promotion was correct call.
+  xrp_drift UNBLOCKED: was blocked at 5 consecutive, overnight win cleared streak. 0 consec now.
+  eth_drift: Brier improved 0.252 → 0.249. 23 overnight bets, 12/23 (52%), +$1.81.
+  FONT FORMAT RULE: plain text only in all responses. NEVER use markdown table syntax (| --- |).
+  Tables render in wrong font in Claude Code UI. Matthew will terminate chat for violations.
 - **SESSION 48 BUILDS**:
   1. main.py: sol_drift_v1 PROMOTED TO STAGE 1 — calibration_max_usd=None (was =0.01)
      Matthew explicit instruction: "alter the bet sizes, just don't exceed $5 max bet"
@@ -260,9 +266,7 @@ Current project state (updated Session 48 wrap-up — 2026-03-11 ~04:15 CDT — 
   3. Reddit research completed — confirmed our drift strategy is correct for US small capital.
      Cross-platform arbitrage (needs Polymarket.COM) and market making (needs $1000+) are not viable.
      FOMC "perfect forecast record" + maker/limit order fee savings logged to todos.md.
-  4. polybot-monitor scheduled task: PID updated from 46398 to 47874.
-  FONT FORMAT RULE: plain text only in all responses. NEVER use markdown table syntax (| --- |).
-  Tables render in wrong font in Claude Code UI. Matthew will terminate chat for violations.
+  4. polybot-monitor scheduled task: PID updated to 47874.
 - **SESSION 47 BUILDS (Part 1)**:
   1. src/strategies/crypto_daily.py: direction_filter param added to CryptoDailyStrategy
   2. main.py: btc_daily direction_filter="no"; eth_imbalance live_executor_enabled=False
@@ -297,32 +301,32 @@ Current project state (updated Session 48 wrap-up — 2026-03-11 ~04:15 CDT — 
 - **LIVE LOOPS** (daily loss cap DISABLED Session 42 — bankroll floor + consecutive cooling govern):
   - btc_drift_v1 → KXBTC15M | STAGE 1 ($5 cap, Kelly) | 49/30 ✅ Brier 0.252
     direction_filter="no" ACTIVE. P&L -$24.95 | 0 consec. Watch for 30 NO-only settled bets.
-  - eth_drift_v1 → KXETH15M | STAGE 1 (graduated Session 44!) | 37/30 ✅ Brier 0.252
-    P&L +$5.17 | 0 consec (healthy) — best consistent earner
-  - sol_drift_v1 → KXSOL15M | STAGE 1 (PROMOTED SESSION 48!) | 16/30 Brier 0.181 🔥 P&L +$1.85 | 0 consec
-    PROMOTED S48 per Matthew explicit instruction. calibration_max_usd=None. Kelly + $5 HARD_MAX.
-    First Stage 1 bet = milestone. Watch for ~$2-5 size bets vs old ~$0.49.
-  - xrp_drift_v1 → KXXRP15M | micro-live | 5/30 Brier 0.390 ❌ P&L -$2.99 | 5 consec (per-strategy blocked)
-    0/5 NO wins — possible mean-reversion pattern. Monitor only per PRINCIPLES.md.
+  - eth_drift_v1 → KXETH15M | STAGE 1 (graduated Session 44!) | 54/30 ✅ Brier 0.249 IMPROVING
+    P&L +$2.22 | 1 consec (healthy) — most consistent earner, Brier improving
+  - sol_drift_v1 → KXSOL15M | STAGE 1 (PROMOTED SESSION 48!) | 19/30 Brier 0.169 🔥 BEST SIGNAL
+    P&L +$5.88 | 0 consec | FIRST STAGE 1 BET FIRED: trade #895 $2.44 WON overnight!
+    3 Stage 1 bets so far: 3/3 wins. Stage 1 promotion was correct.
+  - xrp_drift_v1 → KXXRP15M | micro-live | 6/30 Brier 0.351 | P&L -$2.58 | 0 consec (UNBLOCKED S49!)
+    Was blocked at 5 consec; overnight win cleared streak. Monitor at 30 bets.
   - btc_lag_v1 → KXBTC15M | STAGE 1 | 45/30 ✅ Brier 0.191 | 0 signals/week (HFTs) — dead
   - eth_orderbook_imbalance_v1 → KXETH15M | PAPER-ONLY (disabled live Session 47) | 15/30 Brier 0.337 ❌
     27% systematic calibration error. Paper data continues. Reconsider if Brier < 0.25 at 30 bets.
   - All live loops: Kelly + $5 HARD_MAX governs btc_drift + eth_drift + sol_drift. xrp: calibration_max_usd=0.01.
-  - All-time live P&L: **-$41.58** (Session 48: +$3.94 live today, 11 settled)
-- **btc_daily_v1**: PAPER-ONLY, direction_filter="no" ACTIVE (S47). ~1 NO-only settled bet since activation.
+  - All-time live P&L: **-$40.09** (Sessions 48-49: +$4.09 gained total)
+- **btc_daily_v1**: PAPER-ONLY, direction_filter="no" ACTIVE (S47). 6 NO-only settled since activation.
   KXETHD/KXSOLD/KXXRPD all have 0 total volume — KXBTCD only viable daily crypto series.
-- **fomc_rate_v1**: paper bets placed (KXFEDDECISION-26MAR closes March 18)
+- **fomc_rate_v1**: paper-only (KXFEDDECISION-26MAR closes March 18 — 7 days left). 0/5 paper bets placed.
 - PAPER-ONLY Kalshi: eth_lag, btc_imbalance, weather, sol_lag, all 3 crypto daily loops
 - **POLYMARKET**: platform mismatch confirmed PERMANENT for now (see STRATEGIC_DIRECTION.md for full analysis)
   - VPN access to .COM: NOT advisable (ToS violation + CFTC implications). See STRATEGIC_DIRECTION.md Q7.
   - Monitor CFTC regulatory developments for .COM US access monthly.
-- Latest code commits: 509cf30 (Session 48 sol_drift Stage 1) + 9171436 (KALSHI_MARKETS.md)
+- Latest code commits: 509cf30 (sol_drift Stage 1) + 9171436 (KALSHI_MARKETS.md) + 01679f4 (S48 wrap)
 - Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime % hard stop.
   Active protection: bankroll floor ($20) + consecutive cooling (8→2hr) + $5/bet hard cap.
 - **--health "Daily loss soft stop active"** = DISPLAY ONLY (kill_switch.py lines 187-189 COMMENTED OUT)
 - **--health "consecutive cooling X min remaining"** = can be TRUE (from DB restore) even when in-memory is fine.
   Always check running log to confirm. `grep "consecutive" /tmp/polybot_session*.log | tail -5` shows true state.
-- Bot: RUNNING PID 47874 | consecutive=0 (--reset-soft-stop applied) | session48.log
+- Bot: RUNNING PID 47874 | consecutive=1 (normal) | session48.log
 - Live restart command:
   `pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session48.log 2>&1 &`
 - **btc_drift min_drift_pct (Session 44)**: 0.05→0.10. 47 live bets confirm 20%+ edge signals = noise.

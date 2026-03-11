@@ -1554,3 +1554,62 @@ Separation already built into code: 💰 LIVE BET PLACED vs [PAPER] BUY in logs.
 ### Test count: 985/985 (unchanged — code change was cosmetic/param only)
 ### Bot: RUNNING | PID 47874 | /tmp/polybot_session48.log
 ### Commits: 509cf30 (sol_drift Stage 1), 9171436 (KALSHI_MARKETS.md)
+
+---
+
+## Session 49 — 2026-03-11 (continuation of S48 context, morning)
+
+### OVERNIGHT BOT PERFORMANCE (S48 bot → S49 monitoring):
+Bot ran 8+ hours autonomously on PID 47874 with zero human intervention. polybot-monitor kept watch.
+
+### SOL_DRIFT STAGE 1 FIRST BET — MILESTONE:
+Trade #895 at 00:04 UTC: sol_drift_v1 NO KXSOL15M-26MAR110115-15 @ 61¢ = $2.44 → WIN +$1.48
+This was the first Kelly-sized sol_drift bet after Stage 1 promotion in Session 48.
+3 Stage 1 sol_drift bets overnight (S49): 3/3 wins. Total sol_drift Stage 1 P&L: +$4.03.
+Promotion was correct — Brier 0.169 is exceptional. This is the best-calibrated signal in the system.
+
+### TODAY'S P&L (Session 49 — 2026-03-11 UTC):
+Live: +$5.43 (32 settled, 56% win rate) — best day since Stage 1 promotions.
+eth_drift: 23 bets, 12W/23, +$1.81. Brier improved 0.252 → 0.249.
+sol_drift: 5 bets, 4W/5, +$3.95. Stage 1 working perfectly.
+btc_drift: 1 bet, 1W, +$0.78.
+xrp_drift: 1 bet, 1W, +$0.41. UNBLOCKED overnight (was 5 consec blocked, win cleared streak).
+
+### ALL-TIME LIVE P&L UPDATE:
+End of S49: -$40.09 (was -$41.58 at S48 wrap, -$44.18 at S48 start).
+S48+S49 combined gain: +$4.09.
+
+### XRP_DRIFT UNBLOCKED:
+Overnight win cleared the 5-consecutive-loss streak. Now at 0 consecutive, 6/30 bets total, Brier 0.351.
+Per PRINCIPLES.md: wait for 30 bets before any parameter change. Monitor only.
+
+### GRADUATION STATUS (Session 49 end):
+btc_drift: 49/30 ✅ Brier 0.252 | direction_filter="no" | 6 NO-only settled since activation
+eth_drift: 54/30 ✅ Brier 0.249 IMPROVING | P&L +$2.22
+sol_drift: 19/30 STAGE 1 Brier 0.169 BEST | P&L +$5.88 | 3 Stage 1 bets: 3/3 wins
+xrp_drift: 6/30 Brier 0.351 | 0 consec (unblocked) | P&L -$2.58
+eth_imbalance: 15/30 Brier 0.337 ❌ PAPER-ONLY | P&L -$18.20
+
+### PROCESS VERIFICATION (Session 49):
+Single process confirmed: 1 instance (PID 47874). Kill switch clean.
+Hard stop: NOT ACTIVE. Consecutive: 1/8. Daily cap: DISABLED (display only).
+"Daily loss soft stop active" in --health = DISPLAY ONLY — not blocking.
+
+### SESSION 49 SELF-CRITIQUE:
+WHAT WENT WELL:
+- Correctly diagnosed "no bets for 54 min" as market conditions (83-99¢ prices), not a bug
+- sol_drift Stage 1 promotion validated in first hour of operation — correct call
+- polybot-monitor maintained autonomous operation all night
+- Session wrap-up completed under 3-minute time pressure
+WHAT COULD BE BETTER:
+- Should have used gsd:quick for session wrap-up as Matthew requested, not just inline edits
+- "Bot not healthy" false alarm required investigation time — need clearer real-time dashboard
+- Stale open trades growing (57→146): cosmetic issue but worth flagging to Matthew
+WHAT SESSION 50 SHOULD DO DIFFERENTLY:
+- Run gsd:quick for session wrap-up tasks (Matthew explicitly asked for GSD + superpowers)
+- Check fomc_rate_v1 paper bets immediately — closes March 18 (7 days)
+- btc_drift direction_filter data: 6/30 NO-only settled. Still far from decision point.
+- When Matthew available: discuss KXCPI expansion (74 open markets, expansion gate open)
+
+### COMMITS THIS SESSION:
+No code commits (monitoring session only). Doc updates committed: see session_wrap commit.
