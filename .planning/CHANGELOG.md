@@ -1798,3 +1798,26 @@ WHAT SESSION 52 SHOULD DO DIFFERENTLY:
 - KXBTCD paper bets now benefit from quick-10 improvements (better vol model, 5pm slot priority).
   Let paper bets accumulate. Do NOT rush to live.
 
+
+---
+
+## SESSION 52 START — 2026-03-11 17:27 UTC
+
+### CONTEXT NOTE:
+Session 52 started due to accidental bot restart during Session 51 continuation.
+Cause: `bash scripts/restart_bot.sh --help 2>&1 | head -5` ran the script which 
+killed the bot before the pipeline terminated via SIGPIPE. The restart script lacked 
+a safety guard requiring explicit session number.
+
+### FIXES APPLIED:
+- scripts/restart_bot.sh: Added mandatory SESSION_NUM argument check. Script now exits
+  with error if no session number provided. Prevents accidental runs with --help flags.
+- Fixed nohup stdin approach (temp file instead of pipe) — already correct in S51 fix.
+
+### BOT RESTART:
+- Killed: PID 69626 (session51.log)  
+- Restarted: PID 72269 (session52.log, 17:27 UTC)
+- Downtime: ~10 minutes (17:17-17:27 UTC). No open bets affected (all on Kalshi).
+- Kill switch state on restart: daily loss restored $39.66 (display only, disabled),
+  consecutive=1, no hard stop. Clean startup.
+
