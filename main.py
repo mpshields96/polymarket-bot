@@ -921,6 +921,7 @@ async def crypto_daily_loop(
     loop_name: str = "btc_daily",
     initial_delay_sec: float = 0.0,
     max_daily_bets: int = 5,
+    direction_filter: Optional[str] = None,
 ):
     """
     Kalshi daily crypto market loop (KXBTCD / KXETHD / KXSOLD).
@@ -1001,6 +1002,18 @@ async def crypto_daily_loop(
             )
 
             if signal is None:
+                await asyncio.sleep(CRYPTO_DAILY_POLL_INTERVAL_SEC)
+                continue
+
+            # ── Loop-level direction filter (defense-in-depth) ────────
+            # Mirrors the guard in trading_loop. Strategy already filters, but
+            # this protects against future misconfiguration where strategy is
+            # constructed without direction_filter.
+            if direction_filter is not None and signal.side != direction_filter:
+                logger.debug(
+                    "[%s] Direction filter active: skipping %s signal (only %s allowed)",
+                    loop_name, signal.side, direction_filter,
+                )
                 await asyncio.sleep(CRYPTO_DAILY_POLL_INTERVAL_SEC)
                 continue
 
@@ -2802,6 +2815,7 @@ async def main():
             loop_name="btc_daily",
             initial_delay_sec=90.0,
             max_daily_bets=5,
+            direction_filter="no",  # defense-in-depth (strategy also filters; guards misconfiguration)
         ),
         name="btc_daily_loop",
     )
