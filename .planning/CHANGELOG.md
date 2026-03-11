@@ -1266,3 +1266,55 @@ autonomous overhaul, and reference doc gap analysis.
 ### Test count: 980/980 (+28 new: 20 coinbase + 8 event trigger)
 ### Commits: 3fef17a (Coinbase + event trigger), pending (export-tax fix + handoff)
 ### Bot: RUNNING | PID 36660 | session45.log
+
+---
+
+## Session 45 (cont.) / Session 46 — 2026-03-10/11 — Kalshi API settlement export
+
+### Bot: RUNNING (PID 36660, session45.log) — DO NOT RESTART (see warning below)
+
+### CRITICAL STATE — RESTART WARNING:
+- In-memory consecutive loss counter = 3 (cooling NOT active in running bot)
+- DB consecutive loss count = 11 (historical losses not yet "cleared" by a win)
+- IF BOT IS RESTARTED: `restore_consecutive_losses()` reads 11 from DB → fires 2hr cooling IMMEDIATELY
+- Solution: if restart is truly needed, add `--reset-soft-stop` flag to restart command
+- Bot is healthy, evaluating markets, will place bets when signals fire (no cooling in-memory)
+
+### BUILDS COMPLETED:
+
+1. **scripts/export_kalshi_settlements.py (NEW) — Kalshi API settlement export**
+   - Paginates /portfolio/settlements and /portfolio/fills via KalshiClient
+   - Joins by ticker to get entry price, side, timestamp per market
+   - Computes net P&L per trade: revenue_usd - total_cost_usd - fee_usd
+   - BUG FOUND + FIXED: Kalshi `revenue` field is in CENTS not dollars (divide by 100)
+   - Output: reports/kalshi_settlements.csv
+   - Usage: `LIVE_TRADING=true python3 scripts/export_kalshi_settlements.py`
+
+2. **reports/kalshi_settlements.csv — Authoritative Kalshi P&L from API**
+   - 116 settled trades | 56W / 60L | 48.3% win rate
+   - Total cost basis: $191.32 | Total revenue: $149.00 | Fees: $6.05
+   - Net P&L: **-$48.37** (vs DB: -$45.52 — small discrepancy from older DB records before Session 44 fee fix)
+   - This is the authoritative number for tax purposes (direct from Kalshi API)
+   - Fields: ticker, event_ticker, entry_time, settled_time, market_result, our_side,
+             contracts, avg_entry_price_cents, total_cost_usd, revenue_usd, fee_usd, net_pnl_usd, won
+
+### GRADUATION STATUS (from --graduation-status at session end):
+  - btc_drift_v1: 48/30 ✅ Brier 0.253 | P&L -$25.73 | 3 consec losses
+  - eth_drift_v1: 31/30 ✅ Brier 0.256 | P&L +$0.41 | BLOCKED (4 consec losses — per-strategy)
+  - sol_drift_v1: 14/30 Brier 0.170 🔥 | P&L +$1.93 | 1 consec loss
+  - xrp_drift_v1: 5/30 Brier 0.390 ❌ | P&L -$2.99 | BLOCKED (5 consec losses — per-strategy)
+  - eth_orderbook_imbalance_v1: 13/30 Brier 0.353 ❌ | P&L -$16.68 | BLOCKED (4 consec)
+  - btc_lag_v1: 45/30 ✅ Brier 0.191 | 0 signals/week (HFTs)
+  - All-time live P&L: -$45.52 | Bankroll: unknown at session end (run --report)
+
+### PENDING TASKS (next session):
+  1. ⚠️ WATCHDOG: eth_imbalance at bet 16+, if Brier > 0.30 → disable live trading
+  2. Brier gate docs update: docs/GRADUATION_CRITERIA.md → Brier < 0.20 for Stage 2 (REBUILD priority 6)
+  3. btc_drift direction_filter validation at 30 NO-only bets — present data to Matthew, don't decide
+  4. Monitor xrp_drift consecutive loss streak — if 8 global consecutive reached, add --reset-soft-stop on restart
+  5. Re-download Kalshi Advanced Portfolio CSV from Kalshi portal (prior download was empty/BOM only)
+     Then: cross-reference with reports/kalshi_settlements.csv for discrepancies
+
+### Test count: 980/980 (unchanged — no new tests this sub-session)
+### Commits: pending (export script + settlements CSV + MD updates)
+### Bot: RUNNING | PID 36660 | session45.log | consecutive_in_memory=3 (safe)

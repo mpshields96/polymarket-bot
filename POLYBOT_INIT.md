@@ -45,45 +45,55 @@
 ## CURRENT STATUS — (updated each session)
 ═══════════════════════════════════════════════════
 
-BUILD COMPLETE. 952/952 tests passing. verify.py 21/29 (8 advisory WARNs — non-critical).
-Last commit: 8ff6ecd (Session 44 — skill decision matrix + SKILLS_REFERENCE.md overhaul)
+BUILD COMPLETE. 980/980 tests passing. verify.py 21/29 (8 advisory WARNs — non-critical).
+Last commit: 3fef17a (Session 45) + pending Session 46 commit
 
-## BOT STATE — Session 44 END (2026-03-10) → Session 45 PENDING
+## BOT STATE — Session 46 END (2026-03-11 ~19:35 CDT) — BOT RUNNING
 
-BOT IS STOPPED: bot stopped for full audit session (Session 44). No bot.pid.
-Restart: use LIVE RESTART COMMAND below (session45.log)
-Check:  cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "RUNNING" || echo "STOPPED"
-Watch:  tail -f /tmp/polybot_session45.log | grep --line-buffered "drift\|LIVE\|Trade executed\|Kill switch"
+⚠️ CRITICAL RESTART WARNING:
+  DB shows 11 consecutive live losses. If bot is restarted normally, restore_consecutive_losses()
+  reads 11 from DB and immediately triggers 2hr cooling — NO live bets for 2 hours.
+  In-memory consecutive counter = 3 (no cooling active in running process).
+  Bot PID: 36660 → /tmp/polybot_session45.log
+  IF RESTART IS NEEDED: always use --reset-soft-stop flag:
+    nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session47.log 2>&1 &
 
-Bankroll: ~$68.16 | All-time live P&L: -$39.53 | Tests: 952/952
-Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime hard stop
+Check bot: cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "RUNNING" || echo "STOPPED"
+Watch:  tail -f /tmp/polybot_session45.log | grep --line-buffered "LIVE BET\|Kill switch blocked\|cooling\|consecutive"
+
+All-time live P&L: -$45.52 (DB) | -$48.37 (Kalshi API — authoritative) | Bankroll: ~$60 (approx)
+Tests: 980/980 | Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime hard stop
 Active protection: bankroll floor ($20) + consecutive cooling (8→2hr) + $5/bet hard cap
 
-## SIX LIVE LOOPS (as of Session 44 end)
+## SIX LIVE LOOPS (as of Session 46 end)
 
   🔴 btc_drift_v1 → KXBTC15M | STAGE 1 ($5 cap, Kelly) | min_drift=0.10, min_edge=0.05
-     Graduation: 47/30 ✅ | Brier: 0.251 | P&L all-time: -$23.37 (⚠️ main bleeder)
-     direction_filter="no" ACTIVE — blocks YES signals. ~20 NO-only bets post-filter (need 30+).
-     DECISION POINT at 30 NO-only bets: keep or retire direction_filter if win rate ≈ 50%.
+     Graduation: 48/30 ✅ | Brier: 0.253 | P&L: -$25.73 | 3 consecutive losses
+     direction_filter="no" ACTIVE — blocks YES signals. Need 30 NO-only bets for decision.
+     DECISION POINT at 30 NO-only bets: present data to Matthew, don't decide autonomously.
 
-  🔴 eth_drift_v1 → KXETH15M | STAGE 1 (GRADUATED Session 44!) | min_drift=0.05, min_edge=0.05
-     Graduation: 30/30 ✅ | Brier: 0.255 | P&L all-time: +$0.90 (micro-live era)
-     calibration_max_usd REMOVED. Kelly + $5 HARD_MAX governs.
-     🚨 MILESTONE: First Stage 1 bets = $1.50-$5.00 range. Watch log for these.
+  🔴 eth_drift_v1 → KXETH15M | STAGE 1 (graduated Session 44!) | min_drift=0.05, min_edge=0.05
+     Graduation: 31/30 ✅ | Brier: 0.256 | P&L: +$0.41 | 4 consecutive losses (per-strategy)
+     NOTE: graduation-status shows "BLOCKED (4 consec)" = per-strategy view. Kill switch = global.
+     Kelly + $5 HARD_MAX governs. calibration_max_usd was removed in Session 44.
 
   🔴 sol_drift_v1 → KXSOL15M | micro-live | min_drift=0.15 (3x BTC), min_edge=0.05
-     Graduation: 14/30 | Brier: 0.151 🔥 BEST SIGNAL | P&L: +$1.93
+     Graduation: 14/30 | Brier: 0.170 🔥 BEST SIGNAL | P&L: +$1.93 | 1 consecutive loss
+     This is the healthiest live strategy. SOL ~3x BTC volatility → more frequent signals.
 
   🔴 xrp_drift_v1 → KXXRP15M | micro-live | min_drift=0.10 (2x BTC), min_edge=0.05
-     Graduation: 3/30 | Brier: 0.401 ❌ bad start | P&L: -$1.85 (too few bets to assess)
+     Graduation: 5/30 | Brier: 0.390 ❌ bad start | P&L: -$2.99 | 5 consecutive losses
+     Too few bets to assess statistically. Brier at 5 bets is unreliable.
 
   🔴 eth_orderbook_imbalance_v1 → KXETH15M | micro-live | signal_scaling=0.5
-     Graduation: 12/30 | Brier: 0.360 ❌ GETTING WORSE | P&L: -$14.68
-     ⚠️ If Brier > 0.30 at bet 22: disable live trading for this strategy.
+     Graduation: 13/30 | Brier: 0.353 ❌ GETTING WORSE | P&L: -$16.68 | 4 consecutive losses
+     ⚠️ WATCHDOG: If Brier > 0.30 at bet 22 → disable live trading for this strategy.
+     signal_scaling was already cut from 1.0→0.5 in Session 44 to fix -27.2% calibration error.
 
-  🔴 btc_lag_v1 → KXBTC15M | STAGE 1 | 45/30 ✅ | 0 signals/week (HFTs) — effectively dead
+  🔴 btc_lag_v1 → KXBTC15M | STAGE 1 | 45/30 ✅ | 0 signals/week (HFTs priced in) — dead signal
+     Kept running as paper/live for data. No expectation of future signals.
 
-  All live loops: _live_trade_lock (asyncio), price guard 35-65¢
+  All live loops: _live_trade_lock (asyncio.Lock), price guard 35-65¢
   sol/xrp/eth_imbalance: calibration_max_usd=0.01 (~$0.35-0.65/bet)
   btc_drift/eth_drift: Kelly + $5 HARD_MAX (Stage 1)
 
@@ -92,21 +102,43 @@ Active protection: bankroll floor ($20) + consecutive cooling (8→2hr) + $5/bet
   📋 orderbook_imbalance_v1 — paper, price guard added
   📋 btc_daily_v1, eth_daily_v1, sol_daily_v1 — KXBTCD/KXETHD/KXSOLD 24 hourly slots/day
   📋 weather_forecast_v1 — HIGHNY weekdays only
-  📋 fomc_rate_v1 — WORKING | ~8x/year | fires near FOMC meetings | 19 paper bets placed
+  📋 fomc_rate_v1 — WORKING | ~8x/year | fires near FOMC meetings | 19+ paper bets placed
   📋 unemployment_rate_v1 — WORKING | ~12x/year | fires near BLS releases
   📋 sports_futures_v1 — Polymarket.US bookmaker arb, min_books=2
   📋 copy_trader_v1 — Polymarket.US, 0 .US matches (platform mismatch confirmed)
 
-## EXPANSION GATE STATUS (Session 44)
+## EXPANSION GATE STATUS (Session 46)
   Gate: PARTIALLY OPEN. btc_drift/eth_drift both graduated to Stage 1.
   XRP drift already built (Session 41) and running micro-live.
-  Next expansion candidates (log to todos.md, do not build yet):
+  DO NOT BUILD NEW STRATEGIES until xrp/sol/eth_imbalance validation complete (30+ bets each).
+  Next expansion candidates (log to todos.md only — do not build):
     - KXBTCD hourly live — btc_daily_v1 already paper. Promote once paper graduation met.
-    - CPI economics markets (KXCPI) — episodic edge, ~3-5 bets/month, build post-Grand-Rounds
-    - Event-driven asyncio.Event trigger — replace 10s sleep with BTC-move event (latency fix)
-  Expansion gate rule: still validate xrp/sol/eth_imbalance before expanding further.
+    - CPI economics markets (KXCPI) — episodic edge ~3-5 bets/month, build post-Grand-Rounds
+  Grand Rounds: ~March 20, 2026. Post-Grand-Rounds = more dev time.
 
-## SESSION 44 KEY CHANGES (2026-03-10 — AUDIT/REBUILD, bot stopped all day)
+## SESSION 46 KEY CHANGES (2026-03-11)
+  1. scripts/export_kalshi_settlements.py (NEW) — Kalshi API tax data export
+     Paginates /portfolio/settlements + /portfolio/fills, joins by ticker
+     BUG DISCOVERED: Kalshi `revenue` field is in CENTS, not dollars. Fixed in script.
+     Output: reports/kalshi_settlements.csv (116 trades, 56W/60L, net -$48.37)
+  2. reports/kalshi_settlements.csv — generated. This is the authoritative Kalshi P&L record.
+  3. All MD files updated (SESSION_HANDOFF, CHANGELOG, CLAUDE.md, POLYBOT_INIT.md)
+
+## SESSION 45 KEY CHANGES (2026-03-10)
+  1. src/data/coinbase.py (NEW) — CoinbasePriceFeed + DualPriceFeed
+     Binance primary + Coinbase REST backup (api.coinbase.com/v2/prices/{SYMBOL}-USD/spot)
+     Falls back to Coinbase when Binance stale. CONFIRMED working on restart.
+     20 tests in tests/test_coinbase_feed.py
+  2. main.py: btc_price_monitor() + _wait_for_btc_move() — event-driven trigger
+     Replaces asyncio.sleep(POLL_INTERVAL) in all 8 crypto trading loops
+     All loops wake within 1-3s of BTC ≥0.05% move (vs up to 10s before)
+     8 tests in tests/test_event_trigger.py
+  3. main.py: DualPriceFeed wiring for BTC/ETH/SOL/XRP
+     btc_move_condition (asyncio.Condition) passed to all 8 crypto trading_loop calls
+  4. --export-tax PID lock bypass fix (was blocked while bot running)
+  5. 980/980 tests passing, committed 3fef17a
+
+## SESSION 44 KEY CHANGES (2026-03-10 — AUDIT/REBUILD)
   1. btc_drift late_penalty gate fixed (was dead code on confidence field)
   2. config.yaml: btc_drift min_drift_pct 0.05→0.10 (47 bets confirm noise at 0.05)
   3. config.yaml: eth_imbalance signal_scaling 1.0→0.5 (-27.2% calibration error)
@@ -161,15 +193,29 @@ Active protection: bankroll floor ($20) + consecutive cooling (8→2hr) + $5/bet
   Result: btc_drift now correctly shows 37/30 ✅ (was showing 12 — was querying paper trades)
 
 ## LIVE RESTART COMMAND (always use this exact form — increment session number each restart)
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null
-  sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid
-  echo "CONFIRM" > /tmp/polybot_confirm.txt
-  nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session45.log 2>&1 &
-  sleep 10 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
 
-  ⚠️ macOS note: pkill may not kill the process on macOS (different Python binary path).
-  If old PID still shows after pkill: kill -9 <OLD_PID>, then proceed with restart.
-  Always verify exactly 1 process after restart: ps aux | grep "[m]ain.py" | wc -l should show 1.
+  ⚠️ BEFORE RESTARTING: check if DB has 11+ consecutive live losses.
+  If yes OR if the --health output shows "consecutive cooling X min remaining":
+    ADD --reset-soft-stop to the nohup line (see SAFE RESTART below).
+    Without --reset-soft-stop, restore_consecutive_losses() reads 11 from DB → 2hr cooling fires.
+
+  SAFE RESTART (use this — includes --reset-soft-stop to prevent false cooling on restore):
+    pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null
+    sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid
+    echo "CONFIRM" > /tmp/polybot_confirm.txt
+    nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session47.log 2>&1 &
+    sleep 10 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
+
+  STANDARD RESTART (only when you're sure DB consecutive < 8):
+    pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null
+    sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid
+    echo "CONFIRM" > /tmp/polybot_confirm.txt
+    nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session47.log 2>&1 &
+    sleep 10 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
+
+  ⚠️ macOS: pkill may miss processes using different Python binary path.
+     If old PID still shows: kill -9 <OLD_PID>, then restart.
+     Always verify exactly 1 process: ps aux | grep "[m]ain.py" | wc -l should show 1.
 
 ## DIAGNOSTICS (safe while bot is live — bypass PID lock)
   source venv/bin/activate && python3 main.py --report            # today P&L, paper/live split
@@ -184,25 +230,34 @@ Active protection: bankroll floor ($20) + consecutive cooling (8→2hr) + $5/bet
 ═══════════════════════════════════════════════════════════════════════
 
 ### STARTUP CHECKLIST (every autonomous session, no exceptions)
-  1. Read SESSION_HANDOFF.md — get exact bot state and pending tasks
-  2. RESTART THE BOT IMMEDIATELY — ALWAYS — EVERY SESSION START. No exceptions.
-     Restart clears the consecutive loss soft stop counter (it reseeds from DB but cooling window clears).
-     This is the #1 oversight that wastes hours of live bet time.
-     Command (update log path to current session number):
-       pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null
-       sleep 3; rm -f bot.pid
-       echo "CONFIRM" > /tmp/polybot_confirm.txt
-       nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_sessionNN.log 2>&1 &
-       sleep 8 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
-  3. Run python3 main.py --health → ALWAYS — log result to /tmp/polybot_autonomous_monitor.md
-     If "Consecutive loss cooling" warning appears: RESTART ALREADY HANDLES THIS (step 2 clears it)
-     If "HARD STOP" warning appears: do NOT restart — log it, wait for Matthew
-  4. Run python3 main.py --graduation-status → log
-  5. Run python3 main.py --report → log current P&L
+  1. Read SESSION_HANDOFF.md — get exact bot state, PID, pending tasks, last commit
+  2. CHECK BOT STATUS FIRST:
+       ps aux | grep "[m]ain.py" | grep -v grep
+       cat bot.pid 2>/dev/null && kill -0 $(cat bot.pid 2>/dev/null) && echo "BOT RUNNING" || echo "BOT STOPPED"
+     If RUNNING: check consecutive state BEFORE deciding to restart:
+       grep "consecutive" /tmp/polybot_session*.log | tail -5
+       source venv/bin/activate && python3 main.py --health
+     If STOPPED: restart using SAFE RESTART command (always use --reset-soft-stop).
+  3. RESTART DECISION (critical — see Session 46 warning):
+     ⚠️ Always check DB consecutive loss count before restarting.
+     If DB shows 8+ consecutive losses AND you restart without --reset-soft-stop → 2hr cooling fires.
+     Rule of thumb: when in doubt, always add --reset-soft-stop to restart command.
+     SAFE RESTART includes --reset-soft-stop by default (see LIVE RESTART COMMAND section).
+     DO NOT restart if bot is running and in-memory consecutive < 8. Just run diagnostics.
+  4. Run python3 main.py --health → log result to /tmp/polybot_autonomous_monitor.md
+     "Daily loss soft stop active" = DISPLAY ONLY (lines commented out). Does NOT block bets.
+     "Consecutive loss cooling X min remaining" = could be real OR a DB read artifact.
+       Confirm with: grep "consecutive" /tmp/polybot_session45.log | tail -5
+       If in-memory log shows consecutive=3 but --health shows cooling: DO NOT restart. Already fine.
+     "HARD STOP" = do NOT restart — log it, wait for Matthew.
+  5. Run python3 main.py --graduation-status → log
+  6. Run python3 main.py --report → log current P&L
 
   ⚠️ SESSION 40 LESSON: Not restarting at session start left a soft stop active for 2 hours.
-     Restart = manual consecutive loss counter reset. The bot continued paper bets but no live bets
-     fired the entire session. Kalshi sends Matthew notifications on live bet wins — silence = problem.
+  ⚠️ SESSION 46 LESSON: DB shows 11 consecutive losses but in-memory=3 (no cooling). Restart without
+     --reset-soft-stop would have triggered 2hr cooling unnecessarily. ALWAYS check in-memory state.
+     The --health "consecutive cooling" warning is based on DB query, not live in-memory state.
+     Authoritative source: grep the running log for "consecutive:" entries.
 
 ### MONITORING LOG — MANDATORY
   File: /tmp/polybot_autonomous_monitor.md
@@ -220,10 +275,12 @@ Active protection: bankroll floor ($20) + consecutive cooling (8→2hr) + $5/bet
     - Restart immediately using LIVE RESTART COMMAND
     - Log restart with timestamp + reason
   If kill switch fired (soft stop / consecutive loss cooling):
-    - RESTART THE BOT IMMEDIATELY. Restart clears the consecutive loss counter.
+    - RESTART USING SAFE RESTART (with --reset-soft-stop). This clears the consecutive counter.
       The daily loss limit counter PERSISTS through restart (seeded from DB) — that stays.
-      But consecutive loss cooling (2hr window) is cleared by restart by design.
-    - Do NOT manually --reset-killswitch. Just restart.
+      Consecutive loss cooling (2hr window) is cleared by --reset-soft-stop on restart.
+    - Check DB consecutive count first: will restart trigger re-cooling without --reset-soft-stop?
+      If yes, ALWAYS add --reset-soft-stop to avoid wasting 2hr of live bet time.
+    - Do NOT manually --reset-killswitch. Use SAFE RESTART instead.
     - Log the restart with timestamp + reason to /tmp/polybot_autonomous_monitor.md.
   If kill switch hard stop (bankroll floor or daily loss > 20%):
     - Do NOT restart. Log it. This is a real safety stop. Wait for Matthew.

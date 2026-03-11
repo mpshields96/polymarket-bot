@@ -243,9 +243,15 @@ CHECK: `pip freeze | grep <package>` to get current version, then pin it.
 3. Announce what you found in 2-3 lines, then proceed
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
-Current project state (updated Session 45 — 2026-03-10 ~18:20 CDT — BOT RUNNING PID 36660 → session45.log):
-- **980/980 tests passing** (+28 new: 20 coinbase feed + 8 event trigger tests)
-- **Bot RUNNING** — PID 36660 → /tmp/polybot_session45.log. Restart to session46.log next session.
+Current project state (updated Session 46 — 2026-03-11 ~19:35 CDT — BOT RUNNING PID 36660 → session45.log):
+- **980/980 tests passing** (unchanged from Session 45)
+- **Bot RUNNING** — PID 36660 → /tmp/polybot_session45.log.
+  ⚠️ DO NOT RESTART without --reset-soft-stop: DB=11 consecutive losses → triggers 2hr cooling on restore.
+  In-memory consecutive=3 (no cooling active). Bot is healthy, evaluating markets.
+- **SESSION 46 BUILDS**:
+  1. scripts/export_kalshi_settlements.py (NEW) — Kalshi API settlement export via /portfolio/settlements + /portfolio/fills
+     BUG FOUND: Kalshi revenue field is in cents not dollars. Fixed in script.
+  2. reports/kalshi_settlements.csv — 116 settled trades, 56W/60L, net -$48.37 (authoritative tax data)
 - **SESSION 45 BUILDS**:
   1. src/data/coinbase.py (NEW) — CoinbasePriceFeed + DualPriceFeed (Binance primary + Coinbase backup)
   2. main.py: btc_price_monitor() + _wait_for_btc_move() — event-driven trigger, 1-3s latency vs 10s
@@ -270,29 +276,29 @@ Current project state (updated Session 45 — 2026-03-10 ~18:20 CDT — BOT RUNN
   ⚠️ STRIP items (copy_trader stack, sports_futures+odds_api, eth_imbalance live, sports_game)
      logged in CODEBASE_AUDIT.md — NOT yet removed. Require Matthew sign-off before deletion.
 - **SIX LIVE LOOPS** (daily loss cap DISABLED Session 42 — bankroll floor + consecutive cooling govern):
-  - btc_drift_v1 → KXBTC15M | STAGE 1 ($5 cap, Kelly) | 47/30 ✅ Brier 0.251
-    direction_filter="no" ACTIVE (Session 43) — blocks YES. ~20 NO-only bets post-filter (need 30+)
-    All-time P&L: -$23.37 | DECISION POINT at 30 NO-only bets: keep or retire if regresses
-  - eth_drift_v1 → KXETH15M | **STAGE 1 (graduated Session 44!)** | 30/30 ✅ Brier 0.255
-    calibration_max_usd REMOVED. Kelly + $5 HARD_MAX now governs. P&L +$0.90 all-time at micro-live.
-  - sol_drift_v1 → KXSOL15M | micro-live | 14/30 Brier 0.170 🔥 P&L +$1.93 (BEST SIGNAL)
-  - xrp_drift_v1 → KXXRP15M | micro-live | 3/30 Brier 0.401 P&L -$1.85 (too few bets, bad start)
+  - btc_drift_v1 → KXBTC15M | STAGE 1 ($5 cap, Kelly) | 48/30 ✅ Brier 0.253
+    direction_filter="no" ACTIVE. P&L -$25.73 | 3 consec losses. DECISION POINT at 30 NO-only bets.
+  - eth_drift_v1 → KXETH15M | STAGE 1 (graduated Session 44!) | 31/30 ✅ Brier 0.256
+    P&L +$0.41 | 4 consec losses (per-strategy blocked by graduation-status, not kill switch)
+  - sol_drift_v1 → KXSOL15M | micro-live | 14/30 Brier 0.170 🔥 P&L +$1.93 (BEST SIGNAL) | 1 consec
+  - xrp_drift_v1 → KXXRP15M | micro-live | 5/30 Brier 0.390 ❌ P&L -$2.99 | 5 consec (per-strategy blocked)
   - btc_lag_v1 → KXBTC15M | STAGE 1 | 45/30 ✅ Brier 0.191 | 0 signals/week (HFTs) — dead
-  - eth_orderbook_imbalance_v1 → KXETH15M | micro-live | 12/30 Brier 0.360 P&L -$14.68
-    ⚠️ Getting WORSE: was -$8.62 at 10 bets. signal_scaling=0.5 applied — watch next 10 bets.
-    If Brier > 0.30 at bet 22: disable live trading for this strategy.
+  - eth_orderbook_imbalance_v1 → KXETH15M | micro-live | 13/30 Brier 0.353 ❌ P&L -$16.68 | 4 consec
+    ⚠️ If Brier > 0.30 at bet 22: disable live trading for this strategy. Currently Brier 0.353.
   - All live loops: Kelly + $5 HARD_MAX governs btc_drift + eth_drift. sol/xrp/eth_imbalance: calibration_max_usd=0.01.
-  - All-time live P&L: **-$39.53** | Today P&L: -$24.19 live, -$2.99 paper
+  - All-time live P&L: **-$45.52** | API P&L: -$48.37 (from Kalshi settlements endpoint)
 - **fomc_rate_v1**: 19 paper bets placed (KXFEDDECISION-26MAR closes March 18)
 - PAPER-ONLY Kalshi: eth_lag, btc_imbalance, weather, sol_lag, all 3 crypto daily loops
 - **POLYMARKET**: platform mismatch confirmed PERMANENT for now (see STRATEGIC_DIRECTION.md for full analysis)
   - VPN access to .COM: NOT advisable (ToS violation + CFTC implications). See STRATEGIC_DIRECTION.md Q7.
   - Monitor CFTC regulatory developments for .COM US access monthly.
-- Latest code commit: b642f44 (feat+docs: Session 44 autonomous overhaul — fee_calculator, poll 30→10, tax schema, audit)
+- Latest code commit: 3fef17a (Session 45 builds) + pending Session 46 commit
 - Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime % hard stop.
   Active protection: bankroll floor ($20) + consecutive cooling (8→2hr) + $5/bet hard cap.
 - **--health "Daily loss soft stop active"** = DISPLAY ONLY (kill_switch.py lines 187-189 COMMENTED OUT)
-- Bot: STOPPED | Restart to session45.log when resuming live trading.
+- **--health "consecutive cooling X min remaining"** = can be TRUE (from DB restore) even when in-memory is fine.
+  Always check running log to confirm. `grep "consecutive" /tmp/polybot_session*.log | tail -5` shows true state.
+- Bot: RUNNING PID 36660 | in-memory consecutive=3 | DO NOT restart without --reset-soft-stop flag
 - Live restart command:
   `pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live < /tmp/polybot_confirm.txt >> /tmp/polybot_session45.log 2>&1 &`
 - **btc_drift min_drift_pct (Session 44)**: 0.05→0.10. 47 live bets confirm 20%+ edge signals = noise.
