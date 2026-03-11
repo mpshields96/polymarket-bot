@@ -1,10 +1,11 @@
 # KALSHI MARKETS — Complete Reference
-# Last updated: Session 40 (2026-03-09) — FULL TAXONOMY + CORRECTIONS + DEEP PROBE
+# Last updated: Session 48 (2026-03-11) — Weekday probe confirms KXBTCMAXW dormant; fresh KXBTCMAXMON/KXBTCMINY/KXCPI data
 # Source: Live API probe (Session 23, all 8,719 series) + full re-probe Session 36
 #         + Matthew's kalshi.com Crypto tab screenshot (Session 38)
 #         + Events endpoint paginated search (Session 39) — 3,000 events scanned
 #         + /series?limit=200 endpoint probe (Session 40) — 44,735 TOTAL SERIES confirmed
 #         Confirmed via get_markets() + GET /events + GET /series against api.elections.kalshi.com
+#         + Session 48 weekday API probe (2026-03-11) — KXBTCMAXW dormant confirmed on Tuesday
 #
 # TOTAL KALSHI SCALE (Session 40): 44,735 series
 #   Politics: ~12,335 | Entertainment: ~10,355 | Sports: ~7,605 | Elections: ~2,140
@@ -248,9 +249,11 @@ Each daily series generates ~24 hourly markets. Kalshi UI shows these as "Hourly
   Last active: November 2024 (5 finalized markets). Currently dormant — may reopen seasonally.
   Nov 2024 strikes: $95k-$99k range at BTC ATH. Volume 177k total across 5 markets.
 - Strategy: NOT a priority — dormant series. Probe on weekdays to check if open.
+- Session 40 (0 expected Sunday): 0 open markets.
+- Session 48 (2026-03-11, Tuesday): still 0 open markets. CONFIRMED PERMANENTLY DORMANT — not a weekend-only artifact. DO NOT probe further.
 - UI "Weekly (8)" count may refer to events or be inaccurate — don't rely on UI count.
 
-**Next step:** On a weekday, probe: `markets?series_ticker=KXBTCMAXW&limit=20&status=open`
+**Next step:** No further probing needed. Series is confirmed dormant as of March 2026.
 
 ═══════════════════════════════════════════════════════════════
 
@@ -272,10 +275,22 @@ price throughout the month (removes outliers). Harder to model than spot.
 | KXDOGEMINMON | DOGE  | $1,391 (8 mkts)   | ❌ NOT BUILT | "How low will DOGE get in March?" |
 | KXBTCM       | BTC   | 0 open now        | ❌ NOT BUILT | Alt monthly ticker — confirmed exists |
 
-**Market structure example (KXBTCMAXMON):**
-- KXBTCMAXMON-BTC-26MAR31 with suffix 7500000 → "Will BTC trimmed mean be above $75,000 by 11:59pm March 31?"
-- Strikes: $75k (45¢), $77.5k (30¢), $80k (19¢)
+**Market structure example (KXBTCMAXMON — Session 48 fresh data, March 2026):**
+- KXBTCMAXMON-BTC-26MAR31 with suffix 8500000 → "Will BTC trimmed mean be above $85,000 by 11:59pm March 31?"
+- Top markets by volume (Session 48 probe):
+  KXBTCMAXMON-BTC-26MAR31-8500000 vol=59,629 ($85,000 strike) — highest vol strike
+  KXBTCMAXMON-BTC-26MAR31-8250000 vol=55,387 ($82,500 strike)
+  KXBTCMAXMON-BTC-26MAR31-8750000 vol=35,821 ($87,500 strike)
+- Strikes clustered around current BTC price (~$83k in March 2026). Near-ATM contracts most liquid.
 - Settlement: trimmed mean = removes top/bottom outlier prices across month
+
+**KXBTCMINMON — Session 48 fresh data (8 open, March 2026):**
+- Top markets by volume:
+  KXBTCMINMON-BTC-26MAR31-6500000 vol=112,301 ($65,000 floor) — highest vol
+  KXBTCMINMON-BTC-26MAR31-6250000 vol=109,027 ($62,500 floor)
+  KXBTCMINMON-BTC-26MAR31-6000000 vol=67,491 ($60,000 floor)
+- Highest vol around $60-65k floor — market pricing meaningful downside tail risk.
+- Total KXBTCMINMON vol across 8 markets: ~500k+. More liquid than KXBTCMAXMON.
 
 **Signal challenge:** Trimmed mean ≠ spot price. Would need to model rolling monthly average
 distribution using realized vol + current price. Medium-complexity signal. Post-gate research.
@@ -399,14 +414,22 @@ The screenshot showed a higher number, likely volume displayed differently (may 
 - Total volume: $2,704,832 across 6 markets
 - Insight: December at 38¢ with BTC at $84k is a reasonable market. +$16k = +19% needed.
 
-**KXBTCMAXY current pricing (Session 39 probe — "How high will BTC get in 2026?"):**
-- $99,999: 36¢ (36% chance BTC hits $100k before Dec 31, 2026) vol=597k
-- $109,999: 26¢ vol=sample | $149,999: 12¢ vol=sample | $199,999: 8¢ (8% chance 2.5x)
-- Total: 7 markets, $2.2M vol
+**KXBTCMAXY current pricing (Session 48 fresh probe, 2026-03-11 — "How high will BTC get in 2026?"):**
+- 7 open markets confirmed. Top markets by volume:
+  KXBTCMAXY-26DEC31-99999.99 vol=602,841 ($100k strike) — highest vol, most tradeable
+  KXBTCMAXY-26DEC31-109999.99 vol=244,704 ($110k strike)
+  KXBTCMAXY-26DEC31-149999.99 vol=184,334 ($150k strike)
+- Note: vol=602,841 on the $100k strike is the highest single-market vol in the KXBTCMAXY series.
+- Total: 7 markets, $2.2M+ vol (consistent with Session 39/41)
 
-**KXBTCMINY current pricing (Session 39 probe — "How low will BTC get in 2026?"):**
-- $40,000: 35¢ (35% chance BTC dips below $40k in 2026) | $45,000: 46¢ | $50,000: 57¢
-- Total: 5 markets, $1.1M vol. Insight: market says 57% chance BTC dips below $50k this year.
+**KXBTCMINY current pricing (Session 48 fresh probe, 2026-03-11 — "How low will BTC get in 2026?"):**
+- 5 open markets confirmed. Top markets by volume:
+  KXBTCMINY-27JAN01-40000.00 vol=207,278 ($40k floor) — highest vol
+  KXBTCMINY-27JAN01-45000.00 vol=184,689 ($45k floor)
+  KXBTCMINY-27JAN01-50000.00 vol=184,789 ($50k floor)
+- Note: market assigns meaningful probability to BTC dipping to $40-50k range in 2026.
+- ~200k vol per floor level = moderately liquid for a 9-month horizon market.
+- Total: 5 markets, ~$1.0M vol
 
 **Signal approach (TIER 2 post-gate):**
 Barrier option / first-passage-time model using GBM. Standard formula from options theory:
@@ -429,7 +452,7 @@ Calibration: Binance.US 30-day klines (already used in backtest.py)
 | KXRATECUTCOUNT | # of rate cuts this year    | Annual        | ~1,548,484 ✅ confirmed  | NOT BUILT |
 | KXRATECUT      | Will Fed cut at all in 2026 | Annual        | ~3,267 confirmed         | NOT BUILT |
 | KXUNRATE       | US unemployment (BLS)       | Monthly       | Opens 2d pre-BLS | 📋 PAPER (unemployment_rate_v1) |
-| KXCPI          | CPI inflation print         | Monthly       | ~1,400 ✅ confirmed | NOT BUILT (low freq) |
+| KXCPI          | CPI inflation print         | Monthly       | 74 open (Session 48) — much more liquid than expected | NOT BUILT |
 | KXJOLTS        | Job openings (JOLTS)        | Monthly       | 0 open (probe 2026-03-09, not active) | NOT BUILT |
 | KXGDP          | GDP growth                  | Quarterly     | ~208,000 ✅ confirmed | NOT BUILT |
 | KXPAYROLLS     | Non-farm payrolls (NFP)     | Monthly       | ~1,581 (Nov 2026 pre-release) | NOT BUILT |
@@ -439,21 +462,31 @@ Calibration: Binance.US 30-day klines (already used in backtest.py)
 - KXFEDDECISION: uses FRED yield curve spread (DGS2-DFF) as signal.
 - **KXFEDDECISION VOLUME CORRECTION (Session 40 probe)**: Previous estimate 4,700 was WRONG.
   Real volume: 80 open markets, 23,394,968 total volume. March 2026 FOMC alone: 22M+ volume.
+  Session 48 (2026-03-11): 80 open markets confirmed — still active (no change from Session 41).
   Market structure: each FOMC meeting has 5 markets — H0 (hold/no change), C25 (cut 25bps),
   C26 (cumulative 26×10bps cut?), H25 (hold at 2.5%?), H26 (hold at 2.6%?).
   March 2026 pricing: H0=97¢ (hold, 97% prob), C25=1¢ (cut 25bps, 1% prob) — market expects no change.
   Fee structure: quadratic_with_maker_fees (NOT standard). Higher cost for market orders.
   NBER/Fed study (2026 Jan): Kalshi FOMC markets beat fed funds futures for rate prediction accuracy.
   Volume context: $23.4M open > KXBTCMAX150 ($10.8M). This is the LARGEST documented Kalshi market.
-- KXCPI: confirmed ✅ exists (Session 36 probe). ~1,400 volume when open. Not built — low freq.
+- KXCPI: Session 48 probe (2026-03-11): 74 open markets — far more than expected. Prior ~1,400 vol was undercounting.
+  Sample: KXCPI-26MAR-T1.0 vol=78, KXCPI-26MAR-T0.9 vol=97. Individual market volumes are low (tens to hundreds),
+  but 74 markets open = much more active series than previously documented.
+  Revised priority: log for post-gate feasibility study. Elevate from 'low freq' to 'moderate activity — revisit signal feasibility after expansion gate opens'.
 - KXJOLTS/KXPCE/KXHOUSING/KXRETAIL/KXNFP: 0 open markets (probed 2026-03-09, not currently active).
   KXPAYROLLS: 10 markets open for November 2026 NFP release, 1,581 total vol. Very low volume.
 - **KXRATECUTCOUNT confirmed (Session 40 probe)**: 20 markets, 1,548,484 volume.
+  Session 48 (2026-03-11): 21 open confirmed — still active.
+  Top markets: KXRATECUTCOUNT-26DEC31-T9 vol=98,432, KXRATECUTCOUNT-26DEC31-T8 vol=119,207.
+  Market strongly concentrated at T8/T9 boundary — expects 1-3 rate cuts in 2026.
   Structure: "Will Fed cut rates ≥T times by Dec 31, 2026?" (T9=0¢, T8=1¢, T7=1¢ → market expects 1-3 cuts).
   Signal: could use FRED CME FedWatch implied probabilities or CME fed funds futures.
   Priority: research signal model before building — high volume, annual horizon.
 - **KXRATECUT**: 1 market, 3,267 vol — "Will Fed cut at all in 2026?" yes=79¢.
-- Macro market hierarchy (largest to smallest): KXFEDDECISION(23.4M) > KXRATECUTCOUNT(1.5M) > KXGDP(208k) > KXUNRATE(opens near BLS) > KXPAYROLLS(1.6k) > KXCPI(1.4k).
+- **KXPCE**: 0 open — confirmed still dormant (Session 48, 2026-03-11).
+- **KXJOLTS**: 0 open — confirmed still dormant (Session 48, 2026-03-11).
+- **KXUNRATE**: 0 open (Session 48, 2026-03-11) — outside active BLS release window, expected. Normal.
+- Macro market hierarchy (largest to smallest): KXFEDDECISION(23.4M) > KXRATECUTCOUNT(1.5M+) > KXGDP(208k) > KXCPI(74 mkts, low per-mkt vol) > KXUNRATE(opens near BLS) > KXPAYROLLS(1.6k) > KXPCE/KXJOLTS (0 = dormant).
 - **KXGDP confirmed active (Session 39 probe)**: 8 open markets Q1 2026, 208,040 total volume.
   Settlement = BEA advance GDP estimate (~late April). Structure: binary "Will real GDP exceed X%?"
   Market pricing (2026-03-09): T1.0=72¢, T1.5=59¢, T2.0=45¢, T2.5=38¢, T3.0=28¢, T3.5=17¢, T4.0=10¢, T4.5=7¢
@@ -813,4 +846,63 @@ Key findings:
   - KXNASDAQ100Y is a legitimate future candidate (same model as KXBTCMAXY, $516k vol)
   - Everything else in non-crypto is too thin or dormant
   - Macro focus should remain on KXGDP/KXFEDDECISION which already have infrastructure
+
+═══════════════════════════════════════════════════════════════
+
+### Session 48 Probe Results (2026-03-11, Tuesday)
+
+KXBTCMAXW: 0 open on TUESDAY — CONCLUSIVELY DORMANT.
+  Session 42 tested on what was thought to be Tuesday. Session 48 re-confirms on a confirmed weekday.
+  0 open on a confirmed weekday Tuesday March 11, 2026. NOT a weekend artifact.
+  This series had 5 finalized markets from Nov 2024. No new markets since.
+  Action: Remove from active probe rotation. Do not build.
+
+KXBTCMAXMON (6 open, March 2026 trimmed mean max):
+  Top markets by volume:
+    KXBTCMAXMON-BTC-26MAR31-8500000 vol=59,629 ($85,000 strike)
+    KXBTCMAXMON-BTC-26MAR31-8250000 vol=55,387 ($82,500 strike)
+    KXBTCMAXMON-BTC-26MAR31-8750000 vol=35,821 ($87,500 strike)
+  Insight: strikes clustered around current BTC price ($83k area). Near-ATM contracts most liquid.
+
+KXBTCMINMON (8 open, March 2026 trimmed mean min):
+  Top markets by volume:
+    KXBTCMINMON-BTC-26MAR31-6500000 vol=112,301 ($65,000 floor) — highest vol
+    KXBTCMINMON-BTC-26MAR31-6250000 vol=109,027 ($62,500 floor)
+    KXBTCMINMON-BTC-26MAR31-6000000 vol=67,491 ($60,000 floor)
+  Insight: highest vol around $60-65k floor — market pricing meaningful downside tail risk.
+  Total KXBTCMINMON vol across 8 markets: ~500k+. More liquid than KXBTCMAXMON.
+
+KXBTCMAXY (7 open, annual BTC max by Dec 2026):
+    KXBTCMAXY-26DEC31-99999.99 vol=602,841 ($100k strike) — highest vol, most tradeable
+    KXBTCMAXY-26DEC31-109999.99 vol=244,704 ($110k strike)
+    KXBTCMAXY-26DEC31-149999.99 vol=184,334 ($150k strike)
+  Insight: $100k is the focal strike. 600k vol = very liquid for an annual market.
+
+KXBTCMINY (5 open, annual BTC min by Jan 2027):
+    KXBTCMINY-27JAN01-40000.00 vol=207,278 ($40k floor) — highest vol
+    KXBTCMINY-27JAN01-45000.00 vol=184,689
+    KXBTCMINY-27JAN01-50000.00 vol=184,789
+  Insight: market assigns meaningful prob to BTC dipping to $40-50k range in 2026.
+  ~200k vol per floor level = moderately liquid for a 9-month horizon market.
+
+KXCPI (74 open — MAJOR UPDATE from prior ~1,400 total vol estimate):
+  Session 48 probe finds 74 open markets — far more than expected.
+  Sample: KXCPI-26MAR-T1.0 vol=78, KXCPI-26MAR-T0.9 vol=97
+  Note: individual market volumes are low (tens to hundreds), but 74 open markets
+  suggests this is a more active series than previously documented.
+  Revised priority: log for post-gate feasibility study. Not low-frequency obscure.
+
+KXPCE: 0 open — confirmed still dormant.
+KXJOLTS: 0 open — confirmed still dormant.
+KXUNRATE: 0 open — outside BLS release window (expected).
+KXFEDDECISION: 80 open — confirmed active (no change).
+KXRATECUTCOUNT: 21 open — confirmed active.
+  Top markets: KXRATECUTCOUNT-26DEC31-T9 vol=98,432, KXRATECUTCOUNT-26DEC31-T8 vol=119,207.
+  Market strongly concentrated at T8/T9 boundary (1-3 rate cuts expected in 2026).
+
+Macro market hierarchy (updated Session 48):
+  KXFEDDECISION (23.4M) > KXRATECUTCOUNT (1.5M+) > KXGDP (208k) > KXCPI (74 mkts, low per-mkt vol)
+  > KXUNRATE (opens near BLS) > KXPAYROLLS (1.6k) > KXPCE/KXJOLTS (0 = dormant)
+
+No new series discovered. All previously documented series status confirmed.
 
