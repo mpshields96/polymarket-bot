@@ -67,11 +67,19 @@ class CryptoDailyStrategy:
         min_minutes_remaining: float = 30.0,
         max_minutes_remaining: float = 360.0,
         min_volume: int = 100,
+        direction_filter: Optional[str] = None,
     ) -> None:
+        """
+        direction_filter: if "no", only fire on upward drift and always bet NO.
+        Rationale: same HFT front-running pattern seen in btc_drift (48 live bets,
+        p≈3.7%): YES side overpriced when BTC trends up, NO side offers better value.
+        Default None = original YES/NO based on drift direction.
+        """
         self.asset = asset.upper()
         self.series_ticker = series_ticker
         self._min_drift_pct = min_drift_pct
         self._min_edge_pct = min_edge_pct
+        self._direction_filter = direction_filter
         self._min_minutes_remaining = min_minutes_remaining
         self._max_minutes_remaining = max_minutes_remaining
         self._min_volume = min_volume
@@ -104,19 +112,32 @@ class CryptoDailyStrategy:
 
         drift_pct = (spot - session_open) / session_open
 
-        if abs(drift_pct) < self._min_drift_pct:
-            logger.debug(
-                "[%s] drift %.4f below threshold %.4f — no signal",
-                self.name, drift_pct, self._min_drift_pct,
-            )
-            return None
+        # direction_filter="no": only fire on upward drift, always bet NO (contrarian).
+        # Original mode: fire on both directions, side follows drift direction.
+        if self._direction_filter == "no":
+            if drift_pct < self._min_drift_pct:
+                logger.debug(
+                    "[%s] direction_filter=no: drift %.4f below +%.4f threshold — no signal",
+                    self.name, drift_pct, self._min_drift_pct,
+                )
+                return None
+        else:
+            if abs(drift_pct) < self._min_drift_pct:
+                logger.debug(
+                    "[%s] drift %.4f below threshold %.4f — no signal",
+                    self.name, drift_pct, self._min_drift_pct,
+                )
+                return None
 
         atm = self._find_atm_market(markets, spot)
         if atm is None:
             logger.debug("[%s] no ATM market found — no signal", self.name)
             return None
 
-        side = "yes" if drift_pct > 0 else "no"
+        if self._direction_filter == "no":
+            side = "no"  # always bet NO when filter active (contrarian on upward momentum)
+        else:
+            side = "yes" if drift_pct > 0 else "no"
 
         try:
             close_dt = datetime.fromisoformat(atm.close_time.replace("Z", "+00:00"))

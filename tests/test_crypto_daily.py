@@ -426,3 +426,93 @@ class TestAssetCoverage:
         assert "btc" in btc_strat.name.lower() or "btc" in btc_strat.series_ticker.lower()
         assert "eth" in eth_strat.name.lower() or "eth" in eth_strat.series_ticker.lower()
         assert "sol" in sol_strat.name.lower() or "sol" in sol_strat.series_ticker.lower()
+
+
+class TestDirectionFilter:
+    """Tests for direction_filter='no' — contrarian NO-only mode (S47)."""
+
+    def _make_markets_atm(self, spot: float, series: str = "KXBTCD") -> list:
+        """Create ATM markets around spot price with good liquidity."""
+        import math
+        strike = round(spot / 500) * 500  # nearest $500
+        markets = []
+        for offset in [-1000, -500, 0, 500, 1000]:
+            s = strike + offset
+            # Price based on distance from ATM
+            dist_pct = (spot - s) / spot
+            yes_price = int(50 + dist_pct * 100)
+            yes_price = max(10, min(90, yes_price))
+            markets.append(_make_market(
+                ticker=f"{series}-26MAR1021-T{s:.2f}",
+                strike=s,
+                yes_price=yes_price,
+                yes_ask=yes_price + 2,
+                volume=5000,
+                minutes_to_close=120.0,
+                series=series,
+            ))
+        return markets
+
+    def test_direction_filter_no_fires_no_on_upward_drift(self):
+        """direction_filter='no': positive drift triggers a NO signal."""
+        strat = CryptoDailyStrategy(
+            asset="BTC", series_ticker="KXBTCD",
+            min_drift_pct=0.005, min_edge_pct=0.02, direction_filter="no",
+        )
+        spot = 71000.0
+        session_open = 70000.0  # +1.4% drift
+        markets = self._make_markets_atm(spot)
+        sig = strat.generate_signal(spot, session_open, markets)
+        assert sig is not None, "Should fire a signal on upward drift with direction_filter='no'"
+        assert sig.side == "no", f"direction_filter='no' must always bet NO, got {sig.side}"
+
+    def test_direction_filter_no_ignores_downward_drift(self):
+        """direction_filter='no': negative drift produces no signal."""
+        strat = CryptoDailyStrategy(
+            asset="BTC", series_ticker="KXBTCD",
+            min_drift_pct=0.005, direction_filter="no",
+        )
+        spot = 69000.0
+        session_open = 70000.0  # -1.4% drift (downward)
+        markets = self._make_markets_atm(spot)
+        sig = strat.generate_signal(spot, session_open, markets)
+        assert sig is None, "direction_filter='no' should NOT fire on downward drift"
+
+    def test_direction_filter_no_ignores_flat_drift(self):
+        """direction_filter='no': drift below threshold produces no signal."""
+        strat = CryptoDailyStrategy(
+            asset="BTC", series_ticker="KXBTCD",
+            min_drift_pct=0.005, direction_filter="no",
+        )
+        spot = 70020.0
+        session_open = 70000.0  # +0.03% drift (below 0.5% threshold)
+        markets = self._make_markets_atm(spot)
+        sig = strat.generate_signal(spot, session_open, markets)
+        assert sig is None, "direction_filter='no' should not fire on drift below threshold"
+
+    def test_original_mode_fires_yes_on_upward_drift(self):
+        """Original mode (no filter): positive drift → YES signal."""
+        strat = CryptoDailyStrategy(
+            asset="BTC", series_ticker="KXBTCD",
+            min_drift_pct=0.005, min_edge_pct=0.02, direction_filter=None,
+        )
+        spot = 71000.0
+        session_open = 70000.0
+        # ATM markets centered at spot — YES is underpriced vs model (drift pushes model >50%)
+        markets = _make_markets_around_strike(spot, spot, step=500.0)
+        sig = strat.generate_signal(spot, session_open, markets)
+        assert sig is not None
+        assert sig.side == "yes"
+
+    def test_original_mode_fires_no_on_downward_drift(self):
+        """Original mode (no filter): negative drift → NO signal."""
+        strat = CryptoDailyStrategy(
+            asset="BTC", series_ticker="KXBTCD",
+            min_drift_pct=0.005, direction_filter=None,
+        )
+        spot = 69000.0
+        session_open = 70000.0  # -1.4% drift
+        markets = self._make_markets_atm(spot)
+        sig = strat.generate_signal(spot, session_open, markets)
+        assert sig is not None
+        assert sig.side == "no"

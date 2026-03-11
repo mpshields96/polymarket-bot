@@ -2461,8 +2461,9 @@ async def main():
         min_minutes_remaining=_cdcfg.get("min_minutes_remaining", 30.0),
         max_minutes_remaining=_cdcfg.get("max_minutes_remaining", 360.0),
         min_volume=_cdcfg.get("min_volume", 100),
+        direction_filter="no",  # contrarian: only bet NO on upward drift (S47 hypothesis)
     )
-    logger.info("Strategy loaded: %s (paper-only BTC hourly daily markets KXBTCD)", btc_daily_strategy.name)
+    logger.info("Strategy loaded: %s (paper-only KXBTCD, direction_filter=no contrarian)", btc_daily_strategy.name)
     eth_daily_strategy = CryptoDailyStrategy(
         asset="ETH",
         series_ticker="KXETHD",
