@@ -770,10 +770,14 @@ class TestATMPrioritySlot:
         now_utc = datetime.now(timezone.utc)
 
         def make_rel_market(minutes_offset: float, mid: float, ticker: str, avoid_hour: int = 21) -> Market:
-            """Create market at relative offset, shifting 10 min if it would land on avoid_hour."""
+            """Create market at relative offset, shifting by 1hr until clear of avoid_hour.
+
+            +10 min was insufficient — if original time is at 21:10, shifting +10 gives 21:20
+            (still hour 21). Use +1hr per iteration to guarantee leaving the avoided hour.
+            """
             close_dt = now_utc + timedelta(minutes=minutes_offset)
-            if close_dt.hour == avoid_hour:
-                close_dt = close_dt + timedelta(minutes=10)
+            while close_dt.hour == avoid_hour:
+                close_dt = close_dt + timedelta(hours=1)
             close_dt = close_dt.replace(microsecond=0)
             yes_bid = max(1, int(mid - 0.5))
             yes_ask = min(99, int(mid + 0.5))

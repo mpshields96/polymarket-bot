@@ -2627,6 +2627,11 @@ async def main():
             trade_lock=_live_trade_lock,
             # calibration_max_usd=None: Stage 1, Kelly + $5 cap governs (same as btc_drift)
             btc_move_condition=_btc_move_condition,
+            # S53: direction_filter="yes" — YES side: 36 bets 61.1% wins +0.711 USD/bet EV
+            # NO side: 31 bets 48.4% wins -0.212 USD/bet EV. Z=1.04, p=0.148. 67 bets total
+            # (≥30 per side — meets PRINCIPLES.md threshold). Same pattern as btc/sol reversed.
+            # Estimated +2.54 USD/day. Re-evaluate at 30+ YES-only settled bets.
+            direction_filter="yes",
         ),
         name="eth_drift_loop",
     )
