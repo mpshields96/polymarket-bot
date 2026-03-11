@@ -2431,7 +2431,7 @@ async def main():
     eth_lag_strategy = eth_lag_load()
     logger.info("Strategy loaded: %s (paper-only ETH lag — returning to calibration)", eth_lag_strategy.name)
     eth_drift_strategy = eth_drift_load()
-    logger.info("Strategy loaded: %s (micro-live ETH drift, 1 contract/bet)", eth_drift_strategy.name)
+    logger.info("Strategy loaded: %s (STAGE 1 ETH drift — Kelly + $5 cap, graduated Session 44)", eth_drift_strategy.name)
     sol_drift_strategy = sol_drift_load()
     logger.info("Strategy loaded: %s (micro-live SOL drift, 1 contract/bet)", sol_drift_strategy.name)
     xrp_drift_strategy = xrp_drift_load()
@@ -2439,7 +2439,7 @@ async def main():
     btc_imbalance_strategy = load_btc_imbalance_from_config()
     logger.info("Strategy loaded: %s (paper-only BTC orderbook imbalance)", btc_imbalance_strategy.name)
     eth_imbalance_strategy = load_eth_imbalance_from_config()
-    logger.info("Strategy loaded: %s (LIVE — ETH orderbook imbalance)", eth_imbalance_strategy.name)
+    logger.info("Strategy loaded: %s (PAPER-ONLY — ETH orderbook imbalance, Brier 0.340 disabled live S47)", eth_imbalance_strategy.name)
     weather_feed = weather_feed_load()
     weather_strategy = weather_strategy_load()
     logger.info("Strategy loaded: %s (paper-only NYC weather forecast)", weather_strategy.name)
@@ -2691,6 +2691,10 @@ async def main():
     # Brier n/a — imbalance doesn't produce win_prob, but 41 paper bets at 35-65¢ guard.
     # trade_lock: serializes with all live loops to prevent hourly rate limit bypass.
     # Daily loss limit is the primary risk governor.
+    # eth_imbalance: PAPER-ONLY as of 2026-03-11 (Session 47)
+    # Brier 0.340 at 15 live bets — 27% systematic calibration error confirmed.
+    # Model predicts 67% win, actual is ~40%. Disabled live until model is recalibrated.
+    # Watchdog originally set for bet 22 but evidence conclusive at bet 15.
     eth_imbalance_task = asyncio.create_task(
         trading_loop(
             kalshi=kalshi,
@@ -2698,7 +2702,7 @@ async def main():
             strategy=eth_imbalance_strategy,
             kill_switch=kill_switch,
             db=db,
-            live_executor_enabled=live_mode,
+            live_executor_enabled=False,  # DISABLED — Brier 0.340 (Session 47)
             live_confirmed=live_confirmed,
             btc_series_ticker=eth_series_ticker,
             loop_name="eth_imbalance",

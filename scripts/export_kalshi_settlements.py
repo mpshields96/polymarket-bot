@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Export all Kalshi settled trades to CSV for tax/accounting purposes.
 
