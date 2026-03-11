@@ -60,6 +60,7 @@ None — slippage model and settlement verification complete.
 | 7 | Add execution-time price guard to live.py (35-65c + 10c max slippage) | 2026-03-10 | 0ca6b5e, 3c8baa9 | .planning/quick/6-add-execution-time-price-guard-to-live-p/ |
 | 8 | Fix canceled order status check in live.py (canceled → no DB write, resting → record normally) | 2026-03-09 | 6127cea, 9009fa8 | .planning/quick/7-fix-canceled-order-status-check-in-live-/ |
 | 9 | Fix graduation_stats() is_paper param + sol_drift_v1 in _GRAD — live drift shows live bet counts | 2026-03-09 | 82c90c7, 2fab9e6 | .planning/quick/8-fix-graduation-stats-is-paper-param-to-s/ |
+| 10 | Session 48 Kalshi probe: KXBTCMAXW dormant confirmed weekday, KXCPI 74 open (major revision), fresh KXBTCMAXMON/KXBTCMINMON/KXBTCMAXY/KXBTCMINY data | 2026-03-11 | 9171436 | .planning/quick/9-research-and-document-kalshi-undocumente/ |
 
 ## Phase Plans Completed
 
