@@ -523,12 +523,183 @@ Within Kalshi alone, YES+NO always = exactly $1.00 — no internal arb possible.
 **Precedent:** btc_drift direction_filter="no" changed main.py line only:
   `trading_loop(strategy=sol_strategy, ..., direction_filter="no")`
 
-**XRP drift note (opposite pattern):**
-- YES: 1/1 (100%), NO: 0/5 (0%) — XRP seems to do opposite of sol
-- Too few bets (6 total) to conclude. Document only, do not act yet.
+**XRP drift note (OPPOSITE pattern — getting clearer):**
+Updated Session 50 (2026-03-11 14:47 UTC): 9 total XRP bets now settled
+- YES: 2/2 wins (100%), PnL +0.76 USD
+- NO:  1/7 wins (14%), PnL -3.14 USD
+- P(1/7 wins if 50-50) = 7 × (0.5)^7 = 0.055 (5.5% — approaching significance)
+- Hypothesis: XRP drift follows mean-reversion (price moves away from open → reverts)
+  → YES signal (drift up) = market closes higher than entry = YES wins (continuation = mean reversion corrects back to YES)
+  → NO signal (drift down) = market mean-reverts back above open = NO loses
+  → Hypothesis: XRP market maker dynamics fundamentally different from SOL/BTC
+- Action: NOT autonomous — needs 30 bets first (currently 9/30)
+  Consider direction_filter="yes" for xrp_drift AFTER 30 bets
+  Would DISABLE NO bets, keep only YES bets. Check at 30 bets.
 - Likely mean-reversion pattern already noted in CLAUDE.md gotchas.
 
-**Gate:** 19/30 bets. Wait for Matthew's explicit authorization before implementing.
+**Gate:** 19/30 bets for sol_drift. Wait for Matthew's explicit authorization before implementing sol direction filter.
+**XRP gate:** 9/30 bets. Collect more data. Consider direction_filter="yes" at 30 bets.
+
+
+---
+
+## [ ] MARKET CONDITIONS THAT FAVOR NO EDGE — Session 50 (READ EVERY SESSION)
+**Priority: HIGH. Document Matthew asked for. Read this before acting on direction findings.**
+
+### What we believe drives the NO edge (hypothesis — needs more data to confirm)
+
+**Core hypothesis:** In 15-min Kalshi crypto windows, DOWNWARD drift signals are more reliable
+than UPWARD drift signals because:
+1. Downward momentum in crypto tends to be "sticky" within a 15-min window (sell pressure
+   compounds briefly, market closes below open)
+2. Upward drift is more frequently faded by HFTs and market makers within 15 min
+3. In a crypto bull market, YES prices (price closes above open) are often "already priced in"
+   by HFTs who see upward momentum — making NO positions relatively underpriced
+
+### Conditions that FAVOR the NO edge (when NO bets tend to win):
+
+1. **Mean-reverting market session**: Markets moving laterally, no sustained directional
+   trend for multiple consecutive 15-min windows. Most common condition in non-news days.
+
+2. **Moderate price levels at entry**: NO entry price in 40-65¢ range (YES at 35-60¢).
+   This means the market is genuinely uncertain — NO isn't just priced cheap because
+   direction is already decided. Our medium-cost NO bets (1-2 USD) have the best win rate
+   (80% in our data).
+
+3. **Crypto in consolidation or mild bear**: When overall crypto (BTC) is rangy or slightly
+   declining, downward drift signals are more predictive. The March 9 and March 11 morning
+   sessions (our best days) both had ranging conditions.
+
+4. **SOL and ETH specifically**: These two assets show the strongest NO edge in our data.
+   BTC is also good (direction_filter active). XRP is the exception.
+
+5. **Early-window drift signals**: When the drift fires in the first half of the window,
+   there's time for momentum to sustain. Late-window signals with extreme prices are often
+   garbage (market has already mostly decided).
+
+### Conditions that OPPOSE the NO edge (when NO bets tend to lose):
+
+1. **Strong trending UP day (biggest risk)**: March 10 = 4/15 NO wins (27%). ALL assets
+   were trending upward. NO signals fired on temporary dips but markets recovered and closed
+   YES. This is the primary failure mode. Identifiable by YES prices staying consistently
+   above 60¢ across multiple consecutive windows.
+
+2. **XRP specifically**: XRP shows opposite pattern — YES wins (2/2=100%), NO loses
+   (1/7=14%). Likely different market maker/liquidity structure for KXXRP15M.
+
+3. **Extreme intrawindow volatility**: When markets swing 30-40¢ within a single 15-min
+   window (as seen in 111045 on March 11), signals fire based on early prices but execution
+   guards reject bad fills. Bets placed just before the extreme move are exposed to reversal.
+
+4. **Near window close**: Signals firing with <5 min left have less time to resolve in
+   the direction of the drift. These often hit the price guard anyway.
+
+5. **Post-major-news**: When BTC/ETH are in a post-news trend, 15-min drift signals are
+   noise compared to the macro directional force.
+
+### Data needed to confirm/deny (where we are now vs needed):
+- SOL: 11/11 NO wins → remarkable but only 11 bets. Need 30+ NO-only after direction_filter
+  to confirm the edge persists. Could be lucky run.
+- ETH: 27 NO bets at 52% win — not yet statistically significant. Need 50+ bets.
+- Regime filter: need to tag "trending day" vs "ranging day" and compare NO win rates.
+  Currently no automated way to do this. Add as a future analytics task.
+
+### Current status of actions:
+- btc_drift direction_filter="no": ACTIVE (Session 43). 6/30 NO-only bets settled.
+- sol_drift direction_filter="no": PENDING Matthew sign-off. Evidence is extraordinary.
+- xrp_drift direction_filter="yes": FUTURE — collect data, evaluate at 30 bets.
+- ETH filter: too early — no filter yet.
+- Regime filter: FUTURE post-expansion-gate research item.
+
+### Per-bet EV summary (all time, all drift strategies):
+- sol NO: +0.63 USD/bet (BEST — 11/11 wins)
+- eth NO: +0.17 USD/bet
+- btc NO: +0.11 USD/bet (direction_filter active)
+- eth YES: +0.08 USD/bet (marginal positive)
+- sol YES: +0.23 USD/bet
+- xrp YES: +0.38 USD/bet (best YES side — consider filter)
+- xrp NO: -0.45 USD/bet (WORST — direction filter pending)
+- btc YES: -1.50 USD/bet (filter active, no longer placing)
+
+---
+
+## [ ] DEEP ANALYSIS: YES vs NO Edge — Session 50 Research (2026-03-11)
+
+### Matthew's question: "does NO generally do better than YES?"
+
+**Short answer: YES, but it's more nuanced than "always bet NO".**
+
+### Raw numbers (drift strategies, all settled live bets):
+- NO aggregate: 75 bets, 42/75 wins (56.0%), total PnL +11.64 USD, EV = +0.155/bet
+- YES aggregate: 65 bets, 33/65 wins (50.8%), total PnL -24.16 USD, EV = -0.372/bet
+- Net NO advantage: +35.80 USD total, +0.527 USD per bet difference
+
+### But the story is not "just bet NO everywhere":
+
+**BTC drift**: YES catastrophically bad (6/20=30% win, -30 USD, -1.50/bet)
+- This is the dominant driver of overall YES being negative
+- ALREADY FIXED: direction_filter="no" active since Session 43
+- Structural: HFTs had YES-bias priced in; upward drift = HFT fade → reversion to NO
+
+**SOL drift**: NO extraordinary (11/11=100%, +6.95 USD, +0.63/bet) vs YES mediocre (7/11=64%, +2.56 USD)
+- PENDING: direction_filter="no" awaiting Matthew sign-off
+- NO edge is NOT time-of-day specific — wins across ALL hours tested
+- Most urgent action item after sign-off
+
+**ETH drift**: YES marginally positive (+0.08/bet) vs NO better (+0.17/bet, 2x per-bet advantage)
+- Both sides positive — NO just more efficient
+- Not yet filter-worthy; needs 50+ bets to be confident
+- Watch: at 80 total ETH bets, re-evaluate direction split formally
+
+**XRP drift**: REVERSED — NO loses (1/7=14%, -0.45/bet) vs YES wins (2/2=100%, +0.38/bet)
+- XRP shows OPPOSITE pattern from BTC and SOL
+- Hypothesis: XRP mean-reverts differently (NO signal fires on downward drift → market reverts upward = NO loses)
+- Gate: 9/30 bets total. At 30 bets: evaluate direction_filter="yes" for XRP
+
+### Per-strategy EV summary (key metric):
+- btc_drift NO: +0.107/bet vs btc_drift YES: -1.503/bet (40x better for NO)
+- eth_drift NO: +0.172/bet vs eth_drift YES: +0.081/bet (2x better for NO)
+- sol_drift NO: +0.632/bet vs sol_drift YES: +0.233/bet (2.7x better for NO)
+- xrp_drift NO: -0.449/bet vs xrp_drift YES: +0.380/bet (YES wins for XRP)
+
+### Daily trend — NOT always consistent:
+- 2026-02-28: NO +67pp edge over YES (NO wins at 67%, YES 0%)
+- 2026-03-01: NO +43pp edge over YES (NO 43%, YES 0%)
+- 2026-03-09: NO +12pp edge over YES (NO 69%, YES 57%)
+- 2026-03-10: NO -13pp LOSS vs YES (NO 27%, YES 40%) ← ANOMALY
+- 2026-03-11: NO +0pp so far today (both 62%)
+
+**March 10 anomaly**: strongly trending UP day. All 4 drift strategies had terrible NO performance.
+- XRP: 0/5 NO wins on March 10
+- BTC: 2/6 NO wins (33%)
+- ETH: 1/3 NO wins (33%)
+- On trending days, NO signals fire (temporary downward drift) but markets continue up = NO loses
+- This is MARKET REGIME RISK: the NO edge depends on mean-reverting conditions
+
+### Structural hypothesis for WHY NO does better (BTC/SOL/ETH):
+1. **Asymmetric mean-reversion**: Downward drifts in crypto tend to be "real" within a 15-min window
+   (sell pressure self-reinforces briefly, closes below open). Upward drifts often reflect market maker
+   activity or news that then gets faded.
+2. **HFT dynamics**: For BTC/ETH, upward drift = HFTs recognize momentum and fade it aggressively.
+   Downward drift is less aggressively faded (HFTs allow down-moves to settle).
+3. **Bull-market context**: Kalshi YES = BTC closes above reference. In a bull market, HFTs have already
+   priced in the upside trajectory, so YES signals are taken from overpriced side. NO = market correction
+   or range-bound close = underpriced in bull market.
+4. **XRP exception**: Different market maker structure, lower liquidity, regulatory story creates
+   genuine continuation bias for upward moves.
+
+### Regime filter idea (future research — do NOT build yet):
+- Add a "market regime" parameter: if YES price has been >60¢ for >50% of last 30 windows = bull trend
+- On bull trend days: reduce NO bet size OR apply additional NO confirmation signal
+- On neutral/bear days: normal NO bets as usual
+- Gate: need 30+ bets per regime to validate. Post-expansion gate item.
+
+### Concrete actions from this analysis:
+1. **NOW (pending sign-off)**: sol_drift direction_filter="no"
+2. **At 30 XRP bets**: evaluate direction_filter="yes" for xrp_drift
+3. **At 80 ETH bets**: re-evaluate ETH direction split formally
+4. **Future**: regime filter for all drift strategies (post-expansion gate)
+5. **Monitoring**: track NO vs YES EV split in monthly review going forward
 
 
 ---
@@ -558,4 +729,50 @@ Within Kalshi alone, YES+NO always = exactly $1.00 — no internal arb possible.
 - Recommended: discuss with Matthew, then build if desired
 
 **Data source:** Cleveland Fed Nowcast updates daily at https://www.clevelandfed.org/indicators-and-data/inflation-nowcasting
+
+
+---
+
+## [!] ETH_DRIFT DIRECTIONAL BIAS — CRITICAL FINDING (Session 51, 2026-03-11)
+**PENDING MATTHEW SIGN-OFF for direction_filter="yes" on eth_drift**
+
+### Data (all-time live bets, as of Session 51 mid):
+- eth YES: 36 bets | 22/36 wins (61.1%) | P&L +25.58 USD | EV/bet +0.711
+- eth NO:  30 bets | 15/30 wins (50.0%) | P&L  -1.78 USD | EV/bet -0.059
+- WIN RATE DIFF: +11.1 percentage points (YES>NO)
+- EV DIFF: +0.770 USD/bet (YES dramatically outperforms NO)
+
+### Price distribution (no meaningful difference):
+- YES avg price: 48.8c | NO avg price: 47.9c (prices are similar, not the cause)
+
+### Edge reversal (counter-intuitive):
+- YES WINS have avg_edge=8.05% | YES LOSSES have avg_edge=11.84%
+- Interpretation: High-edge YES signals appear LATE in window after ETH already moved.
+  Low-edge (early) YES signals are more predictive. Market makers still asleep.
+- NO WINS have avg_edge=10.97% | NO LOSSES have avg_edge=8.45% (opposite pattern for NO)
+- This suggests YES and NO signals have DIFFERENT timing distributions in the 15-min window.
+
+### Statistical note:
+Win rate alone: Z=0.91, p≈0.37 (not statistically significant with this sample size)
+P&L difference IS practically significant: +0.770 USD/bet gap
+Full statistical significance expected at ~60 bets per side (currently 36 YES, 30 NO)
+
+### Impact of applying direction_filter="yes" to eth_drift:
+Assuming ~24 eth_drift bets/day, currently half YES/half NO:
+- Current mixed: (12 × 0.711) + (12 × -0.059) = +7.82 USD/day expected
+- YES-only: 24 × 0.711 = +17.06 USD/day expected
+- GAIN: +9.24 USD/day if filter is correct
+At +9 USD/day improvement: reach +125 USD goal ~15 days faster
+
+### Action required from Matthew:
+SAME DECISION as sol_drift direction_filter — needs explicit sign-off.
+Evidence is strong but not yet statistically significant at 5% threshold.
+sol_drift filter was applied at 11/11 (100%) — eth data is more moderate (61% vs 50%).
+Recommend waiting for 50+ bets per side before formal decision.
+CURRENT STATUS: DO NOT IMPLEMENT until Matthew signs off.
+
+### Today's performance (supporting the finding):
+eth YES today: 12/19 wins (63%), +24.68 USD
+eth NO today: 8/16 wins (50%), -1.29 USD
+Pattern holds for today specifically.
 
