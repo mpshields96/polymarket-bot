@@ -1479,3 +1479,78 @@ This is documented here so every future session knows the format rule from the s
 ### Test count: 985/985 (unchanged)
 ### Bot: RUNNING | PID 46398 | session48.log
 ### Commits: pending (session wrap-up commit)
+
+---
+
+## Session 48 — 2026-03-11 (autonomous monitoring, sol_drift Stage 1 promotion)
+**Duration:** ~2.5 hours autonomous (Matthew asleep)
+**Start state:** Bot DEAD (PID 46398 gone). All-time live P&L -$44.18.
+**End state:** Bot RUNNING PID 47874, sol_drift_v1 Stage 1 promoted. All-time live P&L -$41.58.
+
+### BOT RESTART (session start):
+- PID 46398 found dead on session start
+- Restarted to PID 47114 with --reset-soft-stop at ~03:51 UTC
+- Trade #880: eth_drift YES KXETH15M @ 46¢ = $2.30 confirmed live (healthy signal)
+- polybot-monitor scheduled task updated: PID reference corrected from 46398 to 47114
+
+### SOL_DRIFT_V1 STAGE 1 PROMOTION (core change):
+- User explicit instruction: "Alter the bet sizes, just don't exceed $5 max bet"
+- Changed main.py: calibration_max_usd=_DRIFT_CALIBRATION_CAP_USD → calibration_max_usd=None
+- Updated logger.info: "STAGE 1 SOL drift — Kelly + $5 cap, promoted S48 per Matthew"
+- Updated comment: STAGE 1 note replacing micro-live description
+- Updated constant comment: clarified _DRIFT_CALIBRATION_CAP_USD now only XRP (not ETH/SOL)
+- 985/985 tests pass. Commit: 509cf30.
+- Bot restarted to PID 47874. Startup log confirms "STAGE 1 SOL drift" active.
+
+WHY EARLY PROMOTION: sol_drift Brier 0.181 at 16 bets is the best-calibrated signal in the
+entire system. Standard gate is 30 bets but user explicitly authorized Stage 1 before gate.
+Expected impact: 10x per-bet size on best signal. At ~2 bets/day, $5 cap, 73% win rate:
++$1.50-3/day from sol_drift. Combined with eth_drift: possibly +$3-7/day on volatile days.
+
+### GSD QUICK TASK #9 — KALSHI_MARKETS.md UPDATE:
+- Probed Kalshi API for KXBTCMAXW, KXBTCMAXMON, KXBTCMINMON, KXBTCMAXY, KXBTCMINY, KXCPI
+- gsd-planner created plan; gsd-executor applied 8 targeted changes to KALSHI_MARKETS.md
+- KEY FINDING: KXBTCMAXW conclusively dormant on Tuesday (weekday) — permanently remove from probe rotation
+- KEY FINDING: KXCPI has 74 open markets (was previously estimated at ~1,400 total vol only)
+  This is a MAJOR revision — KXCPI is much more active than previously believed
+- KXBTCMAXMON: 6 open, $85k strike highest vol (59,629). Near-ATM most liquid.
+- KXBTCMINMON: 8 open, $65k floor highest vol (112,301). Downside markets more liquid.
+- KXBTCMAXY: $100k strike = 602,841 vol (most tradeable annual BTC market)
+- Commit: 9171436 (executor), STATE.md updated
+
+### REDDIT RESEARCH — KEY FINDINGS:
+Research covered: r/Kalshi, r/algobetting, r/algotrading, HackerNews, CoinDesk, Substack
+1. Polymarket sub-$1 arbitrage: $150k bot on Polymarket.COM 5-min markets — BLOCKED for US users
+   (Polymarket.US = sports-only, .COM = crypto markets, can't replicate)
+2. Market making: Requires $1000+ capital, dozens of securities simultaneously — not viable at our scale
+3. Cross-platform arb (Kalshi + Polymarket.COM): Requires .COM access — geo-blocked for US
+4. FOMC strategy: Kalshi "perfect forecast record on Fed rates" (Fortune Jan 2026). KXFEDDECISION 23.4M vol.
+   Our fomc_rate_v1 built and paper-only. March 18 window approaching. 0/5 paper bets — can't go live.
+5. Maker/limit orders = no Kalshi fees — switching from taker to maker saves ~2-3% per bet
+6. CONCLUSION: Our current drift/lag approach IS the right strategy for small capital + US restrictions.
+   The Reddit community confirms: statistical edge is the only viable path without $5000+ capital or .COM access.
+All findings logged to .planning/todos.md.
+
+### TODAY'S P&L (Session 48):
+- Live P&L: +$3.94 (11 settled bets) — strong day
+- eth_drift_v1: 6 bets, 4W, +$4.76 (best performer)
+- btc_drift_v1: 1 bet, 1W, +$0.78
+- sol_drift_v1: 2 bets, 1W, -$0.08 (micro-live bets from old bot instance)
+- All-time live P&L: -$41.58 (was -$44.18 start of session: +$2.60 gain)
+
+### GRADUATION STATUS (04:06 UTC March 11):
+  - btc_drift_v1: 49/30 ✅ Brier 0.252 | P&L -$24.95 | direction_filter="no" ACTIVE | 0 consec
+  - eth_drift_v1: 37/30 ✅ Brier 0.252 | P&L +$5.17 | Stage 1 | 0 consec (healthy earner)
+  - sol_drift_v1: 16/30 Brier 0.181 🔥 | P&L +$1.85 | STAGE 1 PROMOTED (this session!)
+  - xrp_drift_v1: 5/30 Brier 0.390 ❌ | BLOCKED (5 consec losses) | 0/5 NO wins
+  - eth_orderbook_imbalance_v1: 15/30 Brier 0.337 ❌ | PAPER-ONLY (disabled live S47)
+  - btc_lag_v1: 45/30 ✅ Brier 0.191 | 0 signals/week — dead strategy
+
+### BOT LIVE FEED:
+Terminal window opened with color-coded live feed script (/tmp/polybot_live_feed.sh).
+Live bets = real money labeled clearly; paper bets labeled [PAPER].
+Separation already built into code: 💰 LIVE BET PLACED vs [PAPER] BUY in logs.
+
+### Test count: 985/985 (unchanged — code change was cosmetic/param only)
+### Bot: RUNNING | PID 47874 | /tmp/polybot_session48.log
+### Commits: 509cf30 (sol_drift Stage 1), 9171436 (KALSHI_MARKETS.md)

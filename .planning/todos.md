@@ -453,3 +453,46 @@ is no near-50¢ market to exploit with a signal edge.
   4. Cancel and re-quote every 30s or on significant price move
   5. Position limit: 20-40 contracts per window
 **DO NOT BUILD:** Gate closed. Post-gate candidate #2 after KXBTCMAX100/150.
+
+---
+
+## [ ] FOMC March 18 Window — Promote fomc_rate_v1 to Live (Time-Sensitive)
+**Added:** Session 48 (2026-03-11) via Reddit/research
+**Urgency:** KXFEDDECISION-26MAR closes March 18. Next Fed decision ~March 18-19.
+**Context:** Fortune (Jan 2026): "Kalshi maintains perfect forecast record on Fed rate decisions,
+beating professional forecasters." KXFEDDECISION at 23.4M volume (LARGEST Kalshi market).
+Our fomc_rate_v1 paper strategy fires when yield curve signal fires ~8x/year.
+**Gap:** fomc_rate_v1 has 0/5 paper trades. Per PRINCIPLES.md, 5 trades min before live.
+Cannot promote in time for March 18 window at current 0 settled paper bets.
+**Action for future:** When KXFEDDECISION-26MAR closes March 18, check if paper bet placed.
+If fomc_rate_v1 paper bets accumulate before June FOMC (June 17-18), consider promoting to live.
+The window is short (2 days pre-decision). When it fires, the edge is substantial.
+**Priority:** Medium — next window June 2026
+
+---
+
+## [ ] Maker (Limit) Orders — Eliminate Taker Fees on Drift Strategies
+**Added:** Session 48 (2026-03-11) via market research
+**Finding:** Kalshi charges taker fees on market orders but NOT on limit/maker orders that
+add liquidity to the order book. Our current code uses taker orders (fill-or-kill IOC/FOK).
+Switching to passive limit orders eliminates fees but introduces fill uncertainty.
+**Current fee impact:** ~2-3% taker fee per trade. At $5/bet, $0.10-0.15 saved per bet.
+~$0.30-0.45/day on 3 live bets/day = ~$100/year in fee savings if fill rate stays high.
+**Tradeoff:** Limit orders may not fill if market moves away. Miss some signals entirely.
+**Assessment:** Worth investigating AFTER current strategies validate (30+ live bets each).
+Particularly relevant for btc_drift/eth_drift where the signal is directional — we can
+post a passive bid/ask at our target price and let the market come to us.
+**Unlock:** After expansion gate clears. Requires cancel/replace API logic in live.py.
+**DO NOT BUILD YET:** Log only.
+
+---
+
+## [CONFIRMED DEAD END] Polymarket.COM Sub-$1 Arbitrage (US Users Blocked)
+**Added:** Session 48 (2026-03-11) via CoinDesk Feb 2026 research
+**Finding:** A bot executed 8,894 trades on Polymarket 5-minute BTC/ETH markets where
+YES+NO briefly summed to <$1 due to thin liquidity. Generated ~$150,000. ~$16.80/trade
+at ~$1,000 deployed capital per round-trip.
+**Why we cannot replicate:** Polymarket.COM is geo-restricted for US users. Our account is
+Polymarket.US (sports-only). These were .COM 5-min crypto markets.
+Within Kalshi alone, YES+NO always = exactly $1.00 — no internal arb possible.
+**Status:** Permanently closed for our setup. Archived so we don't waste time revisiting.

@@ -4,7 +4,7 @@
 
 **Phase:** 4.2 — Paper Data Collection
 **Current Plan:** 1 of 1 (04.2-01 complete — awaiting Task 4 human checkpoint)
-**Last activity:** 2026-02-28 — 04.2-01 tasks 1-3 complete: slippage, graduation reporter, settlement verification
+**Last activity:** 2026-03-11 — Session 48: sol_drift_v1 Stage 1 promotion (PID 47874), KALSHI_MARKETS.md probe update (quick task #9/GSD#10), Reddit research findings logged to todos.md
 
 ## Key Context
 
