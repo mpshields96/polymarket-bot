@@ -1,0 +1,411 @@
+"""
+Tests for src/strategies/expiry_sniper.py — Kalshi expiry sniping strategy.
+
+Strategy: enter a 15-min Kalshi binary in the LAST 14 minutes when
+YES or NO price >= 90c and underlying coin has moved >= 0.1% from window open.
+
+Academic basis: Favorite-longshot bias — heavy favorites close >90% of the time,
+making 90c markets systematically underpriced.
+
+V7 parameters (processoverprofit.blog):
+  triggerPoint   = 90c   — enter when YES or NO >= 90c
+  triggerMinute  = 14    — only enter when <= 14 min remaining
+  HARD_SKIP      = 5s    — skip final 5 seconds
+  stop-loss      = None  — start without (add after empirical win rate data)
+
+Gotcha (from Session 53/54 notes):
+  - Use close_time from market object directly for seconds_remaining calculation
+  - Kelly at 90c is functionally zero until real win rate data — use 0.50 USD fixed paper size
+  - Paper phase: 30 bets needed before any live gate evaluation
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock
+
+import pytest
+
+from src.strategies.expiry_sniper import ExpirySniperStrategy
+from src.platforms.kalshi import Market, OrderBook, OrderBookLevel
+
+
+# ── Helpers ───────────────────────────────────────────────────────────
+
+
+def _make_market(
+    ticker: str = "KXBTC15M-TEST",
+    yes_price: int = 90,
+    no_price: int = 10,
+    seconds_remaining: float = 300.0,  # 5 min default
+    status: str = "open",
+) -> Market:
+    now = datetime.now(timezone.utc)
+    close_time = (now + timedelta(seconds=seconds_remaining)).isoformat()
+    open_time = (now - timedelta(minutes=10)).isoformat()
+    return Market(
+        ticker=ticker,
+        title="Test market",
+        event_ticker="KXBTC15M",
+        status=status,
+        yes_price=yes_price,
+        no_price=no_price,
+        volume=50000,
+        close_time=close_time,
+        open_time=open_time,
+        result=None,
+        raw={},
+    )
+
+
+def _make_orderbook() -> OrderBook:
+    return OrderBook(
+        yes_bids=[OrderBookLevel(price=90, quantity=100)],
+        no_bids=[OrderBookLevel(price=10, quantity=100)],
+    )
+
+
+def _default_strategy() -> ExpirySniperStrategy:
+    return ExpirySniperStrategy(
+        trigger_price_cents=90.0,
+        max_seconds_remaining=840,  # 14 min
+        hard_skip_seconds=5,
+        min_drift_pct=0.001,        # 0.1% coin move
+    )
+
+
+# ── TestExpirySniperSignal — when signal SHOULD fire ─────────────────────
+
+
+class TestExpirySniperSignal:
+    """Verify that valid signals are generated under correct conditions."""
+
+    def test_yes_signal_at_90c_with_valid_time_and_drift(self):
+        """YES at 90c, 5 min remaining, +0.2% coin drift → YES signal."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=90, no_price=10, seconds_remaining=300)
+        signal = strategy.generate_signal(
+            market=market,
+            coin_drift_pct=0.002,  # 0.2% move — above 0.1% threshold
+        )
+        assert signal is not None
+        assert signal.side == "yes"
+        assert signal.price_cents == 90
+
+    def test_no_signal_at_90c_with_valid_time_and_drift(self):
+        """NO at 90c (YES at 10c), 5 min remaining, -0.2% coin drift → NO signal."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=10, no_price=90, seconds_remaining=300)
+        signal = strategy.generate_signal(
+            market=market,
+            coin_drift_pct=-0.002,  # -0.2% move — above 0.1% threshold
+        )
+        assert signal is not None
+        assert signal.side == "no"
+        # price_cents for Signal is always YES-equivalent price for payout calc
+        assert signal.price_cents == 10  # YES price
+
+    def test_signal_at_exactly_90c(self):
+        """90c exactly (not 89c) triggers entry."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=90, no_price=10, seconds_remaining=600)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.002)
+        assert signal is not None
+        assert signal.side == "yes"
+
+    def test_signal_at_95c_also_valid(self):
+        """95c is also valid (higher confidence)."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=95, no_price=5, seconds_remaining=300)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.003)
+        assert signal is not None
+        assert signal.side == "yes"
+
+    def test_signal_at_14_min_exactly(self):
+        """At exactly 14 min (840s) remaining — border case should fire."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=92, no_price=8, seconds_remaining=840)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.002)
+        assert signal is not None
+
+    def test_signal_at_1_min_remaining(self):
+        """At 1 min (60s) remaining — well within window, should fire."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=91, no_price=9, seconds_remaining=60)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.005)
+        assert signal is not None
+
+    def test_signal_fields_populated(self):
+        """Signal contains all required fields."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=91, no_price=9, seconds_remaining=300)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.003)
+        assert signal is not None
+        assert signal.side in ("yes", "no")
+        assert 0 < signal.edge_pct < 1
+        assert 0 < signal.win_prob <= 1
+        assert 0 <= signal.confidence <= 1
+        assert signal.ticker == market.ticker
+        assert 1 <= signal.price_cents <= 99
+        assert signal.reason != ""
+
+    def test_strategy_name(self):
+        """Strategy name is expiry_sniper_v1."""
+        strategy = _default_strategy()
+        assert strategy.name == "expiry_sniper_v1"
+
+    def test_negative_drift_triggers_no_side(self):
+        """When YES=10c (NO=90c) and negative drift, NO signal fires."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=10, no_price=90, seconds_remaining=180)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=-0.003)
+        assert signal is not None
+        assert signal.side == "no"
+
+    def test_positive_drift_triggers_yes_side(self):
+        """When YES=92c and positive drift, YES signal fires."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=92, no_price=8, seconds_remaining=400)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.004)
+        assert signal is not None
+        assert signal.side == "yes"
+
+
+# ── TestExpirySniperNoEntry — when signal should NOT fire ─────────────────
+
+
+class TestExpirySniperNoEntry:
+    """Verify all cases where signal correctly returns None."""
+
+    def test_too_much_time_remaining(self):
+        """15 min remaining (900s > 840s threshold) — too early, skip."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=92, no_price=8, seconds_remaining=900)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.003)
+        assert signal is None
+
+    def test_hard_skip_final_5_seconds(self):
+        """4s remaining — within hard skip window, no entry."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=92, no_price=8, seconds_remaining=4)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.005)
+        assert signal is None
+
+    def test_exactly_5_seconds_remaining_is_skipped(self):
+        """5s remaining — boundary, should be skipped (<=5 is skipped)."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=93, no_price=7, seconds_remaining=5)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.005)
+        assert signal is None
+
+    def test_price_below_trigger_yes_side(self):
+        """YES at 89c — below 90c trigger, no signal."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=89, no_price=11, seconds_remaining=300)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.003)
+        assert signal is None
+
+    def test_price_below_trigger_no_side(self):
+        """NO at 89c (YES at 11c) — below trigger, no signal."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=11, no_price=89, seconds_remaining=300)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=-0.003)
+        assert signal is None
+
+    def test_near_50c_no_signal(self):
+        """YES at 55c — neutral zone, no signal (expiry_sniper targets 90c+)."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=55, no_price=45, seconds_remaining=300)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.005)
+        assert signal is None
+
+    def test_coin_drift_below_threshold(self):
+        """Coin moved only 0.05% (below 0.1% threshold) — no signal."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=92, no_price=8, seconds_remaining=300)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.0005)
+        assert signal is None
+
+    def test_zero_coin_drift(self):
+        """Zero coin drift — stuck at 90c without momentum, no signal."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=92, no_price=8, seconds_remaining=300)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.0)
+        assert signal is None
+
+    def test_coin_drift_wrong_direction_yes_side(self):
+        """YES at 92c but coin moved DOWN (-0.2%) — drift contradicts price, skip."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=92, no_price=8, seconds_remaining=300)
+        # Coin moved down but market says YES at 92c — contradictory signal, skip
+        signal = strategy.generate_signal(market=market, coin_drift_pct=-0.002)
+        assert signal is None
+
+    def test_coin_drift_wrong_direction_no_side(self):
+        """NO at 92c (YES at 8c) but coin moved UP (+0.2%) — contradictory, skip."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=8, no_price=92, seconds_remaining=300)
+        # Coin moved UP but market says NO at 92c — contradictory, skip
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.002)
+        assert signal is None
+
+    def test_too_much_time_remaining_even_at_high_price(self):
+        """Even at 99c, if >14 min remaining, skip (time filter enforced)."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=99, no_price=1, seconds_remaining=900)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.01)
+        assert signal is None
+
+    def test_exactly_6_seconds_remaining_fires(self):
+        """6s remaining — just above hard skip (>5s), should fire if other conditions met."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=93, no_price=7, seconds_remaining=6)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.005)
+        assert signal is not None
+
+
+# ── TestExpirySniperPayout — Kelly and EV math ────────────────────────────
+
+
+class TestExpirySniperPayout:
+    """Verify Kelly fraction behavior and EV math at 90c."""
+
+    def test_kelly_near_zero_at_exactly_90_percent_win_rate(self):
+        """At 90c bet with 90% assumed win rate, Kelly fraction ~= 0."""
+        # Kelly = (p * b - q) / b where b = (100-90)/90 = 0.111
+        # At p=0.90: Kelly = (0.90 * 0.111 - 0.10) / 0.111 = (0.10 - 0.10) / 0.111 = 0
+        p = 0.90
+        net_payout = (100 - 90) / 90  # = 0.1111
+        q = 1 - p
+        kelly = (p * net_payout - q) / net_payout
+        assert abs(kelly) < 0.01  # essentially zero
+
+    def test_kelly_positive_above_breakeven(self):
+        """At 92% win rate, Kelly becomes positive."""
+        p = 0.92
+        net_payout = (100 - 90) / 90
+        q = 1 - p
+        kelly = (p * net_payout - q) / net_payout
+        assert kelly > 0
+
+    def test_breakeven_win_rate_no_stop_loss(self):
+        """Without stop-loss: breakeven win rate = 90/100 = 90% exactly."""
+        # Win: +10c, Loss: -90c → breakeven = 90/(90+10) = 90%
+        breakeven = 90 / (90 + 10)
+        assert abs(breakeven - 0.90) < 0.001
+
+    def test_breakeven_win_rate_with_stop_loss_at_40c(self):
+        """With stop-loss at 40c: breakeven = 50/(50+10) = 83.3%."""
+        # Win: +10c, Loss: -50c (exit at 40c from 90c entry) → breakeven = 50/60
+        breakeven = 50 / (50 + 10)
+        assert abs(breakeven - 0.8333) < 0.001
+
+    def test_ev_positive_at_92_percent_no_stop_loss(self):
+        """At 92% win rate: EV = 0.92*10 - 0.08*90 = 9.2 - 7.2 = +2.0c per bet."""
+        p = 0.92
+        ev = p * 10 - (1 - p) * 90
+        assert ev > 0
+
+    def test_paper_calibration_bet_size(self):
+        """Paper calibration size is fixed at 0.50 USD (Kelly irrelevant in paper phase)."""
+        strategy = _default_strategy()
+        assert strategy.PAPER_CALIBRATION_USD == 0.50
+
+    def test_win_prob_estimate_above_90c_breakeven(self):
+        """Strategy's estimated win_prob should exceed 90c breakeven (0.90)."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=90, no_price=10, seconds_remaining=300)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.002)
+        assert signal is not None
+        # Must exceed the 90c no-stop-loss breakeven
+        assert signal.win_prob > 0.90
+
+    def test_edge_pct_positive(self):
+        """Signal edge_pct must be > 0 (positive expected value)."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=92, no_price=8, seconds_remaining=300)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.003)
+        assert signal is not None
+        assert signal.edge_pct > 0
+
+
+# ── TestExpirySniperTimingUsesCloseTime ──────────────────────────────────
+
+
+class TestExpirySniperTimingUsesCloseTime:
+    """Verify that seconds_remaining is derived from close_time (per Session 53 gotcha)."""
+
+    def test_uses_market_close_time_directly(self):
+        """Strategy uses close_time for timing — NOT clock modulo arithmetic."""
+        strategy = _default_strategy()
+        # Market with 5 min remaining
+        market = _make_market(yes_price=91, no_price=9, seconds_remaining=300)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.002)
+        # Should fire (300s < 840s threshold)
+        assert signal is not None
+
+    def test_market_with_16_minutes_remaining_skipped(self):
+        """Market with 16 min remaining — clearly above 14 min gate — skipped."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=93, no_price=7, seconds_remaining=960)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.005)
+        assert signal is None
+
+    def test_seconds_remaining_derived_from_close_time(self):
+        """Verify strategy computes seconds_remaining from close_time internally."""
+        strategy = _default_strategy()
+        # Market whose close_time is 10 min from now
+        now = datetime.now(timezone.utc)
+        close_time = (now + timedelta(minutes=10)).isoformat()
+        open_time = (now - timedelta(minutes=5)).isoformat()
+        market = Market(
+            ticker="KXBTC15M-TIMING-TEST",
+            title="Timing test",
+            event_ticker="KXBTC15M",
+            status="open",
+            yes_price=92,
+            no_price=8,
+            volume=50000,
+            close_time=close_time,
+            open_time=open_time,
+            result=None,
+            raw={},
+        )
+        # 10 min remaining = 600s < 840s → should fire (time gate passes)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.003)
+        assert signal is not None
+
+
+# ── TestExpirySniperDriftDirectionConsistency ──────────────────────────────
+
+
+class TestExpirySniperDriftDirectionConsistency:
+    """Verify drift direction must match the 90c side."""
+
+    def test_positive_drift_matches_yes_at_90c(self):
+        """BTC up (+) and YES at 90c → consistent → fire YES."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=91, no_price=9, seconds_remaining=300)
+        sig = strategy.generate_signal(market=market, coin_drift_pct=+0.003)
+        assert sig is not None and sig.side == "yes"
+
+    def test_negative_drift_matches_no_at_90c(self):
+        """BTC down (-) and NO at 90c (YES at 10c) → consistent → fire NO."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=9, no_price=91, seconds_remaining=300)
+        sig = strategy.generate_signal(market=market, coin_drift_pct=-0.003)
+        assert sig is not None and sig.side == "no"
+
+    def test_positive_drift_inconsistent_with_no_at_90c(self):
+        """BTC up (+) but NO at 90c — inconsistent direction — skip."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=9, no_price=91, seconds_remaining=300)
+        sig = strategy.generate_signal(market=market, coin_drift_pct=+0.003)
+        assert sig is None
+
+    def test_negative_drift_inconsistent_with_yes_at_90c(self):
+        """BTC down (-) but YES at 90c — inconsistent direction — skip."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=91, no_price=9, seconds_remaining=300)
+        sig = strategy.generate_signal(market=market, coin_drift_pct=-0.003)
+        assert sig is None

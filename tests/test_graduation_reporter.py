@@ -122,9 +122,9 @@ class TestGraduationStatusPrinter:
         )
 
     def test_zero_of_10_ready_on_empty_db(self, db):
-        """Empty DB should show '0 / 10 strategies ready' (xrp_drift_v1 added Session 42)."""
+        """Empty DB should show '0 / 11 strategies ready' (expiry_sniper_v1 added Session 54)."""
         output = _call_print_graduation_status(db)
-        assert "0 / 10" in output, f"Expected '0 / 10' in output, got:\n{output}"
+        assert "0 / 11" in output, f"Expected '0 / 11' in output, got:\n{output}"
 
     def test_exits_without_starting_connections(self, db, tmp_path):
         """

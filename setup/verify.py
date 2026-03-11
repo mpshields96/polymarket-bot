@@ -43,6 +43,7 @@ _GRAD = {
     "weather_forecast_v1":          (30, 0,  0.30, 4),
     "fomc_rate_v1":                 (5,  0,  0.30, 4),  # low frequency — 5 trade minimum
     "xrp_drift_v1":                 (30, 0,  0.30, 4),  # micro-live — added Session 42
+    "expiry_sniper_v1":             (30, 0,  0.30, 4),  # paper-only — added Session 54
 }
 
 # Strategies currently in LIVE mode — graduation tracked against live trades only
