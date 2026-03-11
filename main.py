@@ -2433,7 +2433,7 @@ async def main():
     eth_drift_strategy = eth_drift_load()
     logger.info("Strategy loaded: %s (STAGE 1 ETH drift — Kelly + $5 cap, graduated Session 44)", eth_drift_strategy.name)
     sol_drift_strategy = sol_drift_load()
-    logger.info("Strategy loaded: %s (micro-live SOL drift, 1 contract/bet)", sol_drift_strategy.name)
+    logger.info("Strategy loaded: %s (STAGE 1 SOL drift — Kelly + $5 cap, promoted S48 per Matthew)", sol_drift_strategy.name)
     xrp_drift_strategy = xrp_drift_load()
     logger.info("Strategy loaded: %s (micro-live XRP drift, 1 contract/bet)", xrp_drift_strategy.name)
     btc_imbalance_strategy = load_btc_imbalance_from_config()
@@ -2565,7 +2565,7 @@ async def main():
     # BTC drift: STAGE 1 LIVE (promoted Session 41: 42/30 bets, Brier 0.249 — graduated).
     # calibration_max_usd removed: Kelly + HARD_MAX_TRADE_USD ($5) now governs bet size.
     # Daily loss limit is the primary risk governor.
-    _DRIFT_CALIBRATION_CAP_USD = 0.01   # still used by ETH/SOL drift (still in calibration phase)
+    _DRIFT_CALIBRATION_CAP_USD = 0.01   # still used by XRP drift (still in calibration phase). SOL promoted to Stage 1 (S48).
     drift_task = asyncio.create_task(
         trading_loop(
             kalshi=kalshi,
@@ -2617,10 +2617,11 @@ async def main():
         ),
         name="eth_drift_loop",
     )
-    # SOL drift: micro-live, stagger 29s (before BTC imbalance moves to 36s)
-    # Enabled Session 36: SOL ~3x more volatile than BTC/ETH → more frequent signals.
-    # Same 1-contract/bet cap as btc_drift/eth_drift. KXSOL15M series.
-    # Do NOT raise cap until: 30+ sol live trades + Brier < 0.30.
+    # SOL drift: STAGE 1 — promoted S48 per Matthew explicit instruction.
+    # Brier 0.181 (best signal across all strategies, well below 0.25 gate).
+    # 16/30 live bets at promotion — Matthew explicitly authorized Stage 1 before 30-bet gate.
+    # calibration_max_usd removed: Kelly + HARD_MAX_TRADE_USD ($5) now governs bet size.
+    # KXSOL15M series, stagger 29s.
     sol_drift_task = asyncio.create_task(
         trading_loop(
             kalshi=kalshi,
@@ -2637,7 +2638,7 @@ async def main():
             slippage_ticks=paper_slippage_ticks,
             fill_probability=paper_fill_probability,
             trade_lock=_live_trade_lock,
-            calibration_max_usd=_DRIFT_CALIBRATION_CAP_USD,
+            calibration_max_usd=None,  # STAGE 1: Kelly + HARD_MAX_TRADE_USD ($5) governs
             btc_move_condition=_btc_move_condition,
         ),
         name="sol_drift_loop",
