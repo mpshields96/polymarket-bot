@@ -814,3 +814,31 @@ Sample sizes per bucket are small (3-8 bets). Full significance at 30 bets per b
 DO NOT implement until Matthew signs off on the direction filter decision first.
 This finding is secondary to the broader YES vs NO directional analysis.
 
+
+---
+
+## [ ] Sol drift Stage 2 promotion analysis (Session 54, pending 30-bet graduation)
+
+**Status:** 25/30 live bets at Session 54 start. At 30 bets: run full evaluation.
+
+**Current data suggests Stage 2 readiness:**
+- Brier: 0.171 (well below 0.25 threshold)
+- Bet sizes at Stage 1: $1.83-$4.88 (Kelly < $5 cap = Kelly IS the limiting factor)
+  - This is different from btc_drift where $5 always binds
+  - We CAN observe Kelly calibration behavior at Stage 1 for sol_drift
+- Win rate: 20/25 = 80% (Stage 1 bets: $2-$5 range)
+- Expected at Stage 2 ($10 cap): Kelly would compute $3.66-$9.76 for similar edges
+
+**What happens at 30 bets:**
+1. Run: venv/bin/python3 main.py --graduation-status
+2. Check: Brier still < 0.25? (currently 0.171 — excellent)
+3. Check: Are most bets Kelly-limited (not $5 hard-cap limited)? (yes, currently)
+4. Check: No hard kill switch events? (currently 0 consecutive losses)
+5. Document findings → SESSION_HANDOFF pending tasks
+6. Ask Matthew for Stage 2 sign-off when expansion gate opens
+
+**Expansion gate criteria (still closed):**
+- btc_drift: 30+ live bets ✅ Brier < 0.30 ✅
+- 2-3 weeks live P&L data ❌ NOT MET
+- No kill switch events in window ❌ NOT MET (bot crashed Session 54)
+Gate opens BEFORE we can promote any strategy to Stage 2.

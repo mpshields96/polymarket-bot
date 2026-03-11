@@ -1203,4 +1203,13 @@ id,placed_at,settled_at,ticker,strategy,side,action,price_cents,count,cost_usd,e
 1202,2026-03-11 19:35:55,,tec-nba-champ-2026-07-01-cle,sports_futures_v1,no,buy,96,5,4.8,,,paper,,,,,,,,688c6bab-ace8-4832-800c-17e4d216bbb3,
 1203,2026-03-11 19:35:55,,tec-nhl-scw-2026-06-30-car,sports_futures_v1,no,buy,92,5,4.6000000000000005,,,paper,,,,,,,,5d5ce826-9486-45d5-98ca-2cf3b3fb5cb3,
 1204,2026-03-11 19:37:24,2026-03-11 19:46:53,KXXRP15M-26MAR111545-45,xrp_drift_v1,yes,buy,57,1,0.57,0.1358,0.6233,live,no,-0.57,False,0,0.0,-0.57,-0.57,d460edab-b6f0-42f7-af3e-3bdacbb1cdcb,89866b11-a3b2-4718-afc6-4d0954516918
-1205,2026-03-11 20:00:30,,KXXRP15M-26MAR111615-15,xrp_drift_v1,no,buy,47,1,0.47,0.1755,0.5618,live,,,,,,,,4deb4292-aacc-4c52-8071-bbe353c66de1,5c2cc846-6b7c-4159-9322-84486eb17e77
+1205,2026-03-11 20:00:30,2026-03-11 20:17:15,KXXRP15M-26MAR111615-15,xrp_drift_v1,no,buy,47,1,0.47,0.1755,0.5618,live,no,0.51,True,100,0.02,0.53,0.51,4deb4292-aacc-4c52-8071-bbe353c66de1,5c2cc846-6b7c-4159-9322-84486eb17e77
+1206,2026-03-11 20:06:17,,tec-cbb-champ-2026-04-04-fl,sports_futures_v1,no,buy,86,5,4.3,,,paper,,,,,,,,81fb9177-f04c-42ff-ac92-1ce7e0914047,
+1207,2026-03-11 20:06:17,,tec-cbb-champ-2026-04-04-hou,sports_futures_v1,no,buy,96,5,4.8,,,paper,,,,,,,,5c5ee4d9-b078-4d40-a75d-cb8fa375c44c,
+1208,2026-03-11 20:06:17,,tec-nba-champ-2026-07-01-okc,sports_futures_v1,yes,buy,40,12,4.800000000000001,,,paper,,,,,,,,206f039d-cbe7-45d5-8502-5550c15646a5,
+1209,2026-03-11 20:06:17,,tec-nba-champ-2026-07-01-cle,sports_futures_v1,no,buy,96,5,4.8,,,paper,,,,,,,,7349c5bd-af8b-47bc-8650-421f5d419915,
+1210,2026-03-11 20:06:17,,tec-nhl-scw-2026-06-30-car,sports_futures_v1,no,buy,92,5,4.6000000000000005,,,paper,,,,,,,,d996261a-2641-460c-9cd4-e14c37ba9106,
+1211,2026-03-11 20:16:08,,tec-cbb-champ-2026-04-04-hou,sports_futures_v1,no,buy,96,5,4.8,,,paper,,,,,,,,e89272c4-e236-4439-8c8c-1935c9a23764,
+1212,2026-03-11 20:16:08,,tec-nba-champ-2026-07-01-okc,sports_futures_v1,yes,buy,40,12,4.800000000000001,,,paper,,,,,,,,03b0c438-f795-4c71-b22d-adc70e72838d,
+1213,2026-03-11 20:16:08,,tec-nba-champ-2026-07-01-cle,sports_futures_v1,no,buy,96,5,4.8,,,paper,,,,,,,,ec620212-8601-4ac9-809c-096654930035,
+1214,2026-03-11 20:16:08,,tec-nhl-scw-2026-06-30-car,sports_futures_v1,no,buy,92,5,4.6000000000000005,,,paper,,,,,,,,3b422feb-044a-4950-bb99-f669a9e6e4ca,

@@ -2038,3 +2038,43 @@ WHAT SESSION 54 SHOULD DO DIFFERENTLY:
 - Trim MEMORY.md to under 200 lines — move detailed strategy data to separate topic file
 - eth_drift YES validation: count YES-only settled bets. At 30, evaluate win rate.
 - Continue direction filter EV tracking (xrp at 16/30 — evaluate filter at 30 bets)
+
+## Session 54 — 2026-03-11 — monitoring + direction filter analysis
+
+### Session start state:
+Bot RUNNING PID 75130, session53.log
+All-time live P&L: -17.54 USD (was -28.01 at S52 wrap — S53 gained +10.47!)
+Today S53: +27.98 USD live (73 settled, 58% win) — best day this week
+1003/1003 tests passing (no code changes this session)
+
+### BOT CRASH + RESTART (session event):
+Between 20:09-20:14 UTC, PID 75130 crashed silently (no error in log — clean cycle at 15:16 CDT then dead).
+Session monitoring loop (background bash) correctly detected crash and triggered restart_bot.sh 53.
+New bot: PID 78079, logging to /tmp/polybot_session53.log (appended).
+polybot-monitor scheduled task updated to PID 78079.
+Monitoring script updated to use dynamic bot.pid reading (handles future restarts automatically).
+CONCLUSION: The monitoring loop worked exactly as designed. This is the loop's first live test — PASSED.
+
+### Direction filter analysis (Session 54, 20:23 UTC):
+BTCdrift NO post-filter (since S43, 8 bets): 4/8 wins (50%) — slight regression from 58% all-time.
+  Not yet significant (8 bets). Original filter basis was 20 YES bets at 30% win rate (-$30.07).
+  NO filter is correct — need 30+ post-filter NO bets for proper evaluation.
+ETH drift post-filter (since 19:04 UTC S53 restart, 2 bets): 2/2 wins (100%), EV +5.52/bet.
+  Very early. Need 28 more YES settled to validate filter. EV will normalize.
+SOL drift all-time: NO 12/13 wins (92%) EV=+0.399/bet vs YES 8/12 (67%) EV=+0.359/bet.
+  Both positive! But NO significantly better. Filter is correct. 25/30 bets — 5 to graduation.
+XRP drift all-time: YES 5/6 wins (83%) EV=+0.248/bet vs NO 4/11 (36%) EV=-0.221/bet.
+  Very strong XRP YES vs NO gap. 17/30 settled total. Plan: apply direction_filter="yes" at 30 bets.
+
+### Price guard drought (current session, started ~20:00 UTC):
+Markets at 10-14c YES (extreme bearish session). Price guard correctly blocking ALL signals.
+Estimated drought until crypto prices recover to near-50c range.
+This is correct behavior — NOT a bug. See SESSION_HANDOFF drought pattern section.
+
+### PENDING ACTIONS FOR SESSION 54 (ongoing):
+1. sol_drift graduation: 25/30 — watch for 5 more bets (pace: ~11/day when prices in range)
+2. XRP direction filter: 17/30 settled — apply direction_filter="yes" at 30 bets (13 more)
+3. ETH drift YES filter: 2/30 post-filter settled — need 28 more YES bets
+4. BTC drift NO filter: 8/30 post-filter settled — weeks away from 30
+5. FOMC March 18: 2 bets on -26MAR markets, will settle after Fed decision (~March 19-20)
+6. Monitoring: continue background monitoring cycle (chains automatically on task completion)
