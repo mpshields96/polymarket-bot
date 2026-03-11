@@ -243,18 +243,28 @@ CHECK: `pip freeze | grep <package>` to get current version, then pin it.
 3. Announce what you found in 2-3 lines, then proceed
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
 
-Current project state (updated Session 47 — 2026-03-11 ~21:00 CDT — BOT RUNNING PID 42593 → session47.log):
+Current project state (updated Session 47 wrap-up — 2026-03-10 ~22:38 CDT — BOT RUNNING PID 46398 → session48.log):
 - **985/985 tests passing** (+5 direction_filter tests Session 47)
-- **Bot RUNNING** — PID 42593 → /tmp/polybot_session47.log.
-  ✅ Restarted with --reset-soft-stop. Consecutive counter = 0. No cooling active.
-  All-time live P&L: -$41.83 (improved +$4.41 in Session 47)
-- **SESSION 47 BUILDS**:
+- **Bot RUNNING** — PID 46398 → /tmp/polybot_session48.log.
+  ✅ Clean restart with --reset-soft-stop at 22:38 CDT. Consecutive counter = 0. No cooling active.
+  All-time live P&L: -$44.18 (session 47 evening monitoring: trades 849 L, 855 W, 863 W, 864 W)
+  Today (2026-03-10) P&L: +$1.34 live (10 settled, 60% win rate)
+- **SESSION 47 BUILDS (Part 1)**:
   1. src/strategies/crypto_daily.py: direction_filter param added to CryptoDailyStrategy
      direction_filter="no": fires only on upward drift, always bets NO (contrarian on HFT momentum)
   2. main.py: btc_daily_strategy uses direction_filter="no"; eth_imbalance live_executor_enabled=False
      eth_imbalance DISABLED (Brier 0.337 at 15 live bets — 27% systematic calibration error)
   3. tests/test_crypto_daily.py: 5 new TestDirectionFilter tests (985/985 passing)
   4. scripts/export_kalshi_settlements.py: shebang removed (was triggering security test false positive)
+  5. Bot restarted PID 42593 with --reset-soft-stop (Part 1 end)
+- **SESSION 47 (Part 2) — monitoring + audit + wrap-up**:
+  1. Full strategy logic audit: all price guards, direction filters, paper/live separation confirmed working
+  2. xrp_drift 0/5 NO win pattern identified (possible mean-reversion). Monitor only, 30 bets minimum.
+  3. Bet size analysis: do NOT raise. Brier gate <0.20 at 100+ bets (reference doc). Not met.
+     Path to more income: promote sol_drift to Stage 1 (14 more bets). Brier 0.181 = best signal.
+  4. Clean restart to PID 46398 → session48.log (fresh start for Session 48 handoff)
+  FONT FORMAT RULE: plain text only in all responses. NEVER use markdown table syntax (| --- |).
+  Tables render in wrong font in Claude Code UI. Matthew will terminate chat for violations.
 - **SESSION 46 BUILDS**:
   1. scripts/export_kalshi_settlements.py (NEW) — Kalshi API settlement export via /portfolio/settlements + /portfolio/fills
      BUG FOUND: Kalshi revenue field is in cents not dollars. Fixed in script.
@@ -283,25 +293,28 @@ Current project state (updated Session 47 — 2026-03-11 ~21:00 CDT — BOT RUNN
   ⚠️ STRIP items (copy_trader stack, sports_futures+odds_api, eth_imbalance live, sports_game)
      logged in CODEBASE_AUDIT.md — NOT yet removed. Require Matthew sign-off before deletion.
 - **LIVE LOOPS** (daily loss cap DISABLED Session 42 — bankroll floor + consecutive cooling govern):
-  - btc_drift_v1 → KXBTC15M | STAGE 1 ($5 cap, Kelly) | 48/30 ✅ Brier 0.253
-    direction_filter="no" ACTIVE. P&L -$25.73 | 3 consec losses. DECISION POINT at 30 NO-only bets.
-  - eth_drift_v1 → KXETH15M | STAGE 1 (graduated Session 44!) | 33/30 ✅ Brier 0.254
-    P&L +$6.11 | 0 consec losses (healthy)
-  - sol_drift_v1 → KXSOL15M | micro-live | 15/30 Brier 0.184 🔥 P&L +$1.44 (BEST SIGNAL) | 2 consec
+  - btc_drift_v1 → KXBTC15M | STAGE 1 ($5 cap, Kelly) | 49/30 ✅ Brier 0.252
+    direction_filter="no" ACTIVE. P&L -$24.95 | 0 consec. DECISION POINT at 30 NO-only settled bets.
+  - eth_drift_v1 → KXETH15M | STAGE 1 (graduated Session 44!) | 36/30 ✅ Brier 0.253
+    P&L +$2.57 | 0 consec (healthy) — best active performer today
+  - sol_drift_v1 → KXSOL15M | micro-live | 16/30 Brier 0.181 🔥 P&L +$1.85 | 0 consec
+    HIGHEST PRIORITY: 14 more bets for Stage 1 promotion. Best signal, best Brier.
   - xrp_drift_v1 → KXXRP15M | micro-live | 5/30 Brier 0.390 ❌ P&L -$2.99 | 5 consec (per-strategy blocked)
+    0/5 NO wins — possible mean-reversion pattern. Monitor only per PRINCIPLES.md.
   - btc_lag_v1 → KXBTC15M | STAGE 1 | 45/30 ✅ Brier 0.191 | 0 signals/week (HFTs) — dead
-  - eth_orderbook_imbalance_v1 → KXETH15M | PAPER-ONLY AS OF SESSION 47 | 15/30 Brier 0.337 ❌
-    DISABLED LIVE (Session 47): systematic 27% calibration error. Paper data continues.
+  - eth_orderbook_imbalance_v1 → KXETH15M | PAPER-ONLY (disabled live Session 47) | 15/30 Brier 0.337 ❌
+    27% systematic calibration error. Paper data continues. Reconsider if Brier < 0.25 at 30 bets.
   - All live loops: Kelly + $5 HARD_MAX governs btc_drift + eth_drift. sol/xrp: calibration_max_usd=0.01.
-  - All-time live P&L: **-$41.83** (improved from -$46.24 this session)
-- **btc_daily_v1**: PAPER-ONLY, direction_filter="no" ACTIVE (S47). ~0 NO-only settled bets yet.
+  - All-time live P&L: **-$44.18** (Session 47 evening monitoring: 60% win rate today)
+- **btc_daily_v1**: PAPER-ONLY, direction_filter="no" ACTIVE (S47). ~1 NO-only settled bet since activation.
   KXETHD/KXSOLD/KXXRPD all have 0 total volume — KXBTCD only viable daily crypto series.
 - **fomc_rate_v1**: paper bets placed (KXFEDDECISION-26MAR closes March 18)
 - PAPER-ONLY Kalshi: eth_lag, btc_imbalance, weather, sol_lag, all 3 crypto daily loops
 - **POLYMARKET**: platform mismatch confirmed PERMANENT for now (see STRATEGIC_DIRECTION.md for full analysis)
   - VPN access to .COM: NOT advisable (ToS violation + CFTC implications). See STRATEGIC_DIRECTION.md Q7.
   - Monitor CFTC regulatory developments for .COM US access monthly.
-- Latest code commit: 38962be (Session 47 direction_filter + eth_imbalance disable)
+- Latest code commit: 38962be (Session 47 Part 1 — direction_filter + eth_imbalance disable)
+  No code changes in Session 47 Part 2 (monitoring + audit only)
 - Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime % hard stop.
   Active protection: bankroll floor ($20) + consecutive cooling (8→2hr) + $5/bet hard cap.
 - **--health "Daily loss soft stop active"** = DISPLAY ONLY (kill_switch.py lines 187-189 COMMENTED OUT)

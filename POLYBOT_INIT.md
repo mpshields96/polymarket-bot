@@ -45,56 +45,59 @@
 ## CURRENT STATUS — (updated each session)
 ═══════════════════════════════════════════════════
 
-BUILD COMPLETE. 980/980 tests passing. verify.py 21/29 (8 advisory WARNs — non-critical).
-Last commit: 3fef17a (Session 45) + pending Session 46 commit
+BUILD COMPLETE. 985/985 tests passing. verify.py 21/29 (8 advisory WARNs — non-critical).
+Last commit: 38962be (Session 47 — direction_filter + eth_imbalance disable)
 
-## BOT STATE — Session 46 END (2026-03-11 ~19:35 CDT) — BOT RUNNING
+## BOT STATE — Session 47 WRAP-UP (2026-03-10 ~22:38 CDT) — BOT RUNNING
 
-⚠️ CRITICAL RESTART WARNING:
-  DB shows 11 consecutive live losses. If bot is restarted normally, restore_consecutive_losses()
-  reads 11 from DB and immediately triggers 2hr cooling — NO live bets for 2 hours.
-  In-memory consecutive counter = 3 (no cooling active in running process).
-  Bot PID: 36660 → /tmp/polybot_session45.log
-  IF RESTART IS NEEDED: always use --reset-soft-stop flag:
-    nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session47.log 2>&1 &
+Clean restart performed at session end. PID 46398 → /tmp/polybot_session48.log
+Restarted with --reset-soft-stop (clears consecutive counter from DB to 0).
+NO consecutive loss concern — consecutive = 0 after restart.
 
 Check bot: cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "RUNNING" || echo "STOPPED"
-Watch:  tail -f /tmp/polybot_session45.log | grep --line-buffered "LIVE BET\|Kill switch blocked\|cooling\|consecutive"
+Watch:  tail -f /tmp/polybot_session48.log | grep --line-buffered "LIVE BET\|Kill switch blocked\|cooling\|consecutive"
 
-All-time live P&L: -$45.52 (DB) | -$48.37 (Kalshi API — authoritative) | Bankroll: ~$60 (approx)
-Tests: 980/980 | Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime hard stop
+All-time live P&L: -$44.18 (DB, as of 22:37 CDT) | Bankroll: ~$55 (approx, check with --report)
+Tests: 985/985 | Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime hard stop
 Active protection: bankroll floor ($20) + consecutive cooling (8→2hr) + $5/bet hard cap
 
-## SIX LIVE LOOPS (as of Session 46 end)
+RESPONSE FORMAT RULE: Plain text only in all responses. NEVER use markdown table syntax (| --- |).
+Tables render in wrong font in Claude Code UI. Matthew will terminate chat for format violations.
+
+## LIVE LOOPS (as of Session 47 wrap-up — 2026-03-10 22:38 CDT)
 
   🔴 btc_drift_v1 → KXBTC15M | STAGE 1 ($5 cap, Kelly) | min_drift=0.10, min_edge=0.05
-     Graduation: 48/30 ✅ | Brier: 0.253 | P&L: -$25.73 | 3 consecutive losses
-     direction_filter="no" ACTIVE — blocks YES signals. Need 30 NO-only bets for decision.
+     Graduation: 49/30 ✅ | Brier: 0.252 | P&L: -$24.95 | 0 consecutive losses
+     direction_filter="no" ACTIVE — blocks YES signals. ~29 NO-only bets since activation.
      DECISION POINT at 30 NO-only bets: present data to Matthew, don't decide autonomously.
+     Btc drift net P&L is negative because it includes bad YES bets BEFORE direction_filter.
 
   🔴 eth_drift_v1 → KXETH15M | STAGE 1 (graduated Session 44!) | min_drift=0.05, min_edge=0.05
-     Graduation: 31/30 ✅ | Brier: 0.256 | P&L: +$0.41 | 4 consecutive losses (per-strategy)
-     NOTE: graduation-status shows "BLOCKED (4 consec)" = per-strategy view. Kill switch = global.
-     Kelly + $5 HARD_MAX governs. calibration_max_usd was removed in Session 44.
+     Graduation: 36/30 ✅ | Brier: 0.253 | P&L: +$2.57 | 0 consecutive losses
+     Best performing live strategy. Consistent bets on ETH 15-min windows.
+     Kelly + $5 HARD_MAX governs. calibration_max_usd removed in Session 44.
 
   🔴 sol_drift_v1 → KXSOL15M | micro-live | min_drift=0.15 (3x BTC), min_edge=0.05
-     Graduation: 14/30 | Brier: 0.170 🔥 BEST SIGNAL | P&L: +$1.93 | 1 consecutive loss
-     This is the healthiest live strategy. SOL ~3x BTC volatility → more frequent signals.
+     Graduation: 16/30 | Brier: 0.181 🔥 BEST SIGNAL | P&L: +$1.85 | 0 consecutive losses
+     ⚡ HIGHEST PRIORITY MILESTONE: Needs 14 more bets to graduate to Stage 1 ($5/bet).
+     Stage 1 = 10x current bet size on the best-calibrated signal.
 
   🔴 xrp_drift_v1 → KXXRP15M | micro-live | min_drift=0.10 (2x BTC), min_edge=0.05
-     Graduation: 5/30 | Brier: 0.390 ❌ bad start | P&L: -$2.99 | 5 consecutive losses
-     Too few bets to assess statistically. Brier at 5 bets is unreliable.
+     Graduation: 5/30 | Brier: 0.390 ❌ bad start | P&L: -$2.99 | 5 consecutive losses (BLOCKED)
+     0/5 NO wins — possible systematic mean-reversion pattern (XRP rebounds after downward drift).
+     Too few bets to assess or change. Per PRINCIPLES.md: need 30 bets minimum.
+     calibration_max_usd=0.01 limits losses to ~$0.49/bet.
 
-  🔴 eth_orderbook_imbalance_v1 → KXETH15M | micro-live | signal_scaling=0.5
-     Graduation: 13/30 | Brier: 0.353 ❌ GETTING WORSE | P&L: -$16.68 | 4 consecutive losses
-     ⚠️ WATCHDOG: If Brier > 0.30 at bet 22 → disable live trading for this strategy.
-     signal_scaling was already cut from 1.0→0.5 in Session 44 to fix -27.2% calibration error.
+  📋 eth_orderbook_imbalance_v1 → KXETH15M | PAPER-ONLY (disabled live Session 47)
+     Graduation: 15/30 | Brier: 0.337 ❌ | P&L: -$18.20
+     DISABLED LIVE: systematic 27% calibration error (model 67% win, actual 33%).
+     Paper continues for data collection only. Reconsider if Brier improves to <0.25 at 30 bets.
 
   🔴 btc_lag_v1 → KXBTC15M | STAGE 1 | 45/30 ✅ | 0 signals/week (HFTs priced in) — dead signal
-     Kept running as paper/live for data. No expectation of future signals.
+     Kept running as live loop for data. No expectation of future signals.
 
   All live loops: _live_trade_lock (asyncio.Lock), price guard 35-65¢
-  sol/xrp/eth_imbalance: calibration_max_usd=0.01 (~$0.35-0.65/bet)
+  sol/xrp: calibration_max_usd=0.01 (~$0.35-0.65/bet, micro-live)
   btc_drift/eth_drift: Kelly + $5 HARD_MAX (Stage 1)
 
 ## PAPER-ONLY LOOPS
@@ -107,14 +110,31 @@ Active protection: bankroll floor ($20) + consecutive cooling (8→2hr) + $5/bet
   📋 sports_futures_v1 — Polymarket.US bookmaker arb, min_books=2
   📋 copy_trader_v1 — Polymarket.US, 0 .US matches (platform mismatch confirmed)
 
-## EXPANSION GATE STATUS (Session 46)
+## EXPANSION GATE STATUS (Session 47 wrap-up)
   Gate: PARTIALLY OPEN. btc_drift/eth_drift both graduated to Stage 1.
   XRP drift already built (Session 41) and running micro-live.
   DO NOT BUILD NEW STRATEGIES until xrp/sol/eth_imbalance validation complete (30+ bets each).
   Next expansion candidates (log to todos.md only — do not build):
-    - KXBTCD hourly live — btc_daily_v1 already paper. Promote once paper graduation met.
+    - sol_drift Stage 1 promotion — 14 more bets needed. HIGHEST priority. Just remove calibration_max_usd.
+    - btc_daily NO-only live — needs 30 paper NO bets + Brier < 0.25. 2-4 weeks out.
     - CPI economics markets (KXCPI) — episodic edge ~3-5 bets/month, build post-Grand-Rounds
   Grand Rounds: ~March 20, 2026. Post-Grand-Rounds = more dev time.
+
+## SESSION 47 KEY CHANGES (2026-03-11)
+  Part 1:
+  1. src/strategies/crypto_daily.py: direction_filter param added to CryptoDailyStrategy
+     direction_filter="no": fires on UPWARD drift, always bets NO (contrarian HFT-aware)
+     Rationale: btc_daily paper YES win rate 27% (same HFT pattern as btc_drift)
+  2. main.py: btc_daily direction_filter="no", eth_imbalance live_executor_enabled=False
+  3. tests/test_crypto_daily.py: 5 new TestDirectionFilter tests (985/985 total)
+  4. Security fix: removed shebang from scripts/export_kalshi_settlements.py
+  5. Bot restarted PID 42593 with --reset-soft-stop
+  Part 2 (monitoring + audit):
+  6. Full strategy logic audit — all guards confirmed working correctly
+  7. Monitored trades 849 (L), 855 (W), 863 (W btc_drift NO), 864 (W sol_drift NO)
+  8. Bet size analysis using KALSHI_BOT_COMPLETE_REFERENCE.pdf — do NOT raise sizes yet
+  9. xrp_drift 0/5 NO win pattern documented — possible mean-reversion, monitor only
+  10. Clean restart to PID 46398 → session48.log
 
 ## SESSION 46 KEY CHANGES (2026-03-11)
   1. scripts/export_kalshi_settlements.py (NEW) — Kalshi API tax data export
