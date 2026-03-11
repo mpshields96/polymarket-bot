@@ -1318,3 +1318,69 @@ autonomous overhaul, and reference doc gap analysis.
 ### Test count: 980/980 (unchanged — no new tests this sub-session)
 ### Commits: pending (export script + settlements CSV + MD updates)
 ### Bot: RUNNING | PID 36660 | session45.log | consecutive_in_memory=3 (safe)
+
+---
+
+## Session 47 — 2026-03-11 — btc_daily direction_filter + eth_imbalance disabled live
+
+### Bot restarted: PID 42593 → /tmp/polybot_session47.log (--reset-soft-stop applied)
+### All-time live P&L at session end: -$41.83 (improved +$4.41 from -$46.24)
+
+### BUILDS COMPLETED:
+
+1. **src/strategies/crypto_daily.py — direction_filter param added**
+   - New `direction_filter: Optional[str] = None` parameter to CryptoDailyStrategy
+   - When `direction_filter="no"`: fires only on UPWARD drift, always bets NO (contrarian)
+   - Rationale: 33 btc_daily paper bets show YES wins 27% (11 YES, 3W/8L vs NO: 1 NO, 1W/0L)
+   - Same pattern as btc_drift (HFT front-running makes YES overpriced on upward momentum)
+   - Original mode (None): fires both directions, YES on up drift, NO on down drift (unchanged)
+
+2. **main.py — btc_daily direction_filter + eth_imbalance disabled**
+   - btc_daily_strategy: added `direction_filter="no"` (contrarian paper mode)
+   - eth_orderbook_imbalance_v1: `live_executor_enabled=False` (was True/live)
+   - Rationale for eth_imbalance disable: Brier 0.337 at 15 live bets, 27% calibration error
+     (model predicts 67% win rate, actual 33%); saves expected ~$14 future losses
+   - Log labels updated for both strategies (clarity on disabled/contrarian state)
+
+3. **tests/test_crypto_daily.py — 5 new TestDirectionFilter tests**
+   - test_direction_filter_no_fires_no_on_upward_drift (FIXED: was failing, min_edge_pct=0.02)
+   - test_direction_filter_no_ignores_downward_drift
+   - test_direction_filter_no_ignores_flat_drift
+   - test_original_mode_fires_yes_on_upward_drift (FIXED: was failing, better market setup)
+   - test_original_mode_fires_no_on_downward_drift
+   - Root cause of 2 failures: default min_edge_pct=0.04 but net edge only 0.024 in test setup
+   - Fix: set min_edge_pct=0.02 in tests that need signal to fire; use _make_markets_around_strike
+     for YES test (markets centered at spot give model_prob > ask price)
+
+4. **Session 46 script fix: scripts/export_kalshi_settlements.py**
+   - Removed shebang line (#!/usr/bin/env python3) — was triggering security test false positive
+   - test_no_external_path_writes_in_code scans for /usr in Python source files
+   - Now 985/985 (was 979/980 at one point; 980 after shebang fix; +5 direction_filter tests)
+
+### GRADUATION STATUS (from --graduation-status at session end):
+  - btc_drift_v1: 48/30 ✅ Brier 0.253 | P&L -$25.73 | 3 consec losses
+  - eth_drift_v1: 33/30 ✅ Brier 0.254 | P&L +$6.11 | 0 consec losses (unblocked!)
+  - sol_drift_v1: 15/30 Brier 0.184 🔥 | P&L +$1.44 | 2 consec losses
+  - xrp_drift_v1: 5/30 Brier 0.390 ❌ | P&L -$2.99 | BLOCKED (5 consec losses)
+  - eth_orderbook_imbalance_v1: 15/30 Brier 0.337 ❌ | P&L -$18.20 | DISABLED LIVE (Session 47)
+  - btc_lag_v1: 45/30 ✅ Brier 0.191 | 0 signals/week (HFTs)
+  - All-time live P&L: -$41.83 (improved from -$46.24)
+
+### Key findings this session:
+  - eth_imbalance 27% calibration error: model significantly overestimates win probability
+    Pattern consistent across all 15 bets — not noise. Action: disable live, keep paper
+  - btc_daily YES paper bets: 27% win rate (11 YES bets, 3W). NO side 100% (1 bet).
+    Too few NO-only data points to conclude, but direction_filter="no" hypothesis valid
+  - KXETHD/KXSOLD/KXXRPD: ALL have 0 total volume. Only KXBTCD has meaningful activity.
+    Matthew's "hourly BTC bets" request → btc_daily_v1 paper loop is the right approach
+  - Paper validation plan: 30 btc_daily paper bets with direction_filter="no" + Brier < 0.25
+    before considering live promotion. At 1-2 bets/day = 2-4 weeks to validate
+
+### Security fix: scripts/export_kalshi_settlements.py shebang removed
+  - test_no_external_path_writes_in_code was flagging /usr in the shebang
+  - Removed line 1: #!/usr/bin/env python3
+  - Script works without shebang (invoked via python3 explicitly)
+
+### Test count: 985/985 (+5 direction_filter tests)
+### Commits: 38962be (direction_filter + eth_imbalance disable)
+### Bot: RUNNING | PID 42593 | session47.log
