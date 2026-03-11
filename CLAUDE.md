@@ -47,6 +47,12 @@ and WHY. Every session must append entries here. This is the authoritative recor
 Read `.planning/KALSHI_MARKETS.md` before any strategy or series work — complete map
 of every Kalshi series type (what exists, what doesn't, what's built vs planned).
 Key fact: KXBTC1H does NOT exist. Hourly BTC bets are inside KXBTCD (24 slots/day).
+CRITICAL — THREE DISTINCT KALSHI CRYPTO BET TYPES (Session 51 permanent — read .planning/KALSHI_MARKETS.md):
+  TYPE 1 = 15-min DIRECTION: KXBTC15M "BTC price up in next 15 mins?" — UP or DOWN, no strike, 15-min. ALL LIVE.
+  TYPE 2 = Hourly/Daily THRESHOLD: KXBTCD "Bitcoin price on Mar 11 at 5pm EDT?" — above/below $X today. PAPER.
+  TYPE 3 = Weekly/Friday THRESHOLD: KXBTCD "Bitcoin price on Friday at 5pm EDT?" — same series, future Friday. NOT BUILT.
+  WRONG: "15-min bets = hourly bets". WRONG: "KXBTCW exists for weekly bets". WRONG: "KXETHD has zero volume".
+  CORRECT volumes (Session 51 live probe): KXBTCD 5pm=676K | KXBTCD Fri=770K | KXETHD 5pm=64K.
 
 If you (Claude) are about to change a threshold, add a filter, or
 adjust a parameter after a losing period — read PRINCIPLES.md first.
@@ -196,6 +202,11 @@ DO NOT: fix symptoms without finding root cause
 - **asyncio race condition on hourly limit fixed (Session 24)**: Two live loops could both pass `check_order_allowed()` before either called `record_trade()`, exceeding hourly limit by 1. Fix: `_live_trade_lock = asyncio.Lock()` created in `main()`, passed to all 3 live loops via `trade_lock=` param. Wraps check→execute→record_trade atomically. Paper loops use `None` (no lock needed, no hourly rate limit in paper path).
 - **Paper-during-softkill (Session 23)**: Soft stops (daily loss, consecutive losses, hourly rate) block LIVE bets only. Paper data collection continues uninterrupted during soft kills. `check_paper_order_allowed()` is used in all paper paths; only hard stops + bankroll floor block paper trades. btc_lag/eth_lag/btc_drift live paths still use `check_order_allowed()` (all stops apply).
 - **Kill switch thresholds**: consecutive_loss_limit=8 (raised Session 41 from 4), daily_loss_cap=DISABLED (Session 42 — user directive). Active risk governors: bankroll floor ($20) + consecutive cooling (8→2hr) + $5/bet hard cap. `DAILY_LOSS_LIMIT_PCT` constant kept in kill_switch.py for display only (not a blocker).
+- **THREE DISTINCT KALSHI CRYPTO BET TYPES — NEVER CONFUSE (Session 51, permanent)**:
+  TYPE 1 (15-min DIRECTION): KXBTC15M/KXETH15M/KXSOL15M/KXXRP15M — "BTC price up in next 15 mins?" — UP/DOWN binary, no strike, 15 min, ALL LIVE in bot.
+  TYPE 2 (Hourly/Daily THRESHOLD): KXBTCD/KXETHD/KXSOLD/KXXRPD — "Bitcoin price on Mar 11 at 5pm EDT?" — above/below $X at specific clock time TODAY. Session 51 volumes: KXBTCD 5pm=676K, KXETHD 5pm=64K, KXSOLD 5pm=3.8K. PAPER-ONLY in bot.
+  TYPE 3 (Weekly/Friday THRESHOLD): SAME KXBTCD series, future Friday date slot — "Bitcoin price on Friday at 5pm EDT?" Session 51: KXBTCD Friday slot = 770K (LARGEST). NOT YET BUILT. No separate KXBTCW series exists.
+  DO NOT equate Type 1 with Type 2. DO NOT say "KXETHD has zero volume" (stale — 64K confirmed). DO NOT say weekly needs KXBTCW (it doesn't exist — use KXBTCD Friday slots).
 - **KXBTC1H does NOT exist** — Kalshi has no hourly BTC/ETH price-direction markets. Only 15-min series: KXBTC15M, KXETH15M, KXSOL15M, KXXRP15M, KXBNB15M, KXBCH15M. Confirmed by probing all 8,719 Kalshi series (Session 23).
 - **sol_lag_v1** (Session 23): paper-only KXSOL15M loop, SOL feed at `wss://stream.binance.us:9443/ws/solusdt@bookTicker`, min_btc_move_pct=0.8 (SOL ~3x more volatile than BTC). Reuses BTCLagStrategy with name_override="sol_lag_v1".
 - **Sports data feed — 500 credit/month hard cap** — enforced by _QuotaGuard in src/data/odds_api.py, resets monthly, persisted to data/sdata_quota.json. Sports props/moneyline are for a SEPARATE system. Do not mix.

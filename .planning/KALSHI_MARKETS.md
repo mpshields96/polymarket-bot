@@ -1,5 +1,5 @@
 # KALSHI MARKETS — Complete Reference
-# Last updated: Session 48 (2026-03-11) — Weekday probe confirms KXBTCMAXW dormant; fresh KXBTCMAXMON/KXBTCMINY/KXCPI data
+# Last updated: Session 51 (2026-03-11) — First-hand API probe confirms all 3 crypto bet types + volume corrections
 # Source: Live API probe (Session 23, all 8,719 series) + full re-probe Session 36
 #         + Matthew's kalshi.com Crypto tab screenshot (Session 38)
 #         + Events endpoint paginated search (Session 39) — 3,000 events scanned
@@ -39,6 +39,109 @@
 #   - CONFIRMED: KXBTCMAXD freq=daily (BTC daily max), KXBTCMINMAXY (annual min+max) — 0 open
 #   - ETH market ecosystem discovered: KXETH (hourly range) + KXETHD (hourly above/below) exists
 # ══════════════════════════════════════════════════════════════
+
+## ══════════════════════════════════════════════════════════════
+## ⚡ PERMANENT REFERENCE — THREE DISTINCT KALSHI CRYPTO BET TYPES
+## This section is MANDATORY READING for every Claude session.
+## CLAUDE: Do NOT skip this. Do NOT confuse these types. They are fundamentally different.
+## Last confirmed by first-hand API probe: Session 51 (2026-03-11)
+## ══════════════════════════════════════════════════════════════
+
+## TYPE 1 — 15-MINUTE DIRECTION BETS (already live in bot)
+
+Series:   KXBTC15M, KXETH15M, KXSOL15M, KXXRP15M
+Question: "BTC price UP in next 15 mins?" — binary YES (up) or NO (down)
+Settlement: by price move direction (up or down vs open)
+Time window: exactly 15 minutes, rolling 24/7
+Strike: NONE — purely directional (not a price level bet)
+Volume (Session 51 live probe):
+  KXBTC15M: 99,794 per window
+  KXETH15M: 12,574 per window
+  KXSOL15M: 5,508 per window
+  KXXRP15M: 7,941 per window
+Bot status: ALL FOUR LIVE (drift strategies running)
+Example ticker: KXBTC15M-26MAR111215-15
+Example title:  "BTC price up in next 15 mins?"
+
+Key characteristics vs Type 2/3:
+  - No strike selection needed (YES = up, NO = down)
+  - Shortest time horizon — 15 minutes
+  - Highest frequency — fires every 15 min
+  - Most liquid per-window
+  - Settled by direction, not level
+  - HFTs are active — btc_lag effectively dead (0 signals/week)
+  - Drift strategy (momentum continuation) is the viable edge
+
+## TYPE 2 — HOURLY/DAILY THRESHOLD BETS (paper-only in bot)
+
+Series:   KXBTCD (BTC), KXETHD (ETH), KXSOLD (SOL), KXXRPD (XRP)
+Question: "Bitcoin price on Mar 11, 2026 at 5pm EDT?" — YES = above strike, NO = below
+Settlement: at a SPECIFIC CLOCK TIME (e.g., 1pm EDT or 5pm EDT) TODAY
+Strike: multiple price levels open simultaneously (40-75 strikes per time slot)
+Volume (Session 51 live probe — CORRECTS prior stale data):
+  KXBTCD 1pm EDT slot: 170,238 contracts
+  KXBTCD 5pm EDT slot: 676,674 contracts  ← most liquid daily slot
+  KXETHD 1pm EDT slot: 7,606 contracts
+  KXETHD 5pm EDT slot: 64,736 contracts   ← KXETHD IS NOT ZERO VOLUME (old data was wrong)
+  KXSOLD 5pm EDT slot: 3,853 contracts
+  KXXRPD 5pm EDT slot: 1,337 contracts
+Bot status: PAPER-ONLY (btc_daily_v1 / eth_daily_v1 / sol_daily_v1 loops)
+Example ticker: KXBTCD-26MAR1117-T70499.99
+Example title:  "Bitcoin price on Mar 11, 2026 at 5pm EDT?"
+
+Key characteristics vs Type 1/3:
+  - Requires ATM strike selection (pick the ~50¢ contract)
+  - Bet resolves at a fixed clock time (1pm EDT, 5pm EDT daily)
+  - Multiple strikes open simultaneously — need to select the ATM (closest to 50¢)
+  - 5pm EDT is by far the most liquid daily slot
+  - Price is absolute (above/below $X at time T), not directional
+  - Longer time horizon than 15-min — hours not minutes
+  - Different signal logic needed vs 15-min (intraday drift from session open)
+  - Academic research: contracts above 50¢ have small positive expected return
+    (favorite-longshot bias confirmed — low-price < 10¢ contracts lose 60%+ of value)
+
+## TYPE 3 — WEEKLY/FRIDAY THRESHOLD BETS (same series as Type 2, future date slots)
+
+Series:   KXBTCD (same series — just a future Friday date slot within KXBTCD)
+Question: "Bitcoin price on Friday at 5pm EDT?" — YES = above strike, NO = below
+Settlement: at FRIDAY 5pm EDT (next Friday, not today)
+Strike: same structure as Type 2 (40-75 strikes, ATM selection)
+Volume (Session 51 live probe):
+  KXBTCD-26MAR1317 (Friday Mar 13): 770,784 contracts  ← LARGEST KXBTCD SLOT
+  ATM market: KXBTCD-26MAR1317-T70499.99 at 48¢ YES, 31,625 vol
+Bot status: NOT YET BUILT as separate strategy (paper-only via btc_daily loop,
+  but btc_daily currently only targets today's slots — Friday slot not prioritized)
+Example ticker: KXBTCD-26MAR1317-T70499.99
+Example title:  "Bitcoin price on Mar 13, 2026 at 5pm EDT?"
+
+IMPORTANT: There is NO separate "KXBTCW" series for weekly bets.
+The "weekly" bet type is just the KXBTCD series with a future Friday date.
+"KXBTCW/KXETHW/KXSOLW DO NOT EXIST" — that note refers to a separate weekly series.
+But the Friday-slot weekly bet DOES exist within KXBTCD and has MORE volume than any daily slot.
+
+Key characteristics vs Type 1/2:
+  - Same series as Type 2 but settles on Friday (not today)
+  - Multi-day time horizon — 1-5 days before settlement
+  - Highest KXBTCD volume (770K vs 676K for same-day 5pm)
+  - Different market dynamics: multi-day uncertainty vs intraday noise
+  - Wider spreads initially (more uncertainty), but tightens as Friday approaches
+  - Different signal needed: macro/weekly trend vs intraday drift
+  - Retail-heavy (Webull launched these specifically for retail)
+  - Expansion gate: build AFTER hourly/daily strategy validates (30+ live bets)
+
+## CRITICAL: DO NOT CONFUSE THESE TYPES
+
+WRONG: "The hourly bets are the 15-minute bets."
+WRONG: "KXBTCD has ~5,000 volume" (stale Session 36 data — actual: 1.6M+ per day)
+WRONG: "KXETHD has zero volume" (stale — actual: 64K in 5pm slot, Session 51 confirmed)
+WRONG: "Weekly bets need KXBTCW" (KXBTCW does not exist — it's KXBTCD with Friday date)
+
+CORRECT:
+  - 15-min DIRECTION = KXBTC15M etc. (UP or DOWN, no strike, 15 min)
+  - Hourly THRESHOLD (today) = KXBTCD 1pm/5pm slot (above/below $X today)
+  - Weekly THRESHOLD (Friday) = KXBTCD Friday slot (above/below $X on Friday)
+
+## ══════════════════════════════════════════════════════════════
 
 ## ⚠️ CRITICAL UPDATE — Session 38 Screenshot Confirms More Market Types Than Documented
 
@@ -215,15 +318,19 @@ Net effect: btc_lag remains 0 signals/week. btc_drift (momentum, not lag) is the
 "Will [asset] be ABOVE or BELOW $[strike] at [specific time today]?"
 Each daily series generates ~24 hourly markets. Kalshi UI shows these as "Hourly (8)" + "Daily (10)".
 
-| Series  | Asset | Volume (Session 36) | Status in bot       | Notes |
-|---------|-------|---------------------|---------------------|-------|
-| KXBTCD  | BTC   | ~5,000 total        | 📋 PAPER (btc_daily_v1) | 24 hourly windows/day |
-| KXETHD  | ETH   | ~0 (new)            | 📋 PAPER (eth_daily_v1) | same structure |
-| KXSOLD  | SOL   | ~0 (new)            | 📋 PAPER (sol_daily_v1) | same structure |
-| KXXRPD  | XRP   | ~0 (confirmed ✅)   | NOT BUILT           | Exists but near-zero volume |
-| KXDOGED | DOGE  | vol=0 all markets ❌| NOT BUILT           | Session 39: EXISTS but zero liquidity — skip |
-| KXBNBD  | BNB   | ❌ No open markets  | NOT BUILT           | Series inactive |
-| KXBCHD  | BCH   | ❌ No open markets  | NOT BUILT           | Series inactive |
+| Series  | Asset | Volume (Session 51 FRESH PROBE) | Status in bot       | Notes |
+|---------|-------|----------------------------------|---------------------|-------|
+| KXBTCD  | BTC   | 676K (5pm slot), 170K (1pm), 770K (Fri) | 📋 PAPER (btc_daily_v1) | See TYPE 2/3 above |
+| KXETHD  | ETH   | 64K (5pm slot), 7.6K (1pm)      | 📋 PAPER (eth_daily_v1) | NOT zero — 64K confirmed |
+| KXSOLD  | SOL   | 3.8K (5pm slot)                  | 📋 PAPER (sol_daily_v1) | Low but nonzero |
+| KXXRPD  | XRP   | 1.3K (5pm slot)                  | NOT BUILT           | Low volume, low priority |
+| KXDOGED | DOGE  | ~0                               | NOT BUILT           | Zero liquidity — skip |
+| KXBNBD  | BNB   | 0 open markets                   | NOT BUILT           | Series inactive |
+| KXBCHD  | BCH   | 0 open markets                   | NOT BUILT           | Series inactive |
+
+NOTE (Session 51): Old Session 36 "~5,000 total" for KXBTCD was WRONG — that probe summed
+all OTM contracts (near-zero vol each). ATM contracts have 600K+ volume. The 5pm EDT slot
+is the most liquid daily KXBTCD slot. Friday (weekly) slot has even more (770K+).
 
 **Strategy used:** CryptoDailyStrategy (Session 33)
   - _find_atm_market(): picks contract with mid-price closest to 50¢ in 30min–6hr window
