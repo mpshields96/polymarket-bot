@@ -1,11 +1,11 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-11 (Session 51 mid-session — PID 69626, session51.log)
+# Last updated: 2026-03-11 (Session 52 end — PID 72269, session52.log)
 # ═══════════════════════════════════════════════════════════════
 
-## ▶ COPY-PASTE THIS TO START A NEW SESSION (Session 52)
+## ▶ COPY-PASTE THIS TO START A NEW SESSION (Session 53)
 
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 52).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 53).
 
 MANDATORY READING BEFORE ANY ACTION:
   cat SESSION_HANDOFF.md
@@ -13,34 +13,28 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/SKILLS_REFERENCE.md
 
-⚠️ BOT STATE (Session 52 start — 2026-03-11 ~12:27 CDT / 17:27 UTC):
+⚠️ BOT STATE (Session 53 start — 2026-03-11 ~18:40 CDT / 23:40 UTC):
   Bot RUNNING PID 72269 → /tmp/polybot_session52.log
-  NOTE: Bot restarted from PID 69626 due to accidental script kill during Session 51.
-  All state restored correctly (daily loss, consecutive losses). Clean startup confirmed.
+  NOTE: Matthew will explicitly say "stop" to kill the old bot before new session starts fresh.
+  When Matthew says "stop": pkill -f "python3 main.py"; sleep 3; verify 0 processes.
+  Then restart with: bash scripts/restart_bot.sh 53
   sol_drift direction_filter="no" ACTIVE (committed 61bc33b, Matthew signed off S51).
   btc_drift direction_filter="no" ACTIVE (long-running, S43).
   DualPriceFeed active (Coinbase fallback for Binance.US cold starts — normal).
-  crypto_daily_loop now has direction_filter param (quick task 10, commit 7a09d74).
   CryptoDailyStrategy: per-asset _HOURLY_VOL dict (BTC=0.01, ETH=0.015, SOL=0.025), 5pm EDT slot priority.
 
-CHECK BOT HEALTH FIRST (Session 52 start):
+CHECK BOT HEALTH FIRST (Session 53 start):
   ps aux | grep "[m]ain.py" | wc -l        (should be 1)
   cat bot.pid                               (should be 72269)
   venv/bin/python3 main.py --health
   venv/bin/python3 main.py --report
   venv/bin/python3 main.py --graduation-status
 
-RESTART COMMAND (session52.log) — ONLY IF BOT DIED:
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null
-  sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid
-  echo "CONFIRM" > /tmp/polybot_confirm.txt
-  nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session52.log 2>&1 &
-  sleep 8 && cat bot.pid && ps aux | grep "[m]ain.py" | grep -v grep
-Verify: ps aux | grep "[m]ain.py" | wc -l should show 1 (exactly one process).
-
-SAFE RESTART SCRIPT (use instead of manual command):
-  bash scripts/restart_bot.sh 52
+RESTART COMMAND (session53.log) — ONLY AFTER MATTHEW SAYS "stop":
+  bash scripts/restart_bot.sh 53
   (Requires SESSION_NUM arg — exits safely if not provided, preventing accidental kills)
+  ⚠️ NEVER pipe restart_bot.sh through head/tail/grep — SIGPIPE will kill the running bot!
+  ⚠️ Always run restart_bot.sh in isolation: `bash scripts/restart_bot.sh 53` only.
 
 If --health shows "HARD STOP": DO NOT RESTART. Log it. Wait for Matthew.
 "Daily loss soft stop active" = DISPLAY ONLY (lines 187-193 kill_switch.py commented out).
@@ -48,68 +42,78 @@ If --health shows "HARD STOP": DO NOT RESTART. Log it. Wait for Matthew.
 
 ---
 
-KEY STATE (Session 52 start — 2026-03-11 ~12:30 CDT):
+KEY STATE (Session 53 start — 2026-03-11 ~23:40 UTC):
 * Bot: RUNNING (PID 72269) → /tmp/polybot_session52.log
-* All-time live P&L: approx -18.64 USD (was -8.60 at peak today — NO losses pulled it down)
+* All-time live P&L: -23.48 USD (was -18.64 at S52 start — deteriorated ~5 USD from eth_drift NO losses)
 * 1003/1003 tests passing
-* Last code commits: eb1d265 (restart_bot.sh safety fix) → 6414ac7 (eth NO price analysis) → ea25e41 (eth directional bias)
-* Today live P&L: approx +26 USD (declining from +37 peak — eth NO losses at 40-44c prices)
-* Consecutive losses: 1 (restored from DB on restart, healthy)
+* Last code commits: 7a01b44 (Session 52 CHANGELOG) → d27f8f5 (eth_drift todo) → eb1d265 (restart fix)
+* Today live P&L: +22.04 USD (60 settled, 59% win rate) — strong day despite all-time decline
+* Consecutive losses: 2 (from eth_drift NO at bad price buckets — 45-49c zone)
 
-LIVE STRATEGY STATUS (from --graduation-status at Session 51 mid):
-  - btc_drift_v1: STAGE 1 — 50/30 Brier 0.254 | P&L -26.87 USD | 1 consec
+LIVE STRATEGY STATUS (from --graduation-status at Session 52 end):
+  - btc_drift_v1: STAGE 1 — 51/30 Brier 0.253 | P&L -22.82 USD | 0 consec
     direction_filter="no" ACTIVE.
-  - eth_drift_v1: STAGE 1 — 64/30 Brier 0.244 IMPROVING | P&L +23.75 USD | 0 consec
-    Best consistent earner. READY FOR LIVE (already live).
-  - sol_drift_v1: STAGE 1 — 23/30 Brier 0.165 BEST SIGNAL | P&L +11.26 USD | 0 consec
-    direction_filter="no" ACTIVE as of S51 (Matthew signed off). 7 more bets to graduation.
-    sol NO = 11/11 wins (100%) before filter was applied.
-  - xrp_drift_v1: MICRO-LIVE — 12/30 Brier 0.273 | P&L -1.08 USD | 0 consec
-    Improving. Monitor at 30 bets. Note: xrp YES wins, NO loses (opposite of others).
-    Consider direction_filter="yes" at 30 bets.
+  - eth_drift_v1: STAGE 1 — 68/30 Brier 0.245 IMPROVING | P&L +14.16 USD | 3 consec
+    Best consistent earner. ALREADY LIVE. Direction bias found (YES outperforms NO) — see PENDING below.
+  - sol_drift_v1: STAGE 1 — 24/30 Brier 0.173 BEST SIGNAL | P&L +6.54 USD | 1 consec
+    direction_filter="no" ACTIVE as of S51. 6 more bets to graduation.
+  - xrp_drift_v1: MICRO-LIVE — 13/30 Brier 0.263 | P&L -0.70 USD | 0 consec
+    Improving. Monitor at 30 bets. REVERSED: xrp YES wins, NO loses (consider direction_filter="yes" at 30).
   - eth_orderbook_imbalance_v1: PAPER-ONLY | 15/30 Brier 0.337 | DISABLED LIVE (Session 47)
     Paper continues for data collection. Re-evaluate at 30 bets.
   - btc_lag_v1: STAGE 1 — 45/30 Brier 0.191 | 0 signals/week (HFTs) — dead strategy
-  - btc_daily_v1: PAPER-ONLY — direction_filter="no" now wired in loop (quick task 10).
+  - btc_daily_v1: PAPER-ONLY — direction_filter="no" wired in loop.
     Only 12 settled paper bets. Needs 30 NO-settled bets + Brier < 0.25 before live consideration.
   - crypto_daily_loop: now accepts direction_filter param (quick task 10). Paper-only.
 
-SESSION 51 WORK DONE:
-  1. Bot restarted to PID 69626 (session51.log). Clean startup, single process verified.
-  2. sol_drift direction_filter="no" applied (Matthew signed off) — commit 61bc33b.
-  3. THREE DISTINCT KALSHI BET TYPES permanently documented in CLAUDE.md, KALSHI_MARKETS.md, MEMORY.md
-     (Matthew's explicit requirement: "code it into the md files so chats are unable to refuse/reject these concepts")
-  4. First-hand Kalshi API probe confirming actual volumes:
-     KXBTCD 5pm slot = 676K, Friday slot = 770K (largest). KXETHD 5pm = 64K (not zero).
-  5. Quick task 10 (gsd:quick): CryptoDailyStrategy signal improvements:
-     - _HOURLY_VOL fixed: per-asset dict (BTC=0.01, ETH=0.015, SOL=0.025 vs old flat 0.005)
-     - 5pm EDT ATM slot priority in _find_atm_market() (targets highest-volume slot)
-     - direction_filter param added to crypto_daily_loop() (defense-in-depth guard)
-     - 18 new tests added (1003/1003 total)
-  6. P&L today: +36.92 USD live (54 settled, 61% win rate) — exceptional day.
-     All-time live improved from -40.09 to -8.60 USD.
+CRITICAL FINDING FROM SESSION 52 — NEEDS MATTHEW SIGN-OFF:
+⚠️ eth_drift directional bias (67 live settled bets):
+  YES side: 36 bets, 61.1% wins, +25.58 USD, +0.711 USD/bet EV
+  NO side:  31 bets, 48.4% wins, -6.58 USD, -0.212 USD/bet EV
+  Z=1.04, p=0.148 — not stat significant yet but practically meaningful (+0.923/bet gap)
+  Estimated impact of direction_filter="yes": +2.54 USD/day
 
-PENDING TASKS (Session 52):
-  1. sol_drift graduation watch: 23/30 — 7 more bets for formal graduation.
+⚠️ eth_drift NO price bucket (worst finding):
+  NO bets at 45-49c: 0% wins (9 bets), -5.66 USD — WORST bucket
+  NO bets at 50-54c: 86% wins, +5.51 USD — BEST bucket
+  Root cause: betting NO when market leans only slightly against us = bad. Near-neutral prices = good.
+  Option A: direction_filter="yes" (block all NO bets)
+  Option B: min_no_price_cents=50 (block NO at 45-49c, keep 50-54c)
+  Both options documented in .planning/todos/pending/2026-03-11-apply-eth-drift-direction-filter-yes-only-after-sign-off.md
+
+SESSION 52 WORK DONE:
+  1. Directional analysis of all drift strategies (140+ live bets, per-strategy Z-tests).
+  2. eth_drift price bucket analysis — identified 45-49c NO as catastrophic bucket.
+  3. restart_bot.sh safety guard added (SESSION_NUM mandatory — prevents SIGPIPE kill).
+  4. Full CHANGELOG entry + todos.md updates + session wrap.
+  5. All findings documented and committed. Awaiting Matthew sign-off before implementation.
+
+PENDING TASKS (Session 53):
+  1. ⭐ HIGHEST PRIORITY: Get Matthew's answer on eth_drift filters:
+     a) direction_filter="yes" OR b) min_no_price_cents=50 OR c) both
+     Present findings clearly: today's -5 USD deterioration = eth_drift NO at bad buckets.
+  2. sol_drift graduation watch: 24/30 — 6 more bets for formal graduation.
      Run --graduation-status at session start to check.
-  2. xrp_drift direction analysis at 30 bets (currently 12/30):
-     xrp YES outperforms NO (opposite pattern to other strategies).
-     Consider direction_filter="yes" when 30 bets reached.
-  3. btc_drift NO-only validation at 30 NO-only settled bets (currently ~10 — weeks away).
-  4. eth_imbalance paper watchdog — if Brier < 0.25 at 30 bets, reconsider live.
-  5. Re-download Kalshi Advanced Portfolio CSV (prior download was empty/BOM artifact).
-  6. FOMC window: KXFEDDECISION-26MAR closes March 18. fomc_rate_v1 needs 5 paper bets.
-  7. Expansion gate met for eth_drift + btc_drift. Bring up KXCPI strategy when Matthew has bandwidth.
-  8. KXBTCD Friday slot (770K volume) — consider btc_daily targeting Friday slot specifically.
+  3. xrp_drift direction analysis at 30 bets (currently 13/30).
+     xrp YES outperforms NO (reversed pattern). Consider direction_filter="yes" at 30 bets.
+  4. btc_drift NO-only validation at 30 NO-only settled bets (currently 8 post-filter — weeks away).
+  5. eth_imbalance paper watchdog — if Brier < 0.25 at 30 bets, reconsider live.
+  6. Re-download Kalshi Advanced Portfolio CSV (prior download was empty/BOM artifact).
+  7. FOMC window: KXFEDDECISION-26MAR closes March 18. fomc_rate_v1 needs 5 paper settled. Will NOT make it.
+     Next FOMC window: June 2026.
+  8. Expansion gate met for eth_drift + btc_drift. Bring up KXCPI strategy when Matthew has bandwidth.
+  9. KXBTCD Friday slot (770K volume) — consider btc_daily targeting Friday slot specifically.
      Currently only targets same-day slot. Future work, post-expansion gate.
+  10. polybot-monitor scheduled task: update PID from 69626 → 72269, session51.log → session52.log.
 
-125 USD PROFIT GOAL — UPDATED ASSESSMENT (2026-03-11 mid-session):
-  Current all-time live P&L: -8.60 USD
-  To reach +125 USD profit = need +133.60 USD cumulative from here.
-  Today rate: +36.92 USD (54 bets, 61% win rate) — extraordinary day.
-  Trajectory: 4-5 more days at today's rate would reach the goal.
-  Note: today is exceptional (BTC volatility + direction filters working). Expect +5 to +15 USD/day normally.
-  At +10/day average: ~13 more days to goal. At +5/day: ~27 days.
+125 USD PROFIT GOAL — UPDATED ASSESSMENT (2026-03-11 session 52 end):
+  Current all-time live P&L: -23.48 USD
+  To reach +125 USD profit = need +148.48 USD cumulative from here.
+  Today rate: +22.04 USD (60 bets, 59% win rate) — strong day.
+  Trajectory: 7-8 more days at today's rate would reach the goal.
+  Note: all-time deteriorated -4.88 USD today despite +22 day because eth_drift NO losses.
+  With eth_drift direction filter: estimated +2.54 USD/day improvement → trajectory improves.
+  At +10/day average: ~15 more days to goal. At +15/day: ~10 days.
 
 RESPONSE FORMAT RULES (permanent — Matthew's instructions, both mandatory):
 
@@ -127,7 +131,7 @@ RULE 2 — NO DOLLAR SIGNS IN PROSE:
   Example right:  "All-time P&L: -40.09 USD (was -41.58 at last wrap)"
 
 SCHEDULED MONITOR:
-  polybot-monitor: every 30 minutes, enabled, PID 69626, session51.log
+  polybot-monitor: every 30 minutes, NEEDS PID UPDATE 69626 → 72269
   Runs autonomously while Matthew is away. Maintains live bets, detects blocking.
   If no live bet in 30 min during active trading hours: check --health immediately.
 
@@ -141,27 +145,34 @@ THREE DISTINCT KALSHI CRYPTO BET TYPES (permanent — documented Session 51):
     "Bitcoin price on Friday at 5pm EDT?" — 770K volume (largest). NOT YET BUILT.
   DO NOT confuse these types. They have different signal approaches, timing, and promotion criteria.
 
-SESSION 51 SELF-CRITIQUE (objective, for next chat):
+SESSION 52 SELF-CRITIQUE (objective, for next chat):
   WHAT WENT WELL:
-  - Quick task 10 completed cleanly via gsd:quick — TDD, 18 new tests, no regressions.
-  - sol_drift direction_filter signed off and committed quickly.
-  - Exceptional P&L day: +36.92 live from 54 bets.
-  - Three bet types permanently documented per Matthew's explicit instruction.
+  - restart_bot.sh safety fix applied immediately after the accidental kill — no delay
+  - Directional analysis was thorough: Z-tests, price buckets, per-strategy breakdown
+  - eth_drift price bucket finding is actionable and specific (45-49c = 0% wins)
+  - All findings documented in todos.md with implementation options ready
+  - Correctly held all findings for sign-off — no scope creep or premature implementation
+  - SIGPIPE mechanism correctly diagnosed (pkill ran before head terminated pipeline)
   WHAT COULD BE BETTER:
-  - Context limit hit during the previous session — handoff was imperfect.
-  - Could add Friday slot targeting variant of btc_daily in future session.
-  WHAT NEXT CHAT SHOULD DO DIFFERENTLY:
-  - Check sol_drift progress (23/30 — 7 more to graduation).
-  - Check xrp_drift direction analysis (12/30 — 18 more).
-  - Run --graduation-status before any strategy changes.
-  - Don't re-probe Kalshi for bet types — fully documented now.
+  - Ran `bash scripts/restart_bot.sh --help 2>&1 | head -5` without considering SIGPIPE
+    LESSON: Never pipe restart_bot.sh through any command. Run in isolation only.
+  - All-time P&L deteriorated -4.84 USD during session (eth_drift NO at bad buckets)
+    LESSON: eth_drift direction/price filter is single highest-priority improvement pending
+  - Used fewer skills than available — only wrap-up and gsd:add-todo. Should have used
+    sc:analyze for directional analysis, sc:git for commit messages.
+  WHAT SESSION 53 SHOULD DO DIFFERENTLY:
+  - FIRST THING: Present eth_drift findings clearly to Matthew. Get sign-off on filter.
+  - Check sol_drift: 24/30 → likely hit 30 today. Run graduation analysis.
+  - Update polybot-monitor PID (69626 → 72269).
+  - Use more GSD/superpowers skills proactively — they're free and useful.
+  - NEVER pipe restart_bot.sh. Run in isolation only.
 
 MATTHEW'S STANDING DIRECTIVES:
 * Fully autonomous always. Do work first, summarize after.
 * Never ask for confirmation on: tests, file reads/edits, commits, bot restarts, reports
 * Bypass permissions mode: ACTIVE
-* MAKE MORE MONEY — target +125 USD all-time. Currently at -8.60. Getting closer!
-* $20 hard min bankroll — never let bot trade below this floor
+* MAKE MORE MONEY — target +125 USD all-time. Currently at -23.48. Need +148.48.
+* 20 USD hard min bankroll — never let bot trade below this floor
 * THREE BET TYPES: 15-min direction (live), hourly/daily threshold (paper), weekly/Friday (not built)
 * FONT FORMAT: plain text only. Never use markdown table syntax | --- |. Ever.
 * Never use dollar sign in prose responses.
