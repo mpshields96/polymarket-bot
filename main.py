@@ -1480,7 +1480,7 @@ async def expiry_sniper_loop(
                         continue
 
                     # ── Dedup: skip if already have open position ──────
-                    if db.has_open_position(strategy_name=strategy.name, market_ticker=ticker, is_paper=True):
+                    if db.has_open_position(ticker=ticker, is_paper=True):
                         logger.debug("[expiry_sniper] Already have open position for %s — skip", ticker)
                         continue
 
