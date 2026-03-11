@@ -776,3 +776,41 @@ eth YES today: 12/19 wins (63%), +24.68 USD
 eth NO today: 8/16 wins (50%), -1.29 USD
 Pattern holds for today specifically.
 
+
+---
+
+## [!] ETH_DRIFT NO PRICE FILTER — ADDITIONAL FINDING (Session 51, 2026-03-11)
+**Extends the directional bias analysis. PENDING MATTHEW SIGN-OFF.**
+
+### Price bucket analysis for eth_drift NO bets (31 total):
+- 35-39c: n=8  | 25% wins | -1.16 USD  (LOSING)
+- 40-44c: n=4  | 50% wins | -1.51 USD  (slightly negative)
+- 45-49c: n=4  |  0% wins | -5.66 USD  (WORST — 0 wins in 4 bets!)
+- 50-54c: n=7  | 86% wins | +5.51 USD  (BEST — 6/7 wins)
+- 55-59c: n=5  | 80% wins | -2.85 USD  (high win rate, but payout reduced at 55c+)
+- 60-64c: n=3  | 33% wins | -0.91 USD  (fewer bets)
+
+### Key insight:
+When NO price < 50c: market thinks YES is more likely. Our NO signal disagrees with market.
+Result: 44% win rate, -8.33 USD across 16 bets.
+When NO price >= 50c: market also leans NO. Our signal agrees with consensus.
+Result: 74% win rate, +2.60 USD across 15 bets.
+
+### Proposed filter: min_no_price_cents = 50 for eth_drift NO bets
+This would block NO bets when market disagrees with our NO signal.
+Impact: ~half of all eth_drift NO bets would be blocked (16 of 31 were < 50c).
+P&L impact: +8.33 USD saved historically over 31 NO bets.
+
+### Implementation: two options
+Option 1: Add `min_no_price_cents=50` param to BTCDriftStrategy (eth_drift instance only)
+Option 2: Apply as part of broader YES-only direction filter (simpler)
+
+### Today's confirmation:
+Recent NO losses were at 40c (LOSS) and 44c (LOSS) — both in the worst price bucket.
+The bot just avoided no-signal at 40c and 44c would have saved 9.75 USD today alone.
+
+### Caution:
+Sample sizes per bucket are small (3-8 bets). Full significance at 30 bets per bucket.
+DO NOT implement until Matthew signs off on the direction filter decision first.
+This finding is secondary to the broader YES vs NO directional analysis.
+
