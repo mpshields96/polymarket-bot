@@ -1,11 +1,11 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-11 (Session 53 END — PID 75130, session53.log)
+# Last updated: 2026-03-11 (Session 54 MID — PID 4203, session54.log)
 # ═══════════════════════════════════════════════════════════════
 
-## ▶ COPY-PASTE THIS TO START A NEW SESSION (Session 54)
+## ▶ COPY-PASTE THIS TO START A NEW SESSION (Session 55)
 
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 54).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 55).
 
 MANDATORY READING BEFORE ANY ACTION:
   cat SESSION_HANDOFF.md
@@ -13,23 +13,23 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/SKILLS_REFERENCE.md
 
-⚠️ BOT STATE (Session 54 start — 2026-03-11 ~20:15 UTC):
-  Bot RUNNING PID 75130 → /tmp/polybot_session53.log
+⚠️ BOT STATE (Session 54 MID — 2026-03-11 ~22:51 UTC):
+  Bot RUNNING PID 4203 → /tmp/polybot_session54.log
   NOTE: Matthew will explicitly say "stop" to kill the old bot before new session starts fresh.
   When Matthew says "stop": pkill -f "python3 main.py"; sleep 3; verify 0 processes.
-  Then restart with: bash scripts/restart_bot.sh 54
+  Then restart with: bash scripts/restart_bot.sh 55
 
-CHECK BOT HEALTH FIRST (Session 54 start):
+CHECK BOT HEALTH FIRST (Session 55 start):
   ps aux | grep "[m]ain.py" | wc -l        (should be 1)
-  cat bot.pid                               (should be 75130)
+  cat bot.pid                               (should be 4203)
   venv/bin/python3 main.py --health
   venv/bin/python3 main.py --report
   venv/bin/python3 main.py --graduation-status
 
-RESTART COMMAND (session54.log) — ONLY AFTER MATTHEW SAYS "stop":
-  bash scripts/restart_bot.sh 54
+RESTART COMMAND (session55.log) — ONLY AFTER MATTHEW SAYS "stop":
+  bash scripts/restart_bot.sh 55
   ⚠️ NEVER pipe restart_bot.sh through head/tail/grep — SIGPIPE will kill the running bot!
-  ⚠️ Always run restart_bot.sh in isolation: `bash scripts/restart_bot.sh 54` only.
+  ⚠️ Always run restart_bot.sh in isolation: `bash scripts/restart_bot.sh 55` only.
 
 If --health shows "HARD STOP": DO NOT RESTART. Log it. Wait for Matthew.
 "Daily loss soft stop active" = DISPLAY ONLY (lines 187-193 kill_switch.py commented out).
@@ -37,51 +37,50 @@ If --health shows "HARD STOP": DO NOT RESTART. Log it. Wait for Matthew.
 
 ---
 
-KEY STATE (Session 53 END — 2026-03-11 ~20:15 UTC):
-* Bot: RUNNING (PID 75130) → /tmp/polybot_session53.log
-* All-time live P&L: -17.54 USD (was -28.01 at S52 wrap — SESSION 53 GAINED +10.47!)
-* 1003/1003 tests passing
-* Last code commits: ca4a047 (trades.csv settlements) → e77db77 (autonomous monitoring) → c32a567 (CHANGELOG) → 7db9c32 (eth_drift filter)
-* Today live P&L: +27.98 USD (73 settled, 58% win) — best day this week
-* Consecutive losses (global kill switch): 0 (healthy)
+KEY STATE (Session 54 MID — 2026-03-11 ~22:51 UTC):
+* Bot: RUNNING (PID 4203) → /tmp/polybot_session54.log
+* All-time live P&L: -21.87 USD (was -17.54 at S53 wrap — small reversion overnight)
+* 1034/1034 tests passing (up from 1003 — 37 new expiry_sniper tests added S54)
+* Last code commits: 22273ec (expiry_sniper feat) → 15e9b77 (btc_feed name fix)
+* Today live P&L: +23.65 USD (75 settled, 58% win) — strong day continuing
+* Consecutive losses (global kill switch): 1 (healthy)
 
-SESSION 53 CHANGES (fully committed):
-  1. eth_drift direction_filter="yes" ACTIVE — Matthew signed off, implemented, bot restarted
-     Only YES signals fire for eth_drift. NO signals blocked. +2.54 USD/day improvement.
-  2. Pre-existing test fix: TestATMPrioritySlot::test_no_regression_without_21utc_slot
-     make_rel_market() now uses while loop +1hr to avoid hour 21
-  3. polybot-monitor updated to PID 75130 + session53.log
-  4. CLAUDE.md updated: Autonomous Monitoring Loop section added as MANDATORY startup
-  5. Hourly EV analysis: confirmed bad hours (1, 7-8, 12-13, 17-18 UTC) = wrong-direction signals,
-     all now blocked by direction filters. No further time-of-day changes needed (PRINCIPLES.md: need 30+ per bucket).
+SESSION 54 CHANGES (fully committed):
+  1. expiry_sniper_v1 IMPLEMENTED — paper-only, 90c+ threshold, coin drift filter
+     src/strategies/expiry_sniper.py + tests/test_expiry_sniper.py (37 tests)
+     Loop wired in main.py: expiry_sniper_loop() with 110s startup stagger
+     setup/verify.py: expiry_sniper_v1 added to _GRAD (paper-only, 0/30 bets)
+     Loop started at 17:49 local (22:49 UTC) — watching KXBTC15M for 90c+ entries
+  2. Fix: btc_price_feed → btc_feed variable name in main() (startup NameError caught)
+  3. Monitoring script fixed: reads bot.pid dynamically each check (avoids stale PID false alarms)
 
 BET DROUGHT PATTERN — IMPORTANT (Session 53 finding):
   When all crypto markets are at YES < 35c or YES > 65c (extreme prices), ZERO bets fire.
   This is CORRECT behavior. The 35-65c price guard blocks signals at extreme prices where:
   (a) HFTs have already priced in certainty, (b) sigmoid model is extrapolating outside calibrated range.
-  Example: 319-min bet drought 15:01-20:01 UTC on 2026-03-11 — markets at YES=25-32c (crypto bearish day).
   Check: "Price Xc outside calibrated range (35-65c)" logs = guard working, NOT a bug.
   Resolution: wait for next near-50c window; no action needed; never disable the price guard.
 
-LIVE STRATEGY STATUS (from --graduation-status at Session 53 END):
+LIVE STRATEGY STATUS (from --graduation-status at Session 54 MID):
   - btc_drift_v1: STAGE 1 — 53/30 Brier 0.249 | direction_filter="no" ACTIVE | 0 consec
-  - eth_drift_v1: STAGE 1 — 75/30 Brier 0.246 | direction_filter="yes" ACTIVE (S53!) | 0 consec
+  - eth_drift_v1: STAGE 1 — 76/30 Brier 0.246 | direction_filter="yes" ACTIVE (S53!) | 1 consec
     Accumulating YES-only settled bets post-filter (need 30 YES-only bets to validate filter).
   - sol_drift_v1: STAGE 1 — 25/30 Brier 0.171 BEST SIGNAL | direction_filter="no" ACTIVE | 0 consec
     5 more bets to formal graduation threshold. Watch for sol graduation checkpoint.
-  - xrp_drift_v1: MICRO-LIVE — 16/30 Brier 0.272 | 2 consec
+  - xrp_drift_v1: MICRO-LIVE — 17/30 Brier 0.267 | 0 consec
     xrp YES wins, NO loses (reversed). Consider direction_filter="yes" at 30 bets.
   - eth_orderbook_imbalance_v1: PAPER-ONLY | 15/30 Brier 0.337 | DISABLED LIVE (Session 47)
   - btc_lag_v1: STAGE 1 — 45/30 Brier 0.191 | 0 signals/week (HFTs) — dead strategy
+  - expiry_sniper_v1: PAPER-ONLY — 0/30 bets | started Session 54 | 90c+ threshold
 
 186 OPEN TRADES >48HR WARNING (from --health):
   All 186 are paper sports_futures_v1 bets on future sports events. NOT a settlement loop bug.
   Sports championship markets take months to settle. Ignore this warning.
 
-PENDING TASKS (Session 54):
+PENDING TASKS (Session 55):
   1. sol_drift graduation watch: 25/30 — 5 more bets for formal graduation.
      When 30 bets reached: run --graduation-status + check Brier + confirm NO filter holding.
-  2. xrp_drift direction analysis at 30 bets (currently 16/30).
+  2. xrp_drift direction analysis at 30 bets (currently 17/30).
      xrp YES outperforms NO (reversed pattern). Consider direction_filter="yes" when 30 bets.
   3. eth_drift YES filter validation: accumulate 30 YES-only settled bets post-filter.
      If 60%+ win rate holds, keep permanent. If reverts to 50%, remove.
@@ -94,14 +93,14 @@ PENDING TASKS (Session 54):
   9. Historical data enhancement: vol/regime features (trending vs consolidating) are the right
      next step but require 30+ live bets per regime bucket (PRINCIPLES.md). Log, do not build yet.
      Paper direction analysis valid supplement; paper P&L never valid for graduation/sizing.
+  10. expiry_sniper_v1 calibration: accumulate 30 paper bets, check Brier < 0.30, then evaluate.
 
-125 USD PROFIT GOAL — ASSESSMENT (2026-03-11 session 53 END):
-  Current all-time live P&L: -17.54 USD (IMPROVED from -28.01 — +10.47 gained this session!)
-  To reach +125 USD profit = need +142.54 USD cumulative from here.
-  Today rate: +27.98 USD (73 settled, 58% win) — exceptional.
+125 USD PROFIT GOAL — ASSESSMENT (2026-03-11 session 54 MID):
+  Current all-time live P&L: -21.87 USD
+  To reach +125 USD profit = need +146.87 USD cumulative from here.
+  Today rate: +23.65 USD (75 settled, 58% win)
   With direction filters all active: ~+20-28 USD/day is realistic.
-  At +20/day average: ~7 more trading days to goal. At +15/day: ~10 days.
-  Trajectory has IMPROVED this session. Direction filters are the primary driver.
+  At +20/day average: ~7-8 more trading days to goal.
 
 RESPONSE FORMAT RULES (permanent — Matthew's instructions, both mandatory):
 
@@ -117,7 +116,7 @@ RULE 2 — NO DOLLAR SIGNS IN PROSE:
   This applies to ALL dollar amounts: P&L, bet sizes, bankroll, profit goals.
 
 SCHEDULED MONITOR:
-  polybot-monitor: every 30 minutes, PID 75130 + session53.log (updated S53)
+  polybot-monitor: every 30 minutes, PID 4203 + session54.log (updated S54)
   Runs autonomously while Matthew is away. Maintains live bets, detects blocking.
 
 THREE DISTINCT KALSHI CRYPTO BET TYPES (permanent — documented Session 51):
@@ -145,7 +144,7 @@ MATTHEW'S STANDING DIRECTIVES:
 * Fully autonomous always. Do work first, summarize after.
 * Never ask for confirmation on: tests, file reads/edits, commits, bot restarts, reports
 * Bypass permissions mode: ACTIVE
-* MAKE MORE MONEY — target +125 USD all-time. Currently at -17.54. Need +142.54.
+* MAKE MORE MONEY — target +125 USD all-time. Currently at -21.87. Need +146.87.
 * 20 USD hard min bankroll — never let bot trade below this floor
 * THREE BET TYPES: 15-min direction (live), hourly/daily threshold (paper), weekly/Friday (not built)
 * FONT FORMAT: plain text only. Never use markdown table syntax | --- |. Ever.

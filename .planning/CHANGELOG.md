@@ -2078,3 +2078,35 @@ This is correct behavior — NOT a bug. See SESSION_HANDOFF drought pattern sect
 4. BTC drift NO filter: 8/30 post-filter settled — weeks away from 30
 5. FOMC March 18: 2 bets on -26MAR markets, will settle after Fed decision (~March 19-20)
 6. Monitoring: continue background monitoring cycle (chains automatically on task completion)
+
+### Session 54 — expiry_sniper_v1 implementation (2026-03-11 ~22:51 UTC):
+New strategy IMPLEMENTED and committed (commits 22273ec + 15e9b77).
+STRATEGY: Expiry sniping — enter Kalshi 15-min binary in last 14 min when YES or NO >= 90c
+  with underlying coin >= 0.1% momentum confirming direction.
+ACADEMIC BASIS: Favorite-longshot bias (Snowberg & Wolfers) — heavy favorites systematically underpriced.
+  At 90c, actual win rate ~91%. Edge = 1pp premium above market price.
+IMPLEMENTATION:
+  src/strategies/expiry_sniper.py — ExpirySniperStrategy class
+    - V7 params: trigger=90c, window=840s (14min), hard_skip=5s
+    - win_prob = min(0.99, price/100 + 0.01) — scales with trigger price
+    - PAPER_CALIBRATION_USD = 0.50 (Kelly near-zero at 90c, fixed size until 30 bets)
+    - Timing via market.close_time directly (NOT clock modulo — gotcha from S53/54)
+    - Direction consistency: positive coin drift → YES at 90c+; negative → NO at 90c+
+  tests/test_expiry_sniper.py — 37 tests (TDD first, all passing)
+  main.py — expiry_sniper_loop() wired with gather/cancel/cleanup, 110s stagger
+  setup/verify.py — expiry_sniper_v1 in _GRAD (paper-only, not in _LIVE_STRATEGIES)
+TEST COUNT: 1034/1034 passing (up from 1003, +37 new expiry_sniper tests)
+BUG CAUGHT: btc_price_feed NameError at first restart — variable is btc_feed in main() scope.
+  Fixed in commit 15e9b77. Single-attempt catch — no repeated failures.
+LOOP STATUS: expiry_sniper_loop started 22:49 UTC. Watching KXBTC15M for 90c+ entries.
+  Paper phase: goal = 30 paper bets + Brier < 0.30 before any live gate evaluation.
+
+### Session 54 live P&L snapshot (22:51 UTC):
+Today: +23.65 USD (75 settled, 58% win) — strong session despite mid-day bearish drought.
+All-time: -21.87 USD (slight reversion from -17.54 at S53 end — market went against briefly).
+Strategy breakdown today:
+  btc_drift: 5 bets 4/5 (80%) +11.41 — best day contribution
+  eth_drift: 45 bets 23/45 (51%) +4.14 — steady
+  sol_drift: 11 bets 9/11 (82%) +7.57 — elite win rate
+  xrp_drift: 12 bets 9/12 (75%) +2.05 — healthy
+At +23/day average: ~7 more trading days to +125 USD goal.
