@@ -24,6 +24,12 @@ import aiohttp
 
 logger = logging.getLogger(__name__)
 
+# DNS override: if DNS_SERVERS env var is set (comma-separated IPs, e.g. "8.8.8.8,8.8.4.4"),
+# use aiodns with those servers instead of the system resolver. Useful when the local network
+# performs Cisco Umbrella TLS inspection that redirects API traffic through a proxy.
+_DNS_SERVERS_RAW = os.environ.get("DNS_SERVERS", "").strip()
+_DNS_SERVERS: Optional[list] = [s.strip() for s in _DNS_SERVERS_RAW.split(",") if s.strip()] or None
+
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 _API_PATH_PREFIX = "/trade-api/v2"
 
@@ -194,7 +200,17 @@ class KalshiClient:
     # ── Session lifecycle ─────────────────────────────────────────────
 
     async def start(self):
-        self._session = aiohttp.ClientSession()
+        if _DNS_SERVERS:
+            try:
+                resolver = aiohttp.AsyncResolver(nameservers=_DNS_SERVERS)
+                connector = aiohttp.TCPConnector(resolver=resolver)
+                self._session = aiohttp.ClientSession(connector=connector)
+                logger.info("KalshiClient using custom DNS resolver: %s", _DNS_SERVERS)
+            except Exception as e:
+                logger.warning("Custom DNS resolver failed (%s), falling back to default", e)
+                self._session = aiohttp.ClientSession()
+        else:
+            self._session = aiohttp.ClientSession()
         await self._read_limiter.start()
         await self._write_limiter.start()
         logger.info("KalshiClient started (base_url=%s)", self._base_url)

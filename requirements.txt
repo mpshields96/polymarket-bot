@@ -3,6 +3,7 @@
 
 # === Core async HTTP + WebSocket ===
 aiohttp==3.9.5
+aiodns==4.0.0         # async DNS resolver — used to bypass corporate TLS inspection (DNS_SERVERS env var)
 websockets==12.0
 
 # === Kalshi RSA-PSS auth ===
