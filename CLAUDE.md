@@ -254,6 +254,85 @@ CHECK: `pip freeze | grep <package>` to get current version, then pin it.
 2. Read `POLYBOT_INIT.md` → CURRENT STATUS section — confirm what works
 3. Announce what you found in 2-3 lines, then proceed
 4. Do NOT ask setup questions — the project is fully built, auth works, tests pass
+5. **MANDATORY: Start autonomous monitoring loop immediately after startup** (see below)
+
+## Autonomous Monitoring Loop — MANDATORY EVERY SESSION
+
+Matthew requires Claude to supervise the bot for 2-3 hour stretches without his input.
+He does NOT trust the bot to run unsupervised. The monitoring loop below is how this works.
+
+**How it works:**
+- A background bash task runs for 20 min, checking the bot every 5 min
+- When it completes, Claude gets an automatic task-notification (no user message needed)
+- Claude reads the output, takes any needed action, then immediately starts the next 20-min cycle
+- This chains indefinitely — Matthew can walk away for hours
+
+**MANDATORY: Start this loop at session start (after reading SESSION_HANDOFF):**
+
+```bash
+# Write the monitoring script
+cat > /tmp/polybot_monitor_cycle.sh << 'SCRIPT'
+#!/bin/bash
+BOT_PID=$(cat /Users/matthewshields/Projects/polymarket-bot/bot.pid 2>/dev/null || echo "0")
+LOG=/tmp/polybot_session*.log  # glob — use actual session log from SESSION_HANDOFF
+MONITOR_LOG=/tmp/polybot_autonomous_monitor.md
+PROJ=/Users/matthewshields/Projects/polymarket-bot
+
+log() { echo "[$(date -u '+%Y-%m-%d %H:%M UTC')] $1" | tee -a $MONITOR_LOG; }
+
+log "=== MONITORING CYCLE START (PID=$BOT_PID) ==="
+
+for CHECK in 1 2 3 4; do
+    sleep 300  # 5 min
+
+    if kill -0 $BOT_PID 2>/dev/null; then
+        STATUS="ALIVE"
+    else
+        STATUS="DEAD"
+        log "CRITICAL: Bot dead! Claude must restart."
+        echo "BOT_DEAD" > /tmp/polybot_cycle_result.txt
+        exit 2
+    fi
+
+    STATS=$(cd $PROJ && source venv/bin/activate 2>/dev/null && python3 -c "
+import sqlite3, time
+conn = sqlite3.connect('data/polybot.db')
+today = time.mktime(time.strptime('$(date -u +%Y-%m-%d)', '%Y-%m-%d'))
+r = conn.execute('SELECT COUNT(*), SUM(CASE WHEN side=result THEN 1 ELSE 0 END), SUM(pnl_cents) FROM trades WHERE is_paper=0 AND settled_at>=? AND result IS NOT NULL', (today,)).fetchone()
+t,w,p = r[0] or 0, r[1] or 0, round((r[2] or 0)/100,2)
+print(f'{t} settled | {w} wins ({round(100*w/t if t else 0)}%) | {p} USD today')
+" 2>/dev/null)
+
+    SOL=$(cd $PROJ && source venv/bin/activate 2>/dev/null && python3 -c "import sqlite3; c=sqlite3.connect('data/polydb.db' if False else 'data/polybot.db'); print(c.execute(\"SELECT COUNT(*) FROM trades WHERE is_paper=0 AND strategy='sol_drift_v1'\").fetchone()[0])" 2>/dev/null || echo "?")
+    XRP=$(cd $PROJ && source venv/bin/activate 2>/dev/null && python3 -c "import sqlite3; c=sqlite3.connect('data/polybot.db'); print(c.execute(\"SELECT COUNT(*) FROM trades WHERE is_paper=0 AND strategy='xrp_drift_v1'\").fetchone()[0])" 2>/dev/null || echo "?")
+
+    log "Check $CHECK/4 | $STATUS | $STATS | sol=${SOL}/30 xrp=${XRP}/30"
+
+    [ "$SOL" -ge 30 ] 2>/dev/null && { log "MILESTONE: sol_drift 30 bets — graduation analysis needed"; echo "SOL_GRADUATION" >> /tmp/polybot_cycle_result.txt; }
+    [ "$XRP" -ge 30 ] 2>/dev/null && { log "MILESTONE: xrp_drift 30 bets — direction filter eval needed"; echo "XRP_GRADUATION" >> /tmp/polybot_cycle_result.txt; }
+done
+
+log "=== CYCLE COMPLETE ==="
+echo "HEALTHY" > /tmp/polybot_cycle_result.txt
+SCRIPT
+chmod +x /tmp/polybot_monitor_cycle.sh
+```
+
+Then run it as background: `bash /tmp/polybot_monitor_cycle.sh` with `run_in_background: true`
+
+**When the task notification fires (after ~20 min):**
+1. Read the output file from the task
+2. If BOT_DEAD: restart with `bash scripts/restart_bot.sh <SESSION_NUM>`
+3. If SOL_GRADUATION or XRP_GRADUATION: run graduation analysis
+4. If HEALTHY: just log it
+5. **Immediately start the NEXT cycle** (same background command)
+
+**The loop breaks if:** Claude's context window fills up (use `titanium-context-monitor` to catch this early)
+**The loop self-heals if:** Bot dies — Claude restarts it on next notification
+**Matthew's job:** Nothing. Check in whenever. Respond only if Claude surfaces a decision.
+
+**NEVER pipe restart_bot.sh through any command** — SIGPIPE kills the running bot.
+Run restart in isolation only: `bash scripts/restart_bot.sh <SESSION_NUM>`
 
 Current project state (updated Session 49 wrap-up — 2026-03-11 ~07:15 CDT — BOT RUNNING PID 47874 → session48.log):
 - **985/985 tests passing** (no code changes Sessions 48-49 — param removal only)
