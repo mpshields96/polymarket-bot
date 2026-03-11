@@ -1366,15 +1366,23 @@ async def sports_futures_loop(
 async def expiry_sniper_loop(
     kalshi,
     btc_feed,
+    eth_feed,
+    sol_feed,
+    xrp_feed,
     db,
     kill_switch,
     initial_delay_sec: float = 110.0,
 ):
     """
-    Paper-only expiry sniping loop for KXBTC15M.
+    Paper-only expiry sniping loop for KXBTC15M/KXETH15M/KXSOL15M/KXXRP15M.
 
     Enters when YES or NO price >= 90c in the final 14 minutes of a 15-min window
-    AND the underlying BTC coin has moved >= 0.1% from window open in the SAME direction.
+    AND the underlying coin has moved >= 0.1% from window open in the SAME direction.
+
+    Covers all 4 coin series. Each series uses its own coin feed for drift calculation.
+    During extreme bearish sessions (YES < 35c → NO > 65c), these NO=90c+ signals
+    fire exactly when the drift strategies are blocked by the 35-65c price guard.
+    These two strategies complement each other across market regimes.
 
     Academic basis: Favorite-longshot bias — heavy favorites close >90% of the time.
     Source strategy: processoverprofit.blog V7 (reconstructed clean — NOT using
@@ -1401,12 +1409,20 @@ async def expiry_sniper_loop(
         fill_probability=1.0,
     )
 
-    # Per-window BTC price tracking: ticker → BTC price at first observation of window
-    _window_open_btc: dict = {}
+    # Map series prefix → feed for drift calculation
+    _series_feeds = {
+        "KXBTC15M": btc_feed,
+        "KXETH15M": eth_feed,
+        "KXSOL15M": sol_feed,
+        "KXXRP15M": xrp_feed,
+    }
+
+    # Per-window price tracking: ticker → coin price at first observation of window
+    _window_open_price: dict = {}
 
     logger.info("[expiry_sniper] Startup — waiting %.0fs before first poll", initial_delay_sec)
     await asyncio.sleep(initial_delay_sec)
-    logger.info("[expiry_sniper] Started — paper-only KXBTC15M 90c+ sniping")
+    logger.info("[expiry_sniper] Started — paper-only BTC/ETH/SOL/XRP 15M 90c+ sniping")
 
     while True:
         try:
@@ -1415,85 +1431,85 @@ async def expiry_sniper_loop(
                 await asyncio.sleep(10)
                 continue
 
-            # ── Fetch open KXBTC15M markets ────────────────────────────
-            try:
-                markets = await kalshi.get_markets(series_ticker="KXBTC15M", status="open")
-            except Exception as exc:
-                logger.warning("[expiry_sniper] Market fetch failed: %s", exc)
-                await asyncio.sleep(10)
-                continue
-
-            if not markets:
-                logger.debug("[expiry_sniper] No open KXBTC15M markets — sleeping")
-                await asyncio.sleep(10)
-                continue
-
-            # ── Get current BTC price ──────────────────────────────────
-            current_btc = btc_feed.current_price() if not btc_feed.is_stale else None
-            if current_btc is None:
-                logger.debug("[expiry_sniper] BTC feed stale or unavailable — skip")
-                await asyncio.sleep(10)
-                continue
-
             current_bankroll = db.latest_bankroll() or 50.0
 
-            # ── Evaluate each market ──────────────────────────────────
-            for market in markets:
-                ticker = market.ticker
+            # ── Evaluate all 4 series each cycle ──────────────────────
+            for series_ticker, coin_feed in _series_feeds.items():
 
-                # Track BTC price at first observation of each window
-                # (coin_drift = how much BTC moved since we first saw this market)
-                if ticker not in _window_open_btc:
-                    _window_open_btc[ticker] = current_btc
-                    logger.debug(
-                        "[expiry_sniper] Window open reference for %s: BTC=%.2f",
-                        ticker, current_btc,
+                # ── Get current coin price ─────────────────────────────
+                current_price = coin_feed.current_price() if not coin_feed.is_stale else None
+                if current_price is None:
+                    logger.debug("[expiry_sniper] %s feed stale — skip series", series_ticker)
+                    continue
+
+                # ── Fetch open markets for this series ─────────────────
+                try:
+                    markets = await kalshi.get_markets(series_ticker=series_ticker, status="open")
+                except Exception as exc:
+                    logger.warning("[expiry_sniper] Market fetch failed for %s: %s", series_ticker, exc)
+                    continue
+
+                if not markets:
+                    logger.debug("[expiry_sniper] No open %s markets", series_ticker)
+                    continue
+
+                # ── Evaluate each market in this series ────────────────
+                for market in markets:
+                    ticker = market.ticker
+
+                    # Track coin price at first observation of each window
+                    if ticker not in _window_open_price:
+                        _window_open_price[ticker] = current_price
+                        logger.debug(
+                            "[expiry_sniper] Window open reference %s: price=%.4f",
+                            ticker, current_price,
+                        )
+
+                    window_open_price = _window_open_price[ticker]
+                    coin_drift_pct = (
+                        (current_price - window_open_price) / window_open_price
+                        if window_open_price > 0 else 0.0
                     )
 
-                window_open_btc = _window_open_btc[ticker]
-                coin_drift_pct = (current_btc - window_open_btc) / window_open_btc if window_open_btc > 0 else 0.0
-
-                # ── Generate signal ────────────────────────────────────
-                signal = strategy.generate_signal(
-                    market=market,
-                    coin_drift_pct=coin_drift_pct,
-                )
-                if signal is None:
-                    continue
-
-                # ── Dedup: skip if already have open position this window
-                if db.has_open_position(strategy_name=strategy.name, market_ticker=ticker, is_paper=True):
-                    logger.debug("[expiry_sniper] Already have open position for %s — skip", ticker)
-                    continue
-
-                # ── Kill switch check ──────────────────────────────────
-                ok, block_reason = kill_switch.check_paper_order_allowed(
-                    trade_usd=strategy.PAPER_CALIBRATION_USD,
-                    current_bankroll_usd=current_bankroll,
-                )
-                if not ok:
-                    logger.info("[expiry_sniper] Kill switch blocked paper order: %s", block_reason)
-                    continue
-
-                # ── Paper execute at fixed calibration size ────────────
-                # Kelly is near-zero at 90c until real win rate data exists.
-                # Use 0.50 USD flat for all paper calibration bets.
-                result = paper_exec.execute(
-                    ticker=ticker,
-                    side=signal.side,
-                    price_cents=signal.price_cents,
-                    size_usd=strategy.PAPER_CALIBRATION_USD,
-                    reason=signal.reason,
-                )
-                if result:
-                    logger.info(
-                        "[expiry_sniper] [paper] BUY %s @ %d¢ USD %.2f | drift=%+.3f%% | %ds left | trade_id=%s",
-                        signal.side.upper(), signal.price_cents,
-                        strategy.PAPER_CALIBRATION_USD,
-                        coin_drift_pct * 100,
-                        strategy._seconds_remaining(market) or 0,
-                        result.get("trade_id", "?"),
+                    # ── Generate signal ────────────────────────────────
+                    signal = strategy.generate_signal(
+                        market=market,
+                        coin_drift_pct=coin_drift_pct,
                     )
+                    if signal is None:
+                        continue
+
+                    # ── Dedup: skip if already have open position ──────
+                    if db.has_open_position(strategy_name=strategy.name, market_ticker=ticker, is_paper=True):
+                        logger.debug("[expiry_sniper] Already have open position for %s — skip", ticker)
+                        continue
+
+                    # ── Kill switch check ──────────────────────────────
+                    ok, block_reason = kill_switch.check_paper_order_allowed(
+                        trade_usd=strategy.PAPER_CALIBRATION_USD,
+                        current_bankroll_usd=current_bankroll,
+                    )
+                    if not ok:
+                        logger.info("[expiry_sniper] Kill switch blocked paper order: %s", block_reason)
+                        continue
+
+                    # ── Paper execute at fixed calibration size ────────
+                    result = paper_exec.execute(
+                        ticker=ticker,
+                        side=signal.side,
+                        price_cents=signal.price_cents,
+                        size_usd=strategy.PAPER_CALIBRATION_USD,
+                        reason=signal.reason,
+                    )
+                    if result:
+                        logger.info(
+                            "[expiry_sniper] [paper] BUY %s %s @ %d¢ USD %.2f | drift=%+.3f%% | %ds left | trade_id=%s",
+                            series_ticker, signal.side.upper(), signal.price_cents,
+                            strategy.PAPER_CALIBRATION_USD,
+                            coin_drift_pct * 100,
+                            strategy._seconds_remaining(market) or 0,
+                            result.get("trade_id", "?"),
+                        )
 
         except asyncio.CancelledError:
             logger.info("[expiry_sniper] Loop cancelled — exiting")
@@ -3026,13 +3042,16 @@ async def main():
         expiry_sniper_loop(
             kalshi=kalshi,
             btc_feed=btc_feed,
+            eth_feed=eth_feed,
+            sol_feed=sol_feed,
+            xrp_feed=xrp_feed,
             db=db,
             kill_switch=kill_switch,
             initial_delay_sec=110.0,   # stagger after copy_trade (80s) + sports_futures (95s)
         ),
         name="expiry_sniper_loop",
     )
-    logger.info("Expiry sniper loop started (paper-only KXBTC15M, 90c+ threshold, 10s poll)")
+    logger.info("Expiry sniper loop started (paper-only BTC/ETH/SOL/XRP 15M, 90c+ threshold, 10s poll)")
 
     # ── Sports-futures mispricing loop (Polymarket supplemental) ─────
     # Paper-only. Compares PM championship futures to bookmaker consensus.

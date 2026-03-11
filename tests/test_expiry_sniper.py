@@ -409,3 +409,40 @@ class TestExpirySniperDriftDirectionConsistency:
         market = _make_market(yes_price=91, no_price=9, seconds_remaining=300)
         sig = strategy.generate_signal(market=market, coin_drift_pct=-0.003)
         assert sig is None
+
+
+class TestExpirySniperMultiSeries:
+    """Verify strategy fires correctly on any coin series ticker."""
+
+    def test_eth_ticker_fires_on_no_at_92c(self):
+        """ETH NO=92c (extreme bearish) with negative ETH drift fires NO signal."""
+        strategy = _default_strategy()
+        market = _make_market(ticker="KXETH15M-26MAR111900-00", yes_price=8, no_price=92, seconds_remaining=300)
+        sig = strategy.generate_signal(market=market, coin_drift_pct=-0.005)
+        assert sig is not None
+        assert sig.side == "no"
+        assert sig.ticker == "KXETH15M-26MAR111900-00"
+
+    def test_sol_ticker_fires_on_no_at_91c(self):
+        """SOL NO=91c with negative SOL drift fires NO signal."""
+        strategy = _default_strategy()
+        market = _make_market(ticker="KXSOL15M-26MAR111900-00", yes_price=9, no_price=91, seconds_remaining=300)
+        sig = strategy.generate_signal(market=market, coin_drift_pct=-0.004)
+        assert sig is not None
+        assert sig.side == "no"
+
+    def test_xrp_ticker_fires_on_yes_at_90c(self):
+        """XRP YES=90c with positive XRP drift fires YES signal."""
+        strategy = _default_strategy()
+        market = _make_market(ticker="KXXRP15M-26MAR111900-00", yes_price=90, no_price=10, seconds_remaining=300)
+        sig = strategy.generate_signal(market=market, coin_drift_pct=+0.002)
+        assert sig is not None
+        assert sig.side == "yes"
+
+    def test_strategy_coin_agnostic_same_logic_all_series(self):
+        """Strategy logic is coin-agnostic — only price and drift matter, not ticker prefix."""
+        strategy = _default_strategy()
+        for ticker in ["KXBTC15M-TEST", "KXETH15M-TEST", "KXSOL15M-TEST", "KXXRP15M-TEST"]:
+            market = _make_market(ticker=ticker, yes_price=92, no_price=8, seconds_remaining=300)
+            sig = strategy.generate_signal(market=market, coin_drift_pct=+0.003)
+            assert sig is not None and sig.side == "yes", f"Expected YES signal for {ticker}"
