@@ -1972,3 +1972,69 @@ Task continues running every 30 min autonomously while Matthew is away.
 5. eth_imbalance: paper watchdog, re-evaluate if Brier < 0.25 at 30 bets
 6. FOMC window: closes March 18 — 0/5 settled, no live promotion this cycle
 
+
+### SESSION 53 WRAP-UP (2026-03-11 ~20:15 UTC):
+
+**Session 53 full-day performance:**
+Today live P&L: +27.98 USD (73 settled, 58% win) — best day this week
+All-time live P&L: -17.54 USD (was -28.01 at S52 wrap → SESSION 53 GAINED +10.47 USD!)
+Progress toward +125 goal: need +142.54 more (was +153.01). ~7 days at current pace.
+
+**Per-strategy today:**
+btc_drift: 4/5 = 80% wins, +11.41 USD — exceptional
+eth_drift: 23/44 = 52% wins, +8.98 USD — direction filter working (NO bets blocked)
+sol_drift: 9/11 = 82% wins, +7.57 USD — best signal confirmed
+xrp_drift: 8/11 = 73% wins, +1.54 USD — strong
+eth_orderbook live: 1/2 = -1.52 USD (pre-filter legacy bets; now paper-only)
+
+**Graduation status (Session 53 END):**
+btc_drift: 53/30 ✅ Brier 0.249 | direction_filter="no" | 0 consec
+eth_drift: 75/30 ✅ Brier 0.246 | direction_filter="yes" ACTIVE | 0 consec
+sol_drift: 25/30 STAGE 1 Brier 0.171 BEST | direction_filter="no" | 0 consec
+xrp_drift: 16/30 Brier 0.272 | 2 consec | no filter yet (evaluate at 30)
+eth_imbalance: 15/30 Brier 0.337 PAPER-ONLY
+
+**Key finding — bet drought pattern (documented for session 54):**
+When all crypto markets price YES < 35c (extreme bearish session), ALL signals blocked by
+price guard. 319-min drought from 15:01-20:01 UTC today. This is CORRECT behavior:
+  - HFTs have priced in certainty at extremes; sigmoid extrapolates outside calibrated range
+  - Price guard (35-65c) is the right protection
+  - Resolution: wait for near-50c window; never disable guard
+  - Verification: look for "Price Xc outside calibrated range" in logs
+
+**CLAUDE.md update:**
+Added "Autonomous Monitoring Loop" section — MANDATORY at every session start.
+Background bash task chains indefinitely, enabling 2-3hr autonomous operation.
+Matthew requested this mechanism explicitly (Session 53).
+
+**Hourly EV analysis (Session 53):**
+Ran per-hour breakdown on 189+ live settled bets. Bad hours (1, 7-8, 12-13, 17-18 UTC)
+caused entirely by now-blocked signals: eth_drift NO (-17.40 USD), btc_drift YES (-9.15 USD),
+eth_orderbook live (-11.98 USD), sol YES (-1.41 USD). All four blocked/disabled.
+Good hours (11-16 UTC): eth_drift YES dominates (8/8 wins one window, +24.61 USD).
+No PRINCIPLES.md-compliant time-based filter changes possible yet (< 30 per bucket).
+
+**Historical data answer (Session 53):**
+Paper direction analysis supplements live for YES/NO filter decisions (already done).
+Paper P&L never valid for graduation/sizing. Regime features (trending vs consolidating)
+are the right next-step enhancement but require 30+ live bets per regime bucket.
+Logged to todos.md. Do not build until expansion gate clears.
+
+### SESSION 53 SELF-CRITIQUE:
+WHAT WENT WELL:
+- eth_drift direction_filter="yes" delivered immediately: +10.47 USD gained this session
+- Today's best-day-this-week P&L (+27.98) confirms direction filters are the primary driver
+- Hourly EV analysis correctly diagnosed "bad hours" as wrong-direction bets, already fixed
+- CLAUDE.md autonomous monitoring loop framework properly implemented
+- 186-trade >48hr warning correctly diagnosed (paper sports futures, not a bug)
+- Price guard drought correctly identified as protective behavior, not a failure
+WHAT COULD BE BETTER:
+- MEMORY.md exceeded 200-line limit — truncated in session context. Needs trim next session.
+- Historical data answer could have been more actionable: regime detection roadmap documented
+- Could have started autonomous monitoring loop earlier in session (started at 19:51 UTC)
+WHAT SESSION 54 SHOULD DO DIFFERENTLY:
+- Start autonomous monitoring loop IMMEDIATELY at session start (see CLAUDE.md MANDATORY section)
+- Check sol_drift graduation: 25/30, likely hits 30 within 1-2 days. Run formal graduation.
+- Trim MEMORY.md to under 200 lines — move detailed strategy data to separate topic file
+- eth_drift YES validation: count YES-only settled bets. At 30, evaluate win rate.
+- Continue direction filter EV tracking (xrp at 16/30 — evaluate filter at 30 bets)
