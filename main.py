@@ -2640,6 +2640,7 @@ async def main():
             trade_lock=_live_trade_lock,
             calibration_max_usd=None,  # STAGE 1: Kelly + HARD_MAX_TRADE_USD ($5) governs
             btc_move_condition=_btc_move_condition,
+            direction_filter="no",  # S51: NO wins 11/11 (100%), YES only 63.6% — filter YES bets
         ),
         name="sol_drift_loop",
     )
