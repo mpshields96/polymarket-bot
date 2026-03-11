@@ -2110,3 +2110,27 @@ Strategy breakdown today:
   sol_drift: 11 bets 9/11 (82%) +7.57 — elite win rate
   xrp_drift: 12 bets 9/12 (75%) +2.05 — healthy
 At +23/day average: ~7 more trading days to +125 USD goal.
+
+### Session 54 — expiry_sniper multi-series expansion (2026-03-11 ~23:05 UTC):
+EXPANDED: expiry_sniper_loop now watches KXBTC15M/KXETH15M/KXSOL15M/KXXRP15M (all 4 series).
+RATIONALE: During extreme bearish/bullish sessions (YES < 35c or > 65c), drift strategies
+  blocked by price guard. ETH/SOL YES=8-15c (bearish) and BTC YES=82-90c (bullish) hit 90c+
+  threshold — exactly when drift is blocked. The two strategy families complement each other:
+  drift fires near 50c price range, expiry_sniper fires near 90c+ price extremes.
+IMPLEMENTATION: _series_feeds dict maps series prefix → coin feed. _window_open_price dict
+  tracks per-ticker reference price (already ticker-keyed, works for all series).
+BUGS CAUGHT AND FIXED:
+  1. btc_price_feed NameError (commit 15e9b77) — variable is btc_feed in main() scope.
+  2. has_open_position() wrong kwargs (commit 43bbd32) — signature is (ticker, is_paper),
+     not (strategy_name, market_ticker, is_paper). Caught on first signal fire (NO @ 98c).
+TEST COUNT: 1041/1041 passing (4 new TestExpirySniperMultiSeries tests added)
+LIVE SIGNAL: expiry_sniper fired NO @ 97-98c on KXBTC15M during bearish window at 17:58-17:59
+  but couldn't execute due to has_open_position() bug. Fixed in commit 43bbd32.
+BOT: Restarted PID 5076. Sniper running with all 4 feeds. First clean paper bet pending.
+
+### Live P&L snapshot (Session 54, 23:05 UTC):
+Today live: +31.08 USD (77 settled, 59% win) — outstanding.
+sol_drift today: 12 bets, 10/12 (83%), +11.80 USD — exceptional.
+btc_drift today: 6 bets, 5/6 (83%), +14.61 USD — exceptional.
+All-time: not yet computed (mid-session).
+sol_drift graduation: 26/30, Brier 0.168 IMPROVING, +13.73 all-time. 4 bets from threshold.
