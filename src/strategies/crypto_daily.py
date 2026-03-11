@@ -29,9 +29,24 @@ logger = logging.getLogger(__name__)
 _MIN_SIGNAL_PRICE_CENTS = 35
 _MAX_SIGNAL_PRICE_CENTS = 65
 _KALSHI_FEE_COEFF = 0.07   # Kalshi charges 7% × p × (1-p) of winnings
-_HOURLY_VOL = 0.005        # ≈ 0.5% intraday vol per sqrt(hour)
+
+# Per-asset hourly vol lookup (% per sqrt-hour, reflects intraday realized volatility).
+# BTC annualized ~85% → 0.01/sqrt-hr. ETH ~50% more volatile. SOL ~2-3x more volatile.
+# Old single constant _HOURLY_VOL = 0.005 was too low and asset-agnostic.
+_HOURLY_VOL_BY_ASSET: dict[str, float] = {
+    "BTC": 0.01,   # 1% per sqrt-hour (annualized ~85%)
+    "ETH": 0.015,  # 1.5% per sqrt-hour (ETH ~50% more volatile than BTC)
+    "SOL": 0.025,  # 2.5% per sqrt-hour (SOL ~2-3x BTC volatility)
+}
+_HOURLY_VOL_DEFAULT = 0.01  # fallback for unknown assets
+
 _DRIFT_WEIGHT = 0.7        # blend: 70% drift signal, 30% lognormal position
 _DRIFT_SCALE = 5.0         # 1% drift → +5pp probability premium
+
+
+def _hourly_vol_for(asset: str) -> float:
+    """Return per-asset hourly vol (% per sqrt-hour). Defaults to BTC if unknown."""
+    return _HOURLY_VOL_BY_ASSET.get(asset.upper(), _HOURLY_VOL_DEFAULT)
 
 
 def _norm_cdf(x: float) -> float:
@@ -224,9 +239,15 @@ class CryptoDailyStrategy:
         - Time window: [min_minutes_remaining, max_minutes_remaining] to settlement
         - Volume >= min_volume
         - Price guard: mid in [35, 65]
+
+        Priority: When multiple candidates are within 2¢ of the best ATM distance,
+        prefer the one closing at 21:00 UTC (5pm EDT) — highest volume and tightest
+        spreads on KXBTCD due to US equities close. Only within 2¢ tolerance so
+        we don't sacrifice ATM quality for slot preference.
         """
         now = datetime.now(timezone.utc)
-        candidates: list[tuple[float, Market]] = []
+        # Store (dist, close_dt, mkt) so we parse close_dt only once per market
+        candidates: list[tuple[float, datetime, Market]] = []
 
         for mkt in markets:
             try:
@@ -252,13 +273,24 @@ class CryptoDailyStrategy:
             if mid < _MIN_SIGNAL_PRICE_CENTS or mid > _MAX_SIGNAL_PRICE_CENTS:
                 continue
 
-            candidates.append((abs(mid - 50.0), mkt))
+            candidates.append((abs(mid - 50.0), close_dt, mkt))
 
         if not candidates:
             return None
 
         candidates.sort(key=lambda t: t[0])
-        return candidates[0][1]
+
+        # 5pm EDT priority: prefer 21:00 UTC close slot when within 2¢ of best ATM distance.
+        # Rationale: KXBTCD 21:00 UTC slot has 676K volume vs ~40-100K for other slots —
+        # tighter spreads and lower fill risk.
+        best_dist = candidates[0][0]
+        top_tier = [(dist, close_dt, mkt) for dist, close_dt, mkt in candidates
+                    if dist <= best_dist + 2.0]
+        priority_21 = [mkt for _, close_dt, mkt in top_tier if close_dt.hour == 21]
+        if priority_21:
+            return priority_21[0]
+
+        return candidates[0][2]
 
     def _model_prob(
         self,
@@ -283,7 +315,7 @@ class CryptoDailyStrategy:
         drift_signal = max(0.0, min(1.0, 0.5 + drift_pct * _DRIFT_SCALE))
 
         # Lognormal position signal: spot vs strike, uncertainty scales with sqrt(T)
-        sigma = _HOURLY_VOL * math.sqrt(hours_to_settle)
+        sigma = _hourly_vol_for(self.asset) * math.sqrt(hours_to_settle)
         if sigma < 1e-9:
             if spot > strike:
                 position_prob = 1.0

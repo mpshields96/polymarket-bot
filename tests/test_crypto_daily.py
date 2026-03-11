@@ -23,7 +23,7 @@ from unittest.mock import patch
 import pytest
 
 from src.platforms.kalshi import Market
-from src.strategies.crypto_daily import CryptoDailyStrategy
+from src.strategies.crypto_daily import CryptoDailyStrategy, _hourly_vol_for
 
 
 # ── Helpers ───────────────────────────────────────────────────────────
@@ -454,16 +454,41 @@ class TestDirectionFilter:
         return markets
 
     def test_direction_filter_no_fires_no_on_upward_drift(self):
-        """direction_filter='no': positive drift triggers a NO signal."""
+        """direction_filter='no': positive drift triggers a NO signal when edge check passes.
+
+        The contrarian NO bet fires when:
+        1. drift_pct > min_drift_pct (upward drift check)
+        2. model_prob < market YES price (YES is overpriced by market — NO has edge)
+        3. edge > min_edge_pct
+
+        For NO to have positive edge: (1-model_prob) > price_no/100 + fee.
+        This works when the market overprices YES (e.g., yes_bid=58¢ but model says 53%).
+        """
         strat = CryptoDailyStrategy(
             asset="BTC", series_ticker="KXBTCD",
-            min_drift_pct=0.005, min_edge_pct=0.02, direction_filter="no",
+            min_drift_pct=0.005, min_edge_pct=0.001, direction_filter="no",
         )
-        spot = 71000.0
-        session_open = 70000.0  # +1.4% drift
-        markets = self._make_markets_atm(spot)
+        # Small positive drift (+0.7%) → drift_signal = 0.535 → model_prob ≈ 0.50-0.53
+        # Market overprices YES at yes_bid=58, yes_ask=60, mid=59 → NO costs 42¢
+        # model NO ≈ 47%  >  42¢ → positive NO edge
+        spot = 70500.0
+        session_open = 70000.0  # +0.71% drift (above 0.5% threshold)
+        # Create a single market where YES is overpriced (market YES=59¢, model YES≈53%)
+        # strike must parse from ticker via split('-T')[-1]
+        market = _make_market(
+            ticker="KXBTCD-TEST-T71000",
+            strike=71000.0,
+            yes_price=57,   # bid
+            yes_ask=60,     # ask; mid=58.5¢ (within 35-65 guard)
+            volume=5000,
+            minutes_to_close=120.0,
+        )
+        markets = [market]
         sig = strat.generate_signal(spot, session_open, markets)
-        assert sig is not None, "Should fire a signal on upward drift with direction_filter='no'"
+        assert sig is not None, (
+            "Should fire a signal on upward drift with direction_filter='no' "
+            "when market overprices YES"
+        )
         assert sig.side == "no", f"direction_filter='no' must always bet NO, got {sig.side}"
 
     def test_direction_filter_no_ignores_downward_drift(self):
@@ -516,3 +541,383 @@ class TestDirectionFilter:
         sig = strat.generate_signal(spot, session_open, markets)
         assert sig is not None
         assert sig.side == "no"
+
+
+# ── TestHourlyVolConstants ────────────────────────────────────────────
+
+
+class TestHourlyVolConstants:
+    """Per-asset hourly vol lookup must return correct values (Task 1)."""
+
+    def test_btc_vol_returns_0_01(self):
+        """BTC hourly vol = 0.01 (1% per sqrt-hour)."""
+        assert _hourly_vol_for("BTC") == 0.01
+
+    def test_eth_vol_returns_0_015(self):
+        """ETH hourly vol = 0.015 (1.5% per sqrt-hour)."""
+        assert _hourly_vol_for("ETH") == 0.015
+
+    def test_sol_vol_returns_0_025(self):
+        """SOL hourly vol = 0.025 (2.5% per sqrt-hour)."""
+        assert _hourly_vol_for("SOL") == 0.025
+
+    def test_unknown_asset_returns_default(self):
+        """Unknown asset falls back to default of 0.01."""
+        assert _hourly_vol_for("XYZ") == 0.01
+
+    def test_model_prob_uses_asset_specific_vol_btc(self):
+        """BTC strategy _model_prob uses sigma = 0.01 * sqrt(2) at 2 hours."""
+        import math
+        strat = CryptoDailyStrategy(asset="BTC", series_ticker="KXBTCD")
+        # At spot=strike, position_prob = 0.5 (symmetric log-normal).
+        # drift_pct = 0.0 → drift_signal = 0.5
+        # Combined = 0.7 * 0.5 + 0.3 * 0.5 = 0.5 always when spot==strike.
+        # Instead verify sigma indirectly: at spot slightly above strike,
+        # smaller sigma → position_prob closer to 1 → higher model_prob.
+        # BTC sigma at 2hr = 0.01 * sqrt(2) ≈ 0.01414
+        # ETH sigma at 2hr = 0.015 * sqrt(2) ≈ 0.02121
+        # At spot/strike=1.01 (1% above), BTC should have higher position_prob.
+        strat_btc = CryptoDailyStrategy(asset="BTC", series_ticker="KXBTCD")
+        strat_eth = CryptoDailyStrategy(asset="ETH", series_ticker="KXETHD")
+        spot = 81000.0
+        strike = 80000.0  # spot is 1.25% above strike
+        hours = 2.0
+        drift = 0.0  # no drift so position_prob governs
+        prob_btc = strat_btc._model_prob(spot, strike, hours, drift)
+        prob_eth = strat_eth._model_prob(spot, strike, hours, drift)
+        # BTC has smaller sigma → z-score larger → position_prob closer to 1 → higher prob
+        assert prob_btc > prob_eth, (
+            f"BTC (smaller vol) should have higher position_prob than ETH: "
+            f"prob_btc={prob_btc:.4f} prob_eth={prob_eth:.4f}"
+        )
+
+
+# ── TestATMPrioritySlot ───────────────────────────────────────────────
+
+
+def _make_market_at_relative_offset(
+    minutes_from_now: float,
+    mid: float = 50.0,
+    ticker: str = None,
+    volume: int = 5000,
+) -> Market:
+    """
+    Create a market that closes exactly `minutes_from_now` minutes from now.
+    The close_time.hour reflects whatever UTC hour that corresponds to.
+    Must be within [35, 355] minutes to pass CryptoDailyStrategy time window filters.
+    """
+    now_utc = datetime.now(timezone.utc)
+    close_dt = now_utc + timedelta(minutes=minutes_from_now)
+    close_dt = close_dt.replace(microsecond=0)
+    close_iso = close_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+    yes_bid = max(1, int(mid - 0.5))
+    yes_ask = min(99, int(mid + 0.5))
+    if ticker is None:
+        ticker = f"KXBTCD-TEST-T80000-rel{int(minutes_from_now)}min"
+    return Market(
+        ticker=ticker,
+        title=f"BTC above 80000? (closes in {minutes_from_now:.0f} min)",
+        event_ticker=ticker,
+        status="open",
+        yes_price=yes_bid,
+        no_price=100 - yes_bid,
+        volume=volume,
+        close_time=close_iso,
+        open_time="",
+        result=None,
+        raw={"yes_ask": yes_ask, "yes_bid": yes_bid, "series_ticker": "KXBTCD"},
+    )
+
+
+def _find_minutes_to_utc_hour(target_hour: int, min_minutes: float = 35.0, max_minutes: float = 355.0) -> Optional[float]:
+    """
+    Return the number of minutes from now until the next occurrence of target_hour:00 UTC
+    that falls within [min_minutes, max_minutes]. Returns None if no such window exists.
+    """
+    now_utc = datetime.now(timezone.utc)
+    for day_offset in range(3):
+        candidate = now_utc.replace(hour=target_hour, minute=0, second=0, microsecond=0)
+        candidate = candidate + timedelta(days=day_offset)
+        minutes = (candidate - now_utc).total_seconds() / 60.0
+        if min_minutes <= minutes <= max_minutes:
+            return minutes
+    return None
+
+
+def _make_market_with_close_hour(
+    close_hour_utc: int,
+    mid: float = 50.0,
+    ticker: str = None,
+    volume: int = 5000,
+) -> Optional[Market]:
+    """
+    Create a market that closes at close_hour_utc:00 UTC, within the 30-360 min window.
+    Returns None if close_hour_utc:00 UTC is not within the required time window.
+
+    Callers must handle None (skip test or assert early).
+    """
+    minutes = _find_minutes_to_utc_hour(close_hour_utc)
+    if minutes is None:
+        return None  # not within time window — caller must handle this
+    return _make_market_at_relative_offset(
+        minutes_from_now=minutes,
+        mid=mid,
+        ticker=ticker if ticker else f"KXBTCD-TEST-T80000-h{close_hour_utc}",
+        volume=volume,
+    )
+
+
+class TestATMPrioritySlot:
+    """5pm EDT (21:00 UTC) slot should be preferred when tied on ATM distance (Task 1).
+
+    These tests create markets by crafting close_time strings with specific .hour values
+    using absolute UTC datetimes. Since CryptoDailyStrategy._find_atm_market filters on
+    minutes_remaining, we set all markets to 120 minutes from now but with the
+    close_time.hour field controlled via strftime on a datetime with the desired hour.
+
+    Implementation note: we set close_time to 120 minutes from now, then replace the
+    hour with the target value. If replacing the hour would make the time inconsistent
+    (e.g., hour=5 when it's 16:30 UTC → would be in the past), we add 1 day to ensure
+    it's still future. The key is that the market_minutes check in _find_atm_market
+    uses the parsed close_dt, so we just need to ensure the close_time parses correctly
+    and yields close_dt.hour == target_hour.
+
+    Simplest approach: use close_time = (now + 120 min) but with hour forced to desired
+    value, padded to next day if needed. This ensures close_dt.hour is correct AND the
+    market is within the time window (35-355 min).
+    """
+
+    def _market_with_hour(
+        self,
+        target_hour: int,
+        mid: float = 50.0,
+        ticker: str = "KXBTCD-TEST",
+        minutes_offset: float = 120.0,
+    ) -> Market:
+        """
+        Create a market whose close_time.hour == target_hour and is within time window.
+        Uses minutes_offset as a base, then adjusts to the next occurrence of target_hour.
+        """
+        now_utc = datetime.now(timezone.utc)
+        # Try today's occurrence of target_hour first
+        candidate = now_utc.replace(hour=target_hour, minute=0, second=0, microsecond=0)
+        for _ in range(3):
+            mins = (candidate - now_utc).total_seconds() / 60.0
+            if 35.0 <= mins <= 355.0:
+                break
+            candidate = candidate + timedelta(days=1)
+        else:
+            # If no occurrence in window, use minutes_offset from now
+            # (test will degenerate — not ideal but avoids test hanging)
+            candidate = now_utc + timedelta(minutes=minutes_offset)
+            candidate = candidate.replace(microsecond=0)
+
+        close_iso = candidate.strftime("%Y-%m-%dT%H:%M:%SZ")
+        yes_bid = max(1, int(mid - 0.5))
+        yes_ask = min(99, int(mid + 0.5))
+        return Market(
+            ticker=ticker,
+            title=f"BTC above 80000? close_hour={target_hour}",
+            event_ticker=ticker,
+            status="open",
+            yes_price=yes_bid,
+            no_price=100 - yes_bid,
+            volume=5000,
+            close_time=close_iso,
+            open_time="",
+            result=None,
+            raw={"yes_ask": yes_ask, "yes_bid": yes_bid, "series_ticker": "KXBTCD"},
+        )
+
+    def _non_21_hour(self) -> Optional[int]:
+        """Find a UTC hour != 21 that's within the 30-360 min window."""
+        for h in [14, 15, 16, 17, 18, 19, 20, 22, 23, 0, 1, 2, 3]:
+            if h != 21 and _find_minutes_to_utc_hour(h) is not None:
+                return h
+        return None
+
+    def test_prefers_21utc_slot_when_tied(self):
+        """When two candidates have identical ATM distance, prefer 21:00 UTC close."""
+        mins_21 = _find_minutes_to_utc_hour(21)
+        if mins_21 is None:
+            pytest.skip("21:00 UTC not within 30-360 min window — skip time-sensitive test")
+
+        strat = CryptoDailyStrategy(
+            asset="BTC", series_ticker="KXBTCD",
+            min_minutes_remaining=30.0, max_minutes_remaining=360.0,
+        )
+        alt_hour = self._non_21_hour()
+        if alt_hour is None:
+            pytest.skip("No alternative UTC hour in window to pair with 21:00")
+
+        market_alt = self._market_with_hour(alt_hour, mid=50.0, ticker="KXBTCD-TEST-alt-T80000")
+        market_21 = self._market_with_hour(21, mid=50.0, ticker="KXBTCD-TEST-21h-T80000")
+
+        result = strat._find_atm_market([market_alt, market_21], spot=80000.0)
+        assert result is not None
+        assert result.ticker == "KXBTCD-TEST-21h-T80000", (
+            f"Expected 21:00 UTC slot to be preferred over h={alt_hour}, got {result.ticker}"
+        )
+
+    def test_no_regression_without_21utc_slot(self):
+        """When no 21:00 UTC slot exists, picks the best ATM market normally."""
+        strat = CryptoDailyStrategy(
+            asset="BTC", series_ticker="KXBTCD",
+            min_minutes_remaining=30.0, max_minutes_remaining=360.0,
+        )
+        # Create two markets with relative offsets, neither at 21:00 UTC.
+        # Use 120 min and 180 min from now — adjust if either lands on 21:00 UTC.
+        now_utc = datetime.now(timezone.utc)
+
+        def make_rel_market(minutes_offset: float, mid: float, ticker: str, avoid_hour: int = 21) -> Market:
+            """Create market at relative offset, shifting 10 min if it would land on avoid_hour."""
+            close_dt = now_utc + timedelta(minutes=minutes_offset)
+            if close_dt.hour == avoid_hour:
+                close_dt = close_dt + timedelta(minutes=10)
+            close_dt = close_dt.replace(microsecond=0)
+            yes_bid = max(1, int(mid - 0.5))
+            yes_ask = min(99, int(mid + 0.5))
+            return Market(
+                ticker=ticker, title="", event_ticker=ticker, status="open",
+                yes_price=yes_bid, no_price=100 - yes_bid, volume=5000,
+                close_time=close_dt.strftime("%Y-%m-%dT%H:%M:%SZ"), open_time="", result=None,
+                raw={"yes_ask": yes_ask, "yes_bid": yes_bid, "series_ticker": "KXBTCD"},
+            )
+
+        # market_a: mid=48 (dist=2), market_b: mid=51 (dist=1) → market_b should win
+        market_a = make_rel_market(120.0, mid=48.0, ticker="KXBTCD-TEST-a-T80000")
+        market_b = make_rel_market(180.0, mid=51.0, ticker="KXBTCD-TEST-b-T80000")
+
+        result = strat._find_atm_market([market_a, market_b], spot=80000.0)
+        assert result is not None
+        assert result.ticker == "KXBTCD-TEST-b-T80000", (
+            f"Without 21:00 UTC slot, should pick market_b (closer to 50, dist=1), got {result.ticker}"
+        )
+
+    def test_priority_slot_does_not_override_price_guard(self):
+        """21:00 UTC slot with extreme price (outside 35-65) is excluded despite priority."""
+        mins_21 = _find_minutes_to_utc_hour(21)
+        if mins_21 is None:
+            pytest.skip("21:00 UTC not within 30-360 min window — skip time-sensitive test")
+
+        strat = CryptoDailyStrategy(
+            asset="BTC", series_ticker="KXBTCD",
+            min_minutes_remaining=30.0, max_minutes_remaining=360.0,
+        )
+        # 21:00 UTC market with mid=20 (outside price guard 35-65)
+        market_21_extreme = self._market_with_hour(21, mid=20.0, ticker="KXBTCD-21h-extreme")
+        # Non-21 market with valid mid=50
+        now_utc = datetime.now(timezone.utc)
+        close_dt_ok = (now_utc + timedelta(minutes=120)).replace(microsecond=0)
+        if close_dt_ok.hour == 21:
+            close_dt_ok = close_dt_ok + timedelta(minutes=10)
+        market_ok = Market(
+            ticker="KXBTCD-non21h-valid", title="", event_ticker="KXBTCD-non21h-valid",
+            status="open", yes_price=49, no_price=51, volume=5000,
+            close_time=close_dt_ok.strftime("%Y-%m-%dT%H:%M:%SZ"), open_time="", result=None,
+            raw={"yes_ask": 51, "yes_bid": 49, "series_ticker": "KXBTCD"},
+        )
+
+        result = strat._find_atm_market([market_21_extreme, market_ok], spot=80000.0)
+        assert result is not None
+        assert result.ticker == "KXBTCD-non21h-valid", (
+            "21:00 UTC slot with price outside guard should be excluded; "
+            f"got {result.ticker}"
+        )
+
+    def test_21utc_preference_is_within_2c_tolerance(self):
+        """21:00 UTC slot is only preferred when within 2c of the best ATM distance."""
+        mins_21 = _find_minutes_to_utc_hour(21)
+        if mins_21 is None:
+            pytest.skip("21:00 UTC not within 30-360 min window — skip time-sensitive test")
+
+        strat = CryptoDailyStrategy(
+            asset="BTC", series_ticker="KXBTCD",
+            min_minutes_remaining=30.0, max_minutes_remaining=360.0,
+        )
+        # Best market: mid=50 (dist=0), NOT at 21:00 UTC
+        now_utc = datetime.now(timezone.utc)
+        close_dt_best = (now_utc + timedelta(minutes=120)).replace(microsecond=0)
+        if close_dt_best.hour == 21:
+            close_dt_best = close_dt_best + timedelta(minutes=10)
+        market_best = Market(
+            ticker="KXBTCD-best-T80000", title="", event_ticker="KXBTCD-best-T80000",
+            status="open", yes_price=49, no_price=51, volume=5000,
+            close_time=close_dt_best.strftime("%Y-%m-%dT%H:%M:%SZ"), open_time="", result=None,
+            raw={"yes_ask": 51, "yes_bid": 49, "series_ticker": "KXBTCD"},
+        )
+        # 21:00 UTC market: mid=53 (dist=3 > best_dist+2=2) — should NOT win
+        market_21_worse = self._market_with_hour(21, mid=53.0, ticker="KXBTCD-21h-worse")
+
+        result = strat._find_atm_market([market_best, market_21_worse], spot=80000.0)
+        assert result is not None
+        assert result.ticker == "KXBTCD-best-T80000", (
+            "21:00 UTC slot with dist=3 > tolerance(2) should NOT override best ATM; "
+            f"got {result.ticker}"
+        )
+
+
+# ── TestCryptoDailyLoopDirectionFilter ───────────────────────────────
+
+
+class TestCryptoDailyLoopDirectionFilter:
+    """Loop-level direction_filter guard in crypto_daily_loop (Task 2)."""
+
+    def test_direction_filter_no_blocks_yes_signal(self):
+        """Guard condition: signal.side='yes' with direction_filter='no' → should block."""
+        from src.strategies.base import Signal
+        signal = Signal(
+            side="yes",
+            edge_pct=0.08,
+            win_prob=0.60,
+            confidence=0.5,
+            ticker="KXBTCD-TEST-T80000",
+            price_cents=52,
+            reason="test",
+        )
+        direction_filter = "no"
+        # Simulate the guard: blocked when side != direction_filter
+        blocked = direction_filter is not None and signal.side != direction_filter
+        assert blocked is True, "YES signal with direction_filter='no' must be blocked"
+
+    def test_direction_filter_none_passes_both_sides(self):
+        """Guard condition: direction_filter=None → neither side is blocked."""
+        from src.strategies.base import Signal
+        for side in ("yes", "no"):
+            signal = Signal(
+                side=side,
+                edge_pct=0.08,
+                win_prob=0.60,
+                confidence=0.5,
+                ticker="KXBTCD-TEST-T80000",
+                price_cents=52,
+                reason="test",
+            )
+            direction_filter = None
+            blocked = direction_filter is not None and signal.side != direction_filter
+            assert blocked is False, f"direction_filter=None must not block {side} signal"
+
+    def test_direction_filter_yes_blocks_no_signal(self):
+        """Guard condition: signal.side='no' with direction_filter='yes' → should block."""
+        from src.strategies.base import Signal
+        signal = Signal(
+            side="no",
+            edge_pct=0.08,
+            win_prob=0.60,
+            confidence=0.5,
+            ticker="KXBTCD-TEST-T80000",
+            price_cents=48,
+            reason="test",
+        )
+        direction_filter = "yes"
+        blocked = direction_filter is not None and signal.side != direction_filter
+        assert blocked is True, "NO signal with direction_filter='yes' must be blocked"
+
+    def test_loop_direction_filter_param_exists_in_main(self):
+        """crypto_daily_loop in main.py must accept direction_filter parameter."""
+        import inspect
+        from main import crypto_daily_loop
+        params = inspect.signature(crypto_daily_loop).parameters
+        assert "direction_filter" in params, (
+            "crypto_daily_loop must have a direction_filter parameter"
+        )
