@@ -61,6 +61,7 @@ None — slippage model and settlement verification complete.
 | 8 | Fix canceled order status check in live.py (canceled → no DB write, resting → record normally) | 2026-03-09 | 6127cea, 9009fa8 | .planning/quick/7-fix-canceled-order-status-check-in-live-/ |
 | 9 | Fix graduation_stats() is_paper param + sol_drift_v1 in _GRAD — live drift shows live bet counts | 2026-03-09 | 82c90c7, 2fab9e6 | .planning/quick/8-fix-graduation-stats-is-paper-param-to-s/ |
 | 10 | Session 48 Kalshi probe: KXBTCMAXW dormant confirmed weekday, KXCPI 74 open (major revision), fresh KXBTCMAXMON/KXBTCMINMON/KXBTCMAXY/KXBTCMINY data | 2026-03-11 | 9171436 | .planning/quick/9-research-and-document-kalshi-undocumente/ |
+| 11 | Improve CryptoDailyStrategy signal quality: per-asset _HOURLY_VOL (BTC=0.01, ETH=0.015, SOL=0.025), 5pm EDT ATM slot priority, direction_filter in crypto_daily_loop | 2026-03-11 | e71c498, 7a09d74 | .planning/quick/10-improve-cryptodailystrategy-signal-quali/ |
 
 ## Phase Plans Completed
 
@@ -70,5 +71,5 @@ None — slippage model and settlement verification complete.
 
 ## Last Session
 
-**Stopped at:** Session 33 — CryptoDailyStrategy live. Bot restarted at PID 58614 with 3 new daily loops (btc_daily/eth_daily/sol_daily, paper-only). 798/798 tests. Confirmed Kalshi copy trading infeasible (no public user attribution even with leaderboard).
-**Session timestamp:** 2026-03-08T20:35:00Z
+**Stopped at:** Quick task 11 — CryptoDailyStrategy signal quality improvements: per-asset vol, 5pm EDT slot priority, loop direction_filter guard. 1003/1003 tests.
+**Session timestamp:** 2026-03-11T16:41:00Z
