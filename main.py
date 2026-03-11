@@ -3025,7 +3025,7 @@ async def main():
     expiry_sniper_task = asyncio.create_task(
         expiry_sniper_loop(
             kalshi=kalshi,
-            btc_feed=btc_price_feed,
+            btc_feed=btc_feed,
             db=db,
             kill_switch=kill_switch,
             initial_delay_sec=110.0,   # stagger after copy_trade (80s) + sports_futures (95s)
