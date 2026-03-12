@@ -55,19 +55,25 @@ async def execute(
     *,
     live_confirmed: bool = False,
     strategy_name: str = "unknown",
+    price_guard_min: int = _EXECUTION_MIN_PRICE_CENTS,
+    price_guard_max: int = _EXECUTION_MAX_PRICE_CENTS,
 ) -> Optional[dict]:
     """
     Place a real order on Kalshi.
 
     Args:
-        signal:         The trading signal from the strategy
-        market:         Current market snapshot
-        orderbook:      Current order book
-        trade_usd:      Dollar amount to spend (from sizing module)
-        kalshi:         Authenticated KalshiClient
-        db:             Database for recording the trade
-        live_confirmed: Must be True — set by main.py after first-run confirmation
-        strategy_name:  Strategy name saved to DB (e.g. "btc_lag_v1", "btc_drift_v1")
+        signal:          The trading signal from the strategy
+        market:          Current market snapshot
+        orderbook:       Current order book
+        trade_usd:       Dollar amount to spend (from sizing module)
+        kalshi:          Authenticated KalshiClient
+        db:              Database for recording the trade
+        live_confirmed:  Must be True — set by main.py after first-run confirmation
+        strategy_name:   Strategy name saved to DB (e.g. "btc_lag_v1", "btc_drift_v1")
+        price_guard_min: Lower bound for YES-equivalent execution price guard (default 35).
+                         Override with 1 for expiry_sniper, which operates at 87-99¢.
+        price_guard_max: Upper bound for YES-equivalent execution price guard (default 65).
+                         Override with 99 for expiry_sniper, which operates at 87-99¢.
 
     Returns:
         Trade record dict on success, None on failure.
@@ -113,11 +119,11 @@ async def execute(
     execution_yes_price = price_cents if signal.side == "yes" else (100 - price_cents)
     signal_yes_price = signal.price_cents if signal.side == "yes" else (100 - signal.price_cents)
 
-    if not (_EXECUTION_MIN_PRICE_CENTS <= execution_yes_price <= _EXECUTION_MAX_PRICE_CENTS):
+    if not (price_guard_min <= execution_yes_price <= price_guard_max):
         logger.warning(
             "[live] Execution price %d¢ (YES-equiv) outside guard %d-%d¢ — rejecting "
             "(signal was %d¢, ticker=%s)",
-            execution_yes_price, _EXECUTION_MIN_PRICE_CENTS, _EXECUTION_MAX_PRICE_CENTS,
+            execution_yes_price, price_guard_min, price_guard_max,
             signal_yes_price, signal.ticker,
         )
         return None

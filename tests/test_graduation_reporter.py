@@ -2,7 +2,7 @@
 Tests for print_graduation_status() function in main.py.
 
 Verifies:
-- Output includes all 8 strategies
+- Output includes all 11 strategies
 - Table header includes required columns
 - Status logic: READY, BLOCKED, needs X more trades
 - Per-strategy threshold values (fomc=5 trades, weather=14 days)
@@ -50,14 +50,17 @@ def _call_print_graduation_status(db) -> str:
 class TestGraduationStatusPrinter:
     """Tests for print_graduation_status(db)."""
 
-    def test_prints_all_8_strategies(self, db):
-        """Empty DB should still print a row for all 8 strategies."""
+    def test_prints_all_11_strategies(self, db):
+        """Empty DB should still print a row for all 11 strategies."""
         output = _call_print_graduation_status(db)
         strategies = [
             "btc_lag_v1",
             "eth_lag_v1",
             "btc_drift_v1",
             "eth_drift_v1",
+            "sol_drift_v1",          # added ~Session 41
+            "xrp_drift_v1",          # added Session 41
+            "expiry_sniper_v1",      # added Session 54
             "orderbook_imbalance_v1",
             "eth_orderbook_imbalance_v1",
             "weather_forecast_v1",
@@ -121,7 +124,7 @@ class TestGraduationStatusPrinter:
             f"Expected READY in btc_lag status, got: {btc_lag_line[0]}"
         )
 
-    def test_zero_of_10_ready_on_empty_db(self, db):
+    def test_zero_of_11_ready_on_empty_db(self, db):
         """Empty DB should show '0 / 11 strategies ready' (expiry_sniper_v1 added Session 54)."""
         output = _call_print_graduation_status(db)
         assert "0 / 11" in output, f"Expected '0 / 11' in output, got:\n{output}"

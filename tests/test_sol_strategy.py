@@ -19,6 +19,7 @@ import pytest
 
 from src.data.binance import BinanceFeed, load_sol_from_config, _BINANCE_SOL_WS_URL
 from src.strategies.btc_lag import BTCLagStrategy, load_sol_lag_from_config
+from src.strategies.btc_drift import BTCDriftStrategy, load_sol_drift_from_config
 from src.platforms.kalshi import Market, OrderBook, OrderBookLevel
 
 
@@ -205,3 +206,44 @@ class TestSolSignalGeneration:
 
     def test_strategy_name_is_sol_lag_v1(self):
         assert self.strategy.name == "sol_lag_v1"
+
+
+# ── SOL drift factory (BTCDriftStrategy on SOL feed) ──────────────────
+
+
+class TestSolDriftStrategy:
+    """Tests for load_sol_drift_from_config() factory and sol_drift_v1 parameters.
+
+    sol_drift uses BTCDriftStrategy with SOL feed.
+    SOL is ~3x more volatile than BTC — min_drift_pct is scaled 3x (0.15 vs 0.05).
+    STAGE 1 live as of Session 48 (calibration_max_usd removed, Kelly + $5 cap governs).
+    direction_filter="no" ACTIVE (Session 51 — NO 11/11 wins pre-filter).
+    """
+
+    def test_load_sol_drift_from_config_returns_strategy(self):
+        strategy = load_sol_drift_from_config()
+        assert isinstance(strategy, BTCDriftStrategy)
+
+    def test_sol_drift_strategy_name(self):
+        strategy = load_sol_drift_from_config()
+        assert strategy.name == "sol_drift_v1"
+
+    def test_sol_drift_min_drift_pct_scaled_for_volatility(self):
+        """SOL ~3x more volatile than BTC → min_drift_pct must be >= 0.15."""
+        strategy = load_sol_drift_from_config()
+        assert strategy._min_drift_pct >= 0.15, (
+            f"SOL drift min_drift_pct={strategy._min_drift_pct:.3f} is too low. "
+            "SOL is ~3x more volatile than BTC; threshold must be >= 0.15 to maintain signal quality."
+        )
+
+    def test_sol_drift_min_edge_pct_set(self):
+        strategy = load_sol_drift_from_config()
+        assert strategy._min_edge_pct > 0.0
+        assert strategy._min_edge_pct <= 0.15  # reasonable upper bound
+
+    def test_sol_drift_not_btc_or_eth_or_xrp_name(self):
+        """SOL strategy must have sol_drift name, not btc/eth/xrp."""
+        strategy = load_sol_drift_from_config()
+        assert "btc" not in strategy.name.lower()
+        assert "eth" not in strategy.name.lower()
+        assert "xrp" not in strategy.name.lower()

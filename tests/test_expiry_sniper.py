@@ -102,8 +102,8 @@ class TestExpirySniperSignal:
         )
         assert signal is not None
         assert signal.side == "no"
-        # price_cents for Signal is always YES-equivalent price for payout calc
-        assert signal.price_cents == 10  # YES price
+        # price_cents stores actual side price (NO price) — consistent with all strategies
+        assert signal.price_cents == 90  # NO price
 
     def test_signal_at_exactly_90c(self):
         """90c exactly (not 89c) triggers entry."""

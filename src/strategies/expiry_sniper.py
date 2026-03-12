@@ -185,7 +185,7 @@ class ExpirySniperStrategy(BaseStrategy):
                 )
                 return None
             side = "no"
-            price_cents = yes_price  # Signal.price_cents is always the YES price for payout calc
+            price_cents = no_price  # Store actual NO price (consistent with all strategies)
             # Favorite-longshot bias: win_prob = no_price + 1pp premium
             win_prob = min(0.99, no_price / 100.0 + _WIN_PROB_PREMIUM)
 

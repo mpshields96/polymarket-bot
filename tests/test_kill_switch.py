@@ -1020,13 +1020,17 @@ class TestCalibrationCap:
 class TestDirectionFilter:
     """Regression tests for trading_loop direction_filter parameter.
 
-    direction_filter="no" was added to btc_drift after YES showed 30% win rate (6/20)
-    vs NO at 61% (14/23) across 43 live bets — p≈3.7%, statistically significant.
-    Mechanical explanation: upward BTC drift is already priced into Kalshi YES market
-    by HFTs before our signal fires. Downward drift retains real edge.
+    ACTIVE FILTERS (per-strategy, as of Sessions 43/53/51/54):
+      btc_drift: filter="no"  — YES win rate 30% (6/20) vs NO 61% (14/23), p≈3.7%
+      eth_drift: filter="yes" — NO has negative EV; YES 61% win rate (Session 53)
+      sol_drift: filter="no"  — NO 11/11 wins pre-filter (Session 51)
+      xrp_drift: filter="yes" — YES +0.38 vs NO -0.45 EV (Session 54, Matthew approved)
+
+    Mechanical explanation for btc/sol drift NO-filter: upward drift already priced into
+    Kalshi YES market by HFTs before our signal fires. Downward drift retains real edge.
 
     Tests verify the filter logic directly (the conditional in trading_loop is trivial
-    but must be correctly applied to prevent YES bets from sneaking through).
+    but must be correctly applied to prevent wrong-side bets from sneaking through).
     """
 
     def _filter_signal(self, signal_side: str, direction_filter: Optional[str]) -> bool:
@@ -1052,11 +1056,11 @@ class TestDirectionFilter:
         assert self._filter_signal("no", "no") is True
 
     def test_yes_filter_blocks_no_signal(self):
-        """direction_filter='yes' blocks NO signals (future use if needed)."""
+        """direction_filter='yes' blocks NO signals — ACTIVE on eth_drift_v1 and xrp_drift_v1 (Sessions 53/54)."""
         assert self._filter_signal("no", "yes") is False
 
     def test_yes_filter_passes_yes_signal(self):
-        """direction_filter='yes' passes YES signals through."""
+        """direction_filter='yes' passes YES signals through — ACTIVE on eth_drift_v1 and xrp_drift_v1."""
         assert self._filter_signal("yes", "yes") is True
 
 

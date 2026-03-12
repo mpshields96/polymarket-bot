@@ -845,3 +845,34 @@ WHY NOT NOW:
   - Kelly criterion argues against martingale systematically
 EVALUATE WHEN: 100+ live expiry sniper bets, Brier confirmed < 0.15, consecutive loss distribution mapped
 NOTE: If win rate stays >92%, martingale risk is low. If drops to 75-80%, martingale causes ruin.
+
+---
+
+## [ ] Stage 2 promotion architecture — per-strategy cap infrastructure needed
+**Added:** Session 58 (2026-03-12)
+**Problem:** HARD_MAX_TRADE_USD = 5.00 in kill_switch.py is GLOBAL — affects all strategies.
+Stage 2 ($10 cap) would need a global constant change that raises limits for ALL strategies simultaneously.
+btc_drift (-11.12 USD) and eth_drift (-11.51 USD) are NOT ready for $10 bets.
+sol_drift IS likely ready (0.177 Brier, 78% win rate, +9.25 USD, 27/30 bets).
+**Gap:** No mechanism to raise cap ONLY for sol_drift without affecting others.
+**Options:**
+  A) Add per-strategy `stage_max_usd` param to trading_loop (similar to calibration_max_usd but upper bound)
+     — requires changing trading_loop() signature + kill_switch.check_order_allowed() to accept override
+  B) Keep all strategies at Stage 1 ($5 cap) until btc_drift AND eth_drift also qualify for Stage 2
+  C) Raise global cap to $10 for all once sol qualifies (risky with btc/eth negative)
+**Recommendation:** Option A (per-strategy cap) is cleanest. Option B is safest.
+**Action needed:** When sol hits 30 live bets — present this decision to Matthew with data.
+  At that point: sol (Brier ~0.177, ~78%, positive P&L), btc_drift (Brier 0.247, -11 USD), eth_drift (Brier 0.249, -11 USD).
+**Estimated effort:** ~1 hour for Option A (add stage_max_usd param, update tests)
+**Approval needed:** Yes — risk parameter change; requires Matthew sign-off on which option
+
+---
+
+## [ ] Stale test comment cleanup — graduation reporter / direction filter
+**Added:** Session 58 (2026-03-12)
+**Status:** COMPLETED in Session 58. Fixed:
+  - test_graduation_reporter.py: renamed test_prints_all_8_strategies → test_prints_all_11_strategies (added sol/xrp/sniper)
+  - test_graduation_reporter.py: renamed test_zero_of_10_ready → test_zero_of_11_ready
+  - test_kill_switch.py: updated TestDirectionFilter docstring to document all 4 active filters
+  Both direction_filter="yes" tests had "future use" comments — updated to reflect ACTIVE status.
+  All 1042 tests pass. No behavior changes.

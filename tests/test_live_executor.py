@@ -714,3 +714,108 @@ class TestExecuteOrderStatusGuard:
         assert result is not None
         assert result["status"] == "resting"
         db.save_trade.assert_called_once()
+
+
+# ── Sniper price guard override ────────────────────────────────────────────
+
+
+class TestSniperPriceGuardOverride:
+    """expiry_sniper uses price_guard_min=1, price_guard_max=99 to bypass the
+    drift 35-65¢ guard. These tests verify:
+      1. NO-side sniper at YES-equivalent 8¢ passes when override is active
+      2. Default guard (35-65¢) still blocks the same price without override
+      3. Override does NOT disable the 1-99¢ validity check
+      4. Drift strategies continue to use the default 35-65¢ guard
+    """
+
+    async def test_sniper_override_allows_no_at_extreme_yes_equiv(
+        self, live_env, bypass_first_run
+    ):
+        """price_guard_min=1/max=99: NO sniper signal YES-equiv=8¢ executes normally.
+
+        Scenario: YES=8¢, NO=92¢. Signal is NO@92¢ (sniper stores actual NO price).
+        Without override: YES-equiv of NO=92 is 100-92=8¢ < 35¢ guard → rejected.
+        With override (1-99): 8¢ is inside guard → order placed.
+        """
+        # yes_bid=8 → no_ask = 100 - 8 = 92¢ (NO execution price)
+        ob = make_orderbook(yes_bid=8)
+        # signal.price_cents = NO price = 92 (stores actual side price, consistent with drift)
+        signal = make_signal(side="no", price_cents=92)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal, make_market(yes_price=8, no_price=92), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="expiry_sniper_v1",
+            price_guard_min=1, price_guard_max=99,
+        )
+
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+        db.save_trade.assert_called_once()
+
+    async def test_default_guard_blocks_no_at_extreme_yes_equiv(
+        self, live_env, bypass_first_run
+    ):
+        """Default guard (35-65¢): same NO sniper at YES-equiv=8¢ is rejected.
+
+        Regression guard: drift strategies MUST NOT accidentally allow sniper prices.
+        """
+        ob = make_orderbook(yes_bid=8)
+        signal = make_signal(side="no", price_cents=92)  # NO price = 92 (YES=8)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal, make_market(yes_price=8, no_price=92), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="btc_drift_v1",
+            # No price_guard_min/max → uses defaults 35/65
+        )
+
+        assert result is None
+        kalshi.create_order.assert_not_called()
+
+    async def test_sniper_override_yes_side_at_high_price(
+        self, live_env, bypass_first_run
+    ):
+        """price_guard_min=1/max=99: YES sniper at 94¢ executes normally.
+
+        YES@94¢ is a valid sniper entry (favorite at 94¢, YES-equiv=94¢).
+        With override (1-99): 94¢ is inside guard → order placed.
+        """
+        # no_bid=6 → yes_ask = 100 - 6 = 94¢
+        ob = make_orderbook(no_bid=6)
+        signal = make_signal(side="yes", price_cents=94)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal, make_market(yes_price=94, no_price=6), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="expiry_sniper_v1",
+            price_guard_min=1, price_guard_max=99,
+        )
+
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
+    async def test_override_does_not_bypass_1_99_validity_check(
+        self, live_env, bypass_first_run
+    ):
+        """price_guard_min=0 still rejects price_cents=0 via the unreasonable-price guard.
+
+        The 1-99¢ validity check (not (1 <= price_cents <= 99)) is independent
+        of the guard range. Even with price_guard_min=0, a 0¢ price is still rejected.
+        """
+        ob = make_orderbook(no_bid=100)  # yields yes_ask = 0 (invalid)
+        signal = make_signal(side="yes", price_cents=1)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal, make_market(yes_price=0, no_price=100), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="expiry_sniper_v1",
+            price_guard_min=1, price_guard_max=99,
+        )
+
+        assert result is None
+        kalshi.create_order.assert_not_called()
