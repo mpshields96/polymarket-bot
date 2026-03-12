@@ -199,6 +199,7 @@ DO NOT: fix symptoms without finding root cause
 - **`_realized_loss_usd` is display-only (Session 34)**: The 30% lifetime hard stop was removed. `restore_realized_loss()` still seeds the counter for status display but triggers no stop. Protection = daily loss limit (20%) + $20 bankroll floor.
 - **restore_daily_loss() and restore_realized_loss() are SEPARATE concerns** — `restore_daily_loss()` only touches `_daily_loss_usd`. `restore_realized_loss()` only touches `_realized_loss_usd`. Never mix them. Double-counting was a bug that's been fixed.
 - **`all_time_live_loss_usd()` returns NET P&L loss** — `MAX(0, -SUM(pnl_cents))` across all settled live trades. Returns 0 if live trading is profitable overall. Uses net so profitable bots with high gross losses don't trigger spurious hard stops.
+- **`--graduation-status` shows strategy-specific consecutive losses, NOT kill switch state (Session 56)**: The "BLOCKED (N consec losses)" shown for a strategy in graduation_status is a DB count of that strategy's most recent consecutive losses. The actual kill switch consecutive counter is SHARED across ALL strategies and resets to 0 on ANY win by ANY strategy. Example: eth_drift shows "5 consec" but xrp_drift win at 01:02 UTC reset kill switch to 0. Always verify true state: `grep "consecutive\|Win recorded" /tmp/polybot_session*.log | tail -10`.
 - **Consecutive loss counter now persists across restarts (Session 25)**: `_consecutive_losses` was in-memory only — a restart mid-streak reset the counter to 0, letting the bot place extra losing bets (trades 86, 88, 90 = $14.74 loss after counter reset). Fix: `db.current_live_consecutive_losses()` walks live settled trades newest-first counting tail losses; `kill_switch.restore_consecutive_losses(n)` seeds the counter on startup; if n >= 4 it fires a fresh 2hr cooling period immediately. Same pattern as daily/lifetime. All three counters now survive restarts.
 - **asyncio race condition on hourly limit fixed (Session 24)**: Two live loops could both pass `check_order_allowed()` before either called `record_trade()`, exceeding hourly limit by 1. Fix: `_live_trade_lock = asyncio.Lock()` created in `main()`, passed to all 3 live loops via `trade_lock=` param. Wraps check→execute→record_trade atomically. Paper loops use `None` (no lock needed, no hourly rate limit in paper path).
 - **Paper-during-softkill (Session 23)**: Soft stops (daily loss, consecutive losses, hourly rate) block LIVE bets only. Paper data collection continues uninterrupted during soft kills. `check_paper_order_allowed()` is used in all paper paths; only hard stops + bankroll floor block paper trades. btc_lag/eth_lag/btc_drift live paths still use `check_order_allowed()` (all stops apply).
@@ -330,6 +331,15 @@ Then run it as background: `bash /tmp/polybot_monitor_cycle.sh` with `run_in_bac
 **The loop breaks if:** Claude's context window fills up (use `titanium-context-monitor` to catch this early)
 **The loop self-heals if:** Bot dies — Claude restarts it on next notification
 **Matthew's job:** Nothing. Check in whenever. Respond only if Claude surfaces a decision.
+
+**⚠️ DROUGHT PRODUCTIVITY RULE — MANDATORY (Sessions 54/55/56 failure, do not repeat):**
+When a price guard drought starts (YES=0c or YES=100c across all markets for 2+ consecutive checks):
+1. Log "Price guard drought confirmed" once
+2. IMMEDIATELY pivot to code work — do NOT spend the drought just watching 0c evaluations
+3. Best uses during drought: review .planning/SNIPER_LIVE_PATH_ANALYSIS.md, write tests,
+   review KXBTCD_FRIDAY_FEASIBILITY.md, clean up code, update docs
+4. Resume monitoring checks in background — the bot doesn't need babysitting during droughts
+5. Drought ends when YES returns to 35-65c range — resume active monitoring then
 
 **NEVER pipe restart_bot.sh through any command** — SIGPIPE kills the running bot.
 Run restart in isolation only: `bash scripts/restart_bot.sh <SESSION_NUM>`
