@@ -45,80 +45,97 @@
 ## CURRENT STATUS — (updated each session)
 ═══════════════════════════════════════════════════
 
-BUILD COMPLETE. 985/985 tests passing. verify.py 21/29 (8 advisory WARNs — non-critical).
-Last commit: 01679f4 (Session 48/49 wrap-up docs)
+BUILD COMPLETE. 1041/1041 tests passing. verify.py 21/29 (8 advisory WARNs — non-critical).
+Last commit: c527849 (Session 54 — xrp direction_filter=yes applied)
 
-## BOT STATE — Session 49 WRAP-UP (2026-03-11 ~07:15 CDT) — BOT RUNNING
+## BOT STATE — Session 54 WRAP (2026-03-12 ~02:00 UTC) — BOT RUNNING
 
-Bot running continuously since PID 47874 restart at 11:04 PM CDT March 10. 8+ hours autonomous.
-S48 KEY: sol_drift_v1 promoted to Stage 1 (calibration_max_usd=None, Kelly + $5 cap).
-S49 KEY: sol_drift Stage 1 FIRST BET FIRED ($2.44 WON). 3/3 overnight wins. +$5.43 live today.
+Bot PID 11136 → /tmp/polybot_session54.log. Session 54 completed context compaction.
+S53 KEY: eth_drift direction_filter="yes" applied. Best day: +27.98 USD (73 bets, 58% win).
+S54 KEY: expiry_sniper_v1 wired (21/30 paper, 95% wins). xrp direction_filter="yes" applied.
 
 Check bot: cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "RUNNING" || echo "STOPPED"
-Watch:  tail -f /tmp/polybot_session48.log | grep --line-buffered "LIVE BET\|Kill switch blocked\|cooling\|consecutive"
+Watch:  tail -f /tmp/polybot_session54.log | grep --line-buffered "LIVE BET\|Kill switch blocked\|cooling\|consecutive"
 
-All-time live P&L: -$40.09 (DB, as of 07:10 CDT) | Bankroll: ~$56 (check with --report)
-Tests: 985/985 | Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime hard stop
+All-time live P&L: -10.96 USD (was -40.09 at S48 start — +29.13 USD gained S49-S54)
+Tests: 1041/1041 | Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime hard stop
 Active protection: bankroll floor ($20) + consecutive cooling (8→2hr) + $5/bet hard cap
 
-RESPONSE FORMAT RULE: Plain text only in all responses. NEVER use markdown table syntax (| --- |).
-Tables render in wrong font in Claude Code UI. Matthew will terminate chat for format violations.
+RESPONSE FORMAT RULES (BOTH MANDATORY — Matthew terminates chat for violations):
+  RULE 1: NEVER markdown table syntax (| --- |) — wrong font in Claude Code UI.
+  RULE 2: NEVER dollar signs in prose ($X.XX) — triggers LaTeX math mode → garbled text.
 
-## LIVE LOOPS (as of Session 49 wrap-up — 2026-03-11 07:15 CDT)
+DIRECTION FILTERS — all four drift strategies (Session 54 final):
+  btc_drift: filter="no"  (only NO bets — YES has negative EV)
+  eth_drift: filter="yes" (only YES bets — REVERSED, NO has negative EV)
+  sol_drift: filter="no"  (only NO bets — sol NO consistently wins)
+  xrp_drift: filter="yes" (only YES bets — REVERSED, applied S54, Matthew approved)
+
+CRITICAL OPS LESSON FROM SESSION 54:
+  MONITORING: Always `pkill -f "polybot_monitor_cycle"` before starting any new cycle.
+  Only ever ONE cycle running. After restart, if bot.pid missing: echo PID > bot.pid IMMEDIATELY.
+  STRATEGY: Never dismiss long-term development because it's "too slow for deadline."
+  btc_daily_v1 paper IS running (12 settled). Start all long-term work. Let data accumulate.
+
+## LIVE LOOPS (as of Session 54 wrap — 2026-03-12 ~02:00 UTC)
 
   🔴 btc_drift_v1 → KXBTC15M | STAGE 1 ($5 cap, Kelly) | min_drift=0.10, min_edge=0.05
-     Graduation: 49/30 ✅ | Brier: 0.252 | P&L: -$24.95 | 0 consecutive losses
-     direction_filter="no" ACTIVE — blocks YES signals. 6 NO-only settled since activation (need 30).
-     DECISION POINT at 30 NO-only settled: present data to Matthew, don't decide autonomously.
-     Net P&L negative because includes bad YES bets BEFORE direction_filter was applied.
+     Graduation: 54/30 ✅ | Brier: 0.247 | P&L: -11.12 USD | 0 consecutive losses
+     direction_filter="no" — only NO bets. ~10 NO-only settled post-filter (need 30 to validate).
+     Net P&L negative from earlier YES bets before filter was applied.
 
-  🔴 eth_drift_v1 → KXETH15M | STAGE 1 (graduated Session 44!) | min_drift=0.05, min_edge=0.05
-     Graduation: 54/30 ✅ | Brier: 0.249 IMPROVING | P&L: +$2.22 | 1 consecutive loss
-     Best consistent earner. 23 bets overnight, Brier improved from 0.252 → 0.249.
-     Kelly + $5 HARD_MAX governs. calibration_max_usd removed in Session 44.
+  🔴 eth_drift_v1 → KXETH15M | STAGE 1 (graduated Session 44) | min_drift=0.05, min_edge=0.05
+     Graduation: 81/30 ✅ | Brier: 0.247 | P&L: +12.51 USD | 0 consecutive losses
+     direction_filter="yes" ACTIVE (Session 53) — REVERSED! NO had negative EV.
+     Best consistent earner. Brier improving. Need 30 YES-only post-filter to fully validate.
 
-  🔴 sol_drift_v1 → KXSOL15M | STAGE 1 (PROMOTED Session 48!) | min_drift=0.15, min_edge=0.05
-     Graduation: 19/30 | Brier: 0.169 🔥 BEST SIGNAL | P&L: +$5.88 | 0 consecutive losses
-     ⭐ MILESTONE: First Stage 1 bet fired overnight ($2.44, WON). 3 Stage 1 bets: 3/3 wins.
-     calibration_max_usd=None. Kelly + $5 HARD_MAX governs. Matthew explicit S48 override.
+  🔴 sol_drift_v1 → KXSOL15M | STAGE 1 (promoted Session 48) | min_drift=0.15, min_edge=0.05
+     Graduation: 27/30 | Brier: 0.177 BEST SIGNAL | P&L: +9.25 USD | 0 consecutive losses
+     direction_filter="no" ACTIVE. ⭐ 3 BETS FROM STAGE 2 MILESTONE.
+     When 30 bets: run graduation analysis. Stage 2 approval = bets double in size. Highest lever.
+     calibration_max_usd=None. Kelly + $5 HARD_MAX governs.
 
-  🔴 xrp_drift_v1 → KXXRP15M | micro-live | min_drift=0.10 (2x BTC), min_edge=0.05
-     Graduation: 6/30 | Brier: 0.351 | P&L: -$2.58 | 0 consecutive losses (UNBLOCKED overnight)
-     Was blocked at 5 consec; overnight win cleared streak. Monitor carefully at 30 bets.
-     calibration_max_usd=0.01 limits exposure to ~$0.50/bet.
+  🔴 xrp_drift_v1 → KXXRP15M | micro-live | min_drift=0.10, min_edge=0.05
+     Graduation: 17/30 | Brier: 0.267 | P&L: -0.94 USD | 0 consecutive losses
+     direction_filter="yes" APPLIED Session 54 (Matthew approved) — REVERSED! YES 83% vs NO 36%.
+     calibration_max_usd=0.01. Need 30 YES-only post-filter bets to validate.
 
   📋 eth_orderbook_imbalance_v1 → KXETH15M | PAPER-ONLY (disabled live Session 47)
-     Graduation: 15/30 | Brier: 0.337 ❌ | P&L: -$18.20
-     DISABLED LIVE: systematic 27% calibration error. Paper continues for data collection.
-     Reconsider if Brier improves to <0.25 at 30 bets.
+     Graduation: 15/30 | Brier: 0.337 ❌ | P&L: -18.20 USD
+     DISABLED LIVE: systematic 27% calibration error. Paper continues. Reconsider if Brier < 0.25.
 
   🔴 btc_lag_v1 → KXBTC15M | STAGE 1 | 45/30 ✅ | 0 signals/week (HFTs priced in) — dead signal
-     Kept running as live loop for data. No expectation of future signals.
 
-  All live loops: _live_trade_lock (asyncio.Lock), price guard 35-65¢
-  sol_drift/xrp_drift: min_drift=0.15/0.10 (higher volatility threshold than BTC)
+  📋 expiry_sniper_v1 → KXBTC15M/ETH/SOL/XRP | PAPER-ONLY | paper gate 30 bets
+     21/30 paper | 20W (95% win rate) | fires at 90c+ when drift is blocked by price guard
+     Snowberg & Wolfers favorite-longshot bias. Complements drift strategy.
+
+  All live loops: _live_trade_lock (asyncio.Lock), price guard 35-65c
   btc_drift/eth_drift/sol_drift: Kelly + $5 HARD_MAX (Stage 1). xrp: calibration_max_usd=0.01.
 
-## PAPER-ONLY LOOPS
+## PAPER-ONLY LOOPS (Session 54 wrap)
   📋 eth_lag_v1, sol_lag_v1 — 0 signals/week (HFTs price same minute)
   📋 orderbook_imbalance_v1 — paper, price guard added
-  📋 btc_daily_v1 — direction_filter="no" ACTIVE | KXBTCD | paper-only
+  📋 btc_daily_v1 — direction_filter="no" ACTIVE | KXBTCD 5pm (676K vol) | 12/30 paper bets
+     1 bet per day. ~18 more days to reach 30. DO NOT dismiss as "too slow." Start it, let data accumulate.
   📋 eth_daily_v1, sol_daily_v1 — KXETHD/KXSOLD have 0 volume — no meaningful data
   📋 weather_forecast_v1 — HIGHNY weekdays only
   📋 fomc_rate_v1 — WORKING | closes March 18 window | 0/5 paper bets still (needs 5 to go live)
   📋 unemployment_rate_v1 — WORKING | ~12x/year | fires near BLS releases
   📋 sports_futures_v1 — Polymarket.US bookmaker arb, min_books=2
   📋 copy_trader_v1 — Polymarket.US, 0 .US matches (platform mismatch confirmed)
+  📋 expiry_sniper_v1 — paper-only | 21/30 | 20W (95%) | 9 more for live gate
 
-## EXPANSION GATE STATUS (Session 49 wrap-up)
+## EXPANSION GATE STATUS (Session 54 wrap)
   Gate: OPEN for discussion. btc_drift/eth_drift/sol_drift all graduated or Stage 1 and profitable.
-  xrp_drift just unblocked — monitor before any action.
+  HIGHEST PRIORITY: SOL Stage 2 graduation (27/30 — 3 bets away).
   DO NOT BUILD NEW STRATEGIES without Matthew's explicit sign-off.
   Next expansion candidates (todos.md only — discuss with Matthew when he has bandwidth):
-    - btc_daily NO-only live — needs 30 paper NO bets + Brier < 0.25. 2-4 weeks out.
-    - CPI economics markets (KXCPI) — 74 open markets, episodic edge, build post-Grand-Rounds
+    - SOL Stage 2 promotion — 3 live bets away. Requires Matthew approval to raise cap from $5 to $10.
+    - btc_daily NO-only live — 12/30 paper. ~18 more days. KXBTCD 5pm (676K vol). Support it.
+    - KXBTCD Friday slot strategy — 770K vol (largest Kalshi market). Post-expansion gate. Worth building.
+    - CPI economics markets (KXCPI) — 74 open markets, episodic edge, build post-drift validation
     - Maker/limit orders (fee savings ~2-3% per bet) — near-term win, low risk
-  Grand Rounds: ~March 20, 2026. Post-Grand-Rounds = more dev time.
 
 ## SESSION 47 KEY CHANGES (2026-03-11)
   Part 1:

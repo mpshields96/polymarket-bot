@@ -2145,3 +2145,65 @@ Strategy is correctly complementing drift: fires when drift is blocked (extreme 
 Today live P&L: +17.24 USD (81 settled, 59% win rate) — strong despite 5hr price guard drought.
 All-time live P&L: -23.92 USD (improving from -40.09 at S53 start = +16.17 over 2 sessions).
 Monitoring loop: br1jt3wmz running, 20-min cycles, chains automatically.
+
+---
+
+## Session 54 WRAP — 2026-03-12 ~02:00 UTC
+
+### Summary
+Session ended due to context limit reached. Two major deliverables completed:
+(1) expiry_sniper_v1 fully wired and running (21/30 paper, 95% wins)
+(2) xrp_drift direction_filter="yes" applied (Matthew approved at 17 bets based on YES 83% vs NO 36%)
+
+### xrp_drift direction_filter="yes" — WHY Applied at 17 Bets
+Data at decision point: YES side = 5/6 wins (83%, +1.42 USD avg/bet). NO side = 4/11 wins (36%, -0.87 USD avg/bet).
+XRP has reversed pattern relative to BTC/SOL (which favor NO). Like eth_drift, XRP favors YES.
+Matthew approved at 17 bets instead of planned 30 — directional signal was clear enough.
+Commit c527849. Bot restarted PID 11136.
+Validation target: accumulate 30 YES-only post-filter bets to confirm pattern holds.
+
+### Monitoring Loop Issues (critical ops lesson)
+Multiple overlapping monitoring cycles ran simultaneously throughout session:
+- Old scripts from previous sessions survived through restarts
+- After bot.pid went missing post-restart, all cycles showed BOT_DEAD (false alarms)
+- Wasted approximately 30 minutes on false alarm triaging
+PERMANENT FIX: Always `pkill -f "polybot_monitor_cycle"` before starting any new cycle.
+If bot.pid missing after restart: echo "<PID>" > bot.pid IMMEDIATELY.
+
+### Hourly/Daily Bet Development (reasoning correction)
+Matthew correctly called out flawed reasoning: "what kind of logic is that rejecting something that takes time?"
+btc_daily_v1 paper mode IS ALREADY RUNNING. 12 settled bets, direction_filter="no" active.
+Need ~18 more days to accumulate 30 bets. This is ongoing. NEVER dismiss long-term investment.
+KXBTCD 5pm volume = 676K (well worth building toward).
+
+### Session 54 WRAP State
+All-time live P&L: -10.96 USD (was -40.09 at S48 start — major improvement)
+Strategy totals: eth_drift +12.51 | sol_drift +9.25 | btc_drift -11.12 | xrp_drift -0.94
+Tests: 1041/1041 passing
+Bot: PID 11136 running, session54.log
+Last commits: c527849 (xrp filter) + 40ec638 (progress docs)
+
+### Per-Strategy Status at Wrap
+btc_drift: 54/30 Brier 0.247, direction_filter="no", 0 consec, Stage 1, P&L -11.12 USD
+eth_drift: 81/30 Brier 0.247, direction_filter="yes", 0 consec, Stage 1, P&L +12.51 USD
+sol_drift: 27/30 Brier 0.177 BEST, direction_filter="no", 0 consec, Stage 1, P&L +9.25 USD
+xrp_drift: 17/30 Brier 0.267, direction_filter="yes" APPLIED S54, micro-live, P&L -0.94 USD
+expiry_sniper: 21/30 paper, 20W (95% win rate), strong early signal
+btc_daily: 12/30 paper (only 1 NO-only post-filter), Brier unknown, 1/day cadence
+
+### What Went Well (S54)
+- Expiry sniper: wired correctly, 21/30 paper, 95% wins — strategy is working
+- XRP direction filter: correctly identified reversed pattern, Matthew approved
+- Price guard drought: diagnosed correctly as expected behavior on first inquiry
+- Context compaction: resumed autonomously without data loss
+
+### What Went Poorly (S54)
+- Monitoring loop chaos: multiple overlapping cycles, false BOT_DEAD exits, wasted time
+- "Too slow for deadline" reasoning: incorrectly rejected discussing hourly/daily bets
+- Bearish drought + chaos combo: session produced no code improvements during drought window
+
+### Priorities for Session 55 (from Matthew's explicit direction)
+1. SOL Stage 2 graduation: 27/30, 3 bets away. Instant action when it hits 30.
+2. btc_daily paper support: stop ignoring it, it IS accumulating, just slowly
+3. XRP YES filter validation: need 30 YES-only settled bets post-filter
+4. When drought hits: improve code, not debug monitoring
