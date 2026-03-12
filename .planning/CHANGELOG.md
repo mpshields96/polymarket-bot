@@ -2207,3 +2207,57 @@ btc_daily: 12/30 paper (only 1 NO-only post-filter), Brier unknown, 1/day cadenc
 2. btc_daily paper support: stop ignoring it, it IS accumulating, just slowly
 3. XRP YES filter validation: need 30 YES-only settled bets post-filter
 4. When drought hits: improve code, not debug monitoring
+
+## Session 55 — 2026-03-12 — Volatile Night + Sniper Milestone
+
+### Changed
+No code changes this session. Monitoring and analysis only.
+
+### Session Context
+Extreme crypto volatility: YES prices bounced 0c → 99c → 53c → 80c → 0c within 2 hours.
+Price guard correctly blocked all drift signals during extreme periods.
+Zero live bets after 02:31 UTC. Final 1+ hour = complete drought due to extreme prices.
+
+### Key Milestones
+- Expiry sniper reached 38/30 paper bets (up from 21/30 at S54 wrap)
+  31W/1L = 97% win rate. Paper P&L +180 USD (inflated by extreme-price fills).
+  Pre-live checklist analysis: NOT ready. Live path does not exist in code.
+  Expansion gate not cleared (btc_drift -11.12 all-time).
+
+- Parallel research chat launched: sniper live path + KXBTCD Friday feasibility.
+  Output files: .planning/SNIPER_LIVE_PATH_ANALYSIS.md + .planning/KXBTCD_FRIDAY_FEASIBILITY.md
+
+### P&L This Session
+All-time live P&L: -20.20 USD (was -10.96 at S54 wrap — lost 9.24 this session)
+Today live (Mar 12 UTC): 7 settled, 3W/4L, -0.76 USD
+eth_drift: +3.72 USD today (YES filter working, but 2 late-session losses in volatile market)
+sol_drift: -4.48 USD today (1 bet, NO loss)
+
+### Per-Strategy Status at Wrap
+btc_drift: 54/30 Brier 0.247, direction_filter="no", 0 consec, Stage 1, P&L -11.12 USD
+eth_drift: 83/30 Brier 0.249, direction_filter="yes", 2 consec, Stage 1, P&L +3.27 USD
+sol_drift: 27/30 Brier 0.177 BEST, direction_filter="no", 1 consec, Stage 1, P&L +9.25 USD
+xrp_drift: 17/30 Brier 0.267, direction_filter="yes", 0 consec, micro-live, P&L -0.94 USD
+expiry_sniper: 38/30 paper, 97% wins, live path needs code build (expansion gate gate too)
+btc_daily: accumulating (not tracked this session — no code changes)
+
+### Self-Rating: C
+WINS: Correct decisions throughout (no bad param changes under pressure), sniper analysis
+  accurate (not ready for live), confirmed eth_drift YES filter still positive all-time.
+  Clean monitoring (5-min single checks, no chaos). Correctly diagnosed drought.
+LOSSES: Lost 9.24 USD all-time. 1+ hour drought not used productively (code improvement).
+  Monitoring 20-min scripts died (exit 144 on this system) — fell back to 5-min chains.
+GRADE: C — right decisions, wrong market conditions, slow on code productivity during drought.
+
+### What Must Improve (Session 56)
+- During price guard droughts: immediately pivot to code work (S54 lesson repeated S55)
+- Use 5-min single-check chains for monitoring (20-min scripts not reliable on this system)
+- First action each session: check if research chat produced analysis files. Read them.
+- Goal: +125 USD all-time profit. Urgent. Every session must move this number forward.
+
+### Priorities for Session 56
+1. SOL Stage 2 graduation: 27/30, 3 bets away. Instant analysis when it hits 30.
+2. Read SNIPER_LIVE_PATH_ANALYSIS.md and KXBTCD_FRIDAY_FEASIBILITY.md when available.
+3. XRP YES filter validation: 17/30, need 30 YES-only settled bets post-filter.
+4. When drought hits: work on code. Do not spend cycles watching blocked markets.
+5. Goal: move all-time from -20.20 toward +125 USD.
