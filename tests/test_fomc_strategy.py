@@ -525,8 +525,38 @@ class TestFREDFeed:
         assert snap.yield_2yr == 3.90
         assert feed.is_stale is False
 
-    def test_refresh_failure_returns_false(self):
+    def test_refresh_failure_uses_hardcoded_fallback(self):
+        """When network fails with no prior snapshot, refresh() uses hardcoded fallback and returns True."""
         with patch("urllib.request.urlopen", side_effect=OSError("connection error")):
             feed = FREDFeed()
-            assert feed.refresh() is False
-            assert feed.snapshot() is None
+            result = feed.refresh()
+        assert result is True
+        snap = feed.snapshot()
+        assert snap is not None
+        assert snap.fed_funds_rate > 4.0     # DFF ~4.33 as of Mar 2026
+        assert snap.yield_2yr > 3.0          # DGS2 ~4.00 as of Mar 2026
+        assert snap.cpi_latest > 300.0       # CPIAUCSL ~319 as of Mar 2026
+        assert feed.is_stale is False
+
+    def test_refresh_failure_with_existing_snapshot_extends_validity(self):
+        """When network fails but snapshot exists, refresh() keeps the existing snapshot and marks non-stale."""
+        import time
+        feed = FREDFeed(refresh_interval_seconds=0.001)
+        # Plant a known snapshot
+        from datetime import datetime, timezone
+        existing_snap = FREDSnapshot(
+            fed_funds_rate=3.64, yield_2yr=3.90,
+            cpi_latest=320.0, cpi_prior=319.5, cpi_prior2=319.0,
+            fetched_at=datetime.now(timezone.utc),
+        )
+        feed._snapshot = existing_snap
+        feed._last_fetch_ts = time.monotonic() - 10  # make it stale
+
+        assert feed.is_stale is True  # confirm stale before refresh
+
+        with patch("urllib.request.urlopen", side_effect=OSError("connection error")):
+            result = feed.refresh()
+
+        assert result is True
+        assert feed.snapshot() is existing_snap  # same object preserved
+        assert feed.is_stale is False            # staleness cleared
