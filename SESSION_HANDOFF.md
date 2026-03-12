@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-11 (Session 54 MID — PID 4203, session54.log)
+# Last updated: 2026-03-12 (Session 54 ACTIVE — PID 5076, session54.log)
 # ═══════════════════════════════════════════════════════════════
 
 ## ▶ COPY-PASTE THIS TO START A NEW SESSION (Session 55)
@@ -13,15 +13,15 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/SKILLS_REFERENCE.md
 
-⚠️ BOT STATE (Session 54 MID — 2026-03-11 ~22:51 UTC):
-  Bot RUNNING PID 4203 → /tmp/polybot_session54.log
+⚠️ BOT STATE (Session 54 ACTIVE — 2026-03-12 ~00:35 UTC):
+  Bot RUNNING PID 5076 → /tmp/polybot_session54.log
   NOTE: Matthew will explicitly say "stop" to kill the old bot before new session starts fresh.
   When Matthew says "stop": pkill -f "python3 main.py"; sleep 3; verify 0 processes.
   Then restart with: bash scripts/restart_bot.sh 55
 
 CHECK BOT HEALTH FIRST (Session 55 start):
   ps aux | grep "[m]ain.py" | wc -l        (should be 1)
-  cat bot.pid                               (should be 4203)
+  cat bot.pid                               (should be 5076)
   venv/bin/python3 main.py --health
   venv/bin/python3 main.py --report
   venv/bin/python3 main.py --graduation-status
@@ -37,22 +37,23 @@ If --health shows "HARD STOP": DO NOT RESTART. Log it. Wait for Matthew.
 
 ---
 
-KEY STATE (Session 54 MID — 2026-03-11 ~22:51 UTC):
-* Bot: RUNNING (PID 4203) → /tmp/polybot_session54.log
-* All-time live P&L: -21.87 USD (was -17.54 at S53 wrap — small reversion overnight)
-* 1034/1034 tests passing (up from 1003 — 37 new expiry_sniper tests added S54)
-* Last code commits: 22273ec (expiry_sniper feat) → 15e9b77 (btc_feed name fix)
-* Today live P&L: +23.65 USD (75 settled, 58% win) — strong day continuing
-* Consecutive losses (global kill switch): 1 (healthy)
+KEY STATE (Session 54 ACTIVE — 2026-03-12 ~00:35 UTC):
+* Bot: RUNNING (PID 5076) → /tmp/polybot_session54.log
+* All-time live P&L: -23.92 USD (was -17.54 at S53 wrap — minor reversion due to bearish drought losses)
+* 1041/1041 tests passing (up from 1003 — 37 new expiry_sniper tests + 4 multi-series = S54)
+* Last code commits: 43bbd32 (has_open_position fix) + 8a7bf74 (S54 CHANGELOG handoff docs)
+* Today live P&L: +17.24 USD (81 settled, 59% win) — strong despite 5hr price guard drought
+* Consecutive losses (global kill switch): check health at session start
 
 SESSION 54 CHANGES (fully committed):
   1. expiry_sniper_v1 IMPLEMENTED — paper-only, 90c+ threshold, coin drift filter
      src/strategies/expiry_sniper.py + tests/test_expiry_sniper.py (37 tests)
+     Expanded to all 4 series: KXBTC15M/KXETH15M/KXSOL15M/KXXRP15M
      Loop wired in main.py: expiry_sniper_loop() with 110s startup stagger
      setup/verify.py: expiry_sniper_v1 added to _GRAD (paper-only, 0/30 bets)
-     Loop started at 17:49 local (22:49 UTC) — watching KXBTC15M for 90c+ entries
   2. Fix: btc_price_feed → btc_feed variable name in main() (startup NameError caught)
-  3. Monitoring script fixed: reads bot.pid dynamically each check (avoids stale PID false alarms)
+  3. Fix: has_open_position() wrong kwargs (commit 43bbd32)
+  4. Monitoring script fixed: reads bot.pid dynamically each check (avoids stale PID false alarms)
 
 BET DROUGHT PATTERN — IMPORTANT (Session 53 finding):
   When all crypto markets are at YES < 35c or YES > 65c (extreme prices), ZERO bets fire.

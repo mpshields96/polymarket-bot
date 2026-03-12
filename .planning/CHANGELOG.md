@@ -2134,3 +2134,14 @@ sol_drift today: 12 bets, 10/12 (83%), +11.80 USD — exceptional.
 btc_drift today: 6 bets, 5/6 (83%), +14.61 USD — exceptional.
 All-time: not yet computed (mid-session).
 sol_drift graduation: 26/30, Brier 0.168 IMPROVING, +13.73 all-time. 4 bets from threshold.
+
+### Expiry sniper early results (Session 54, ~00:35 UTC March 12):
+First 9 paper bets placed — 9/9 WINS (100% win rate). Bets fired on:
+  - 8 NO bets at 90-98c YES-equivalent (0c-10c YES price), all in bearish windows
+  - 1 YES bet at 95c
+  - 1 YES bet at 93c (pending settlement)
+This precisely validates Snowberg & Wolfers: favorites at 90c+ win more often than implied.
+Strategy is correctly complementing drift: fires when drift is blocked (extreme price guard drought).
+Today live P&L: +17.24 USD (81 settled, 59% win rate) — strong despite 5hr price guard drought.
+All-time live P&L: -23.92 USD (improving from -40.09 at S53 start = +16.17 over 2 sessions).
+Monitoring loop: br1jt3wmz running, 20-min cycles, chains automatically.
