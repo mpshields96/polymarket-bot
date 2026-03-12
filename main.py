@@ -2843,6 +2843,7 @@ async def main():
             trade_lock=_live_trade_lock,
             calibration_max_usd=_DRIFT_CALIBRATION_CAP_USD,
             btc_move_condition=_btc_move_condition,
+            direction_filter="yes",  # YES 83% (5/6) vs NO 36% (4/11) — applied Session 54
         ),
         name="xrp_drift_loop",
     )
