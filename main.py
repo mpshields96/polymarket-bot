@@ -1372,9 +1372,13 @@ async def expiry_sniper_loop(
     db,
     kill_switch,
     initial_delay_sec: float = 110.0,
+    live_executor_enabled: bool = False,
+    live_confirmed: bool = False,
+    trade_lock: Optional[asyncio.Lock] = None,
+    max_daily_bets: int = 10,
 ):
     """
-    Paper-only expiry sniping loop for KXBTC15M/KXETH15M/KXSOL15M/KXXRP15M.
+    Expiry sniping loop for KXBTC15M/KXETH15M/KXSOL15M/KXXRP15M.
 
     Enters when YES or NO price >= 90c in the final 14 minutes of a 15-min window
     AND the underlying coin has moved >= 0.1% from window open in the SAME direction.
@@ -1388,18 +1392,22 @@ async def expiry_sniper_loop(
     Source strategy: processoverprofit.blog V7 (reconstructed clean — NOT using
     their NightShark/JavaScript code, see EXPIRY_SNIPER_SPEC.md security analysis).
 
-    PAPER-ONLY. live_executor_enabled is hardcoded False. Calibration gate:
-    30 paper bets + Brier < 0.30 before any live gate evaluation.
+    Live/paper mode controlled by live_executor_enabled + live_confirmed params.
+    Live path uses price_guard_min=1, price_guard_max=99 (sniper operates at 87-99c).
+    Live sizing: HARD_MAX_TRADE_USD directly (Kelly not used — edge_pct ~0.37% at 90c,
+    Kelly fraction ~9.9% maps to ~$11, clips to $5 HARD_MAX anyway).
 
-    kill_switch.check_paper_order_allowed() called before every paper order.
-    Hard stop blocks paper orders; soft stops (daily loss, consecutive) do NOT.
+    kill_switch.check_paper_order_allowed() for paper; check_order_allowed() for live.
+    minutes_remaining=None passed to kill switch (sniper has own 5s hard skip).
 
     Timing: Use market.close_time directly — NOT clock modulo arithmetic.
-    Sizing: Fixed PAPER_CALIBRATION_USD = 0.50 — Kelly is near-zero at 90c
-            until actual win rate data is established from 30+ bets.
+    Sizing: Paper = fixed PAPER_CALIBRATION_USD = 0.50.
+            Live = HARD_MAX_TRADE_USD ($5.00), no Kelly.
     """
     from src.strategies.expiry_sniper import ExpirySniperStrategy
     from src.execution.paper import PaperExecutor
+    from src.risk.kill_switch import HARD_MAX_TRADE_USD as _HARD_CAP
+    import contextlib
 
     strategy = ExpirySniperStrategy()
     paper_exec = PaperExecutor(
@@ -1408,6 +1416,10 @@ async def expiry_sniper_loop(
         slippage_ticks=1,
         fill_probability=1.0,
     )
+
+    # Paper/live mode — computed once, never changes mid-run
+    is_paper_mode = not (live_executor_enabled and live_confirmed)
+    _mode_label = "paper-only" if is_paper_mode else "LIVE"
 
     # Map series prefix → feed for drift calculation
     _series_feeds = {
@@ -1422,7 +1434,7 @@ async def expiry_sniper_loop(
 
     logger.info("[expiry_sniper] Startup — waiting %.0fs before first poll", initial_delay_sec)
     await asyncio.sleep(initial_delay_sec)
-    logger.info("[expiry_sniper] Started — paper-only BTC/ETH/SOL/XRP 15M 90c+ sniping")
+    logger.info("[expiry_sniper] Started — %s BTC/ETH/SOL/XRP 15M 90c+ sniping", _mode_label)
 
     while True:
         try:
@@ -1480,36 +1492,100 @@ async def expiry_sniper_loop(
                         continue
 
                     # ── Dedup: skip if already have open position ──────
-                    if db.has_open_position(ticker=ticker, is_paper=True):
+                    if db.has_open_position(ticker=ticker, is_paper=is_paper_mode):
                         logger.debug("[expiry_sniper] Already have open position for %s — skip", ticker)
                         continue
 
-                    # ── Kill switch check ──────────────────────────────
-                    ok, block_reason = kill_switch.check_paper_order_allowed(
-                        trade_usd=strategy.PAPER_CALIBRATION_USD,
-                        current_bankroll_usd=current_bankroll,
-                    )
-                    if not ok:
-                        logger.info("[expiry_sniper] Kill switch blocked paper order: %s", block_reason)
-                        continue
-
-                    # ── Paper execute at fixed calibration size ────────
-                    result = paper_exec.execute(
-                        ticker=ticker,
-                        side=signal.side,
-                        price_cents=signal.price_cents,
-                        size_usd=strategy.PAPER_CALIBRATION_USD,
-                        reason=signal.reason,
-                    )
-                    if result:
-                        logger.info(
-                            "[expiry_sniper] [paper] BUY %s %s @ %d¢ USD %.2f | drift=%+.3f%% | %ds left | trade_id=%s",
-                            series_ticker, signal.side.upper(), signal.price_cents,
-                            strategy.PAPER_CALIBRATION_USD,
-                            coin_drift_pct * 100,
-                            strategy._seconds_remaining(market) or 0,
-                            result.get("trade_id", "?"),
+                    if live_executor_enabled and live_confirmed:
+                        # ═══ LIVE PATH ═══════════════════════════════════
+                        # Daily bet cap for sniper
+                        today_count = db.count_trades_today(
+                            strategy=strategy.name, is_paper=False
                         )
+                        if today_count >= max_daily_bets:
+                            logger.info(
+                                "[expiry_sniper] Daily bet cap reached (%d/%d) — skip",
+                                today_count, max_daily_bets,
+                            )
+                            continue
+
+                        # Fetch orderbook for this specific market
+                        try:
+                            orderbook = await kalshi.get_orderbook(ticker)
+                        except Exception as ob_exc:
+                            logger.warning(
+                                "[expiry_sniper] Orderbook fetch failed for %s: %s",
+                                ticker, ob_exc,
+                            )
+                            continue
+
+                        # Sizing: HARD_MAX directly — Kelly not used for sniper
+                        # (edge_pct ~0.37% at 90c, Kelly fraction ~9.9% → $11 → clips to $5)
+                        trade_usd = _HARD_CAP
+
+                        # Atomic: lock → kill_switch → execute → record_trade
+                        _lock_ctx = trade_lock if trade_lock is not None else contextlib.nullcontext()
+                        async with _lock_ctx:
+                            ok, block_reason = kill_switch.check_order_allowed(
+                                trade_usd=trade_usd,
+                                current_bankroll_usd=current_bankroll,
+                                minutes_remaining=None,  # sniper has own 5s hard skip
+                            )
+                            if not ok:
+                                logger.info("[expiry_sniper] Kill switch blocked live order: %s", block_reason)
+                                continue
+
+                            from src.execution import live as live_mod
+                            result = await live_mod.execute(
+                                signal=signal,
+                                market=market,
+                                orderbook=orderbook,
+                                trade_usd=trade_usd,
+                                kalshi=kalshi,
+                                db=db,
+                                live_confirmed=live_confirmed,
+                                strategy_name=strategy.name,
+                                price_guard_min=1,
+                                price_guard_max=99,
+                            )
+                            if result:
+                                kill_switch.record_trade()
+                                logger.info(
+                                    "[expiry_sniper] [LIVE] BUY %s %s @ %d¢ $%.2f | drift=%+.3f%% | %ds left | trade_id=%s",
+                                    series_ticker, signal.side.upper(),
+                                    result.get("price_cents", 0),
+                                    result["cost_usd"],
+                                    coin_drift_pct * 100,
+                                    strategy._seconds_remaining(market) or 0,
+                                    result.get("trade_id", "?"),
+                                )
+                                _announce_live_bet(result, strategy_name=strategy.name)
+                    else:
+                        # ═══ PAPER PATH ══════════════════════════════════
+                        ok, block_reason = kill_switch.check_paper_order_allowed(
+                            trade_usd=strategy.PAPER_CALIBRATION_USD,
+                            current_bankroll_usd=current_bankroll,
+                        )
+                        if not ok:
+                            logger.info("[expiry_sniper] Kill switch blocked paper order: %s", block_reason)
+                            continue
+
+                        result = paper_exec.execute(
+                            ticker=ticker,
+                            side=signal.side,
+                            price_cents=signal.price_cents,
+                            size_usd=strategy.PAPER_CALIBRATION_USD,
+                            reason=signal.reason,
+                        )
+                        if result:
+                            logger.info(
+                                "[expiry_sniper] [paper] BUY %s %s @ %d¢ USD %.2f | drift=%+.3f%% | %ds left | trade_id=%s",
+                                series_ticker, signal.side.upper(), signal.price_cents,
+                                strategy.PAPER_CALIBRATION_USD,
+                                coin_drift_pct * 100,
+                                strategy._seconds_remaining(market) or 0,
+                                result.get("trade_id", "?"),
+                            )
 
         except asyncio.CancelledError:
             logger.info("[expiry_sniper] Loop cancelled — exiting")
@@ -3034,11 +3110,11 @@ async def main():
         copy_task = asyncio.create_task(asyncio.sleep(0), name="copy_trade_noop")
         logger.warning("Copy-trade loop SKIPPED — PM client unavailable")
 
-    # ── Expiry sniper loop (Kalshi KXBTC15M paper-only) ──────────────
-    # Paper-only sniping strategy: enter when YES/NO >= 90c in final 14 min of window.
+    # ── Expiry sniper loop (Kalshi KXBTC15M) ─────────────────────────
+    # Enter when YES/NO >= 90c in final 14 min of window + coin drift confirms.
     # Academic basis: favorite-longshot bias — heavy favorites close >90% of time.
     # Source: processoverprofit.blog V7 (clean rebuild — NOT their NightShark/JS code).
-    # Calibration gate: 30 paper bets + Brier < 0.30 before any live gate eval.
+    # Live path uses price_guard_min=1, price_guard_max=99 (operates at 87-99c).
     expiry_sniper_task = asyncio.create_task(
         expiry_sniper_loop(
             kalshi=kalshi,
@@ -3049,10 +3125,15 @@ async def main():
             db=db,
             kill_switch=kill_switch,
             initial_delay_sec=110.0,   # stagger after copy_trade (80s) + sports_futures (95s)
+            live_executor_enabled=live_mode,
+            live_confirmed=live_confirmed,
+            trade_lock=_live_trade_lock,
+            max_daily_bets=10,
         ),
         name="expiry_sniper_loop",
     )
-    logger.info("Expiry sniper loop started (paper-only BTC/ETH/SOL/XRP 15M, 90c+ threshold, 10s poll)")
+    _sniper_mode = "LIVE" if (live_mode and live_confirmed) else "paper-only"
+    logger.info("Expiry sniper loop started (%s BTC/ETH/SOL/XRP 15M, 90c+ threshold, 10s poll)", _sniper_mode)
 
     # ── Sports-futures mispricing loop (Polymarket supplemental) ─────
     # Paper-only. Compares PM championship futures to bookmaker consensus.
