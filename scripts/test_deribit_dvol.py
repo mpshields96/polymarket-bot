@@ -13,10 +13,12 @@ Run: source venv/bin/activate && python scripts/test_deribit_dvol.py
 
 import sys
 import math
+import time
 import requests
 
-# Deribit DVOL endpoint — BTC USD Volatility Index
-# Public API, no authentication required
+# Deribit API endpoints — public, no authentication required
+# NOTE: get_index_price with index_name=btc_usdv returns 400 (btc_usdv is not a valid name)
+# Correct DVOL endpoint: get_volatility_index_data with currency=BTC
 DERIBIT_DVOL_URL = "https://www.deribit.com/api/v2/public/get_volatility_index_data"
 DERIBIT_INDEX_URL = "https://www.deribit.com/api/v2/public/get_index_price"
 
@@ -29,21 +31,39 @@ TIMEOUT_SEC = 10
 def fetch_deribit_dvol() -> float:
     """Fetch current BTC DVOL from Deribit public API.
 
-    Returns the current DVOL value (annualized vol, e.g. 57.3 = 57.3%).
+    Returns the current DVOL value (annualized vol, e.g. 54.2 = 54.2%).
     Raises on any error.
+
+    Uses get_volatility_index_data with resolution=3600 (1-hour candles).
+    Response format: data = [[timestamp_ms, open, high, low, close], ...]
+    The last candle's close is the current DVOL.
+
+    NOTE: The research file referenced index_name=btc_usdv on get_index_price —
+    that returns 400. The correct DVOL endpoint is get_volatility_index_data.
     """
-    # Primary endpoint: get_volatility_index_data for current value
-    # We use get_index_price with index_name=btc_usdv to get current DVOL
-    params = {"index_name": "btc_usdv"}
-    response = requests.get(DERIBIT_INDEX_URL, params=params, timeout=TIMEOUT_SEC)
+    now_ms = int(time.time() * 1000)
+    two_hours_ago_ms = now_ms - 7_200_000  # 2 hours back to ensure at least 1 row
+
+    params = {
+        "currency": "BTC",
+        "start_timestamp": two_hours_ago_ms,
+        "end_timestamp": now_ms,
+        "resolution": "3600",  # 1-hour candles
+    }
+    response = requests.get(DERIBIT_DVOL_URL, params=params, timeout=TIMEOUT_SEC)
     response.raise_for_status()
     data = response.json()
 
     if "result" not in data:
         raise ValueError(f"Unexpected response: {data}")
 
-    dvol = data["result"]["index_price"]
-    return float(dvol)
+    rows = data["result"].get("data", [])
+    if not rows:
+        raise ValueError("No DVOL data rows returned")
+
+    # Last row: [timestamp_ms, open, high, low, close]
+    last_close = rows[-1][4]
+    return float(last_close)
 
 
 def fetch_binance_spot() -> float:

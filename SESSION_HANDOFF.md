@@ -13,14 +13,14 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/SKILLS_REFERENCE.md
 
-BOT STATE (Session 58):
-  Bot NOT RUNNING — Matthew at VA hospital (wifi blocks betting).
-  Need to restart when home. Use: bash scripts/restart_bot.sh 58
-  NEVER pipe restart_bot.sh through head/tail/grep — SIGPIPE kills running bot!
+BOT STATE (Session 58 — updated ~16:00 UTC):
+  Bot RUNNING PID 47905 → /tmp/polybot_session57.log (polybot-monitor auto-restarted from 44178)
+  ⚠️ Running bot has PRE-SNIPER code (started 08:50 CDT, commits landed 10:38+ CDT)
+  ⚠️ Kalshi API DOWN since ~09:23 UTC — "Connection reset by peer" on api.elections.kalshi.com
+     No live bets firing. Bot is alive and evaluating but cannot reach market.
 
-  Last running: PID 44178 → /tmp/polybot_session57.log (Session 57 overnight)
-
-RESTART COMMAND (session58.log):
+  To activate sniper live path + recover from API outage: restart when Kalshi API recovers.
+  RESTART COMMAND (session58.log):
   bash scripts/restart_bot.sh 58
   After restart: verify with ps aux | grep "[m]ain.py" | wc -l (should be 1)
   If bot.pid missing: echo "<new_PID>" > bot.pid immediately
@@ -35,8 +35,8 @@ KEY STATE (Session 58 — 2026-03-12):
   Bot: NOT RUNNING (needs restart when home on wifi)
   All-time live P&L: -34.59 USD
   Bankroll: 109.94 USD
-  1054/1054 tests passing
-  Last commits: dd7199d (sniper live path complete) + f606b99 (price guard + NO price fix)
+  1078/1078 tests passing
+  Last commits: eb6b957 (crypto_daily_threshold +24 tests) + dd7199d (sniper live path complete) + f606b99
 
 SESSION 58 BUILDS:
 
@@ -53,11 +53,13 @@ SESSION 58 BUILDS:
      - Pre-live audit: all 12 checklist items verified
      - GOES LIVE AUTOMATICALLY on next --live restart (same as drift strategies)
 
-  2. KXBTCD THRESHOLD RESEARCH — SAVED:
+  2. KXBTCD THRESHOLD RESEARCH + CALCULATOR — SAVED (research + side chat build):
      .planning/KXBTCD_THRESHOLD_RESEARCH.md — agent research on hourly/daily/weekly
      Key finding: Lognormal N(d2) pricing with Deribit DVOL as sigma source.
      Same-day KXBTCD = digital cash-or-nothing call option, NOT a drift bet.
-     Expansion gate still closed — research only, no build.
+     Side chat built: src/strategies/crypto_daily_threshold.py (N(d2) calculator)
+       + tests/test_crypto_daily_threshold.py (24 tests) + scripts/test_deribit_dvol.py
+       Commit eb6b957. Research/prototype only — no live loop, expansion gate not cleared.
 
   3. FULL AUDIT completed pre-Session 58 (from summary):
      - Per-strategy rolling trend analysis, direction filter validation
