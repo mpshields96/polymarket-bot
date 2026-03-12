@@ -14,18 +14,10 @@
 
 ---
 
-## [ ] btc_drift: add price extremes filter (min/max price guard)
-**Added:** 2026-02-28 Session 23
-**Problem:** btc_drift fires at any price, including 3¢ NO / 97¢ YES. At those extremes:
-  (1) The sigmoid model was NOT calibrated on extreme-probability signals — accuracy at 3¢ is unknown
-  (2) Market has typically already efficiently priced in certainty; HFTs have pushed it there for a reason
-  (3) 33:1 payout ratio means variance is enormous even with positive expected value
-  (4) late_penalty reduces confidence but NOT edge_pct — late + extreme price still passes filter (gotcha)
-**Fix:** Add `min_signal_price_cents` / `max_signal_price_cents` config params to btc_drift strategy.
-  Suggested range: 10¢–90¢. Signals outside this range are skipped — model not calibrated there.
-  Also consider applying late_penalty to edge_pct (not just confidence) for bets < 5 min remaining.
-**Effort:** ~30 min (add guard in btc_drift.generate_signal(), update config.yaml, write tests)
-**Priority:** Medium — current $5 hard cap limits damage, but this is a calibration gap.
+## [DONE] btc_drift: add price extremes filter — DUPLICATE (see line 1)
+**Completed:** Session 25 cont2 — implemented as 35-65¢ guard (stricter than originally proposed 10-90¢).
+Applied to btc_lag/eth_lag/sol_lag/btc_drift/orderbook_imbalance. See CLAUDE.md Gotchas.
+This entry is a duplicate of the [DONE] entry at the top of this file.
 
 ---
 
@@ -842,3 +834,14 @@ This finding is secondary to the broader YES vs NO directional analysis.
 - 2-3 weeks live P&L data ❌ NOT MET
 - No kill switch events in window ❌ NOT MET (bot crashed Session 54)
 Gate opens BEFORE we can promote any strategy to Stage 2.
+
+## [Session 55] Martingale for expiry_sniper — EVALUATE POST-LIVE-VALIDATION ONLY
+Source: Reddit comment on expiry sniper post
+Idea: Double bet size after each loss to recover losses faster
+WHY NOT NOW:
+  - Expiry sniper not yet live (needs 30 paper bets + Brier first)
+  - Hard bankroll floor ($20) means 3 consecutive losses can trigger hard stop
+  - Sample too small (24 paper bets, true win rate unknown)
+  - Kelly criterion argues against martingale systematically
+EVALUATE WHEN: 100+ live expiry sniper bets, Brier confirmed < 0.15, consecutive loss distribution mapped
+NOTE: If win rate stays >92%, martingale risk is low. If drops to 75-80%, martingale causes ruin.

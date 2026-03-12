@@ -45,20 +45,20 @@
 ## CURRENT STATUS — (updated each session)
 ═══════════════════════════════════════════════════
 
-BUILD COMPLETE. 1041/1041 tests passing. verify.py 21/29 (8 advisory WARNs — non-critical).
-Last commit: c527849 (Session 54 — xrp direction_filter=yes applied)
+BUILD COMPLETE. 1042/1042 tests passing (3 skipped). verify.py 21/29 (8 advisory WARNs — non-critical).
+Last commit: 5efb0af (Session 56 wrap docs) — no code commits S55/S56/S57 overnight
 
-## BOT STATE — Session 54 WRAP (2026-03-12 ~02:00 UTC) — BOT RUNNING
+## BOT STATE — Session 57 overnight WRAP (2026-03-12 UTC) — BOT RUNNING
 
-Bot PID 11136 → /tmp/polybot_session54.log. Session 54 completed context compaction.
-S53 KEY: eth_drift direction_filter="yes" applied. Best day: +27.98 USD (73 bets, 58% win).
-S54 KEY: expiry_sniper_v1 wired (21/30 paper, 95% wins). xrp direction_filter="yes" applied.
+Bot PID 44178 → /tmp/polybot_session57.log. PID 19785 died ~06:45 UTC, Matthew restarted.
+S56 KEY: extended 12-hr price guard drought. eth_drift 9 bets 3/9 wins -11.06 USD. Variance.
+S57 KEY: maintenance window CDT 01:01-04:03. Post-maintenance 0c dead zone CDT 04:03-07:00+.
 
 Check bot: cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "RUNNING" || echo "STOPPED"
-Watch:  tail -f /tmp/polybot_session54.log | grep --line-buffered "LIVE BET\|Kill switch blocked\|cooling\|consecutive"
+Watch:  tail -f /tmp/polybot_session57.log | grep --line-buffered "LIVE BET\|Kill switch blocked\|cooling\|consecutive"
 
-All-time live P&L: -10.96 USD (was -40.09 at S48 start — +29.13 USD gained S49-S54)
-Tests: 1041/1041 | Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime hard stop
+All-time live P&L: -34.59 USD
+Tests: 1042/1042 | Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime hard stop
 Active protection: bankroll floor ($20) + consecutive cooling (8→2hr) + $5/bet hard cap
 
 RESPONSE FORMAT RULES (BOTH MANDATORY — Matthew terminates chat for violations):
@@ -85,18 +85,19 @@ CRITICAL OPS LESSON FROM SESSION 54:
      Net P&L negative from earlier YES bets before filter was applied.
 
   🔴 eth_drift_v1 → KXETH15M | STAGE 1 (graduated Session 44) | min_drift=0.05, min_edge=0.05
-     Graduation: 81/30 ✅ | Brier: 0.247 | P&L: +12.51 USD | 0 consecutive losses
+     Graduation: 86/30 ✅ | Brier: 0.249 | P&L: -11.51 USD | 5 consec DB (kill switch=0)
      direction_filter="yes" ACTIVE (Session 53) — REVERSED! NO had negative EV.
-     Best consistent earner. Brier improving. Need 30 YES-only post-filter to fully validate.
+     S56 loss was variance (extreme session). Do NOT change filter. Need 30 YES-only post-filter.
+     NOTE: "5 consec" in graduation_status = DB count eth_drift specific. Kill switch = 0 (--reset-soft-stop).
 
   🔴 sol_drift_v1 → KXSOL15M | STAGE 1 (promoted Session 48) | min_drift=0.15, min_edge=0.05
-     Graduation: 27/30 | Brier: 0.177 BEST SIGNAL | P&L: +9.25 USD | 0 consecutive losses
+     Graduation: 27/30 | Brier: 0.177 BEST SIGNAL | P&L: +9.25 USD | 1 consecutive
      direction_filter="no" ACTIVE. ⭐ 3 BETS FROM STAGE 2 MILESTONE.
      When 30 bets: run graduation analysis. Stage 2 approval = bets double in size. Highest lever.
      calibration_max_usd=None. Kelly + $5 HARD_MAX governs.
 
   🔴 xrp_drift_v1 → KXXRP15M | micro-live | min_drift=0.10, min_edge=0.05
-     Graduation: 17/30 | Brier: 0.267 | P&L: -0.94 USD | 0 consecutive losses
+     Graduation: 18/30 | Brier: 0.261 | P&L: -0.55 USD | 0 consecutive losses
      direction_filter="yes" APPLIED Session 54 (Matthew approved) — REVERSED! YES 83% vs NO 36%.
      calibration_max_usd=0.01. Need 30 YES-only post-filter bets to validate.
 

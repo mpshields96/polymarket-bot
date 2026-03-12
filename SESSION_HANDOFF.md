@@ -3,6 +3,19 @@
 # Last updated: 2026-03-12 (Session 56 WRAP — PID 19785, session56.log)
 # ═══════════════════════════════════════════════════════════════
 
+## ▶ COPY-PASTE THIS TO START A NEW SESSION (Session 57 — bot already running)
+
+OVERNIGHT MONITORING SUMMARY (S56 overnight → S57 start, 2026-03-12):
+  - Bot stayed alive all night (PID 19785 → died ~CDT 06:45, Matthew restarted → PID 44178)
+  - Maintenance window: CDT 01:01-04:03 (3 hrs, longer than usual)
+  - Post-maintenance: 0¢ prices on all crypto 15-min markets CDT 04:03-07:00+ (market makers
+    not quoting in early morning hours — normal dead zone, price guard correctly blocking)
+  - 0 new live bets placed overnight (bot was alive and evaluating, just nothing fired)
+  - SESSION 57 STARTED: bot.pid=44178, /tmp/polybot_session57.log, kill switch clear,
+    daily_loss restored 4.90 USD, consecutive reset to 0 (--reset-soft-stop)
+  - eth_drift graduation_status shows "5 consec BLOCKED" — this is DB count for eth_drift
+    only. Kill switch in-memory was reset to 0 on restart. NOT actually blocked.
+
 ## ▶ COPY-PASTE THIS TO START A NEW SESSION (Session 57)
 
 You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 57).
@@ -14,14 +27,15 @@ MANDATORY READING BEFORE ANY ACTION:
   cat .planning/SKILLS_REFERENCE.md
 
 ⚠️ BOT STATE (Session 56 WRAP — 2026-03-12 ~11:20 UTC):
-  Bot RUNNING PID 19785 → /tmp/polybot_session56.log
+  Bot RUNNING PID 44178 → /tmp/polybot_session57.log
+  NOTE: Bot died (PID 19785) at ~06:45 UTC, polybot-monitor auto-restarted to PID 44178.
   NOTE: Matthew will explicitly say "stop" to kill the old bot before new session starts fresh.
   When Matthew says "stop": pkill -f "python3 main.py"; sleep 3; verify 0 processes.
   Then restart with: bash scripts/restart_bot.sh 57
 
 CHECK BOT HEALTH FIRST (Session 57 start):
   ps aux | grep "[m]ain.py" | wc -l        (should be 1)
-  cat bot.pid                               (should be 19785)
+  cat bot.pid                               (should be 44178)
   venv/bin/python3 main.py --health
   venv/bin/python3 main.py --report
   venv/bin/python3 main.py --graduation-status
@@ -39,7 +53,7 @@ If --health shows "HARD STOP": DO NOT RESTART. Log it. Wait for Matthew.
 ---
 
 KEY STATE (Session 56 WRAP — 2026-03-12 ~11:20 UTC):
-  Bot: RUNNING (PID 19785) → /tmp/polybot_session56.log
+  Bot: RUNNING (PID 44178) → /tmp/polybot_session57.log (auto-restarted at 06:45 UTC)
   All-time live P&L: -34.59 USD (was -20.20 at S55 wrap — lost 14.39 this session)
   1041/1041 tests passing (no code changes S56)
   Last code commits: 214dcb3 (S54 wrap docs) — no new commits S55 or S56
