@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-12 (Session 58 — sniper live path BUILT)
+# Last updated: 2026-03-12 (Session 58 wrap — bot restarted with sniper LIVE)
 # ═══════════════════════════════════════════════════════════════
 
 ## COPY-PASTE THIS TO START A NEW SESSION (Session 59)
@@ -11,19 +11,13 @@ MANDATORY READING BEFORE ANY ACTION:
   cat SESSION_HANDOFF.md
   cat .planning/AUTONOMOUS_CHARTER.md
   tail -200 .planning/CHANGELOG.md
-  cat .planning/SKILLS_REFERENCE.md
+  cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 58 — updated ~16:00 UTC):
-  Bot RUNNING PID 47905 → /tmp/polybot_session57.log (polybot-monitor auto-restarted from 44178)
-  ⚠️ Running bot has PRE-SNIPER code (started 08:50 CDT, commits landed 10:38+ CDT)
-  ⚠️ Kalshi API DOWN since ~09:23 UTC — "Connection reset by peer" on api.elections.kalshi.com
-     No live bets firing. Bot is alive and evaluating but cannot reach market.
-
-  To activate sniper live path + recover from API outage: restart when Kalshi API recovers.
-  RESTART COMMAND (session58.log):
-  bash scripts/restart_bot.sh 58
-  After restart: verify with ps aux | grep "[m]ain.py" | wc -l (should be 1)
-  If bot.pid missing: echo "<new_PID>" > bot.pid immediately
+BOT STATE (Session 58 wrap — 23:10 UTC 2026-03-12):
+  Bot RUNNING PID 5699 → /tmp/polybot_session58.log
+  Sniper LIVE for first time — expiry_sniper_v1 active in live mode
+  No sniper live bets yet — needs qualifying market (YES or NO >= 90c + coin drift)
+  All drift strategies running normally
 
 If --health shows "HARD STOP": DO NOT RESTART. Log it. Wait for Matthew.
 "Daily loss soft stop active" = DISPLAY ONLY (kill_switch.py lines 187-193 commented out).
@@ -31,62 +25,52 @@ If --health shows "HARD STOP": DO NOT RESTART. Log it. Wait for Matthew.
 
 ---
 
-KEY STATE (Session 58 — 2026-03-12):
-  Bot: NOT RUNNING (needs restart when home on wifi)
+KEY STATE (Session 58 wrap — 2026-03-12):
+  Bot: RUNNING PID 5699 → /tmp/polybot_session58.log
   All-time live P&L: -34.59 USD
   Bankroll: 109.94 USD
   1078/1078 tests passing
-  Last commits: eb6b957 (crypto_daily_threshold +24 tests) + dd7199d (sniper live path complete) + f606b99
+  Last commits: eb6b957 (KXBTCD threshold) + dd7199d (sniper live) + f606b99 (price guard)
 
-SESSION 58 BUILDS:
+SESSION 58 BUILDS (2 chats — main + side):
 
-  1. EXPIRY SNIPER LIVE PATH — COMPLETE (2 commits):
+  MAIN CHAT:
+  1. EXPIRY SNIPER LIVE PATH — COMPLETE + RESTARTED:
      - live.py: price_guard_min/max params on execute() — sniper passes 1/99
      - expiry_sniper.py: Fixed NO-side convention (price_cents = no_price, was yes_price)
-       This also fixes the 10-15x paper P&L inflation bug (paper was using YES=8c as cost
-       for NO contracts instead of actual NO=92c cost)
-     - main.py: Full live/paper conditional in expiry_sniper_loop():
-       lock + kill_switch + live_mod.execute(price_guard_min=1, price_guard_max=99)
-       HARD_MAX sizing (no Kelly), _announce_live_bet(), daily bet cap (10/day)
-       minutes_remaining=None (sniper has own 5s hard skip, kill switch 5-min check bypassed)
+       This also fixes the 10-15x paper P&L inflation bug
+     - main.py: Full live/paper conditional in expiry_sniper_loop()
      - 4 new tests in TestSniperPriceGuardOverride, 1 test updated
      - Pre-live audit: all 12 checklist items verified
-     - GOES LIVE AUTOMATICALLY on next --live restart (same as drift strategies)
+     - Bot restarted as session 58 — sniper NOW LIVE
 
-  2. KXBTCD THRESHOLD RESEARCH + CALCULATOR — SAVED (research + side chat build):
-     .planning/KXBTCD_THRESHOLD_RESEARCH.md — agent research on hourly/daily/weekly
-     Key finding: Lognormal N(d2) pricing with Deribit DVOL as sigma source.
-     Same-day KXBTCD = digital cash-or-nothing call option, NOT a drift bet.
-     Side chat built: src/strategies/crypto_daily_threshold.py (N(d2) calculator)
-       + tests/test_crypto_daily_threshold.py (24 tests) + scripts/test_deribit_dvol.py
-       Commit eb6b957. Research/prototype only — no live loop, expansion gate not cleared.
-
-  3. FULL AUDIT completed pre-Session 58 (from summary):
-     - Per-strategy rolling trend analysis, direction filter validation
-     - Edge-bucketed performance, sniper asymmetry analysis
-     - Reddit research integration confirming drift is correct archetype
+  SIDE CHAT:
+  2. KXBTCD THRESHOLD RESEARCH + CALCULATOR:
+     - src/strategies/crypto_daily_threshold.py — N(d2) fair-value calculator
+     - tests/test_crypto_daily_threshold.py — 24 tests
+     - scripts/test_deribit_dvol.py — Deribit DVOL API validated (DVOL=54.1)
+     - scripts/check_kxbtcd_edge.py — Kalshi KXBTCD edge scanner
+     - .planning/KXBTCD_THRESHOLD_RESEARCH.md — comprehensive research
+     Research/prototype only — expansion gate not cleared.
 
 SESSION 58 KEY DECISIONS:
-  - Eth drift recent losses (9 bets, 3/9 win) = VARIANCE in extreme bearish session.
-    PRINCIPLES.md: do NOT change. YES filter all-time: 51 bets, 27W (53%), +6.80 USD.
-    NO side: 35 bets, 16W (46%), -18.31 USD. YES filter is correct.
-  - Sniper live expected P&L: ~+0.35 USD/bet (NOT +4-7 as paper showed — paper was inflated)
-    At 5-10 bets/day: +1.75-3.50 USD/day incremental. Still positive.
+  - Eth drift 3/9 = VARIANCE (extreme bearish session). Do NOT change filter.
+  - Sniper live expected: ~+0.35 USD/bet, 5-10 bets/day = +1.75-3.50 USD/day
 
-LIVE STRATEGY STATUS (Session 58):
+LIVE STRATEGY STATUS (Session 58 wrap):
   btc_drift_v1:         STAGE 1  54/30 Brier 0.247  filter="no"   0 consec  -11.12 USD
   eth_drift_v1:         STAGE 1  86/30 Brier 0.249  filter="yes"  5 consec DB*  -11.51 USD
   sol_drift_v1:         STAGE 1  27/30 Brier 0.177  filter="no"   1 consec  +9.25 USD  3 FROM 30!
   xrp_drift_v1:         MICRO    18/30 Brier 0.261  filter="yes"  0 consec  -0.55 USD
-  expiry_sniper_v1:     LIVE PATH BUILT — will go live on next restart with --live
+  expiry_sniper_v1:     LIVE (first time!) — 0 live bets yet, monitoring
   eth_orderbook_imbalance_v1: PAPER  15/30 Brier 0.337  DISABLED LIVE
   btc_lag_v1:           STAGE 1  45/30  0 signals/week — dead (HFTs)
 
 PENDING TASKS (Session 59 — PRIORITY ORDER):
 
-  #1 RESTART BOT as session 58 when Matthew is home on wifi.
-     MONITOR FIRST SNIPER LIVE BET — verify it fires within 15 min of restart.
-     Check log for: "[expiry_sniper] [LIVE] BUY" or "[live] Execution price"
+  #1 MONITOR SNIPER LIVE BETS — first ever live sniper bets expected
+     grep "expiry_sniper.*LIVE\|expiry_sniper.*execute" /tmp/polybot_session58.log
+     Verify correct pricing when first fires (NO@90c+ = ~4.50-4.95 USD cost)
 
   #2 SOL STAGE 2 GRADUATION:
      27/30 live bets. 3 more bets -> milestone. When it fires, check --graduation-status.
@@ -97,8 +81,9 @@ PENDING TASKS (Session 59 — PRIORITY ORDER):
      Currently 18/30 — 12 more needed.
 
   #4 KXBTCD THRESHOLD STRATEGY (when expansion gate clears):
-     .planning/KXBTCD_THRESHOLD_RESEARCH.md — N(d2) lognormal pricing model
-     Side chat may have built prototype (src/strategies/crypto_daily_threshold.py)
+     .planning/KXBTCD_THRESHOLD_RESEARCH.md — research complete
+     src/strategies/crypto_daily_threshold.py — prototype built
+     Need: live loop in main.py, Deribit DVOL feed, KXBTCD market fetching
 
 125 USD PROFIT GOAL:
   All-time: -34.59 USD. Need +159.59 more.
@@ -122,3 +107,4 @@ MATTHEW'S STANDING DIRECTIVES:
   Bypass permissions mode: ACTIVE.
   Goal: +125 USD all-time profit. Urgent. Claude Max renewal depends on this.
   DO NOT change parameters under pressure. PRINCIPLES.md always governs.
+  Budget: 30% of 5-hour token limit. Model: Opus 4.6.

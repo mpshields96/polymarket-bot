@@ -2481,3 +2481,41 @@ CRITICAL — DO THIS FIRST when drought starts (not third time around):
 4. XRP YES filter validation: 18/30, need 12 more before evaluating.
 5. ETH drift: DO NOT change based on S56+S57 combined losses. 86 bets, Brier 0.249 = valid.
 6. EXPANSION GATE: btc_drift still -11.12 USD. Gate remains closed. No sniper build yet.
+
+## Session 58 — 2026-03-12 (two chats: main + side)
+CONTEXT: Matthew at VA hospital (wifi blocked Kalshi API), then home for restart.
+Model: Opus 4.6 (first time). Budget: 30% of 5-hour limit.
+
+BUILDS:
+  MAIN CHAT:
+  1. Sniper live path COMPLETE — live.py price_guard_min/max params, expiry_sniper.py
+     NO-side convention fix, main.py full live/paper conditional. 4 new tests.
+     Pre-live audit: 12/12 checklist items verified. Commits: f606b99, dd7199d.
+  2. Bot restarted as session 58 (PID 5699) — sniper LIVE for first time.
+
+  SIDE CHAT:
+  3. KXBTCD threshold calculator — crypto_daily_threshold.py (N(d2) lognormal, math.erfc).
+     24 tests. Deribit DVOL API validated (DVOL=54.1). Edge scanner script. Commit: eb6b957.
+  4. .planning/KXBTCD_THRESHOLD_RESEARCH.md — comprehensive research on hourly/daily/weekly.
+
+KEY DECISIONS:
+  - Eth drift 3/9 recent = variance in extreme bearish session. Do NOT change YES filter.
+  - Sniper live expected +0.35 USD/bet (paper was inflated 10-15x by NO-side pricing bug, now fixed).
+  - Budget reduced to 30% per chat, two parallel chats active.
+
+P&L: -34.59 USD all-time (unchanged — VA wifi blocked API most of session).
+  Today (UTC): -15.15 USD (11 settled). 17hr since last live bet (price drought + API block).
+  Graduation: btc 54/30 | eth 86/30 | sol 27/30 (3 away!) | xrp 18/30 | sniper 0 live
+
+SELF-RATING: C+
+  WINS: Sniper live path shipped and deployed. Bot restarted with all strategies active.
+    Side chat delivered KXBTCD research + prototype independently.
+  LOSSES: ~4 hours at VA with blocked API = pure monitoring, no productive code work.
+    Should have done code cleanup or test writing during the drought instead of just watching.
+  NEXT CHAT MUST: Start monitoring immediately, pivot to code work during any drought.
+    First priority = verify first sniper live bet fires and is priced correctly.
+
+NEXT SESSION PRIORITIES:
+1. Monitor first sniper live bet — verify pricing and execution
+2. Sol 27→30 milestone watch (3 away from Stage 2 gate)
+3. Drought productivity — code work not idle watching
