@@ -34,6 +34,61 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 _API_PATH_PREFIX = "/trade-api/v2"
 
 
+# ── API field migration helpers (March 12, 2026 breaking change) ──────
+# Kalshi removed integer cents price fields and integer count fields.
+# New fields: *_dollars (string "0.5900") and *_fp (string "100.00").
+# These helpers read new format first, fall back to legacy for test mocks.
+
+
+def _dollars_to_cents(
+    d: Dict,
+    dollars_key: str,
+    fallback_key: str = "",
+    fallback_key2: str = "",
+) -> int:
+    """Convert a dollars-string field ("0.5900") to integer cents (59).
+
+    Falls back to legacy integer cents fields for backward compat with tests.
+    """
+    val = d.get(dollars_key)
+    if val is not None:
+        try:
+            return round(float(val) * 100)
+        except (ValueError, TypeError):
+            pass
+    # Legacy fallback: integer cents
+    if fallback_key and fallback_key in d:
+        try:
+            return int(d[fallback_key])
+        except (ValueError, TypeError):
+            pass
+    if fallback_key2 and fallback_key2 in d:
+        try:
+            return int(d[fallback_key2])
+        except (ValueError, TypeError):
+            pass
+    return 0
+
+
+def _fp_to_int(d: Dict, fp_key: str, fallback_key: str = "") -> int:
+    """Convert an _fp string field ("100.00") to integer (100).
+
+    Falls back to legacy integer field for backward compat with tests.
+    """
+    val = d.get(fp_key)
+    if val is not None:
+        try:
+            return round(float(val))
+        except (ValueError, TypeError):
+            pass
+    if fallback_key and fallback_key in d:
+        try:
+            return int(d[fallback_key])
+        except (ValueError, TypeError):
+            pass
+    return 0
+
+
 # ── Data classes ──────────────────────────────────────────────────────
 
 
@@ -351,15 +406,27 @@ class KalshiClient:
         YES bid at X cents → NO ask at (100-X) cents.
         """
         data = await self._get(f"/markets/{ticker}/orderbook")
-        ob = data.get("orderbook", {})
+        # March 12, 2026: orderbook → orderbook_fp with string dollar prices
+        ob = data.get("orderbook_fp", data.get("orderbook", {}))
+        # New format: yes_dollars/no_dollars with string pairs ["0.5900", "100.00"]
+        # Legacy format: yes/no with int pairs [59, 100]
+        yes_key = "yes_dollars" if "yes_dollars" in ob else "yes"
+        no_key = "no_dollars" if "no_dollars" in ob else "no"
+        is_dollars = yes_key == "yes_dollars"
         yes_bids = [
-            OrderBookLevel(price=level[0], quantity=level[1])
-            for level in ob.get("yes", [])
+            OrderBookLevel(
+                price=round(float(level[0]) * 100) if is_dollars else int(level[0]),
+                quantity=round(float(level[1])) if is_dollars else int(level[1]),
+            )
+            for level in ob.get(yes_key, [])
             if len(level) >= 2
         ]
         no_bids = [
-            OrderBookLevel(price=level[0], quantity=level[1])
-            for level in ob.get("no", [])
+            OrderBookLevel(
+                price=round(float(level[0]) * 100) if is_dollars else int(level[0]),
+                quantity=round(float(level[1])) if is_dollars else int(level[1]),
+            )
+            for level in ob.get(no_key, [])
             if len(level) >= 2
         ]
         return OrderBook(yes_bids=yes_bids, no_bids=no_bids)
@@ -468,12 +535,12 @@ class KalshiClient:
             fills.append(Fill(
                 trade_id=f.get("trade_id", ""),
                 order_id=f.get("order_id", ""),
-                ticker=f.get("ticker", ""),
+                ticker=f.get("ticker", f.get("market_ticker", "")),
                 side=f.get("side", ""),
                 action=f.get("action", ""),
-                yes_price=f.get("yes_price", 0),
-                no_price=f.get("no_price", 0),
-                count=f.get("count", 0),
+                yes_price=_dollars_to_cents(f, "yes_price_dollars", fallback_key="yes_price"),
+                no_price=_dollars_to_cents(f, "no_price_dollars", fallback_key="no_price"),
+                count=_fp_to_int(f, "count_fp", fallback_key="count"),
                 created_time=f.get("created_time", ""),
                 is_taker=f.get("is_taker", False),
                 raw=f,
@@ -510,17 +577,20 @@ class KalshiClient:
 
     @staticmethod
     def _parse_market(m: Dict) -> Market:
-        # API returns yes_bid/no_bid (new) or yes_price/no_price (old) — accept both
-        yes_price = m.get("yes_bid") or m.get("yes_price", 0)
-        no_price = m.get("no_bid") or m.get("no_price", 0)
+        # March 12, 2026: Kalshi API v2 removed integer cents fields.
+        # New fields: yes_bid_dollars/no_bid_dollars (string "0.5900" = 59c)
+        # Fall back to legacy integer cents fields for test mocks.
+        yes_price = _dollars_to_cents(m, "yes_bid_dollars", fallback_key="yes_bid", fallback_key2="yes_price")
+        no_price = _dollars_to_cents(m, "no_bid_dollars", fallback_key="no_bid", fallback_key2="no_price")
+        volume = _fp_to_int(m, "volume_fp", fallback_key="volume")
         return Market(
             ticker=m.get("ticker", ""),
             title=m.get("title", ""),
             event_ticker=m.get("event_ticker", ""),
             status=m.get("status", ""),
-            yes_price=int(yes_price),
-            no_price=int(no_price),
-            volume=m.get("volume", 0),
+            yes_price=yes_price,
+            no_price=no_price,
+            volume=volume,
             close_time=m.get("close_time", ""),
             open_time=m.get("open_time", ""),
             result=(m.get("result") or "").lower() or None,
@@ -537,11 +607,11 @@ class KalshiClient:
             action=o.get("action", ""),
             type=o.get("type", ""),
             status=o.get("status", ""),
-            yes_price=o.get("yes_price", 0),
-            no_price=o.get("no_price", 0),
-            initial_count=o.get("initial_count", 0),
-            remaining_count=o.get("remaining_count", 0),
-            fill_count=o.get("fill_count", 0),
+            yes_price=_dollars_to_cents(o, "yes_price_dollars", fallback_key="yes_price"),
+            no_price=_dollars_to_cents(o, "no_price_dollars", fallback_key="no_price"),
+            initial_count=_fp_to_int(o, "initial_count_fp", fallback_key="initial_count"),
+            remaining_count=_fp_to_int(o, "remaining_count_fp", fallback_key="remaining_count"),
+            fill_count=_fp_to_int(o, "fill_count_fp", fallback_key="fill_count"),
             created_time=o.get("created_time", ""),
             raw=o,
         )
