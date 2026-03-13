@@ -2582,3 +2582,51 @@ NEXT SESSION PRIORITIES:
 2. Sol 27→30 milestone watch (3 away from Stage 2 gate)
 3. Monitor first sniper live bet
 4. Consider adding Kalshi API changelog monitoring to scheduled tasks
+
+---
+
+## Session 59 (cont'd) — 2026-03-12 — Sniper validated 10/10 + monitoring
+
+### Changed
+- SESSION_HANDOFF.md — updated with Session 59 wrap state
+- memory/kalshi_api_v2_migration.md — new memory documenting API field migration
+- memory/MEMORY.md — updated key constants (PID, P&L, commits, graduation counts)
+
+### Session results
+- expiry_sniper_v1: 10 live bets placed, 10/10 wins, +1.90 USD
+  Entry prices: 93-98c YES across 3 windows (20:15, 20:30, 20:45 CDT)
+  Kill switch 5% bankroll cap correctly throttled after 4 concurrent bets
+- Drift strategies blocked 35-65c price guard during extreme bullish session (YES 90-99c)
+  This is CORRECT behavior — sniper covers the extreme zone, drift covers mid-range
+- On 21:00 window, prices normalized (SOL YES=41c) — drift immediately resumed
+- sol_drift: 27→28 live bets (1 new bet placed on 21:00 window). 2 from 30!
+- All-time P&L: -34.59 → -32.69 USD (+1.90 session gain)
+
+### Key findings
+- Sniper + drift are perfectly complementary: opposite price zones, no dead time
+- Sniper profit margin: 3-7% per bet (small per-trade but high win rate)
+- P&L includes Kalshi taker fees (deducted at settlement). Taxes tracked separately in DB.
+- Kelly sizing is bankroll-proportional but Stage 1 cap (5 USD) is binding constraint
+- XRP drift came within 0.001% of triggering (0.099% vs 0.100% threshold) — it's alive
+
+SELF-RATING: A-
+  WINS:
+  - Fixed critical Kalshi API v2 breaking change that blocked ALL trading for 18+ hours
+  - Sniper validated with perfect 10/10 record on first live session
+  - Confirmed drift + sniper complementary relationship in real-time
+  - Autonomous monitoring loop ran cleanly for 2+ hours
+  - All-time P&L improved by +1.90 USD
+  LOSSES:
+  - Session 58 misdiagnosed the API change as normal price guard drought, costing ~18hrs
+  - Could have caught this faster by checking raw API responses on first observation
+  - Sniper gains are small (1.90 USD) — need more volume or bigger edge bets
+  ONE THING NEXT CHAT MUST DO DIFFERENTLY:
+  - Focus on sol_drift 30-bet milestone (2 away) — Stage 2 promotion analysis ready
+  ONE THING THAT WOULD HAVE MADE MORE MONEY:
+  - If API fix had been identified in S58 instead of S59, ~18 hours of lost sniper/drift bets
+
+NEXT SESSION PRIORITIES:
+1. Sol drift 28→30 milestone (2 more settled bets → Stage 2 gate evaluation)
+2. Monitor sniper for first loss (calibrate true win rate from 100% sample bias)
+3. XRP direction filter: 18/30, continue accumulating
+4. Consider Kalshi API changelog monitoring (scheduled task)
