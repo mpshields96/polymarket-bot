@@ -613,6 +613,70 @@ F. **Props/totals** — NCAAB over/under totals have different pricing dynamics
 
 ---
 
+## SESSION 63 ADDITIONS (2026-03-13)
+
+### 17. GEFS 31-MEMBER ENSEMBLE WEATHER FEED — BUILT + TESTED
+
+  Replaced parametric normal distribution assumption (N(forecast, 3.5F))
+  with empirical probabilities from 31 GEFS ensemble members.
+
+  How it works:
+  - Open-Meteo free ensemble API: ensemble-api.open-meteo.com/v1/ensemble
+  - Returns all 31 GEFS members (1 control + 30 perturbed) as JSON
+  - Probability = count(members in bracket) / 31 (empirical, not parametric)
+  - Handles skewed/bimodal distributions that normal CDF cannot
+
+  Live test (2026-03-14 NYC):
+  - 31 members, mean=49.6F, std=1.3F, range=46.6-52.2F
+  - Bracket "48-51F": 22/31 = 71.0% empirical probability
+  - No HIGHNY markets open (Friday evening) — can't compare to prices yet
+
+  Code: GEFSEnsembleFeed class in src/data/weather.py
+  Tests: 21 new tests (77 total weather tests), all passing
+  Wired into main.py and weather_forecast.py load_from_config()
+  Strategy auto-detects GEFS feed and uses empirical probabilities
+
+  IMPORTANT: Zero weather paper trades ever recorded (strategy never fired).
+  The 5% min_edge threshold was too high for the old parametric model.
+  GEFS ensemble may fire more often with better-calibrated probabilities.
+  Need to wait for weekday HIGHNY markets to test.
+
+### 18. POST_ONLY MAKER ORDER SUPPORT — BUILT + TESTED
+
+  KalshiClient.create_order() now supports post_only and expiration_ts.
+  live.execute() passes them through. trading_loop gains maker_mode param.
+
+  When maker_mode=True:
+  - post_only=True (order rejected if it would fill as taker)
+  - expiration_ts=now+30s (auto-cancel if unfilled after 30s)
+  - Saves ~75% on fees (maker fee = 25% of taker fee)
+
+  NOT YET ACTIVATED in any live loop.
+  To activate: pass maker_mode=True to trading_loop() in main.py for drift strategies.
+  Should NOT be used for sniper (time-critical, fee savings negligible at 90c+).
+
+  Fee savings estimate: ~5c/trade on drift x 200 trades = 10 USD saved.
+  At 54 USD bankroll, that's ~18% savings.
+
+  Tests: 5 new tests in test_live_executor.py, all passing.
+
+### 19. EVENING EDGE SCANNER RESULTS (2026-03-13 ~15:30 CDT)
+
+  Ran edge scanner with 11 NBA, 16 NHL, 32 NCAAB, 1 MLB games.
+  77 matched to odds API data.
+
+  Best edges found:
+  - NCAAB Kennesaw St at Sam Houston: 2.4% taker / 4.2% maker
+  - NCAAB Wisconsin at Illinois: 2.3% taker / 4.0% maker
+
+  CONFIRMS S62 FINDING: Kalshi sports efficiently priced even near game time.
+  Max taker edge ~2.4% (eaten by 1.75c max fee at 50c).
+  Maker edges ~4% possible but fill rate uncertain.
+
+  DEAD END RECONFIRMED: Sports arbitrage is NOT a viable edge source.
+
+---
+
 ## 16. COMPREHENSIVE SESSION 62 CONCLUSIONS
 
 ### What we built
