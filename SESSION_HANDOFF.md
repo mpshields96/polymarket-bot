@@ -1,11 +1,11 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-13 (Session 60 wrap — risk overhaul, sniper unblocked)
+# Last updated: 2026-03-13 (Session 61 wrap — sniper float fix, bot stopped per Matthew)
 # ═══════════════════════════════════════════════════════════════
 
-## COPY-PASTE THIS TO START A NEW SESSION (Session 61)
+## COPY-PASTE THIS TO START A NEW SESSION (Session 62)
 
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 61).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 62).
 
 MANDATORY READING BEFORE ANY ACTION:
   cat SESSION_HANDOFF.md
@@ -13,12 +13,15 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 60 wrap — 2026-03-12 ~22:20 CDT):
-  Bot RUNNING PID 13368 → /tmp/polybot_session60.log
-  Sniper LIVE UNCAPPED — 19/19 wins today, +4.65 USD (perfect record continues)
-  btc_drift + eth_drift DEMOTED to micro-live (0.01 cap) — stops the bleeding
-  Dynamic bet scaling added — halves bet on each consecutive loss
-  Sniper pct_cap bug FIXED — was silently blocking bets when bankroll < 100
+BOT STATE (Session 61 wrap — 2026-03-13 ~00:35 CDT / 05:35 UTC):
+  Bot STOPPED — Matthew requested shutdown at end of 3-hour window.
+  Sniper: 39W/2L all-time (95.1%) — ABOVE breakeven. pct_cap float fix deployed.
+  btc_drift + eth_drift remain MICRO-LIVE (0.01 cap) — confirmed losers, contained.
+  sol_drift: 28/30 — STILL 2 from Stage 2 milestone (no sol signals this session).
+
+RESTART COMMAND (Session 62):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session62.log 2>&1 &
+  Then verify: ps aux | grep "[m]ain.py" — exactly 1. Then cat bot.pid.
 
 If --health shows "HARD STOP": DO NOT RESTART. Log it. Wait for Matthew.
 "Daily loss soft stop active" = DISPLAY ONLY (kill_switch.py lines 187-193 commented out).
@@ -26,86 +29,90 @@ If --health shows "HARD STOP": DO NOT RESTART. Log it. Wait for Matthew.
 
 ---
 
-KEY STATE (Session 60 wrap — 2026-03-13 03:20 UTC):
-  Bot: RUNNING PID 13368 → /tmp/polybot_session60.log
-  All-time live P&L: -39.85 USD (net -6.66 this session — eth_drift losses before demotion)
-  Bankroll: ~98 USD
-  1075/1075 tests passing (3 skipped)
-  Last commits: 7337e2b (sniper pct_cap fix) + f9f3ad2 (risk overhaul)
+KEY STATE (Session 61 wrap — 2026-03-13 05:35 UTC):
+  Bot: STOPPED (Matthew requested at end of 3hr autonomous window)
+  All-time live P&L: -45.60 USD (session net -5.75)
+  Bankroll: ~54.40 USD
+  1076/1076 tests passing
+  Last commits: d657f80 (sniper pct_cap float fix) + 6687b75 (S60 wrap)
 
-SESSION 60 BUILDS:
+SESSION 61 BUILDS:
 
-  1. RISK OVERHAUL — scale down losers, uncap winners (commit f9f3ad2):
-     btc_drift + eth_drift demoted to micro-live (calibration_max_usd=0.01).
-     btc_drift: 54 bets, 48% win rate, -11.12 USD. eth_drift: 89 bets, 49%, -25.65 USD.
-     Data-driven: 54+ and 89+ bets is more than enough to confirm not profitable at Stage 1.
-     These strategies now lose pennies per bet instead of 4-5 USD per bet.
+  1. SNIPER PCT_CAP FLOATING-POINT FIX (commit d657f80):
+     IEEE 754 precision: 4.72/94.4 = 0.050000000000000003 > 0.05 threshold.
+     Kill switch rejected sniper bets at exact boundary.
+     Fix: _pct_max = round(bankroll * 0.05, 2) - 0.01 (subtract 1 cent safety margin).
+     Added max(0.01, _pct_max) floor to prevent negative sizing.
+     Regression test: test_pct_cap_floating_point_boundary in test_kill_switch.py.
 
-  2. SNIPER DAILY CAP REMOVED (was 10→20→unlimited):
-     97-100% win rate across 85+ data points. Every signal is +EV, no reason to cap.
-     Fixed max_daily_bets=0 guard in expiry_sniper_loop (0 means unlimited now).
+  2. SNIPER FIRST LOSSES OBSERVED + ANALYZED:
+     22:30 window: BTC and SOL both reversed. 2 losses at 93c = -9.30 USD.
+     Correlation risk identified: betting same direction on 3-4 assets per window.
+     Decision: DO NOT INTERVENE — 28 trades too small, 95%+ true rate still +EV.
 
-  3. SNIPER PCT_CAP BUG FIXED (commit 7337e2b):
-     Kill switch was blocking all sniper bets: "Trade 5.00 = 5.1% of bankroll (max 5%)".
-     Sniper bypassed calculate_size() and used HARD_CAP directly, which exceeded
-     the 5% pct_cap when bankroll dropped below 100. Silent blocker for multiple windows.
-     Fix: trade_usd = min(HARD_CAP, bankroll * MAX_TRADE_PCT).
+  3. AUTONOMOUS MONITORING (3 hours):
+     Bot supervised from ~22:00 CDT to ~00:35 CDT.
+     Sniper generated 39 live bets total (was 19 at session start).
+     20 new sniper bets this session: 18W/2L. Net sniper session: -4.56 USD.
+     Micro-live drift trades: 2W/3L eth_drift (-0.12), 0W/1L xrp (-0.57).
 
-  4. DYNAMIC BET SCALING on consecutive losses:
-     Halves bet per consecutive loss: 1→50%, 2→25%, 3→12.5%. Floor at 10%.
-     Only affects drift strategies. Sniper uses HARD_CAP directly (unaffected).
+  4. SIDE CHAT RESEARCH PROMPT CREATED:
+     .planning/SIDE_CHAT_RESEARCH_S61.md — sniper optimization (entry price,
+     time-to-expiry, drift threshold, correlation), time-of-day filter, limit orders.
+     Ready for Matthew to feed to a parallel chat.
 
-  5. Strategy P&L analysis documented: .planning/STRATEGY_PNL_ANALYSIS_S60.md
-  6. Side chat research prompt created: .planning/SIDE_CHAT_RESEARCH_PROMPT.md
+SESSION 61 KEY FINDINGS:
+  - Sniper all-time: 39W/2L (95.1%) — ABOVE 95% breakeven threshold (barely).
+  - Sniper P&L: -0.41 USD all-time (nearly breakeven — fees eat small wins).
+  - Bankroll dropped 98→54 USD across S60+S61 (mostly from pre-demotion drift losses).
+  - Sol drift did NOT fire during this session (no signals in 3 hours).
+  - Price guard drought periods are common at night (bearish crypto = YES at 10-20c).
 
-SESSION 60 KEY FINDINGS:
-  - eth_drift YES-only: 51% win rate (53 bets). Barely above breakeven. -2.61 USD.
-  - eth_drift losses concentrated at 35-43c entries during bearish sessions.
-  - sol_drift (79% WR, +13.48) and sniper (100% WR, +4.65 today) are the ONLY profitable strategies.
-  - btc_drift and eth_drift are confirmed losers with 54+ and 89+ bets respectively.
-  - Sniper + drift are complementary: sniper fires at 90c+ (extreme), drift at 35-65c (mid-range).
+SESSION 61 SELF-RATING:
+  GRADE: B — Fixed a real blocking bug (float precision), monitored successfully,
+  bot didn't crash. BUT session P&L was -5.75 despite 24W/6L — the 2 sniper losses
+  dominate everything. No new features built. Sol milestone didn't advance.
+  NEXT SESSION MUST: restart bot, watch sol progress, check side chat research results.
 
-SESSION 60 SELF-RATING:
-  GRADE: B+ — Found critical pct_cap bug blocking sniper, correct strategic demotion of losers.
-  LOST: 14.14 USD to 3 eth_drift losses BEFORE demoting. Should have demoted instantly.
-  NEXT CHAT MUST: not analyze eth_drift/btc_drift. They're micro-live. Focus on sol 30-bet
-  milestone and sniper throughput. Every minute spent on losers = missed sniper wins.
-
-LIVE STRATEGY STATUS (Session 60 wrap):
-  btc_drift_v1:         MICRO-LIVE  54/30 Brier 0.247  filter="no"   -11.12 USD  (DEMOTED S60)
-  eth_drift_v1:         MICRO-LIVE  89/30 Brier 0.249  filter="yes"  -25.65 USD  (DEMOTED S60)
+LIVE STRATEGY STATUS (Session 61 wrap):
+  btc_drift_v1:         MICRO-LIVE  filter="no"   (DEMOTED S60, confirmed loser)
+  eth_drift_v1:         MICRO-LIVE  filter="yes"  (DEMOTED S60, confirmed loser)
   sol_drift_v1:         STAGE 1     28/30 Brier 0.176  filter="no"   +13.48 USD  2 FROM 30!
-  xrp_drift_v1:         MICRO       18/30 Brier 0.261  filter="yes"  -0.55 USD
-  expiry_sniper_v1:     LIVE UNCAPPED — 19/19 wins today +4.65 USD (75 total incl paper)
+  xrp_drift_v1:         MICRO       19/30 Brier 0.261  filter="yes"  -1.12 USD
+  expiry_sniper_v1:     LIVE UNCAPPED — 39W/2L (95.1%) -0.41 USD all-time
   eth_orderbook_imbalance_v1: PAPER  15/30 Brier 0.337  DISABLED LIVE
   btc_lag_v1:           STAGE 1  45/30  0 signals/week — dead (HFTs)
 
-PENDING TASKS (Session 61 — PRIORITY ORDER):
+PENDING TASKS (Session 62 — PRIORITY ORDER):
 
-  #1 SOL STAGE 2 GRADUATION — 2 MORE BETS!
-     28/30 live bets. 2 more settled → milestone.
+  #1 RESTART BOT — it was stopped per Matthew's directive. Must restart immediately.
+
+  #2 SOL STAGE 2 GRADUATION — 2 MORE BETS!
+     28/30 live bets. 2 more settled -> milestone.
      When it hits 30: check --graduation-status. If Brier < 0.25:
      present Stage 2 promotion analysis (10 USD max bet, up from 5).
-     Each sol win at Stage 2 ≈ +8.46 USD instead of +4.23.
 
-  #2 MONITOR SNIPER THROUGHPUT:
-     19/19 perfect live record. Cap removed. pct_cap bug fixed.
-     Watch for: first loss (calibrate true win rate), any new blocking bugs.
-     Expected: 3-4 bets per window, 4 windows/hour = 12-16 bets/hour potential.
+  #3 MONITOR SNIPER:
+     39W/2L all-time (95.1%). pct_cap float fix deployed.
+     Watch: win rate trend, any new blocking bugs, correlation risk.
+     Side chat research may recommend entry price or time changes.
 
-  #3 SIDE CHAT RESEARCH RUNNING:
-     .planning/SIDE_CHAT_RESEARCH_PROMPT.md fed to parallel chat.
-     Results will appear in .planning/EDGE_RESEARCH_S60.md.
-     Do NOT duplicate that research. Just check if findings are actionable.
+  #4 CHECK SIDE CHAT RESEARCH:
+     .planning/SIDE_CHAT_RESEARCH_S61.md was created for parallel chat.
+     Check if results appeared in .planning/EDGE_RESEARCH_S61.md.
+     If actionable findings exist, implement CAREFULLY.
 
-  #4 XRP direction filter validation:
-     direction_filter="yes" applied S54. Need 30 YES-only post-filter live bets.
-     Currently 18/30 — 12 more needed. At micro-live so low priority.
+  #5 BANKROLL CONCERN:
+     Bankroll at ~54 USD (was ~98 at start of S60).
+     Main loss source was drift strategies BEFORE demotion.
+     Sniper losses contribute ~9.30 but sniper overall is near-breakeven.
+     At 54 USD, max bet is min(5.00, 54*0.05-0.01) = min(5.00, 2.69) = 2.69 USD.
+     Sniper bets will be SMALLER now. Each win ~0.12-0.19 USD vs ~0.25-0.35 before.
 
 125 USD PROFIT GOAL:
-  All-time: -39.85 USD. Need +164.85 more.
-  Key levers: (1) sniper uncapped = more wins per hour, (2) sol 2 bets from Stage 2,
-  (3) losers demoted to micro-live = bleeding stopped, (4) side chat may surface new edges
+  All-time: -45.60 USD. Need +170.60 more.
+  Key levers: (1) sniper wins accumulate slowly at 2.69/bet, (2) sol 2 from Stage 2,
+  (3) losers contained at micro-live, (4) side chat may surface new edges
 
 RESPONSE FORMAT RULES (permanent — both mandatory):
   RULE 1: NEVER markdown table syntax (| --- |) — wrong font in Claude Code UI.

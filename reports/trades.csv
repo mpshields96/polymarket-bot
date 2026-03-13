@@ -1517,3 +1517,142 @@ id,placed_at,settled_at,ticker,strategy,side,action,price_cents,count,cost_usd,e
 1516,2026-03-12 11:47:31,,tec-nba-champ-2026-07-01-sa,sports_futures_v1,no,buy,88,5,4.4,,,paper,,,,,,,,87ae7445-861e-40bc-94e1-e24b7dd7bab4,
 1517,2026-03-12 11:47:31,,tec-nhl-scw-2026-06-30-car,sports_futures_v1,no,buy,93,5,4.65,,,paper,,,,,,,,c4d58682-96b6-47d7-a1ce-9e0004d3dab0,
 1518,2026-03-12 11:47:31,,tec-nhl-scw-2026-06-30-buf,sports_futures_v1,no,buy,96,5,4.8,,,paper,,,,,,,,b2889282-9a04-4c07-bc7d-5335782927c5,
+1519,2026-03-12 23:04:27,,tec-cbb-champ-2026-04-04-fl,sports_futures_v1,no,buy,89,5,4.45,,,paper,,,,,,,,dc74a89c-454f-4187-b0c4-3262ccc7321f,
+1520,2026-03-12 23:04:27,,tec-nba-champ-2026-07-01-okc,sports_futures_v1,yes,buy,39,12,4.68,,,paper,,,,,,,,a7c68184-60ed-4d7a-bfcf-fe31532ac6e6,
+1521,2026-03-12 23:04:27,,tec-nba-champ-2026-07-01-cle,sports_futures_v1,no,buy,97,5,4.85,,,paper,,,,,,,,2e28d8b7-6f98-4dc0-9815-51542015440a,
+1522,2026-03-12 23:04:27,,tec-nhl-scw-2026-06-30-car,sports_futures_v1,no,buy,92,5,4.6000000000000005,,,paper,,,,,,,,8ccbbae6-35b3-4ffb-9279-2654cb4fb647,
+1523,2026-03-12 23:04:27,,tec-nhl-scw-2026-06-30-buf,sports_futures_v1,no,buy,96,5,4.8,,,paper,,,,,,,,946422df-46d3-4fc9-a8d9-5282bfd5e581,
+1524,2026-03-12 23:34:28,,tec-cbb-champ-2026-04-04-fl,sports_futures_v1,no,buy,89,5,4.45,,,paper,,,,,,,,7b4bce48-5296-4a1d-bd4e-362585914f9e,
+1525,2026-03-12 23:34:28,,tec-nba-champ-2026-07-01-okc,sports_futures_v1,yes,buy,39,12,4.68,,,paper,,,,,,,,2534ff58-a0e5-4878-93d8-724139f01262,
+1526,2026-03-12 23:34:28,,tec-nba-champ-2026-07-01-cle,sports_futures_v1,no,buy,97,5,4.85,,,paper,,,,,,,,981fe4b0-686f-4361-81d8-58924708e339,
+1527,2026-03-12 23:34:28,,tec-nhl-scw-2026-06-30-car,sports_futures_v1,no,buy,92,5,4.6000000000000005,,,paper,,,,,,,,f13f21e8-fe36-49f9-9abd-00c20e12bfe6,
+1528,2026-03-12 23:34:28,,tec-nhl-scw-2026-06-30-buf,sports_futures_v1,no,buy,95,5,4.75,,,paper,,,,,,,,a11ac08c-3c61-45bf-ad34-9be74074b8ec,
+1529,2026-03-13 00:00:40,,tec-cbb-champ-2026-04-04-arz,sports_futures_v1,no,buy,93,5,4.65,,,paper,,,,,,,,9ea1f2d8-1b01-4920-ace6-cc0ce49fdb5a,
+1530,2026-03-13 00:00:40,,tec-cbb-champ-2026-04-04-fl,sports_futures_v1,no,buy,89,5,4.45,,,paper,,,,,,,,d1c2c863-7c8f-4214-b1cf-1b862b1f8635,
+1531,2026-03-13 00:00:40,,tec-nba-champ-2026-07-01-cle,sports_futures_v1,no,buy,97,5,4.85,,,paper,,,,,,,,4fc83c28-948c-4e53-ac00-086bad5977e0,
+1532,2026-03-13 00:00:40,,tec-nhl-scw-2026-06-30-car,sports_futures_v1,no,buy,92,5,4.6000000000000005,,,paper,,,,,,,,622ba78a-3015-476b-b7f5-6cb82bf17bbf,
+1533,2026-03-13 00:00:40,,tec-nhl-scw-2026-06-30-buf,sports_futures_v1,no,buy,95,5,4.75,,,paper,,,,,,,,db068da8-0951-4240-bb86-ec61ea71a0e1,
+1534,2026-03-13 00:03:40,2026-03-13 00:17:11,KXETH15M-26MAR122015-15,eth_orderbook_imbalance_v1,yes,buy,49,10,4.9,,,paper,yes,4.9,True,100,0.2,5.1,4.9,93394466-3025-41f5-95cf-21968948f414,
+1535,2026-03-13 00:07:54,2026-03-13 00:17:07,KXXRP15M-26MAR122015-15,expiry_sniper_v1,yes,buy,93,5,4.65,0.0037,0.91,live,yes,0.3,True,100,0.05,0.35,0.3,c61877d6-e4b9-43cc-bf0a-3eaa65f6b2d3,760b50a3-57be-439c-90c4-79a0c4444d98
+1536,2026-03-13 00:10:06,2026-03-13 00:17:11,KXBTC15M-26MAR122015-15,expiry_sniper_v1,yes,buy,97,5,4.85,0.0061,0.95,live,yes,0.1,True,100,0.05,0.15,0.1,d91dfbbb-406d-42ab-83bd-7bab44a7182f,cd922121-dc46-44af-af27-259d2158e8b6
+1537,2026-03-13 00:10:27,2026-03-13 00:17:11,KXETH15M-26MAR122015-15,expiry_sniper_v1,yes,buy,97,5,4.85,0.0061,0.95,live,yes,0.1,True,100,0.05,0.15,0.1,31f743b6-f9f7-4527-8f39-50fdab835008,e3fae6e4-97d3-4a4d-8b5d-911893dd4955
+1538,2026-03-13 00:10:27,2026-03-13 00:17:10,KXSOL15M-26MAR122015-15,expiry_sniper_v1,yes,buy,93,5,4.65,0.0048,0.93,live,yes,0.3,True,100,0.05,0.35,0.3,6ef474dc-1c8e-4c44-b80c-789946f10bc5,f0297455-1982-48a9-8f97-6ba695a2a207
+1539,2026-03-13 00:19:26,2026-03-13 00:31:41,KXSOL15M-26MAR122030-30,expiry_sniper_v1,yes,buy,92,5,4.6000000000000005,0.0043,0.92,live,yes,0.35,True,100,0.05,0.4,0.35,ced5d59c-7d23-4f9d-a96a-f4d209083237,894fa2cd-ff73-46b8-8b91-ae169d1d8027
+1540,2026-03-13 00:19:46,2026-03-13 00:31:42,KXETH15M-26MAR122030-30,expiry_sniper_v1,yes,buy,96,5,4.8,0.0054,0.94,live,yes,0.15,True,100,0.05,0.2,0.15,4db6888b-eb80-4f10-bdc2-95917719265f,4ed605bc-9acf-452f-8677-0c93135b63d2
+1541,2026-03-13 00:20:57,2026-03-13 00:31:40,KXBTC15M-26MAR122030-30,expiry_sniper_v1,yes,buy,96,5,4.8,0.0037,0.91,live,yes,0.15,True,100,0.05,0.2,0.15,13f892a4-6da4-4843-a682-939452f23cfc,1f8c254a-ed2f-4613-a48b-ea78d30bf610
+1542,2026-03-13 00:21:28,2026-03-13 00:31:42,KXXRP15M-26MAR122030-30,expiry_sniper_v1,yes,buy,97,5,4.85,0.0043,0.92,live,yes,0.1,True,100,0.05,0.15,0.1,d111a735-a281-4e6e-8e01-bf4b35b05186,e7bc4f54-6d1b-43dd-a167-637009f8f629
+1543,2026-03-13 00:30:35,2026-03-13 00:47:08,KXSOL15M-26MAR122045-45,sol_lag_v1,yes,buy,45,9,4.05,,,paper,yes,4.77,True,100,0.18,4.95,4.77,0ab03209-451f-4c7a-8294-74dd38eb9e1f,
+1544,2026-03-13 00:30:40,,tec-nba-champ-2026-07-01-sa,sports_futures_v1,no,buy,89,5,4.45,,,paper,,,,,,,,9ddc8676-037a-4aea-9494-7e454636ff7c,
+1545,2026-03-13 00:30:40,,tec-nba-champ-2026-07-01-cle,sports_futures_v1,no,buy,97,5,4.85,,,paper,,,,,,,,75deef82-cb81-4f84-8d88-9cd1dd99b0c4,
+1546,2026-03-13 00:30:40,,tec-nhl-scw-2026-06-30-car,sports_futures_v1,no,buy,92,5,4.6000000000000005,,,paper,,,,,,,,85fa62b7-dd27-45a2-be12-8d0cf883610a,
+1547,2026-03-13 00:30:40,,tec-nhl-scw-2026-06-30-buf,sports_futures_v1,no,buy,94,5,4.699999999999999,,,paper,,,,,,,,2eeb698b-8dba-4b20-81e1-057498662e0a,
+1548,2026-03-13 00:34:41,2026-03-13 00:47:04,KXBTC15M-26MAR122045-45,expiry_sniper_v1,yes,buy,96,5,4.8,0.0054,0.94,live,yes,0.15,True,100,0.05,0.2,0.15,f03c1c15-256f-4b2a-a8f7-657c4b2ce72b,70513087-05fd-4052-9bda-5fc0dd284431
+1549,2026-03-13 00:34:42,2026-03-13 00:47:08,KXSOL15M-26MAR122045-45,expiry_sniper_v1,yes,buy,95,5,4.75,0.0048,0.93,live,yes,0.2,True,100,0.05,0.25,0.2,7ea20795-01b9-40d3-9a80-540709e68b17,f2f60f5a-bb67-48c2-bb91-ee063a5e5b73
+1550,2026-03-13 00:46:49,2026-03-13 01:30:12,KXETH15M-26MAR122100-00,eth_drift_v1,yes,buy,43,11,4.7299999999999995,0.0801,0.51,live,no,-4.73,False,0,0.0,-4.73,-4.73,73688b38-24f7-4397-9253-fba08b4b7a98,9e182751-e0de-4ef1-8026-ebde3fa7f757
+1551,2026-03-13 00:47:00,2026-03-13 01:30:03,KXSOL15M-26MAR122100-00,sol_drift_v1,no,buy,51,9,4.59,0.1616,0.6088,live,no,4.23,True,100,0.18,4.41,4.23,cb07e80a-9953-4c50-ac6e-289617634268,c87436e9-d32a-48e2-b4e4-8836372eb10f
+1552,2026-03-13 01:15:40,2026-03-13 01:32:36,KXETH15M-26MAR122130-30,eth_orderbook_imbalance_v1,yes,buy,46,10,4.6000000000000005,,,paper,no,-4.6,False,0,0.0,-4.6,-4.6,b5bb7b6b-562e-4b18-b2b0-f44dc0b2a1f1,
+1553,2026-03-13 01:32:17,,tec-cbb-champ-2026-04-04-arz,sports_futures_v1,no,buy,91,5,4.55,,,paper,,,,,,,,c17490d2-fdbe-471a-87c9-4df5d8b9c43e,
+1554,2026-03-13 01:32:17,,tec-cbb-champ-2026-04-04-fl,sports_futures_v1,no,buy,89,5,4.45,,,paper,,,,,,,,b96de20c-8f21-4044-9bdb-b7476d17824c,
+1555,2026-03-13 01:32:17,,tec-nba-champ-2026-07-01-sa,sports_futures_v1,no,buy,89,5,4.45,,,paper,,,,,,,,903f161f-9a76-4b78-a47b-c2705738cab3,
+1556,2026-03-13 01:32:17,,tec-nba-champ-2026-07-01-cle,sports_futures_v1,no,buy,97,5,4.85,,,paper,,,,,,,,a4938922-e02f-43e4-ba19-602cb5901a4c,
+1557,2026-03-13 01:32:17,,tec-nhl-scw-2026-06-30-car,sports_futures_v1,no,buy,92,5,4.6000000000000005,,,paper,,,,,,,,915754c7-45f3-4eb3-acd8-8592f38d3827,
+1558,2026-03-13 01:32:17,,tec-nhl-scw-2026-06-30-buf,sports_futures_v1,no,buy,94,5,4.699999999999999,,,paper,,,,,,,,484e3530-964b-49b9-a3b8-e8f690091970,
+1559,2026-03-13 02:00:08,,tec-cbb-champ-2026-04-04-arz,sports_futures_v1,no,buy,91,5,4.55,,,paper,,,,,,,,d7c7c44c-b714-4386-aded-e34838dd7778,
+1560,2026-03-13 02:00:08,,tec-cbb-champ-2026-04-04-fl,sports_futures_v1,no,buy,89,5,4.45,,,paper,,,,,,,,2dbc8f6c-8a99-45cf-b4ec-d23bf2cf99b9,
+1561,2026-03-13 02:00:08,,tec-nba-champ-2026-07-01-sa,sports_futures_v1,no,buy,89,5,4.45,,,paper,,,,,,,,1b12917b-d728-44d5-8d12-3741f606cb5b,
+1562,2026-03-13 02:00:08,,tec-nhl-scw-2026-06-30-car,sports_futures_v1,no,buy,92,5,4.6000000000000005,,,paper,,,,,,,,e592a621-358c-43b5-ac1f-41091752fbfe,
+1563,2026-03-13 02:00:08,,tec-nhl-scw-2026-06-30-buf,sports_futures_v1,no,buy,94,5,4.699999999999999,,,paper,,,,,,,,a2ae12a7-1f96-4a14-8ed0-e7bd0e825ecf,
+1564,2026-03-13 02:00:19,2026-03-13 02:16:27,KXETH15M-26MAR122215-15,eth_orderbook_imbalance_v1,yes,buy,44,11,4.84,,,paper,no,-4.84,False,0,0.0,-4.84,-4.84,87be1a5e-346a-4fd0-baf4-2c706cbc6104,
+1565,2026-03-13 02:00:32,2026-03-13 02:16:28,KXBTC15M-26MAR122215-15,orderbook_imbalance_v1,no,buy,44,10,4.4,,,paper,no,5.4,True,100,0.2,5.6,5.4,b5538316-325f-43d6-aeda-d464d6e59344,
+1566,2026-03-13 02:08:01,2026-03-13 02:16:30,KXSOL15M-26MAR122215-15,expiry_sniper_v1,no,buy,90,5,4.5,0.0037,0.91,live,no,0.45,True,100,0.05,0.5,0.45,841f6493-1921-4fc1-919e-1016e8a356e8,3d0ba6c3-6e81-4684-a0b3-20de6c28e5a0
+1567,2026-03-13 02:09:33,2026-03-13 02:16:28,KXBTC15M-26MAR122215-15,expiry_sniper_v1,no,buy,92,5,4.6000000000000005,0.0043,0.92,live,no,0.35,True,100,0.05,0.4,0.35,896b3c52-9504-49ab-bfd8-499cbba042e3,1bc50672-d7ed-4c7f-b1c6-06c306462b61
+1568,2026-03-13 02:13:19,2026-03-13 02:17:32,KXXRP15M-26MAR122215-15,expiry_sniper_v1,no,buy,93,5,4.65,0.0054,0.94,live,no,0.3,True,100,0.05,0.35,0.3,319b141c-184f-49a5-b5f7-cf2c9f938822,e876c902-d4de-44dd-9a57-1b4df566423a
+1569,2026-03-13 02:15:27,2026-03-13 02:31:51,KXBTC15M-26MAR122230-30,orderbook_imbalance_v1,yes,buy,50,6,3.0,,,paper,no,-3.0,False,0,0.0,-3.0,-3.0,a706f45c-93c0-4521-8cbd-e973c5ab8a06,
+1570,2026-03-13 02:16:34,2026-03-13 02:31:48,KXETH15M-26MAR122230-30,eth_drift_v1,yes,buy,39,12,4.68,0.0619,0.51,live,no,-4.68,False,0,0.0,-4.68,-4.68,4d80ee98-3046-4993-8663-96d5267cf864,7f4a1a81-a145-42c0-8a22-e93de0e789f5
+1571,2026-03-13 02:24:24,2026-03-13 02:31:50,KXSOL15M-26MAR122230-30,expiry_sniper_v1,no,buy,95,5,4.75,0.0054,0.94,live,no,0.2,True,100,0.05,0.25,0.2,e40bc818-f717-4d12-a4cf-2cef1dad67b6,edd140c7-9172-452b-8c46-46b63f57f01f
+1572,2026-03-13 02:25:05,2026-03-13 02:31:51,KXBTC15M-26MAR122230-30,expiry_sniper_v1,no,buy,91,5,4.55,0.0037,0.91,live,no,0.4,True,100,0.05,0.45,0.4,2c6569ed-8f8c-4fb8-9e67-c4d24e769791,25cd86a5-327a-452d-84c3-7b588b4a5f15
+1573,2026-03-13 02:30:11,,tec-cbb-champ-2026-04-04-arz,sports_futures_v1,no,buy,91,5,4.55,,,paper,,,,,,,,95a1e860-e549-43f3-af0b-b4b511794346,
+1574,2026-03-13 02:30:11,,tec-cbb-champ-2026-04-04-fl,sports_futures_v1,no,buy,89,5,4.45,,,paper,,,,,,,,6df6a984-2ec0-4c27-b6b6-f922f89c51ef,
+1575,2026-03-13 02:30:11,,tec-nba-champ-2026-07-01-okc,sports_futures_v1,yes,buy,41,12,4.92,,,paper,,,,,,,,ef1dc76e-3e8e-447d-8d25-ba916c1f6e15,
+1576,2026-03-13 02:30:11,,tec-nba-champ-2026-07-01-sa,sports_futures_v1,no,buy,89,5,4.45,,,paper,,,,,,,,e7f93543-5947-4e0c-95b8-2d27d9fc7af8,
+1577,2026-03-13 02:30:11,,tec-nba-champ-2026-07-01-cle,sports_futures_v1,no,buy,97,5,4.85,,,paper,,,,,,,,051d36bf-070f-48d2-8213-8d87b3b766ee,
+1578,2026-03-13 02:30:11,,tec-nhl-scw-2026-06-30-car,sports_futures_v1,no,buy,92,5,4.6000000000000005,,,paper,,,,,,,,7c78f24c-a9ca-4792-881e-942feba72efe,
+1579,2026-03-13 02:30:11,,tec-nhl-scw-2026-06-30-buf,sports_futures_v1,no,buy,94,5,4.699999999999999,,,paper,,,,,,,,1a70bd1c-7952-4699-9334-1579ddd5a8aa,
+1580,2026-03-13 02:32:08,2026-03-13 02:47:14,KXETH15M-26MAR122245-45,eth_drift_v1,yes,buy,43,11,4.7299999999999995,0.059,0.51,live,no,-4.73,False,0,0.0,-4.73,-4.73,62857c24-03a8-47c7-b29c-ce627dff0efa,04b22c73-fa61-45a5-9dbe-887634252769
+1581,2026-03-13 02:35:06,2026-03-13 02:47:11,KXSOL15M-26MAR122245-45,expiry_sniper_v1,no,buy,95,5,4.75,0.0054,0.94,live,no,0.2,True,100,0.05,0.25,0.2,f565fc52-b98b-4270-bae2-38a00aebd8c1,6174fc53-219b-4114-b036-1dcbb3184825
+1582,2026-03-13 02:53:45,,tec-cbb-champ-2026-04-04-arz,sports_futures_v1,no,buy,91,5,4.55,,,paper,,,,,,,,0d27a52f-6ac8-4b2c-a437-72e7e571f301,
+1583,2026-03-13 02:53:45,,tec-cbb-champ-2026-04-04-fl,sports_futures_v1,no,buy,89,5,4.45,,,paper,,,,,,,,99469d5c-132a-4241-883d-236a64a0bbce,
+1584,2026-03-13 02:53:45,,tec-nba-champ-2026-07-01-okc,sports_futures_v1,yes,buy,41,12,4.92,,,paper,,,,,,,,077a5d0e-9d1f-4f04-8a58-cda82f4dab5a,
+1585,2026-03-13 02:53:45,,tec-nba-champ-2026-07-01-cle,sports_futures_v1,no,buy,97,5,4.85,,,paper,,,,,,,,e5c5189f-17e9-4ff6-86e3-8a997f04aed9,
+1586,2026-03-13 02:53:45,,tec-nhl-scw-2026-06-30-car,sports_futures_v1,no,buy,92,5,4.6000000000000005,,,paper,,,,,,,,abd8209d-f117-4b41-9879-8e42f46ec624,
+1587,2026-03-13 02:53:45,,tec-nhl-scw-2026-06-30-buf,sports_futures_v1,no,buy,94,5,4.699999999999999,,,paper,,,,,,,,fccd00c4-5170-48a0-ab68-9e96a77adaf2,
+1588,2026-03-13 03:01:26,,tec-cbb-champ-2026-04-04-arz,sports_futures_v1,no,buy,91,5,4.55,,,paper,,,,,,,,ed29202b-cbfe-4f30-8141-9d584c498826,
+1589,2026-03-13 03:01:26,,tec-cbb-champ-2026-04-04-fl,sports_futures_v1,no,buy,89,5,4.45,,,paper,,,,,,,,5230dd3f-49a4-405c-9ebd-cf6e38bebc00,
+1590,2026-03-13 03:01:26,,tec-nba-champ-2026-07-01-okc,sports_futures_v1,yes,buy,41,12,4.92,,,paper,,,,,,,,7150879a-dab9-49a6-9c69-f4384c603d5a,
+1591,2026-03-13 03:01:26,,tec-nba-champ-2026-07-01-sa,sports_futures_v1,no,buy,89,5,4.45,,,paper,,,,,,,,2cccef6e-076f-428e-8bcb-c0a10647125d,
+1592,2026-03-13 03:01:26,,tec-nba-champ-2026-07-01-cle,sports_futures_v1,no,buy,97,5,4.85,,,paper,,,,,,,,a4324748-c2d3-4c09-9f06-c59937472bd7,
+1593,2026-03-13 03:01:26,,tec-nhl-scw-2026-06-30-car,sports_futures_v1,no,buy,92,5,4.6000000000000005,,,paper,,,,,,,,bf395631-6deb-43fe-95a2-913ab063f031,
+1594,2026-03-13 03:01:26,,tec-nhl-scw-2026-06-30-buf,sports_futures_v1,no,buy,94,5,4.699999999999999,,,paper,,,,,,,,6f49a12c-e8c4-4bfe-a1a1-68a3d2531f4b,
+1595,2026-03-13 03:07:23,2026-03-13 03:17:32,KXSOL15M-26MAR122315-15,expiry_sniper_v1,yes,buy,92,5,4.6000000000000005,0.0037,0.91,live,yes,0.35,True,100,0.05,0.4,0.35,0aa71013-82f5-4077-9934-6089bf9b409c,7099608a-c5b6-44de-8604-25a17075a10c
+1596,2026-03-13 03:08:45,2026-03-13 03:16:29,KXXRP15M-26MAR122315-15,expiry_sniper_v1,yes,buy,98,5,4.9,0.0043,0.92,live,yes,0.05,True,100,0.05,0.1,0.05,6ed74cec-78e9-406b-b70e-55c82380cf48,544fc78b-fb5f-4d7b-b381-3a374b15fb77
+1597,2026-03-13 03:10:27,2026-03-13 03:16:28,KXBTC15M-26MAR122315-15,expiry_sniper_v1,yes,buy,90,5,4.5,0.0043,0.92,live,yes,0.45,True,100,0.05,0.5,0.45,f56e5a76-666b-411e-bfe1-c878db64bc1c,51d9e686-25ed-4cce-96c0-c5eae29a6768
+1598,2026-03-13 03:18:40,2026-03-13 03:31:58,KXXRP15M-26MAR122330-30,xrp_drift_v1,yes,buy,57,1,0.57,0.1031,0.6005,live,no,-0.57,False,0,0.0,-0.57,-0.57,e7b418da-c4c8-4d74-82b8-4651c84e2eaa,dd0bc710-00d6-4603-a1c0-7c0e8a70a613
+1599,2026-03-13 03:23:29,2026-03-13 03:32:00,KXSOL15M-26MAR122330-30,expiry_sniper_v1,yes,buy,93,5,4.65,0.0043,0.92,live,no,-4.65,False,0,0.0,-4.65,-4.65,cd86aaa4-2f93-42a5-8676-6df489b56426,7fd1d34a-698f-402d-934a-0757863d17b9
+1600,2026-03-13 03:24:22,2026-03-13 03:31:57,KXETH15M-26MAR122330-30,expiry_sniper_v1,yes,buy,95,5,4.75,0.0048,0.93,live,yes,0.2,True,100,0.05,0.25,0.2,2ef0fa55-81f2-40a8-9055-3feb6375e75e,682c07dd-9a6a-44f8-ab77-00e8b1471607
+1601,2026-03-13 03:25:33,2026-03-13 03:31:58,KXBTC15M-26MAR122330-30,expiry_sniper_v1,yes,buy,93,5,4.65,0.0054,0.94,live,no,-4.65,False,0,0.0,-4.65,-4.65,f882268a-ac9c-456e-9806-56da2e837f2a,e2b98e58-30c6-4559-9b5a-e59541489bcc
+1602,2026-03-13 03:31:29,,tec-cbb-champ-2026-04-04-arz,sports_futures_v1,no,buy,91,5,4.55,,,paper,,,,,,,,76d70c3f-8066-4689-8c8e-612a84c3f083,
+1603,2026-03-13 03:31:29,,tec-nba-champ-2026-07-01-sa,sports_futures_v1,no,buy,89,5,4.45,,,paper,,,,,,,,c3fd48ac-4f8f-450f-929f-81d62780da4a,
+1604,2026-03-13 03:31:29,,tec-nba-champ-2026-07-01-cle,sports_futures_v1,no,buy,97,5,4.85,,,paper,,,,,,,,42d12255-ed2e-4866-8df7-a9b3e933935b,
+1605,2026-03-13 03:31:29,,tec-nhl-scw-2026-06-30-car,sports_futures_v1,no,buy,92,5,4.6000000000000005,,,paper,,,,,,,,c294931a-64cd-4417-a321-f5b4a874ec30,
+1606,2026-03-13 03:31:29,,tec-nhl-scw-2026-06-30-buf,sports_futures_v1,no,buy,94,5,4.699999999999999,,,paper,,,,,,,,d3f2dd8b-b334-46a0-9ee6-b365d0c22953,
+1607,2026-03-13 03:33:28,2026-03-13 03:47:00,KXETH15M-26MAR122345-45,eth_drift_v1,yes,buy,49,1,0.49,0.1012,0.5484,live,yes,0.49,True,100,0.02,0.51,0.49,614e8bcf-7442-482e-8d6b-411323b78261,b7ad66af-5044-4e0b-b7c6-85582b6a1681
+1608,2026-03-13 03:33:52,2026-03-13 03:47:00,KXETH15M-26MAR122345-45,eth_orderbook_imbalance_v1,yes,buy,46,6,2.7600000000000002,,,paper,yes,3.12,True,100,0.12,3.24,3.12,392e974e-038f-4878-b284-5a8e85bc600c,
+1609,2026-03-13 03:47:26,,tec-cbb-champ-2026-04-04-arz,sports_futures_v1,no,buy,91,5,4.55,,,paper,,,,,,,,efd7f398-1820-4ce0-8f82-b81791a6ccb2,
+1610,2026-03-13 03:47:26,,tec-nba-champ-2026-07-01-okc,sports_futures_v1,yes,buy,41,12,4.92,,,paper,,,,,,,,7a974655-09a7-4079-8e7b-789288e48dc1,
+1611,2026-03-13 03:47:26,,tec-nba-champ-2026-07-01-cle,sports_futures_v1,no,buy,97,5,4.85,,,paper,,,,,,,,16589ba7-a0e8-4ee5-b71c-cf3d3519a26f,
+1612,2026-03-13 03:47:26,,tec-nhl-scw-2026-06-30-car,sports_futures_v1,no,buy,92,5,4.6000000000000005,,,paper,,,,,,,,802c872e-b4b4-4d26-a529-81a11a8050b0,
+1613,2026-03-13 03:50:01,2026-03-13 04:01:24,KXBTC15M-26MAR130000-00,orderbook_imbalance_v1,yes,buy,51,8,4.08,,,paper,yes,3.76,True,100,0.16,3.92,3.76,ffe1ec5b-e085-4abc-9701-c34613ab0d8e,
+1614,2026-03-13 03:52:28,2026-03-13 04:01:27,KXXRP15M-26MAR130000-00,expiry_sniper_v1,yes,buy,94,5,4.699999999999999,0.0037,0.91,live,yes,0.25,True,100,0.05,0.3,0.25,4d5e615d-d7d8-49b6-885d-8d3f9fa1f6e7,15fdc33a-eac4-4c4f-9ce1-86e0c9818934
+1615,2026-03-13 03:52:59,2026-03-13 04:02:32,KXETH15M-26MAR130000-00,expiry_sniper_v1,yes,buy,94,5,4.699999999999999,0.0048,0.93,live,yes,0.25,True,100,0.05,0.3,0.25,90840b91-2437-4f71-a916-4f0d5560808c,329d4add-31ae-4481-82ed-b48233f1ebbe
+1616,2026-03-13 03:53:09,2026-03-13 04:01:24,KXBTC15M-26MAR130000-00,expiry_sniper_v1,yes,buy,96,4,3.84,0.0054,0.94,live,yes,0.12,True,100,0.04,0.16,0.12,4cc772d2-4d22-4a79-914b-40a8ac747d30,7fda9110-2efe-4c93-a04d-13bcde996367
+1617,2026-03-13 03:54:02,2026-03-13 04:01:27,KXSOL15M-26MAR130000-00,expiry_sniper_v1,yes,buy,93,5,4.65,0.0054,0.94,live,yes,0.3,True,100,0.05,0.35,0.3,278e36ed-72fa-48bc-a44b-e51a832bb2bc,a74fb7fd-c0a5-4cbb-8932-1a96bd9ddc4b
+1618,2026-03-13 04:04:45,2026-03-13 04:15:38,KXETH15M-26MAR130015-15,eth_drift_v1,yes,buy,41,1,0.41,0.0584,0.51,live,no,-0.41,False,0,0.0,-0.41,-0.41,ae704754-d674-46a0-bfcc-f1f25aafd9f7,1da79d7d-b68b-473e-90a3-d20042cc5db3
+1619,2026-03-13 04:10:26,2026-03-13 04:15:38,KXETH15M-26MAR130015-15,eth_orderbook_imbalance_v1,yes,buy,48,9,4.32,,,paper,no,-4.32,False,0,0.0,-4.32,-4.32,23bb4d8e-2178-4304-b5e3-5830bdd2f518,
+1620,2026-03-13 04:11:53,2026-03-13 04:15:41,KXSOL15M-26MAR130015-15,expiry_sniper_v1,no,buy,95,5,4.75,0.0048,0.93,live,no,0.2,True,100,0.05,0.25,0.2,a78da709-dfdf-4c0f-adea-530fd80a06f0,f6df696d-fb39-495f-871d-38c83c8c4265
+1621,2026-03-13 04:14:08,2026-03-13 04:15:42,KXXRP15M-26MAR130015-15,expiry_sniper_v1,no,buy,99,4,3.96,0.0073,0.97,live,no,0.0,True,100,0.04,0.04,0.0,0a270daf-0a9a-466e-9345-96bfd2bd994a,b93981a8-014f-42c1-8f5c-d53c232bb880
+1622,2026-03-13 04:15:32,2026-03-13 04:31:09,KXETH15M-26MAR130030-30,eth_orderbook_imbalance_v1,no,buy,45,7,3.15,,,paper,no,3.71,True,100,0.14,3.85,3.71,48bce705-1faa-4bdd-a3d3-3f94463d6938,
+1623,2026-03-13 04:17:26,,tec-cbb-champ-2026-04-04-arz,sports_futures_v1,no,buy,92,5,4.6000000000000005,,,paper,,,,,,,,d8257333-ee9d-4fa7-add8-2d9b049013f1,
+1624,2026-03-13 04:17:26,,tec-cbb-champ-2026-04-04-fl,sports_futures_v1,no,buy,89,5,4.45,,,paper,,,,,,,,4436bc12-fa46-4a8e-92cb-c0f299ae38e9,
+1625,2026-03-13 04:17:26,,tec-nba-champ-2026-07-01-okc,sports_futures_v1,yes,buy,41,12,4.92,,,paper,,,,,,,,5da67461-6365-4f2d-b68e-cea540a8a1ef,
+1626,2026-03-13 04:17:26,,tec-nba-champ-2026-07-01-cle,sports_futures_v1,no,buy,97,5,4.85,,,paper,,,,,,,,aec6e5f2-b36f-4fd7-bbfc-0dbd1bc619d1,
+1627,2026-03-13 04:17:26,,tec-nhl-scw-2026-06-30-car,sports_futures_v1,no,buy,92,5,4.6000000000000005,,,paper,,,,,,,,8099768e-1a90-420f-937b-e7788de54fff,
+1628,2026-03-13 04:24:05,2026-03-13 04:31:06,KXXRP15M-26MAR130030-30,expiry_sniper_v1,no,buy,93,5,4.65,0.0037,0.91,live,no,0.3,True,100,0.05,0.35,0.3,f4429065-6635-4a8f-962d-f85c3bba7434,3ea08c84-febe-4cb7-99b5-2ed7d8d4efa3
+1629,2026-03-13 04:25:46,2026-03-13 04:31:09,KXSOL15M-26MAR130030-30,expiry_sniper_v1,no,buy,90,5,4.5,0.0037,0.91,live,no,0.45,True,100,0.05,0.5,0.45,d7cac2ee-27ac-46e1-92ce-4e0faa551022,f187e4c4-933b-4447-bb78-595792eec68b
+1630,2026-03-13 04:28:11,2026-03-13 04:31:09,KXETH15M-26MAR130030-30,expiry_sniper_v1,no,buy,93,4,3.72,0.0054,0.94,live,no,0.24,True,100,0.04,0.28,0.24,a28f323d-d97f-48ff-9063-40e6e860a85d,728b2f9a-bc81-4fcb-8536-dbb953ef9554
+1631,2026-03-13 04:28:22,2026-03-13 04:31:11,KXBTC15M-26MAR130030-30,expiry_sniper_v1,no,buy,98,4,3.92,0.0086,0.99,live,no,0.04,True,100,0.04,0.08,0.04,246debe7-1c2a-4196-b8dd-d65b73dd3e2d,c4172af6-48c4-437c-b997-f8869cbeb5ec
+1632,2026-03-13 04:30:32,2026-03-13 04:45:23,KXETH15M-26MAR130045-45,eth_orderbook_imbalance_v1,yes,buy,56,5,2.8000000000000003,,,paper,yes,2.1,True,100,0.1,2.2,2.1,a89679fd-5cdf-466d-a485-eaadff3e0d42,
+1633,2026-03-13 04:31:43,2026-03-13 04:45:23,KXETH15M-26MAR130045-45,eth_drift_v1,yes,buy,36,1,0.36,0.0553,0.51,live,yes,0.62,True,100,0.02,0.64,0.62,fbe575f6-2c53-4711-97cc-c3b27a237340,28f93d78-b755-456c-8ed2-501a784e1cae
+1634,2026-03-13 04:39:38,2026-03-13 04:46:30,KXXRP15M-26MAR130045-45,expiry_sniper_v1,yes,buy,95,5,4.75,0.0043,0.92,live,yes,0.2,True,100,0.05,0.25,0.2,76441187-bf68-4d55-bc42-2c5e2292c7d7,b3617358-e6cc-44f7-ab25-78c7d80fa031
+1635,2026-03-13 04:41:51,2026-03-13 04:45:28,KXSOL15M-26MAR130045-45,expiry_sniper_v1,yes,buy,93,5,4.65,0.0037,0.91,live,yes,0.3,True,100,0.05,0.35,0.3,7a707a1d-115a-4d17-9ecd-3c4a18947025,f36618fa-03f3-420c-9a3f-941c82878775
+1636,2026-03-13 04:42:01,2026-03-13 04:46:30,KXBTC15M-26MAR130045-45,expiry_sniper_v1,yes,buy,99,4,3.96,0.0073,0.97,live,yes,0.0,True,100,0.04,0.04,0.0,c2fd3ee7-9038-41e7-ba99-dce8f9128d64,5c6292f7-33b1-4a01-b09f-1a040937cd3a
+1637,2026-03-13 04:47:27,,tec-cbb-champ-2026-04-04-arz,sports_futures_v1,no,buy,91,5,4.55,,,paper,,,,,,,,9c185286-86b3-4897-b95f-fbab050b30c0,
+1638,2026-03-13 04:47:27,,tec-cbb-champ-2026-04-04-fl,sports_futures_v1,no,buy,89,5,4.45,,,paper,,,,,,,,619c90ec-42cd-4f5e-9648-4d563a41fa5d,
+1639,2026-03-13 04:47:27,,tec-nba-champ-2026-07-01-okc,sports_futures_v1,yes,buy,41,12,4.92,,,paper,,,,,,,,7882b417-99b0-46eb-85cc-9950eefa695e,
+1640,2026-03-13 04:47:27,,tec-nba-champ-2026-07-01-cle,sports_futures_v1,no,buy,97,5,4.85,,,paper,,,,,,,,1afd39df-18ec-43af-aa28-111dc238d888,
+1641,2026-03-13 04:47:27,,tec-nhl-scw-2026-06-30-car,sports_futures_v1,no,buy,92,5,4.6000000000000005,,,paper,,,,,,,,24d1965a-a530-45ae-bece-a660b04f2f52,
+1642,2026-03-13 04:47:27,,tec-nhl-scw-2026-06-30-buf,sports_futures_v1,no,buy,94,5,4.699999999999999,,,paper,,,,,,,,2b448839-9b43-44ae-a7d2-fd4733e7fbf6,
+1643,2026-03-13 04:48:52,2026-03-13 05:00:55,KXETH15M-26MAR130100-00,eth_drift_v1,yes,buy,35,1,0.35,0.0758,0.51,live,no,-0.35,False,0,0.0,-0.35,-0.35,6d33b0b5-bc2b-4f57-b584-c491b8f13fd8,7bf76c18-f367-4741-b0a8-c68e089de3bd
+1644,2026-03-13 05:02:17,2026-03-13 05:16:24,KXETH15M-26MAR130115-15,eth_drift_v1,yes,buy,47,1,0.47,0.1138,0.5407,live,no,-0.47,False,0,0.0,-0.47,-0.47,fb6384e7-1068-4af4-a49c-2d69373a2407,7da2c19c-bb91-4b2a-bd9f-abc2d6efff8d
+1645,2026-03-13 05:05:56,2026-03-13 05:16:23,KXXRP15M-26MAR130115-15,expiry_sniper_v1,no,buy,91,5,4.55,0.0037,0.91,live,no,0.4,True,100,0.05,0.45,0.4,7570685d-bfb6-4543-a3d1-2c9e2184dc76,1f7ba5c1-52e8-40e2-a124-ebcce8ab4224
+1646,2026-03-13 05:12:11,2026-03-13 05:16:24,KXBTC15M-26MAR130115-15,expiry_sniper_v1,no,buy,95,4,3.8,0.0054,0.94,live,no,0.16,True,100,0.04,0.2,0.16,055b2511-8d0c-4f26-b6aa-b74cddf042f2,1616783b-e7fa-43d7-afce-09b30a2b9eb8
+1647,2026-03-13 05:15:34,2026-03-13 05:30:48,KXETH15M-26MAR130130-30,eth_orderbook_imbalance_v1,yes,buy,53,7,3.71,,,paper,yes,3.15,True,100,0.14,3.29,3.15,ae7a52a6-139a-42e6-a14a-31ea776cefd3,
+1648,2026-03-13 05:17:27,,tec-cbb-champ-2026-04-04-arz,sports_futures_v1,no,buy,91,5,4.55,,,paper,,,,,,,,7f4d215a-893f-46d6-b968-042dcb93600a,
+1649,2026-03-13 05:17:27,,tec-cbb-champ-2026-04-04-fl,sports_futures_v1,no,buy,89,5,4.45,,,paper,,,,,,,,8e5f91d0-ef36-4b26-b219-9bc27fbdc5fd,
+1650,2026-03-13 05:17:27,,tec-nba-champ-2026-07-01-okc,sports_futures_v1,yes,buy,41,12,4.92,,,paper,,,,,,,,ca586485-278c-4aea-80ed-b3629e4d34bd,
+1651,2026-03-13 05:17:27,,tec-nba-champ-2026-07-01-cle,sports_futures_v1,no,buy,97,5,4.85,,,paper,,,,,,,,7a60075c-c6a4-4fbe-9bc5-a9525a8bf21e,
+1652,2026-03-13 05:17:27,,tec-nhl-scw-2026-06-30-car,sports_futures_v1,no,buy,92,5,4.6000000000000005,,,paper,,,,,,,,a66fa375-7ebb-4b5c-8717-301a0e104441,
+1653,2026-03-13 05:17:27,,tec-nhl-scw-2026-06-30-buf,sports_futures_v1,no,buy,94,5,4.699999999999999,,,paper,,,,,,,,d53ee575-1ce8-4dd7-9374-9c6acda815d5,
+1654,2026-03-13 05:20:45,2026-03-13 05:30:48,KXXRP15M-26MAR130130-30,expiry_sniper_v1,yes,buy,92,5,4.6000000000000005,0.0037,0.91,live,yes,0.35,True,100,0.05,0.4,0.35,1edf6096-6b80-47a8-8f6b-c60060a92efd,993afd44-9838-45a3-afde-b2830ed9fd04
+1655,2026-03-13 05:22:37,2026-03-13 05:30:49,KXBTC15M-26MAR130130-30,expiry_sniper_v1,yes,buy,94,4,3.76,0.0048,0.93,live,yes,0.2,True,100,0.04,0.24,0.2,6cc70366-876f-4ccc-8524-03496fe90edd,b690552a-8a3c-40f8-8c56-a4b660f019d8
+1656,2026-03-13 05:22:58,2026-03-13 05:30:48,KXETH15M-26MAR130130-30,expiry_sniper_v1,yes,buy,96,4,3.84,0.0048,0.93,live,yes,0.12,True,100,0.04,0.16,0.12,0789ac84-9311-4fcf-a4b6-595cc55bc2c5,22547b6b-a003-4990-a04a-73b3af8efcc5
+1657,2026-03-13 05:22:58,2026-03-13 05:30:48,KXSOL15M-26MAR130130-30,expiry_sniper_v1,yes,buy,95,4,3.8,0.0037,0.91,live,yes,0.16,True,100,0.04,0.2,0.16,711370a4-27ba-46d1-821f-6a173c98053a,a295c466-d925-4ff5-81af-054612e5a64f

@@ -2705,3 +2705,53 @@ NEXT SESSION PRIORITIES:
 2. Monitor sniper throughput — uncapped, unblocked, should fire 3-4 per window
 3. Check side chat research output (.planning/EDGE_RESEARCH_S60.md)
 4. Consider: if sol hits 30 + Brier < 0.25, Stage 2 promotion (10 USD max)
+
+---
+
+## Session 61 — 2026-03-13 — Sniper float fix, autonomous monitoring, bot stopped
+
+### Changes (commit: d657f80)
+
+1. **Sniper pct_cap IEEE 754 floating-point fix** (main.py line 1544):
+   - Bug: 4.72/94.4 = 0.050000000000000003 > 0.05 due to IEEE 754 precision
+   - Kill switch rejected sniper bets at exact boundary
+   - Fix: _pct_max = round(bankroll * 0.05, 2) - 0.01 (1 cent safety margin)
+   - Added max(0.01, _pct_max) floor to prevent negative sizing
+   - Regression test added: test_pct_cap_floating_point_boundary
+
+2. **Side chat research prompt created** (.planning/SIDE_CHAT_RESEARCH_S61.md):
+   - Sniper optimization: entry price threshold, time-to-expiry, drift minimum, correlation
+   - Time-of-day filter refresh with latest 228+ trade data
+   - Limit order feasibility analysis for Kalshi
+
+### Why
+- Float fix: S60 fix sized to round(bankroll*0.05,2) which equals the boundary exactly,
+  and IEEE 754 pushes it 0.000000000000003 over. Subtracting 1 cent guarantees strictly under.
+- Side chat: sniper first losses surfaced optimization questions that need dedicated research.
+
+### Session stats
+- S61 session: 24W/6L, -5.25 USD net (dominated by 2 sniper losses at -9.30)
+- Sniper all-time: 39W/2L (95.1%), -0.41 USD (near breakeven)
+- All-time P&L: -45.60 USD (was -39.85 at S60 wrap)
+- Bankroll: ~54.40 USD (was ~98 at S60 start)
+- Bot STOPPED per Matthew at 00:35 CDT (end of 3hr autonomous window)
+- Sol still 28/30 — no sol signals fired during session (bearish crypto)
+- Sniper placed 20 new live bets this session (18W/2L)
+- Tests: 1076/1076 passing
+
+### Lessons
+- IEEE 754 boundaries are real — NEVER use exact equality for financial thresholds
+- Sniper average win (~0.23 USD) vs average loss (~4.65 USD) means breakeven at ~95.3%
+  Current 95.1% is right at the edge. Need more data to confirm true +EV.
+- Correlation risk: sniper bets 3-4 correlated crypto assets per window.
+  One reversal causes multiple simultaneous losses. Future fix: max-1-per-window cap.
+- Price guard droughts at night are expected and correct — bearish crypto = YES at 10-20c.
+
+SELF-GRADE: B — Fixed real bug, monitored 3hrs without crash, no unnecessary intervention.
+But session P&L negative (-5.75) and no new features built.
+
+NEXT SESSION PRIORITIES:
+1. RESTART BOT (was stopped per Matthew's directive)
+2. Sol 28→30 milestone — 2 more settled
+3. Check side chat research results (.planning/EDGE_RESEARCH_S61.md)
+4. Monitor sniper — bankroll now ~54 so max bet ~2.69 (smaller wins per trade)
