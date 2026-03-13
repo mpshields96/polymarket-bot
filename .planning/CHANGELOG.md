@@ -2823,3 +2823,57 @@ NEXT SESSION PRIORITIES:
 2. Sol 28→30 milestone — 2 more settled
 3. Check side chat research results (.planning/EDGE_RESEARCH_S61.md)
 4. Monitor sniper — bankroll now ~54 so max bet ~2.69 (smaller wins per trade)
+
+---
+
+## Session 63 — 2026-03-13 — Research session: GEFS ensemble weather feed + post_only maker orders
+
+### Changes (commits: 718fcdc, 1bb7107, ecc5641, 9fda952)
+
+1. **GEFS 31-member ensemble weather feed** (src/data/weather.py, commits 718fcdc + 1bb7107):
+   - GEFSEnsembleFeed class fetches all 31 GEFS members from Open-Meteo free ensemble API
+   - Empirical bracket probabilities: count(members in bracket) / 31 (not parametric)
+   - Handles skewed/bimodal distributions that normal CDF assumption cannot
+   - Wired into main.py + weather_forecast.py load_from_config()
+   - Strategy auto-detects GEFS feed and uses empirical probabilities
+   - 21 new tests (77 total weather tests)
+
+2. **Post-only maker order support** (kalshi.py, live.py, main.py, commit ecc5641):
+   - KalshiClient.create_order() now accepts post_only (bool) + expiration_ts (int64)
+   - live.execute() passes both params through to API
+   - trading_loop gains maker_mode param — when True: post_only=True, 30s auto-cancel
+   - Saves ~75% on fees for drift strategies (~5c/trade, ~10 USD over 200 trades)
+   - NOT YET ACTIVATED — ready to enable by passing maker_mode=True in main.py
+   - 5 new tests in test_live_executor.py (50 total)
+
+3. **Evening edge scanner run** (77 games matched near tip-off):
+   - Max taker edge: 2.4% (NCAAB Kennesaw St at Sam Houston), 4.2% as maker
+   - Reconfirms S62 finding: Kalshi sports efficiently priced even near game time
+
+### Key discovery
+Zero weather paper trades EVER recorded. The parametric model (N(mu, 3.5F))
+never crossed the 5% min_edge threshold. GEFS ensemble with empirical
+probabilities may fix this — needs weekday HIGHNY markets to test (Monday).
+
+### Dead ends reconfirmed
+- Evening/near-game-time scanning: does NOT produce larger edges than daytime scan
+
+### Session stats
+- Bot: STOPPED (Matthew's directive from S61, research session only)
+- No live bets placed this session
+- All-time P&L unchanged: -45.60 USD
+- Bankroll unchanged: ~54.40 USD
+- Tests: 1127 passed, 3 skipped (26 new tests)
+- Commits: 4 (GEFS feed + wiring + post_only + research doc)
+
+SELF-GRADE: B — Built 2 concrete tested deliverables (GEFS ensemble + post_only support),
+reconfirmed evening scanning dead end. No new exploitable edge found, but both tools
+are ready to test when conditions are right (HIGHNY markets Monday, drift live trading).
+Grade would be A if GEFS had been compared to live HIGHNY prices and found edge.
+
+NEXT SESSION PRIORITIES:
+1. RESTART BOT — stopped since S61, money being left on table
+2. Test GEFS vs live HIGHNY markets (Monday — weekday only)
+3. Sol 28→30 Stage 2 graduation — 2 more settled bets needed
+4. Consider activating maker_mode=True for drift loops
+5. Monitor sniper accumulation
