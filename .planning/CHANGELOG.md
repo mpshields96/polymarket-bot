@@ -2877,3 +2877,74 @@ NEXT SESSION PRIORITIES:
 3. Sol 28→30 Stage 2 graduation — 2 more settled bets needed
 4. Consider activating maker_mode=True for drift loops
 5. Monitor sniper accumulation
+
+---
+
+## Session 64 — 2026-03-13 (Research + Monitoring)
+
+### What happened
+Research session. Bot restarted after being stopped since S61. Sniper price bucket analysis.
+Sports scanner dead end reconfirmed. No new code committed — research only.
+
+### Bot restart
+- Bot was stopped since S61. Restarted: PID 10100 → /tmp/polybot_session64.log
+- Verified single process, bot running clean
+
+### Research findings
+
+1. **SNIPER PRICE BUCKET ANALYSIS** (42 live settled bets):
+   - 85-89c: 1 bet, 1 win (100%), +0.70 USD (tiny sample)
+   - 90-94c: 21 bets, 19 wins (90.5%), -3.01 USD ← MARGINAL (barely above breakeven)
+   - 95-99c: 20 bets, 20 wins (100%), +2.60 USD ← PROFITABLE
+   - EV per bet: +0.007 USD. At 40 bets/day = +0.28 USD/day
+   - CONCLUSION: Sample too small (42 bets) to statistically validate bucket split.
+     Need 200+ bets before raising threshold from 90c to 95c.
+   - NOTE: Two losses today (KXSOL + KXBTC YES at 93c) = -9.30 USD wiped 38 wins.
+     This is the variance reality of 90-94c sniper bets.
+
+2. **CRYPTO 15-MIN SERIES PROBE**:
+   - Checked: KXBNB15M, KXBCH15M, KXADA15M, KXDOGE15M, KXLINK15M
+   - ALL returned 0 open markets. Only BTC/ETH/SOL/XRP have 15-min series.
+   - Cannot expand sniper to more crypto series. Volume ceiling confirmed.
+
+3. **SPORTS SCANNER (afternoon, March 13)**:
+   - 75 games matched, all 3 "opportunities" were IN-PROGRESS games
+   - Fake edges from live Kalshi prices vs pre-game sharp odds
+   - Pre-game max taker edge: ~1-2% (dead end reconfirmed, third time)
+   - Sports arbitrage is not a viable strategy
+
+4. **ETH_DRIFT MICRO-LIVE CONFIRMED**:
+   - Today's eth_drift loss (-14.26 USD) is from PRE-DEMOTION full-size bets
+   - Post-demotion bets: 1 contract each (~0.35-0.49 USD/bet)
+   - Going forward drift losses will be ~0.05-0.15 USD/day (negligible)
+
+5. **BANKROLL DISCREPANCY**:
+   - SESSION_HANDOFF said ~54.40 USD but --status shows 89.56 USD
+   - Likely handoff was stale. DB bankroll is authoritative.
+   - All-time P&L: -44.90 USD (improved +0.70 from -45.60 in S63 handoff)
+
+### Strategy standings (end of S64)
+- btc_drift: MICRO-LIVE, 54 live bets, Brier 0.247
+- eth_drift: MICRO-LIVE, 94 live bets, Brier 0.250, 2 consecutive
+- sol_drift: STAGE 1, 28/30 (2 from milestone!), Brier 0.176
+- xrp_drift: MICRO, 19/30, Brier 0.266, 1 consecutive
+- sniper: 42 live settled, 95.2% WR, +0.29 USD
+
+### Session stats
+- Bot: RUNNING PID 10100 → /tmp/polybot_session64.log
+- All-time live P&L: -44.90 USD (improved from -45.60)
+- Today live P&L: -10.31 USD (52 settled — mostly pre-demotion eth_drift)
+- Tests: 1127 passed, 3 skipped (no changes)
+- Commits: 0 (research only)
+
+SELF-GRADE: C+ — Restarted bot (priority #1 done). Found useful sniper bucket data
+but no actionable change. Sports/crypto expansion dead ends reconfirmed (again).
+Failed to activate maker_mode=True (was a session priority, built in S63, still not wired).
+Main value: confirmed micro-live demotion is working, confirmed sniper is dominant strategy.
+
+NEXT SESSION PRIORITIES:
+1. MONITOR BOT — sol_drift needs 2 more bets for Stage 2 milestone
+2. ACTIVATE maker_mode=True for drift loops in main.py (already built, ~15 min work)
+3. Test GEFS weather vs live HIGHNY markets (Monday only — weekday markets)
+4. Wait for 200+ sniper live bets before changing 90c threshold
+5. Research: find non-crypto Kalshi markets where sniper pattern applies (sports near end?)

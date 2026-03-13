@@ -728,3 +728,85 @@ F. **Props/totals** — NCAAB over/under totals have different pricing dynamics
   Same 1000 wins = 350 USD = profit target exceeded. Timeline: ~50 days.
 
   THE MATH: sniper IS the strategy. Everything else is optimization.
+
+---
+
+## SESSION 64 ADDITIONS (2026-03-13)
+
+### 20. SNIPER LIVE PERFORMANCE — PRICE BUCKET BREAKDOWN (42 live settled bets)
+
+  This is the most detailed sniper analysis to date.
+
+  90-94c bucket (21 bets, 90.5% WR): -3.01 USD
+  95-99c bucket (20 bets, 100% WR): +2.60 USD
+  85-89c bucket (1 bet, 100% WR): +0.70 USD (too small to mean anything)
+
+  MATH: At 93c, breakeven = 93% WR. We got 90.5%. Marginally unprofitable.
+        At 97c, breakeven = 97% WR. We got 100%. Profitable (but 20 bets, small).
+
+  The two losses today: both YES bets at 93c in same window (KXSOL + KXBTC).
+  Correlated losses — BTC dropped in final seconds, both contracts flipped.
+  Total loss: -9.30 USD. Wiped 38 wins totaling +9.59 USD. Net: +0.29 USD.
+
+  CONCLUSION: At only 42 bets, cannot statistically confirm the bucket split is real.
+  At 90% WR with 21 bets, 95% CI is [77.9%, 100%] — includes breakeven (90%) and
+  includes structural loss territory. Raising threshold to 95c is premature.
+  Decision point: revisit at 200+ live settled sniper bets.
+
+  EV estimate: +0.007 USD/bet. At 40 bets/day = +0.28 USD/day.
+  At this rate: 609 days to reach +170 USD profit target. MUCH TOO SLOW.
+
+  What could improve sniper EV:
+  A. Raise threshold to 95c (better EV/bet, fewer bets — net effect unclear)
+  B. Lower threshold to 85c (more volume, lower EV/bet — probably net negative)
+  C. Find non-crypto 90c+ markets to expand volume without changing threshold
+  D. Increase bet size (requires bankroll growth first)
+
+### 21. CRYPTO 15-MIN EXPANSION: ALL ALTERNATIVES EXHAUSTED
+
+  Probed: KXBNB15M, KXBCH15M, KXADA15M, KXDOGE15M, KXLINK15M
+  Result: ALL have 0 open markets. Confirmed dead.
+
+  Only active 15-min crypto series on Kalshi (as of March 2026):
+  KXBTC15M, KXETH15M, KXSOL15M, KXXRP15M
+
+  Sniper volume ceiling = 4 cryptos × ~10% fire rate = ~4 bets/window.
+  Cannot increase sniper volume by adding more crypto series. Period.
+
+### 22. SPORTS SCANNER — IN-PROGRESS GAME BUG IDENTIFIED
+
+  Afternoon scan (March 13, 5 PM CDT) showed fake "15% edges" on NCAAB games.
+  Root cause: games had already started at 2-3 PM CDT.
+  Kalshi showed live in-game prices (wild), odds API showed pre-game Pinnacle odds.
+  Comparing live in-game Kalshi to pre-game sharp = meaningless.
+
+  FIX NEEDED: Filter scanner to games with commence_time > now + 30min.
+  Until this filter exists, afternoon/evening scans will always show fake edges.
+
+  Pre-game scan (6-12 hours before tip-off) remains the only valid approach.
+  Even then: max 2.4% taker edge (barely above fees). Dead end confirmed again.
+
+### REVISED PRIORITY STACK (post S64, based on actual data)
+
+  PRIORITY 1 — ONLY VALIDATED EDGE:
+    Expiry sniper at 90c+. Everything else is research.
+
+  PRIORITY 2 — ACTIVATE (15 minutes of work):
+    maker_mode=True in main.py for drift. ALREADY BUILT. Just wire it.
+
+  PRIORITY 3 — TIME-SENSITIVE (wait for Monday):
+    GEFS weather test vs live HIGHNY markets (weekday only)
+
+  PRIORITY 4 — NEEDS 200+ BETS:
+    Sniper threshold analysis (90c→95c) — statistically premature now
+
+  PRIORITY 5 — RESEARCH (no execution yet):
+    Non-crypto sniper expansion: can sports in-game markets trade at 90c+?
+    If NBA game winner is 95c+ at half-time, sniper might fire there.
+    Would massively expand volume. No analysis done yet.
+
+  DEAD ENDS (stop revisiting):
+    Sports pre-game arbitrage (2.4% max, dead)
+    Crypto 15-min expansion (only 4 series exist, dead)
+    FOMC model without term structure (broken, confirmed)
+    BALLDONTLIE API (overpriced vs existing data sources, dead)

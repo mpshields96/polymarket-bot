@@ -65,27 +65,32 @@ IF no clear direction:
 ═══════════════════════════════════════════════════
 CURRENT STATE (auto-updated by wrap commands)
 ═══════════════════════════════════════════════════
-Last updated: Session 62 (2026-03-13)
-Bot: STOPPED per Matthew directive (S61)
-All-time P&L: -45.60 USD
-Bankroll: ~54.40 USD
-Tests: 1102 passing
-Last commit: 50fe925
+Last updated: Session 64 (2026-03-13)
+Bot: STOPPED per Matthew directive (end of S64)
+All-time P&L: -44.90 USD
+Bankroll: ~89.56 USD (DB authoritative)
+Tests: 1127 passing, 3 skipped
+Last commit: 4ff17d8
 
 Live strategies:
-  btc_drift: MICRO-LIVE (demoted S60) — confirmed loser
-  eth_drift: MICRO-LIVE (demoted S60) — confirmed loser
-  sol_drift: STAGE 1 — 28/30 bets, Brier 0.176, BEST SIGNAL, 2 from milestone
-  xrp_drift: MICRO — 19/30 bets, Brier 0.261
-  expiry_sniper: LIVE UNCAPPED — 39W/2L (95.1%)
+  btc_drift: MICRO-LIVE (demoted S60) — confirmed loser, 54 live bets, Brier 0.247
+  eth_drift: MICRO-LIVE (demoted S60) — confirmed loser, 94 live bets, Brier 0.250
+  sol_drift: STAGE 1 — 28/30 bets, Brier 0.176, BEST SIGNAL, 2 from milestone!
+  xrp_drift: MICRO — 19/30 bets, Brier 0.266, 1 consecutive
+  expiry_sniper: LIVE — 42 settled (95.2% WR), EV +0.007 USD/bet
 
 Direction filters (do not change):
   btc_drift="no" | eth_drift="yes" | sol_drift="no" | xrp_drift="yes"
 
-Research state (S62):
-  edge_scanner.py built (27 tests) — Kalshi sports efficiently priced vs Pinnacle
-  Dead ends: sports taker arb, BALLDONTLIE API, FOMC model (broken)
-  Open leads: limit order maker savings (22%), near-game-time edges, FOMC term structure fix
+Research state (S64):
+  maker_mode=True BUILT (S63) but NOT YET ACTIVATED — easy win, just wire in main.py
+  GEFS ensemble built (S63) — needs weekday HIGHNY markets to test (Monday)
+  Sniper bucket analysis: 90-94c marginal (-3.01 USD), 95-99c profitable (+2.60 USD)
+  Dead ends: sports arb, crypto expansion (only 4 15-min series exist), BALLDONTLIE
+  Next: activate maker_mode for drift, test GEFS on Monday
+
+IMPORTANT — MARCH 1 HARD STOP IN --health: HISTORICAL, NOT BLOCKING.
+  30% lifetime stop was DISABLED in S34. No kill_switch.lock file. Safe to restart.
 
 ═══════════════════════════════════════════════════
 FONT RULES (mandatory — Matthew terminates chat for violations)
@@ -102,4 +107,4 @@ STANDING DIRECTIVES
 - Matthew is a doctor with a new baby — no time for back-and-forth
 - Two parallel chats may run — keep overhead under 15% per chat
 - Loading screen tip at end of every response (one recommendation)
-- Target: +125 USD all-time profit. Currently -45.60 USD. Need +170.60 more.
+- Target: +125 USD all-time profit. Currently -44.90 USD. Need +169.90 more.
