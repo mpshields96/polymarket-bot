@@ -2519,3 +2519,66 @@ NEXT SESSION PRIORITIES:
 1. Monitor first sniper live bet — verify pricing and execution
 2. Sol 27→30 milestone watch (3 away from Stage 2 gate)
 3. Drought productivity — code work not idle watching
+
+---
+
+## Session 59 — 2026-03-12 — CRITICAL: Kalshi API v2 breaking change fix
+
+### Changed
+- src/platforms/kalshi.py — CRITICAL FIX for Kalshi API field removal (commit 03ca33f)
+  - Added _dollars_to_cents() helper: converts "0.5900" string → 59 int cents
+  - Added _fp_to_int() helper: converts "100.00" string → 100 int
+  - Updated _parse_market(): reads yes_bid_dollars/no_bid_dollars (was yes_bid/yes_price)
+  - Updated _parse_order(): reads yes_price_dollars/no_price_dollars + *_fp count fields
+  - Updated get_fills(): reads *_dollars prices + count_fp + market_ticker fallback
+  - Updated get_orderbook(): reads orderbook_fp with yes_dollars/no_dollars string pairs
+  - create_order() UNCHANGED — Kalshi still accepts integer cents in request body
+  - All helpers include legacy integer fallbacks for test mock backward compatibility
+- SESSION_HANDOFF.md — updated for Session 59 state (PID 8325, commit 03ca33f)
+
+### Root cause
+On March 12, 2026 (today), Kalshi removed ALL legacy integer cents price fields and
+integer count fields from REST and WebSocket responses. The API changelog called this out
+as a planned breaking change. Our _parse_market() was reading yes_bid/yes_price (removed),
+getting 0 for both → all strategies saw YES=0c NO=0c → price guard blocked everything.
+
+This caused an 18+ HOUR trading drought. Initially diagnosed as price guard drought
+(crypto extremes), but investigation revealed platform-wide 0c/0c across ALL series
+including non-crypto. Raw API dump confirmed new field names.
+
+### Key findings
+- Market prices: yes_bid_dollars="0.4200" (string, dollars) replaces yes_bid=42 (int, cents)
+- Order prices: yes_price_dollars="0.5900" replaces yes_price=59
+- Fill prices: yes_price_dollars="0.5900" replaces yes_price=59
+- Counts: count_fp="1.00", initial_count_fp="1.00" replace integer count fields
+- Volume: volume_fp="97172.00" replaces volume=97172
+- Orderbook: orderbook_fp.yes_dollars=[["0.0100","5765.00"]] replaces orderbook.yes=[[1,5765]]
+- Balance: UNCHANGED — still returns integer cents (balance=10994)
+- Create order: UNCHANGED — still accepts integer cents in request body
+
+### Verification
+- All 1075 tests pass (3 skipped) — legacy fallbacks handle test mocks
+- Live API probe: markets show correct mid-range prices (YES=42c BTC, YES=45c SOL)
+- Fills parse correctly (59c/41c)
+- Orderbook parses correctly (best_no_bid=99c)
+- Balance unchanged (109.94 USD)
+- Bot restarted as PID 8325 → /tmp/polybot_session59.log
+
+### Lessons learned
+- MONITOR KALSHI API CHANGELOG — this was a PLANNED breaking change. If we had a
+  weekly check of https://docs.kalshi.com/changelog, we'd have caught this before it hit.
+- When ALL strategies show 0c/0c, don't assume price guard drought — check raw API first.
+- Previous session (S58) also saw this but misdiagnosed as normal market behavior.
+  The clue was that it affected ALL crypto series simultaneously — real droughts
+  don't hit BTC/ETH/SOL/XRP at exactly the same time with exactly 0c.
+
+SELF-RATING: A
+  WINS: Identified and fixed critical API breaking change. Bot back online within ~30 min
+    of diagnosis. Backward-compatible fix preserves all 1075 tests. Zero data loss.
+  LOSSES: ~18 hours of lost trading from Session 58 misdiagnosis + this session's ramp-up.
+
+NEXT SESSION PRIORITIES:
+1. Monitor first live bets post-fix — confirm end-to-end pricing correct
+2. Sol 27→30 milestone watch (3 away from Stage 2 gate)
+3. Monitor first sniper live bet
+4. Consider adding Kalshi API changelog monitoring to scheduled tasks
