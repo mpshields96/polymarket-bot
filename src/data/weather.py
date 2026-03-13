@@ -358,6 +358,148 @@ class EnsembleWeatherFeed:
         return True
 
 
+# ── GEFS ensemble feed ────────────────────────────────────────────────
+
+_ENSEMBLE_API_URL = "https://ensemble-api.open-meteo.com/v1/ensemble"
+
+
+class GEFSEnsembleFeed:
+    """
+    31-member GEFS ensemble forecast feed via Open-Meteo.
+
+    Instead of assuming a normal distribution, this feed returns the raw
+    ensemble member forecasts and computes empirical bracket probabilities
+    by counting how many of 31 members fall in each bracket.
+
+    This gives better-calibrated probabilities than parametric assumptions,
+    especially for skewed or bimodal forecast distributions.
+
+    Usage:
+        feed = GEFSEnsembleFeed(**CITY_NYC)
+        feed.refresh()
+        temps = feed.member_temps_f()  # list of 31 floats
+        prob = feed.probability_in_bracket(64, 67)  # empirical probability
+    """
+
+    def __init__(
+        self,
+        latitude: float,
+        longitude: float,
+        timezone: str,
+        city_name: str = "",
+        refresh_interval_seconds: float = _DEFAULT_REFRESH_INTERVAL_SEC,
+    ):
+        self._lat = latitude
+        self._lon = longitude
+        self._tz = timezone
+        self.city_name = city_name
+        self._refresh_interval = refresh_interval_seconds
+
+        self._member_temps: list[float] = []
+        self._forecast_date: Optional[str] = None
+        self._last_fetch_ts: float = 0.0
+
+    @property
+    def is_stale(self) -> bool:
+        return (time.monotonic() - self._last_fetch_ts) > self._refresh_interval
+
+    def member_temps_f(self) -> list[float]:
+        """Return list of all ensemble member forecasted daily max temps (F)."""
+        return list(self._member_temps)
+
+    def forecast_temp_f(self) -> Optional[float]:
+        """Return ensemble mean temperature (F), or None if not yet fetched."""
+        if not self._member_temps:
+            return None
+        return sum(self._member_temps) / len(self._member_temps)
+
+    def forecast_std_f(self) -> float:
+        """Return empirical std dev across ensemble members (F)."""
+        if len(self._member_temps) < 2:
+            return _DEFAULT_FORECAST_STD_F
+        mean = sum(self._member_temps) / len(self._member_temps)
+        variance = sum((t - mean) ** 2 for t in self._member_temps) / len(self._member_temps)
+        return max(0.5, variance ** 0.5)
+
+    def forecast_date(self) -> Optional[str]:
+        return self._forecast_date
+
+    def probability_in_bracket(self, lower: float, upper: float) -> float:
+        """
+        Empirical probability that daily max falls in [lower, upper].
+
+        Counts fraction of 31 members in the bracket. Returns 0.5 if no data.
+        Uses continuity correction: member at exact boundary counts as 0.5.
+        """
+        if not self._member_temps:
+            return 0.5
+        count = 0.0
+        for t in self._member_temps:
+            if lower <= t <= upper:
+                count += 1.0
+        n = len(self._member_temps)
+        # Clamp to [1/N, (N-1)/N] to avoid 0% or 100% probabilities
+        raw = count / n
+        return max(1.0 / (n + 1), min(n / (n + 1), raw))
+
+    def refresh(self) -> bool:
+        """Fetch 31-member GEFS ensemble forecast. Blocking (~200ms)."""
+        url = (
+            f"{_ENSEMBLE_API_URL}"
+            f"?latitude={self._lat}"
+            f"&longitude={self._lon}"
+            f"&daily=temperature_2m_max"
+            f"&temperature_unit=fahrenheit"
+            f"&timezone={self._tz}"
+            f"&forecast_days=2"
+            f"&models=gfs_seamless"
+        )
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "polymarket-bot/1.0"})
+            with urllib.request.urlopen(req, timeout=_REQUEST_TIMEOUT_SEC) as resp:
+                data = json.loads(resp.read().decode())
+
+            daily = data.get("daily", {})
+            dates = daily.get("time", [])
+            if not dates:
+                logger.warning("[weather/gefs] No dates in ensemble response")
+                return False
+
+            # Use tomorrow (index 1) if available, else today (index 0)
+            idx = 1 if len(dates) > 1 else 0
+            self._forecast_date = dates[idx]
+
+            # Collect all member values for the target day
+            member_keys = [k for k in daily.keys() if "temperature_2m_max" in k]
+            temps = []
+            for key in member_keys:
+                vals = daily[key]
+                if vals and len(vals) > idx and vals[idx] is not None:
+                    temps.append(float(vals[idx]))
+
+            if len(temps) < 5:
+                logger.warning("[weather/gefs] Only %d members returned (need >= 5)", len(temps))
+                return False
+
+            self._member_temps = temps
+            self._last_fetch_ts = time.monotonic()
+
+            mean_t = sum(temps) / len(temps)
+            std_t = self.forecast_std_f()
+            logger.info(
+                "[weather/gefs] %s ensemble: %.1f°F mean (±%.1f°F) from %d members for %s "
+                "(range %.1f–%.1f°F)",
+                self.city_name or f"({self._lat},{self._lon})",
+                mean_t, std_t, len(temps), self._forecast_date,
+                min(temps), max(temps),
+            )
+            return True
+
+        except Exception as exc:
+            logger.warning("[weather/gefs] Failed to fetch ensemble forecast: %s", exc)
+            return False
+
+
 # ── Factory ───────────────────────────────────────────────────────────
 
 

@@ -40,7 +40,7 @@ from typing import Optional, Tuple
 
 from src.strategies.base import BaseStrategy, Signal
 from src.platforms.kalshi import Market, OrderBook
-from src.data.weather import WeatherFeed
+from src.data.weather import WeatherFeed, GEFSEnsembleFeed
 
 logger = logging.getLogger(__name__)
 
@@ -197,7 +197,12 @@ class WeatherForecastStrategy(BaseStrategy):
             return None
 
         # ── 4. Compute model probability ──────────────────────────────
-        model_prob_yes = _prob_in_bracket(lower_f, upper_f, forecast_f, std_f)
+        # Use GEFS ensemble empirical probabilities if available (31 members),
+        # otherwise fall back to parametric normal distribution assumption.
+        if isinstance(self._weather_feed, GEFSEnsembleFeed) and self._weather_feed.member_temps_f():
+            model_prob_yes = self._weather_feed.probability_in_bracket(lower_f, upper_f)
+        else:
+            model_prob_yes = _prob_in_bracket(lower_f, upper_f, forecast_f, std_f)
 
         if abs(model_prob_yes - 0.5) < (self._min_confidence - 0.5):
             # Model is close to 50/50 — not confident enough to trade

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import math
+import time
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
@@ -22,7 +23,7 @@ from src.strategies.weather_forecast import (
     load_from_config,
 )
 from src.data.weather import (
-    WeatherFeed, NWSFeed, EnsembleWeatherFeed,
+    WeatherFeed, NWSFeed, EnsembleWeatherFeed, GEFSEnsembleFeed,
     CITY_NYC, load_nyc_weather_from_config,
 )
 from src.platforms.kalshi import Market, OrderBook
@@ -697,3 +698,215 @@ class TestEnsembleWeatherFeed:
         ens.refresh()
         expected = (0.7 * 60.0 + 0.3 * 70.0) / 1.0  # 63.0
         assert ens.forecast_temp_f() == pytest.approx(expected)
+
+
+# ── GEFSEnsembleFeed tests ────────────────────────────────────────────
+
+
+def _make_gefs_feed(member_temps: list[float]) -> GEFSEnsembleFeed:
+    """Create a GEFSEnsembleFeed with pre-loaded member temperatures."""
+    feed = GEFSEnsembleFeed(
+        latitude=40.71, longitude=-74.01,
+        timezone="America/New_York", city_name="NYC",
+    )
+    feed._member_temps = list(member_temps)
+    feed._forecast_date = "2026-03-14"
+    feed._last_fetch_ts = time.monotonic()
+    return feed
+
+
+class TestGEFSEnsembleFeed:
+    """Tests for GEFSEnsembleFeed — 31-member GEFS ensemble forecast."""
+
+    def test_member_temps_returns_copy(self):
+        temps = [48.0, 49.0, 50.0, 51.0, 52.0]
+        feed = _make_gefs_feed(temps)
+        result = feed.member_temps_f()
+        assert result == temps
+        result.append(999.0)  # mutating the copy should not affect feed
+        assert len(feed.member_temps_f()) == 5
+
+    def test_forecast_temp_is_mean(self):
+        temps = [48.0, 50.0, 52.0]
+        feed = _make_gefs_feed(temps)
+        assert feed.forecast_temp_f() == pytest.approx(50.0)
+
+    def test_forecast_temp_none_when_empty(self):
+        feed = _make_gefs_feed([])
+        assert feed.forecast_temp_f() is None
+
+    def test_forecast_std_empirical(self):
+        # std dev of [48, 50, 52] = sqrt(((−2)² + 0² + 2²) / 3) = sqrt(8/3) ≈ 1.633
+        temps = [48.0, 50.0, 52.0]
+        feed = _make_gefs_feed(temps)
+        assert feed.forecast_std_f() == pytest.approx(1.633, abs=0.01)
+
+    def test_forecast_std_default_when_too_few_members(self):
+        feed = _make_gefs_feed([50.0])
+        assert feed.forecast_std_f() == 3.5  # default
+
+    def test_is_stale_initially(self):
+        feed = GEFSEnsembleFeed(
+            latitude=40.71, longitude=-74.01,
+            timezone="America/New_York", city_name="NYC",
+        )
+        assert feed.is_stale is True
+
+    def test_not_stale_after_load(self):
+        feed = _make_gefs_feed([48.0, 50.0, 52.0])
+        assert feed.is_stale is False
+
+
+class TestGEFSProbabilityInBracket:
+    """Tests for empirical bracket probability computation."""
+
+    def test_all_members_in_bracket(self):
+        temps = [48.0, 49.0, 50.0, 51.0, 52.0]
+        feed = _make_gefs_feed(temps)
+        prob = feed.probability_in_bracket(45.0, 55.0)
+        # All 5 in bracket, but clamped to N/(N+1) = 5/6
+        assert prob == pytest.approx(5.0 / 6.0, abs=0.01)
+
+    def test_no_members_in_bracket(self):
+        temps = [48.0, 49.0, 50.0, 51.0, 52.0]
+        feed = _make_gefs_feed(temps)
+        prob = feed.probability_in_bracket(60.0, 70.0)
+        # None in bracket, clamped to 1/(N+1) = 1/6
+        assert prob == pytest.approx(1.0 / 6.0, abs=0.01)
+
+    def test_some_members_in_bracket(self):
+        temps = [46.0, 48.0, 50.0, 52.0, 54.0]
+        feed = _make_gefs_feed(temps)
+        prob = feed.probability_in_bracket(49.0, 53.0)
+        # 50, 52 in bracket = 2/5 = 0.4
+        assert prob == pytest.approx(0.4, abs=0.01)
+
+    def test_boundary_inclusive(self):
+        temps = [48.0, 50.0, 52.0]
+        feed = _make_gefs_feed(temps)
+        prob = feed.probability_in_bracket(48.0, 50.0)
+        # 48 and 50 are in [48, 50] = 2/3
+        assert prob == pytest.approx(2.0 / 3.0, abs=0.01)
+
+    def test_open_ended_lower(self):
+        temps = [46.0, 48.0, 50.0, 52.0, 54.0]
+        feed = _make_gefs_feed(temps)
+        prob = feed.probability_in_bracket(float('-inf'), 49.0)
+        # 46, 48 in (-inf, 49] = 2/5 = 0.4
+        assert prob == pytest.approx(0.4, abs=0.01)
+
+    def test_open_ended_upper(self):
+        temps = [46.0, 48.0, 50.0, 52.0, 54.0]
+        feed = _make_gefs_feed(temps)
+        prob = feed.probability_in_bracket(51.0, float('inf'))
+        # 52, 54 in [51, inf) = 2/5 = 0.4
+        assert prob == pytest.approx(0.4, abs=0.01)
+
+    def test_empty_members_returns_half(self):
+        feed = _make_gefs_feed([])
+        assert feed.probability_in_bracket(48.0, 52.0) == 0.5
+
+    def test_31_member_realistic(self):
+        """Simulate realistic 31-member ensemble."""
+        temps = [
+            46.6, 47.5, 47.8, 48.2, 48.2, 48.4, 48.5, 48.6, 48.6,
+            49.2, 49.3, 49.3, 49.3, 49.3, 49.4, 49.6, 49.6, 49.7,
+            49.7, 49.9, 50.0, 50.3, 50.6, 50.7, 50.8, 51.1, 51.1,
+            51.4, 51.8, 52.0, 52.2,
+        ]
+        feed = _make_gefs_feed(temps)
+        # Bracket "48° to 51°" should capture most members
+        prob = feed.probability_in_bracket(48.0, 51.0)
+        # Count: 48.2,48.2,48.4,48.5,48.6,48.6,49.2,49.3,49.3,49.3,49.3,
+        #        49.4,49.6,49.6,49.7,49.7,49.9,50.0,50.3,50.6,50.7,50.8 = 22
+        assert prob == pytest.approx(22.0 / 31.0, abs=0.01)
+
+
+class TestGEFSWithStrategy:
+    """Tests for WeatherForecastStrategy using GEFSEnsembleFeed."""
+
+    def test_strategy_uses_gefs_empirical_prob(self):
+        """Strategy should use empirical probability when fed GEFSEnsembleFeed."""
+        # 4 of 5 members predict 64-67 range — 80% empirical probability
+        temps = [65.0, 65.5, 66.0, 66.5, 72.0]
+        feed = _make_gefs_feed(temps)
+        strategy = WeatherForecastStrategy(
+            weather_feed=feed,
+            min_edge_pct=0.05,
+            min_confidence=0.60,
+        )
+        # Market at YES=30c (30% implied) but model says 80% → big edge
+        market = _make_market(
+            ticker="HIGHNY-26MAR14-T6467",
+            title="64° to 67°",
+            yes_price=30, no_price=70,
+            minutes_remaining=120.0,
+        )
+        ob = OrderBook(yes_bids=[], no_bids=[])
+        signal = strategy.generate_signal(market, ob, None)
+        assert signal is not None
+        assert signal.side == "yes"
+        assert signal.edge_pct > 0.05
+
+    def test_strategy_gefs_no_signal_when_market_fair(self):
+        """No signal when GEFS ensemble agrees with market price."""
+        # 3 of 5 members in bracket = 60%, market at YES=60c → no edge
+        temps = [64.0, 65.0, 66.0, 70.0, 72.0]
+        feed = _make_gefs_feed(temps)
+        strategy = WeatherForecastStrategy(
+            weather_feed=feed,
+            min_edge_pct=0.05,
+            min_confidence=0.60,
+        )
+        market = _make_market(
+            ticker="HIGHNY-26MAR14-T6467",
+            title="64° to 67°",
+            yes_price=60, no_price=40,
+            minutes_remaining=120.0,
+        )
+        ob = OrderBook(yes_bids=[], no_bids=[])
+        signal = strategy.generate_signal(market, ob, None)
+        assert signal is None
+
+    def test_strategy_gefs_no_side_signal(self):
+        """GEFS ensemble should generate NO-side signals when bracket unlikely."""
+        # 0 of 5 members in 64-67 range → very low probability
+        temps = [72.0, 73.0, 74.0, 75.0, 76.0]
+        feed = _make_gefs_feed(temps)
+        strategy = WeatherForecastStrategy(
+            weather_feed=feed,
+            min_edge_pct=0.05,
+            min_confidence=0.60,
+        )
+        # Market at YES=50c but model says ~0% → NO-side edge
+        market = _make_market(
+            ticker="HIGHNY-26MAR14-T6467",
+            title="64° to 67°",
+            yes_price=50, no_price=50,
+            minutes_remaining=120.0,
+        )
+        ob = OrderBook(yes_bids=[], no_bids=[])
+        signal = strategy.generate_signal(market, ob, None)
+        assert signal is not None
+        assert signal.side == "no"
+
+    def test_strategy_falls_back_to_normal_for_non_gefs(self):
+        """WeatherFeed (not GEFS) should use normal CDF as before."""
+        om_feed = _make_om_feed(temp_f=65.0, std_f=3.5, stale=False)
+        strategy = WeatherForecastStrategy(
+            weather_feed=om_feed,
+            min_edge_pct=0.05,
+            min_confidence=0.60,
+        )
+        market = _make_market(
+            ticker="HIGHNY-26MAR14-T6467",
+            title="64° to 67°",
+            yes_price=10, no_price=90,
+            minutes_remaining=120.0,
+        )
+        ob = OrderBook(yes_bids=[], no_bids=[])
+        signal = strategy.generate_signal(market, ob, None)
+        # Normal CDF with mu=65, sigma=3.5 for [64,67] should give decent probability
+        # Market at 10c massively underpriced → YES signal
+        assert signal is not None
+        assert signal.side == "yes"
