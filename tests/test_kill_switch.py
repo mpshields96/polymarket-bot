@@ -83,6 +83,19 @@ class TestTradeSizeCaps:
         ok2, reason = ks.check_order_allowed(trade_usd=2.01, current_bankroll_usd=40.0)
         assert not ok2
 
+    def test_pct_cap_floating_point_boundary(self, ks):
+        """S61 regression: 4.72/94.4 = 0.050000000000000003 > 0.05 due to IEEE 754.
+        The sniper sizes to round(bankroll * 0.05, 2) - 0.01 to avoid this.
+        Verify the kill switch passes a trade 1 cent under the exact boundary."""
+        # At 94.4 bankroll: 5% = 4.72 exactly. 4.72/94.4 = 0.05+epsilon → blocked.
+        # Sniper now uses 4.71 (one cent under). Must pass.
+        ok, reason = ks.check_order_allowed(trade_usd=4.71, current_bankroll_usd=94.4)
+        assert ok, f"4.71 at 94.4 bankroll should pass pct_cap: {reason}"
+        # The exact boundary (4.72) may or may not pass due to FP — sniper avoids it.
+        # 4.73 must always fail (strictly over 5%).
+        ok2, _ = ks.check_order_allowed(trade_usd=4.73, current_bankroll_usd=94.4)
+        assert not ok2, "4.73 at 94.4 bankroll should exceed pct_cap"
+
 
 # ── 2. Daily loss tracking (cap DISABLED — user directive Session 41) ────────
 # Daily loss cap was removed. Tracking still active for --health display.
