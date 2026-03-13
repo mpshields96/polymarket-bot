@@ -468,3 +468,199 @@ F. **Props/totals** — NCAAB over/under totals have different pricing dynamics
 3. **Run scanner near game time** — edges may be larger 15-60 min before games
 4. **Scan props/totals** (not just h2h) — different pricing dynamics
 5. **Weather ensemble** — build GFS ensemble comparison for KXHIGH markets
+
+---
+
+## 14. LIMIT ORDER (post_only) DEEP DIVE — SESSION 62 CONTINUED
+
+### Current state
+- live.py already uses `order_type="limit"` at line 159
+- BUT: does NOT set `post_only=True` — so orders that cross the spread fill as TAKER
+- Kalshi API supports: `post_only`, `time_in_force`, `expiration_ts`
+- KalshiClient `create_order()` currently lacks `post_only` and `expiration_ts` params
+
+### Fee math (confirmed from Kalshi API + our fee_calculator.py)
+  Taker fee formula: ceil(0.07 * contracts * P * (1-P) * 100)
+  Maker fee formula: ceil(0.0175 * contracts * P * (1-P) * 100)
+  Makers pay 25% of taker rate. post_only=True guarantees maker execution.
+
+  At 50c, 5 contracts (typical drift bet at 54 USD bankroll):
+    Taker fee: 5 * 2c = 10c
+    Maker fee: 5 * 1c = 5c
+    Savings per trade: 5c
+
+  At 90c, 3 contracts (typical sniper bet):
+    Taker fee: 3 * 1c = 3c (fee is small at 90c — P*(1-P) is low)
+    Maker fee: 3 * 1c = 3c (floor of 1c per contract regardless)
+    Savings per trade: 0c — FEE SAVINGS NEGLIGIBLE FOR SNIPER
+
+  Over 200 drift trades: 200 * 5c = 10 USD saved
+  Over 200 sniper trades: ~0 USD saved (fees already minimal at 90c+)
+
+### Strategy recommendation (from S61 research, confirmed)
+  DRIFT: post_only=True, expiration_ts=30s, price=best_bid+1c
+    - 30s wait is acceptable in 15-min windows (12 min of viable signal time)
+    - If rejected (would cross): fall back to regular limit order
+    - Fill rate unknown — need live testing. Tight spreads (1-2c at 50c) suggest high fill
+
+  SNIPER: keep current behavior (IOC/limit, no post_only)
+    - Time-critical (last 2-3 min before expiry). Can't afford non-fill.
+    - Fee savings negligible at 90c+ anyway (1c or less)
+
+### Implementation needed
+  1. Add `post_only` and `expiration_ts` to KalshiClient.create_order()
+  2. Add `maker_mode` param to live.execute()
+  3. When maker_mode=True: set post_only=True, expiration_ts=now+30s
+  4. Track fill_rate for post_only orders in DB
+  5. If fill_rate < 70% after 50 trades: revert to taker mode
+  6. Wire drift loops to use maker_mode=True, sniper keeps False
+  Estimated: ~2-3 hours to implement and test
+
+### Verdict: MEDIUM PRIORITY
+  10 USD savings over 200 trades is meaningful at 54 USD bankroll (~18%).
+  But implementation effort is 2-3 hours and fill rate is uncertain.
+  Should implement when bot is restarted and drift is active.
+
+---
+
+## 15. FOMC STRATEGY LIVE MARKET ANALYSIS — SESSION 62
+
+### Live FRED data (fetched 2026-03-13 14:03 UTC)
+  Fed funds rate (DFF): 3.64%
+  2yr Treasury (DGS2): 3.64%
+  Yield spread: 0.000% (exactly zero — hold regime)
+  CPI accelerating: YES (MoM 0.267% vs prior 0.171%)
+
+### Our model output (static for ALL meetings)
+  Hold: 83.0%, Cut 25bp: 7.0%, Hike 25bp: 5.0%, Cut >25bp: 3.0%, Hike >25bp: 2.0%
+
+### Live Kalshi KXFEDDECISION prices (March 13, 2026)
+
+  MARCH 19 (T-6 days, volume 11M):
+    Hold: 99c bid — FULLY PRICED. Zero edge. No trade possible.
+    Cut 25bp: 0-1c | Cut >25bp: 0-1c | Hike: 0-1c
+    Our model says 83% hold but market says 99%. Model is LESS certain than market.
+
+  APRIL (T-45 days, volume 246K):
+    Hold: 92-93c | Cut 25bp: 7-9c | Hike 25bp: 1-3c
+    Our model says 83% hold vs market 92-93%. Again, model undersells hold.
+    Implied: market expects NO policy change through April.
+
+  JUNE (T-97 days, volume 42K):
+    Hold: 59-65c | Cut 25bp: 35-38c | Cut >25bp: 6-8c | Hike: 2-3c
+    Market prices ~43% total cut probability for June. Our model says only 10%.
+    HUGE DIVERGENCE: model says 83% hold, market says 59-65%.
+
+  JULY (T-139 days, volume 3.2K):
+    Hold: 60-65c | Cut 25bp: 15-23c | Hike: 0-8c
+    Similar pattern — far-out meetings have more uncertainty.
+
+### CRITICAL FINDING: Model has no term structure
+
+  Our FOMC model outputs the SAME probabilities (83% hold) for every meeting
+  regardless of distance. But market pricing shows a clear term structure:
+    T-6 days:  99% hold (nearly certain)
+    T-45 days: 92% hold (very likely)
+    T-97 days: 59% hold (significant cut probability)
+
+  The model doesn't account for:
+  1. Proximity effect — closer meetings are more certain
+  2. Multiple meetings between now and far-out dates (cuts could happen earlier)
+  3. Cumulative macro uncertainty over longer horizons
+
+  RESULT: Model would wrongly SHORT hold on March meeting (83 vs 99 = sell hold)
+  and wrongly LONG hold on June meeting (83 vs 59 = buy hold). Both are wrong
+  because the model is miscalibrated for time horizon.
+
+### CME FedWatch as alternative signal source
+  CME FedWatch is the gold standard for FOMC probabilities (derived from Fed Funds futures).
+  Free web tool at cmegroup.com. Paid API: 25 USD/month.
+  pyfedwatch Python library: free, but requires futures pricing data we don't have.
+
+  THE REAL EDGE: If Kalshi prices diverge from CME FedWatch by >3%, that's a
+  structural inefficiency (retail Kalshi traders vs sophisticated futures market).
+  Would require either: (1) 25 USD/month CME API, (2) web scraping, or
+  (3) manual comparison before each meeting.
+
+### FOMC activation verdict: NOT READY
+
+  Do NOT activate FOMC strategy for live trading. The model is fundamentally broken
+  for anything except same-meeting-day comparison. It would place WRONG bets on
+  both near-term and far-term meetings.
+
+  To fix:
+  A. Add term-structure adjustment: scale uncertainty with days_until_meeting
+  B. Better: use CME FedWatch as the signal (compare to Kalshi for edge)
+  C. Best: subscribe to CME FedWatch API (25 USD/month) and build Kalshi-vs-CME
+     scanner. This is the same pattern as our sports scanner (Kalshi vs Pinnacle).
+
+  PAPER TRADING IS FINE — let it accumulate data. But live trading would lose money.
+
+### What about event-driven edge (CPI/employment releases)?
+
+  Potential approach: when CPI data releases (monthly), check if Kalshi FOMC prices
+  adjust immediately. If Kalshi is slow (minutes behind CME), there's a window.
+
+  CPI release schedule: 8:30 AM ET on fixed dates (known months ahead).
+  Next CPI: March 12 was yesterday. April 10 is next.
+
+  This is a pure speed play — our FRED feed already gets CPI data, we already
+  have the FOMC model. The question is: does Kalshi adjust slower than CME?
+
+  CANNOT TEST WITHOUT LIVE DATA. Log this as a monitoring task:
+  on next CPI release day (April 10), compare KXFEDDECISION prices before/after
+  8:30 AM and check if edge appears in the adjustment window.
+
+---
+
+## 16. COMPREHENSIVE SESSION 62 CONCLUSIONS
+
+### What we built
+  1. scripts/edge_scanner.py — Kalshi vs Pinnacle sports price comparison tool
+  2. tests/test_edge_scanner.py — 27 tests
+  3. Documented live scan results across 170 Kalshi sports markets
+
+### What we learned (empirically, not theoretically)
+  1. Kalshi sports are efficiently priced vs sharp books (0-3% edge, eaten by fees)
+  2. Favorite-longshot bias is REAL (Whelan, Snowberg-Wolfers): 90c+ = structural edge
+  3. Maker orders save 75% on fees but fill rate is uncertain
+  4. Our FOMC model is broken (no term structure) — would place wrong bets
+  5. CME FedWatch vs Kalshi comparison is the right FOMC edge approach (25 USD/month)
+  6. BALLDONTLIE API is not worth the cost vs our existing the-odds-api
+
+### Revised priority stack (HONEST, based on evidence)
+
+  PRIORITY 1 — KEEP RUNNING (validated edge, proven profitable):
+    Expiry sniper at 90c+ — 39W/2L, favorite-longshot bias is structural.
+    Only tweak: investigate sniper maker orders (though fee savings minimal at 90c+).
+
+  PRIORITY 2 — IMPLEMENT (concrete, low-risk improvement):
+    post_only maker orders on drift strategies — 10 USD savings over 200 trades.
+    Implementation: 2-3 hours. No strategy logic changes, just execution optimization.
+
+  PRIORITY 3 — INVESTIGATE (promising but needs more data):
+    Near-game-time edge scanning — run scanner 30-60 min before NBA/NHL tip-off.
+    CPI release day monitoring — check KXFEDDECISION price adjustment speed.
+    Weather ensemble — free GFS data, no HFT competition.
+
+  PRIORITY 4 — DEFER (requires investment or model rebuild):
+    CME FedWatch vs Kalshi scanner (needs 25 USD/month API or web scraping).
+    FOMC model term structure fix (significant model rebuild, paper-test first).
+    Props/totals scanning (need to understand Kalshi's prop market structure).
+
+  PRIORITY 5 — ABANDON (dead ends confirmed this session):
+    Mid-range drift optimization (35-65c) — Whelan paper kills this, 60 sessions confirm.
+    Sports arbitrage as taker — efficiently priced, fees eat edge.
+    BALLDONTLIE API — overpriced vs existing data sources.
+    FOMC live activation — model is broken, would lose money.
+
+### Single biggest lever for profitability
+  SNIPER VOLUME. The sniper at 95.1% win rate is the only validated edge.
+  Increasing sniper volume (more markets, more windows, higher bet size)
+  is worth more than any new strategy. At 2.69 USD/bet, each win nets ~0.17 USD.
+  Need ~1000 more wins to reach 170 USD profit target. At 20 bets/day = 50 days.
+
+  If bankroll recovers to 100 USD: max bet = 4.99 USD, each win nets ~0.35 USD.
+  Same 1000 wins = 350 USD = profit target exceeded. Timeline: ~50 days.
+
+  THE MATH: sniper IS the strategy. Everything else is optimization.
