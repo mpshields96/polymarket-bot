@@ -57,6 +57,8 @@ async def execute(
     strategy_name: str = "unknown",
     price_guard_min: int = _EXECUTION_MIN_PRICE_CENTS,
     price_guard_max: int = _EXECUTION_MAX_PRICE_CENTS,
+    post_only: bool = False,
+    expiration_ts: Optional[int] = None,
 ) -> Optional[dict]:
     """
     Place a real order on Kalshi.
@@ -74,6 +76,9 @@ async def execute(
                          Override with 1 for expiry_sniper, which operates at 87-99¢.
         price_guard_max: Upper bound for YES-equivalent execution price guard (default 65).
                          Override with 99 for expiry_sniper, which operates at 87-99¢.
+        post_only:       If True, order is maker-only. Rejected if it would cross
+                         the spread and fill as taker. Saves ~75% on fees for drift.
+        expiration_ts:   Unix timestamp when maker order auto-cancels if unfilled.
 
     Returns:
         Trade record dict on success, None on failure.
@@ -160,6 +165,8 @@ async def execute(
             yes_price=price_cents if signal.side == "yes" else None,
             no_price=price_cents if signal.side == "no" else None,
             client_order_id=client_order_id,
+            post_only=post_only,
+            expiration_ts=expiration_ts,
         )
     except KalshiAPIError as e:
         logger.error("[live] Order placement failed: %s", e)

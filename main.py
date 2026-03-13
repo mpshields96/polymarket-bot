@@ -167,6 +167,7 @@ async def trading_loop(
     calibration_max_usd: Optional[float] = None,
     direction_filter: Optional[str] = None,
     btc_move_condition: Optional[asyncio.Condition] = None,
+    maker_mode: bool = False,
 ):
     """Main async loop: poll markets, generate signals, execute trades.
 
@@ -384,6 +385,12 @@ async def trading_loop(
                             continue
 
                         from src.execution import live as live_mod
+                        # Maker mode: post_only=True with 30s expiration
+                        _post_only = maker_mode
+                        _expiration_ts = None
+                        if maker_mode:
+                            import time as _time_mod
+                            _expiration_ts = int(_time_mod.time()) + 30
                         result = await live_mod.execute(
                             signal=signal,
                             market=market,
@@ -393,6 +400,8 @@ async def trading_loop(
                             db=db,
                             live_confirmed=live_confirmed,
                             strategy_name=strategy.name,
+                            post_only=_post_only,
+                            expiration_ts=_expiration_ts,
                         )
                         if result:
                             kill_switch.record_trade()

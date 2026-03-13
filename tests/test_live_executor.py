@@ -819,3 +819,95 @@ class TestSniperPriceGuardOverride:
 
         assert result is None
         kalshi.create_order.assert_not_called()
+
+
+# ── Post-only maker order tests ──────────────────────────────────────────
+
+
+class TestPostOnlyMakerOrders:
+    """Tests for post_only and expiration_ts parameters in live execution.
+
+    Drift strategies should use post_only=True to save ~75% on fees.
+    Sniper strategies should NOT use post_only (time-critical, fee savings minimal at 90c+).
+    """
+
+    async def test_post_only_passed_to_create_order(self, live_env, bypass_first_run):
+        """post_only=True is forwarded to kalshi.create_order()."""
+        ob = make_orderbook(no_bid=45)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            make_signal(), make_market(), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="btc_drift_v1",
+            post_only=True,
+        )
+
+        assert result is not None
+        assert kalshi.create_order.call_args.kwargs["post_only"] is True
+
+    async def test_post_only_default_false(self, live_env, bypass_first_run):
+        """post_only defaults to False when not specified."""
+        ob = make_orderbook(no_bid=45)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            make_signal(), make_market(), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="expiry_sniper_v1",
+        )
+
+        assert result is not None
+        assert kalshi.create_order.call_args.kwargs["post_only"] is False
+
+    async def test_expiration_ts_passed_to_create_order(self, live_env, bypass_first_run):
+        """expiration_ts is forwarded to kalshi.create_order()."""
+        ob = make_orderbook(no_bid=45)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        exp_ts = 1741891200  # some future timestamp
+        result = await execute(
+            make_signal(), make_market(), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="btc_drift_v1",
+            post_only=True, expiration_ts=exp_ts,
+        )
+
+        assert result is not None
+        assert kalshi.create_order.call_args.kwargs["expiration_ts"] == exp_ts
+
+    async def test_expiration_ts_default_none(self, live_env, bypass_first_run):
+        """expiration_ts defaults to None when not specified."""
+        ob = make_orderbook(no_bid=45)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            make_signal(), make_market(), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="expiry_sniper_v1",
+        )
+
+        assert result is not None
+        assert kalshi.create_order.call_args.kwargs["expiration_ts"] is None
+
+    async def test_post_only_canceled_order_not_recorded(self, live_env, bypass_first_run):
+        """post_only order that crosses spread -> canceled -> NOT recorded in DB.
+
+        Kalshi rejects post_only orders that would cross the spread (fill as taker).
+        These come back with status='canceled'. The existing canceled-order guard
+        must catch this -- no new code needed, just verifying the interaction.
+        """
+        ob = make_orderbook(no_bid=45)
+        kalshi = make_kalshi_mock(order=make_order(status="canceled"))
+        db = make_db_mock()
+
+        result = await execute(
+            make_signal(), make_market(), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="btc_drift_v1",
+            post_only=True,
+        )
+
+        assert result is None
+        db.save_trade.assert_not_called()
+        # Order was placed (post_only rejection happens server-side)
+        kalshi.create_order.assert_called_once()

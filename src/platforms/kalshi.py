@@ -445,6 +445,8 @@ class KalshiClient:
         no_price: Optional[int] = None,
         client_order_id: Optional[str] = None,
         time_in_force: Optional[str] = None,
+        post_only: bool = False,
+        expiration_ts: Optional[int] = None,
     ) -> Order:
         """
         Place an order on Kalshi.
@@ -459,6 +461,10 @@ class KalshiClient:
             no_price: Limit price in cents (1-99) for NO side
             client_order_id: Idempotency key — generated if not provided
             time_in_force: "fill_or_kill" or None (GTC default)
+            post_only: If True, order is maker-only (rejected if it would
+                cross the spread and fill as taker). Saves ~75% on fees.
+            expiration_ts: Unix timestamp (int64) when the order expires.
+                Useful with post_only to auto-cancel unfilled maker orders.
         """
         if client_order_id is None:
             client_order_id = str(uuid.uuid4())
@@ -482,6 +488,10 @@ class KalshiClient:
             body["no_price"] = no_price
         if time_in_force:
             body["time_in_force"] = time_in_force
+        if post_only:
+            body["post_only"] = True
+        if expiration_ts is not None:
+            body["expiration_ts"] = expiration_ts
 
         data = await self._post("/portfolio/orders", body)
         return self._parse_order(data["order"])
