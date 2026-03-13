@@ -2630,3 +2630,78 @@ NEXT SESSION PRIORITIES:
 2. Monitor sniper for first loss (calibrate true win rate from 100% sample bias)
 3. XRP direction filter: 18/30, continue accumulating
 4. Consider Kalshi API changelog monitoring (scheduled task)
+
+## Session 60 — 2026-03-12/13 — Risk overhaul: scale down losers, uncap sniper
+
+### Changes (commits: f9f3ad2, 7337e2b)
+
+1. **btc_drift + eth_drift DEMOTED to micro-live** (calibration_max_usd=0.01):
+   btc_drift: 54 bets, 48% win rate, -11.12 USD all-time. Below breakeven.
+   eth_drift: 89 bets, 49% win rate, -25.65 USD all-time. Biggest P&L drag.
+   Data-driven: 54+ and 89+ bets respectively — more than enough to confirm these
+   are not profitable at Stage 1 sizing. Losses now capped at pennies per bet.
+
+2. **Sniper daily cap REMOVED** (was 10 in S59, briefly 20, now unlimited):
+   97-100% win rate across 85+ data points (75 paper + 19 live). Every signal is +EV.
+   Fixed max_daily_bets=0 guard in expiry_sniper_loop (0 = unlimited, not "block all").
+
+3. **CRITICAL BUG FIX — sniper pct_cap blocking** (commit 7337e2b):
+   Kill switch rejected ALL sniper bets: "Trade 5.00 = 5.1% of bankroll (max 5%)".
+   Root cause: sniper used HARD_CAP (5.00) directly, which exceeded the 5% pct_cap
+   when bankroll dropped below 100 USD. Silent blocker for multiple windows.
+   Fix: trade_usd = min(HARD_CAP, bankroll * MAX_TRADE_PCT). Sniper now sizes to 4.90
+   at 98 USD bankroll — under the cap, actually executes.
+   Impact: at least 4-6 sniper windows were blocked before this fix was deployed.
+
+4. **Dynamic bet scaling on consecutive losses** in trading_loop:
+   Halves bet per consecutive loss: 1 loss→50%, 2→25%, 3→12.5%. Floor at 10%.
+   Only affects drift strategies (sniper uses HARD_CAP directly).
+   Shared consecutive counter resets on ANY win by ANY strategy.
+
+5. **Documentation**: .planning/STRATEGY_PNL_ANALYSIS_S60.md (full P&L breakdown),
+   .planning/SIDE_CHAT_RESEARCH_PROMPT.md (parallel research chat prompt).
+
+### Session P&L
+- Today live: -5.26 USD (23 settled bets, 79% win rate)
+- Breakdown: sniper +4.65 (19/19 wins), sol_drift +4.23 (1W), eth_drift -14.14 (0/3)
+- eth_drift losses occurred BEFORE demotion — should have demoted immediately
+- All-time live P&L: -32.69 → -39.85 USD (net -7.16 session, eth_drift drag)
+
+### Graduation counts
+- btc_drift: 54/30 Brier 0.247 (MICRO-LIVE, demoted S60)
+- eth_drift: 89/30 Brier 0.249 (MICRO-LIVE, demoted S60, 8 consec losses in DB)
+- sol_drift: 28/30 Brier 0.176 (STAGE 1 — 2 from milestone!)
+- xrp_drift: 18/30 Brier 0.261 (MICRO)
+- sniper: 19/19 live wins today (100%), 75 total bets (paper+live)
+
+### Key analysis
+- sol_drift and sniper are the ONLY profitable live strategies
+- eth_drift YES-only (post-filter): 51% win rate at avg 49.3c entry. Paper-thin edge.
+- btc_drift NO-only: 48% at avg 55c. Below breakeven with 54 bets.
+- Sniper + drift are complementary: sniper at 90c+ extremes, drift at 35-65c mid-range
+- pct_cap bug was silently preventing ALL sniper bets — critical find
+- Bankroll at ~98 USD creates tension with 5% cap on 5.00 HARD_MAX
+
+SELF-RATING: B+
+  WINS:
+  - Found and fixed critical pct_cap bug blocking our most profitable strategy
+  - Made correct data-driven decision to demote losers (stops bleeding 4-5/bet)
+  - Sniper 19/19 perfect in session — expanded from 10 to unlimited cap
+  - Created comprehensive strategy analysis and side chat research prompt
+  - Dynamic scaling adds risk mitigation during losing streaks
+  LOSSES:
+  - Lost 14.14 USD to eth_drift BEFORE pulling the trigger on demotion
+  - Should have demoted immediately at session start based on prior session data
+  - All-time P&L regressed by 7.16 USD (eth_drift losses > sniper gains)
+  - Spent time analyzing what was already clear from the numbers
+  ONE THING NEXT CHAT MUST DO DIFFERENTLY:
+  - Don't analyze btc_drift/eth_drift. They're micro-live, contained. Focus on
+    sol_drift hitting 30 and maximizing sniper throughput per window.
+  ONE THING THAT WOULD HAVE MADE MORE MONEY:
+  - Demoting eth_drift IMMEDIATELY instead of analyzing for 30+ min = saved 14.14 USD
+
+NEXT SESSION PRIORITIES:
+1. Sol drift 28→30 milestone (2 more settled → Stage 2 evaluation)
+2. Monitor sniper throughput — uncapped, unblocked, should fire 3-4 per window
+3. Check side chat research output (.planning/EDGE_RESEARCH_S60.md)
+4. Consider: if sol hits 30 + Brier < 0.25, Stage 2 promotion (10 USD max)
