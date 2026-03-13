@@ -51,7 +51,13 @@ B) .planning/CHANGELOG.md (APPEND ONLY — never truncate)
    - Self-rating from Step 2
    - Next chat's single most important focus
 
-C) MEMORY.md
+C) .claude/commands/polybot-init.md → CURRENT STATE section
+   - Update: bot PID/status, P&L, bankroll, test count, last commit
+   - Update: graduation counts for all strategies
+   - Update: research state if applicable
+   - Update: "Last updated: Session [N]" line
+
+D) MEMORY.md
    (~/.claude/projects/-Users-matthewshields-Projects-polymarket-bot/memory/MEMORY.md)
    - Key constants: P&L, PID, test count, last commit
    - Graduation counts
@@ -111,10 +117,11 @@ FONT RULES (mandatory — violations = chat terminated):
   RULE 2: NEVER dollar signs in prose. Use "40 USD" not "$40"
 
 Read in this order:
-1. SESSION_HANDOFF.md
-2. .planning/AUTONOMOUS_CHARTER.md
-3. .planning/CHANGELOG.md → last entry
-4. .planning/PRINCIPLES.md
+1. POLYBOT_INIT.md
+2. SESSION_HANDOFF.md
+3. .planning/AUTONOMOUS_CHARTER.md
+4. .planning/CHANGELOG.md → last entry
+5. .planning/PRINCIPLES.md
 
 Go. Start monitoring. Make money. Don't let the bot die.
 --- END SESSION [N+1] PROMPT ---

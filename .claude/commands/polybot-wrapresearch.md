@@ -54,7 +54,12 @@ C) .planning/CHANGELOG.md (APPEND ONLY — never truncate)
    - Self-rating from Step 2
    - Next research session's top priority
 
-D) MEMORY.md
+D) .claude/commands/polybot-init.md → CURRENT STATE section
+   - Update: bot status, P&L, bankroll, test count, last commit
+   - Update: research state (new findings, dead ends, open leads)
+   - Update: "Last updated: Session [N]" line
+
+E) MEMORY.md
    (~/.claude/projects/-Users-matthewshields-Projects-polymarket-bot/memory/MEMORY.md)
    - Only update if research changed strategic understanding
    - New dead ends worth remembering
@@ -92,9 +97,10 @@ PREVIOUS CHAT GRADE: [A/B/C/D] — [one sentence why]
 TOP RESEARCH PRIORITY FOR NEXT SESSION: [one specific investigation]
 
 CONTEXT FILES (read in order):
-1. SESSION_HANDOFF.md
-2. .planning/EDGE_RESEARCH_S[NN].md (this session's full findings)
-3. .planning/CHANGELOG.md → last entry
+1. POLYBOT_INIT.md
+2. SESSION_HANDOFF.md
+3. .planning/EDGE_RESEARCH_S[NN].md (this session's full findings)
+4. .planning/CHANGELOG.md → last entry
 
 FONT RULES (mandatory — violations = chat terminated):
   RULE 1: NEVER markdown table syntax (| --- |)
