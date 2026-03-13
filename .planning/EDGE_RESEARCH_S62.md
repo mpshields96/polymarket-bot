@@ -378,3 +378,93 @@ The drift strategies are in a dead zone. They're not broken — the market is to
 
 The real question for Matthew: do you want to pivot the bot from "execute a known edge"
 to "find edges first, then execute"? That's a fundamentally different tool.
+
+---
+
+## 12. LIVE SCANNER RESULTS — SESSION 62 (2026-03-13 ~08:50 CDT)
+
+### Tool built: scripts/edge_scanner.py
+Pulls live Kalshi sports markets, compares to Pinnacle/DraftKings/FanDuel/BetMGM
+consensus odds, calculates taker and maker edge. Run: `python scripts/edge_scanner.py`
+
+### Full scan results
+- 170 Kalshi game markets found (NBA 40, NHL 44, NCAAB 72, MLB 14)
+- 52 matched to odds API data (team name matching across platforms)
+- API credit cost per scan: ~4 credits (4 sports x 1 credit each)
+
+### THE HONEST RESULT: Kalshi sports markets are efficiently priced
+
+Best taker edges found:
+  #1 NBA: Bulls at Clippers NO side — 1.5% taker edge, 2.8% maker edge
+  #2 NBA: Grizzlies at Pistons — 1.2% taker edge
+  #3 NCAAB: SC State at Howard — 0.8% taker edge
+  #4 NBA: Cavaliers at Mavericks — 0.6% taker edge
+  #5 NCAAB: Duquesne at VCU — 0.5% taker edge
+
+ALL other markets: 0% or negative edge vs sharp book consensus.
+
+### Why this matters
+- Kalshi sports prices track Pinnacle within 0-3% on most games
+- The 1-2% edge that exists is barely above taker fees (1.75c max at 50c)
+- Using LIMIT ORDERS (maker) saves ~1.5c, making 2-3% edges potentially profitable
+- BUT: fill rate on limit orders is uncertain — if your order doesn't fill, zero profit
+- NHL has only 2-4 games matched (many Kalshi NHL markets not in odds API or too far out)
+- NCAAB has the most markets (72 open) and best team matching (35+ matched)
+
+### Critical bug found and fixed during build
+The initial scan showed a fake 8.9% NHL edge (Kings at Islanders). Root cause:
+short team name "LA" matched "Is**la**nders" (substring "la") before "Los Angeles Kings".
+Fixed by requiring 4+ char minimum for substring matching and preferring word-boundary
+matches. After fix: real edge was 0% on that game. ALL edges shrunk dramatically.
+
+LESSON: Any "edge" found by automated scanning MUST be manually verified before trading.
+Short name fuzzy matching is extremely prone to false positives in sports data.
+
+### Implication for strategy
+Sports betting on Kalshi is NOT a free lunch. The platform is efficiently priced against
+Pinnacle and other sharp books. The edges that exist (~1-3%) are small enough that:
+- Taker fees eat most of the edge
+- Maker orders might capture it but with uncertain fill rates
+- You need high volume (many games per day) to compound small edges
+
+This means the strategy must be one of:
+A. High-frequency maker orders on high-volume games (NBA, NCAAB) — 0.5-2% edge per trade
+B. Wait for rare large mispricings (>3%) — may only happen a few times per week
+C. Focus on niche markets with less efficient pricing (lower-volume sports, props)
+
+### BALLDONTLIE API evaluation
+- Free tier: 5 req/min, 1 sport only, basic data (likely no odds)
+- Paid: 9.99/month per sport for odds data
+- Verdict: NOT WORTH IT — our existing the-odds-api (free, includes Pinnacle) covers everything
+- BALLDONTLIE adds Kalshi odds directly, but we already have that from the Kalshi API
+
+---
+
+## 13. REVISED STRATEGIC ASSESSMENT (post-scanner)
+
+### What we know now (empirically tested, not just theorized)
+1. Crypto drift 35-65c: no structural edge (Whelan) — confirmed by 60+ sessions of data
+2. Expiry sniper 90c+: validated by favorite-longshot bias — 39W/2L but marginal P&L
+3. Sports vs Pinnacle: 0-3% edge at best, eaten by fees as taker
+4. Maker orders: 22% structural advantage (Whelan) but fill rate unknown
+5. Economics (CPI/FOMC): built but never tested (0 bets), domain knowledge edge possible
+
+### Where the edge MIGHT actually be
+A. **Limit orders on any strategy** — the single biggest lever (22% savings)
+B. **Expiry sniper with limit orders** — validated edge + fee savings = double win
+C. **FOMC/CPI** — domain knowledge > speed, less competition, already built
+D. **Weather ensemble** — free GFS data, no HFT competition, our weather strategy exists
+E. **Live line movement** — scan closer to game time when lines move most
+F. **Props/totals** — NCAAB over/under totals have different pricing dynamics
+
+### What we should probably STOP doing
+- Optimizing drift parameters (it's structural, not parametric)
+- Looking for sports arbitrage (Kalshi is efficiently priced)
+- Chasing large obvious mispricings (they don't exist at scale)
+
+### Recommended next steps (prioritized)
+1. **Test limit order execution** on one strategy (sniper — easiest candidate)
+2. **Activate FOMC/CPI strategies** — they exist with 0 bets, waste of built code
+3. **Run scanner near game time** — edges may be larger 15-60 min before games
+4. **Scan props/totals** (not just h2h) — different pricing dynamics
+5. **Weather ensemble** — build GFS ensemble comparison for KXHIGH markets
