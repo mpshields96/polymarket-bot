@@ -2601,7 +2601,7 @@ async def main():
         load_eth_imbalance_from_config,
     )
     from src.strategies.weather_forecast import load_from_config as weather_strategy_load
-    from src.data.weather import load_nyc_weather_from_config as weather_feed_load
+    from src.data.weather import load_gefs_from_config as weather_feed_load
     from src.strategies.fomc_rate import load_from_config as fomc_strategy_load
     from src.data.fred import load_from_config as fred_feed_load
     from src.strategies.unemployment_rate import load_from_config as unemployment_strategy_load

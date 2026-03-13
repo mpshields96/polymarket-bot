@@ -296,21 +296,27 @@ class WeatherForecastStrategy(BaseStrategy):
 
 
 def load_from_config() -> WeatherForecastStrategy:
-    """Build WeatherForecastStrategy from config.yaml strategy.weather section."""
+    """Build WeatherForecastStrategy from config.yaml strategy.weather section.
+
+    Uses GEFSEnsembleFeed (31-member ensemble) for better-calibrated probabilities.
+    Falls back to legacy EnsembleWeatherFeed if GEFS unavailable.
+    """
     import yaml
-    from src.data.weather import load_nyc_weather_from_config
+    from src.data.weather import load_gefs_from_config
 
     config_path = PROJECT_ROOT / "config.yaml"
     if not config_path.exists():
         logger.warning("config.yaml not found, using WeatherForecastStrategy defaults")
-        from src.data.weather import WeatherFeed, CITY_NYC
-        return WeatherForecastStrategy(weather_feed=WeatherFeed(**CITY_NYC))
+        from src.data.weather import CITY_NYC
+        return WeatherForecastStrategy(
+            weather_feed=GEFSEnsembleFeed(**CITY_NYC),
+        )
 
     with open(config_path) as f:
         cfg = yaml.safe_load(f)
 
     w = cfg.get("strategy", {}).get("weather", {})
-    weather_feed = load_nyc_weather_from_config()
+    weather_feed = load_gefs_from_config()
 
     return WeatherForecastStrategy(
         weather_feed=weather_feed,

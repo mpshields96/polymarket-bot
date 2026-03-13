@@ -503,12 +503,50 @@ class GEFSEnsembleFeed:
 # ── Factory ───────────────────────────────────────────────────────────
 
 
+def load_gefs_from_config() -> GEFSEnsembleFeed:
+    """
+    Build GEFSEnsembleFeed for NYC from config.yaml.
+
+    Returns a 31-member GEFS ensemble feed with empirical bracket probabilities.
+    Preferred over the 2-source EnsembleWeatherFeed for better calibration.
+    """
+    import yaml
+
+    config_path = PROJECT_ROOT / "config.yaml"
+    city_params = CITY_NYC
+    refresh_sec = _DEFAULT_REFRESH_INTERVAL_SEC
+
+    if config_path.exists():
+        with open(config_path) as f:
+            cfg = yaml.safe_load(f)
+        w = cfg.get("strategy", {}).get("weather", {})
+        city = w.get("city", "nyc").lower()
+        city_map = {
+            "nyc": CITY_NYC, "new_york": CITY_NYC, "new york": CITY_NYC,
+            "chi": CITY_CHI, "chicago": CITY_CHI,
+            "la": CITY_LA, "los_angeles": CITY_LA,
+            "phx": CITY_PHX, "phoenix": CITY_PHX,
+            "dal": CITY_DAL, "dallas": CITY_DAL,
+        }
+        city_params = city_map.get(city, CITY_NYC)
+        refresh_sec = w.get("refresh_interval_seconds", _DEFAULT_REFRESH_INTERVAL_SEC)
+
+    return GEFSEnsembleFeed(
+        latitude=city_params["latitude"],
+        longitude=city_params["longitude"],
+        timezone=city_params["timezone"],
+        city_name=city_params.get("city_name", "NYC"),
+        refresh_interval_seconds=refresh_sec,
+    )
+
+
 def load_nyc_weather_from_config() -> EnsembleWeatherFeed:
     """
     Build EnsembleWeatherFeed (Open-Meteo + NWS) for NYC from config.yaml.
 
     Returns an ensemble feed that blends both sources with equal weights.
     Falls back gracefully if either source is unavailable.
+    LEGACY: prefer load_gefs_from_config() for better-calibrated probabilities.
     """
     import yaml
 
