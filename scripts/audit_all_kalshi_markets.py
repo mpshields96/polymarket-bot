@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Full Kalshi market audit — pull EVERY event and market, analyze:
 - Category breakdown (what exists)

@@ -2748,6 +2748,74 @@ NEXT SESSION PRIORITIES:
 - Price guard droughts at night are expected and correct — bearish crypto = YES at 10-20c.
 
 SELF-GRADE: B — Fixed real bug, monitored 3hrs without crash, no unnecessary intervention.
+
+## Session 62 — 2026-03-13 — Research session: edge scanning, FOMC analysis, dead ends
+
+### Changes (commits: e191b4d, 920db9d, b846343)
+
+1. **Kalshi market audit** (data/kalshi_audit_report.json, commit e191b4d):
+   - Scraped ALL 9,013 Kalshi series, 303,578 open markets
+   - Cross-referenced with academic literature (Whelan, Snowberg-Wolfers)
+   - Favorite-longshot bias confirmed: contracts >50c have positive returns
+
+2. **Kalshi-vs-Pinnacle edge scanner** (scripts/edge_scanner.py, commit 920db9d):
+   - Pulls live Kalshi sports markets, compares to sharp bookmaker consensus
+   - Handles bid/ask spread correctly (uses ask price, not bid)
+   - Team name matching with alias table (NBA+NHL) + fuzzy substring (4+ char min)
+   - Critical bug found+fixed: "LA" matched "Islanders" before "Kings" (substring false positive)
+   - CLI: python scripts/edge_scanner.py --sport nba,nhl,ncaab,mlb --min-edge 0.02
+   - 27 tests in tests/test_edge_scanner.py, all passing
+
+3. **FOMC live market analysis** (commit b846343):
+   - Fetched live FRED data: yield spread exactly 0.00%, CPI accelerating
+   - Model says 83% hold for ALL meetings (static, no term structure)
+   - Kalshi says 99% hold for March (6 days), 92% April, 59% June
+   - Model is broken: would wrongly SHORT hold near-term, LONG hold far-term
+   - CME FedWatch vs Kalshi comparison identified as right FOMC edge approach (25 USD/mo API)
+
+4. **Limit order (post_only) analysis**:
+   - Maker fee = 25% of taker fee. post_only=True guarantees maker execution
+   - Drift trades: saves 5c/trade (10 USD over 200 trades). Worth implementing.
+   - Sniper trades: saves ~0c (fee at 90c+ already minimal). Not worth changing.
+
+5. **New commands**:
+   - .claude/commands/polybot-autoresearch.md — autonomous research sessions
+   - .claude/commands/polybot-wrapresearch.md — research session wrap-up
+
+### Dead ends confirmed (save future sessions from re-investigating)
+- Sports taker arbitrage: Kalshi efficiently priced vs Pinnacle (0-3% edge, eaten by fees)
+- BALLDONTLIE API: 9.99 USD/month/sport, not worth it vs free the-odds-api
+- FOMC model live activation: broken term structure, would lose money
+- Mid-range drift (35-65c): Whelan paper + 60 sessions = no structural edge
+
+### Live scan results (170 Kalshi sports markets, 52 matched to odds API)
+- Best taker edge: 1.5% (Bulls at Clippers NO). Most markets: 0-1%.
+- After fees: nearly all edges evaporate for takers. Makers could capture 1-3%.
+- NCAAB has most markets (72) and best team matching. NHL poorly matched.
+
+### Why
+- Matthew questioned whether 60+ sessions of drift optimization was fundamentally wrong.
+  Whelan paper (300K+ contracts) confirms: 35-65c range has zero structural edge.
+- Session pivoted to empirical R&D: build tools, test real data, confirm or kill hypotheses.
+- Every dead end confirmed saves hours of future investigation.
+
+### Session stats
+- Bot: STOPPED (Matthew's directive from S61, research session only)
+- No live bets placed this session (bot intentionally off)
+- All-time P&L unchanged: -45.60 USD
+- Bankroll unchanged: ~54.40 USD
+- Tests: all passing (27 new tests in test_edge_scanner.py)
+- Commits: 3 (audit + scanner + FOMC analysis)
+
+### Key insight
+Sniper at 90c+ is the ONLY validated edge. Favorite-longshot bias is structural
+and confirmed by academic evidence. Drift at 35-65c has no structural edge.
+Single biggest lever: increase sniper volume. At 2.69 USD/bet (current bankroll),
+each win nets ~0.17 USD. Need ~1000 wins to close 170 USD gap. ~50 days at 20/day.
+
+SELF-GRADE: B — Built useful scanner tool (27 tests), empirically confirmed 4 dead ends,
+comprehensive FOMC analysis that prevents future money loss. No new edge found, but
+dead ends are valuable. Grade would be A if a new exploitable edge had been discovered.
 But session P&L negative (-5.75) and no new features built.
 
 NEXT SESSION PRIORITIES:
