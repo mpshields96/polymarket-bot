@@ -345,6 +345,23 @@ async def trading_loop(
                 if calibration_max_usd is not None:
                     trade_usd = min(trade_usd, calibration_max_usd)
 
+                # Dynamic scaling: reduce bet size during losing streaks, restore on wins.
+                # S60: Addresses asymmetric win/loss problem — prevents large losses from
+                # compounding during adverse market conditions. Kill switch consecutive
+                # counter is shared across strategies and resets on ANY win.
+                _consec = kill_switch._state._consecutive_losses
+                if _consec >= 1 and live_executor_enabled and live_confirmed:
+                    # Halve for each consecutive loss: 1→50%, 2→25%, 3→12.5%, etc.
+                    # Floor at 10% of original size to keep collecting data.
+                    _scale = max(0.10, 0.5 ** _consec)
+                    _original = trade_usd
+                    trade_usd = round(trade_usd * _scale, 2)
+                    if trade_usd < _original:
+                        logger.info(
+                            "[%s] Dynamic scaling: %d consec losses → %.0f%% size (%.2f → %.2f USD)",
+                            loop_name, _consec, _scale * 100, _original, trade_usd,
+                        )
+
                 # Kill switch pre-trade check (synchronous)
                 from src.strategies.btc_lag import BTCLagStrategy
                 minutes_remaining = BTCLagStrategy._minutes_remaining(market)
@@ -1498,16 +1515,17 @@ async def expiry_sniper_loop(
 
                     if live_executor_enabled and live_confirmed:
                         # ═══ LIVE PATH ═══════════════════════════════════
-                        # Daily bet cap for sniper
-                        today_count = db.count_trades_today(
-                            strategy=strategy.name, is_paper=False
-                        )
-                        if today_count >= max_daily_bets:
-                            logger.info(
-                                "[expiry_sniper] Daily bet cap reached (%d/%d) — skip",
-                                today_count, max_daily_bets,
+                        # Daily bet cap for sniper (0 = unlimited)
+                        if max_daily_bets > 0:
+                            today_count = db.count_trades_today(
+                                strategy=strategy.name, is_paper=False
                             )
-                            continue
+                            if today_count >= max_daily_bets:
+                                logger.info(
+                                    "[expiry_sniper] Daily bet cap reached (%d/%d) — skip",
+                                    today_count, max_daily_bets,
+                                )
+                                continue
 
                         # Fetch orderbook for this specific market
                         try:
@@ -2830,7 +2848,7 @@ async def main():
             slippage_ticks=paper_slippage_ticks,
             fill_probability=paper_fill_probability,
             trade_lock=_live_trade_lock,
-            # calibration_max_usd=None: Stage 1, Kelly + $5 cap governs
+            calibration_max_usd=_DRIFT_CALIBRATION_CAP_USD,  # S60: demoted to micro-live. 54 bets, 48% win rate, -11.12 USD. Losing real money.
             # direction_filter: YES signals have 30% win rate (6/20, p=3.7%) vs NO at 61%
             # (14/23). Upward BTC drift is already priced into Kalshi YES market by HFTs
             # before our signal fires — the edge is illusory. Downward drift is slower to
@@ -2860,7 +2878,7 @@ async def main():
             slippage_ticks=paper_slippage_ticks,
             fill_probability=paper_fill_probability,
             trade_lock=_live_trade_lock,
-            # calibration_max_usd=None: Stage 1, Kelly + $5 cap governs (same as btc_drift)
+            calibration_max_usd=_DRIFT_CALIBRATION_CAP_USD,  # S60: demoted to micro-live. 87 bets, 49% win rate, -16.24 USD. Biggest P&L drag.
             btc_move_condition=_btc_move_condition,
             # S53: direction_filter="yes" — YES side: 36 bets 61.1% wins +0.711 USD/bet EV
             # NO side: 31 bets 48.4% wins -0.212 USD/bet EV. Z=1.04, p=0.148. 67 bets total
@@ -3128,12 +3146,13 @@ async def main():
             live_executor_enabled=live_mode,
             live_confirmed=live_confirmed,
             trade_lock=_live_trade_lock,
-            max_daily_bets=10,
+            max_daily_bets=0,  # S60: UNLIMITED — 97% win rate across 85 data points, every signal is +EV. Matthew directive.
+            # Previously: 10 (S59), 20 (S60 early). Removed entirely to capture every favorable-longshot window.
         ),
         name="expiry_sniper_loop",
     )
     _sniper_mode = "LIVE" if (live_mode and live_confirmed) else "paper-only"
-    logger.info("Expiry sniper loop started (%s BTC/ETH/SOL/XRP 15M, 90c+ threshold, 10s poll)", _sniper_mode)
+    logger.info("Expiry sniper loop started (%s BTC/ETH/SOL/XRP 15M, 90c+ threshold, 10s poll, NO daily cap)", _sniper_mode)
 
     # ── Sports-futures mispricing loop (Polymarket supplemental) ─────
     # Paper-only. Compares PM championship futures to bookmaker consensus.
