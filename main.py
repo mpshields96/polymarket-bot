@@ -1537,9 +1537,12 @@ async def expiry_sniper_loop(
                             )
                             continue
 
-                        # Sizing: HARD_MAX directly — Kelly not used for sniper
-                        # (edge_pct ~0.37% at 90c, Kelly fraction ~9.9% → $11 → clips to $5)
-                        trade_usd = _HARD_CAP
+                        # Sizing: HARD_MAX clamped to pct_cap to avoid kill switch blocking.
+                        # S60 fix: at ~98 USD bankroll, 5.00 = 5.1% > 5% cap → blocked.
+                        # Round down to stay strictly under the cap.
+                        from src.risk.kill_switch import MAX_TRADE_PCT as _MAX_PCT
+                        _pct_max = round(current_bankroll * _MAX_PCT, 2)
+                        trade_usd = min(_HARD_CAP, _pct_max)
 
                         # Atomic: lock → kill_switch → execute → record_trade
                         _lock_ctx = trade_lock if trade_lock is not None else contextlib.nullcontext()
