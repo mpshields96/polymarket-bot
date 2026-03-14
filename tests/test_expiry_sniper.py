@@ -446,3 +446,65 @@ class TestExpirySniperMultiSeries:
             market = _make_market(ticker=ticker, yes_price=92, no_price=8, seconds_remaining=300)
             sig = strategy.generate_signal(market=market, coin_drift_pct=+0.003)
             assert sig is not None and sig.side == "yes", f"Expected YES signal for {ticker}"
+
+
+class TestExpirySniperFeeFloor:
+    """Tests for fee floor behavior at extreme prices (98-99c).
+
+    Root cause of S70 finding: at 99c YES, minimum Kalshi taker fee (1c per contract)
+    equals gross profit (1c per contract), giving 0 net pnl per contract.
+    The strategy edge formula uses the raw fee (0.07 * p * (1-p)) not the 1c minimum,
+    so generate_signal() at 99c DOES return None (edge = -0.000693 < 0) — correct.
+    However, live execution price can drift from signal price (97c signal → 99c fill).
+    This test class documents the fee math and confirms 99c signals are already blocked.
+    """
+
+    def test_99c_yes_signal_blocked_by_negative_edge(self):
+        """At 99c YES: edge = win_prob - price - fee = 0.99 - 0.99 - 0.000693 < 0.
+        generate_signal() returns None. Structural: no win_prob can make this positive
+        since win_prob is capped at 0.99.
+        """
+        strategy = _default_strategy()
+        market = _make_market(yes_price=99, no_price=1, seconds_remaining=300)
+        sig = strategy.generate_signal(market=market, coin_drift_pct=+0.005)
+        assert sig is None, "99c YES should be blocked — edge is negative (fee floor kills it)"
+
+    def test_99c_no_signal_blocked_by_negative_edge(self):
+        """At 99c NO (YES=1c): same fee floor applies to NO side."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=1, no_price=99, seconds_remaining=300)
+        sig = strategy.generate_signal(market=market, coin_drift_pct=-0.005)
+        assert sig is None, "99c NO should be blocked — edge is negative (fee floor kills it)"
+
+    def test_97c_yes_signal_allowed(self):
+        """At 97c YES: edge = 0.98 - 0.97 - raw_fee ≈ +0.002 > 0. Signal fires."""
+        strategy = _default_strategy()
+        market = _make_market(yes_price=97, no_price=3, seconds_remaining=300)
+        sig = strategy.generate_signal(market=market, coin_drift_pct=+0.003)
+        assert sig is not None, "97c YES should be allowed — positive edge"
+        assert sig.side == "yes"
+        assert sig.price_cents == 97
+
+    def test_fee_floor_math_99c(self):
+        """Verify: at 99c, actual fee (1c min) = gross profit (1c) → net = 0."""
+        import math
+        price_cents = 99
+        count = 15
+        gross = (100 - price_cents) * count               # = 15c
+        raw_fee = 0.07 * (price_cents / 100) * (1 - price_cents / 100) * 100
+        actual_fee_per_contract = max(1, math.ceil(raw_fee))  # = 1c (ceil(0.069))
+        actual_fee_total = actual_fee_per_contract * count      # = 15c
+        net = gross - actual_fee_total                          # = 0c
+        assert net == 0, f"99c YES net pnl must be 0 (got {net}c)"
+
+    def test_fee_floor_math_98c_positive(self):
+        """At 98c, actual fee (1c min) < gross (2c) → net = 1c per contract. Still positive."""
+        import math
+        price_cents = 98
+        count = 15
+        gross = (100 - price_cents) * count               # = 30c
+        raw_fee = 0.07 * (price_cents / 100) * (1 - price_cents / 100) * 100
+        actual_fee_per_contract = max(1, math.ceil(raw_fee))  # = 1c (ceil(0.137))
+        actual_fee_total = actual_fee_per_contract * count      # = 15c
+        net = gross - actual_fee_total                          # = 15c
+        assert net > 0, f"98c YES net pnl must be positive (got {net}c)"

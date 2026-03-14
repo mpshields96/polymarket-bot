@@ -1536,6 +1536,19 @@ async def expiry_sniper_loop(
                                 )
                                 continue
 
+                        # Fee-floor check: at 99c, gross profit (1c) = min fee (1c) → 0 net.
+                        # generate_signal() already blocks 99c signals (negative edge), but
+                        # execution price can drift from signal price in the 0.1-1s between
+                        # signal generation and orderbook fetch. Re-check current market price.
+                        # S70: confirmed 17 live 99c bets = -14.85 USD (one loss vs 16 zero wins).
+                        _live_price = market.yes_price if signal.side == "yes" else market.no_price
+                        if _live_price >= 99:
+                            logger.info(
+                                "[expiry_sniper] %s %s: price drifted to %dc — skip (99c+ = 0 net per contract)",
+                                ticker, signal.side.upper(), _live_price,
+                            )
+                            continue
+
                         # Fetch orderbook for this specific market
                         try:
                             orderbook = await kalshi.get_orderbook(ticker)
