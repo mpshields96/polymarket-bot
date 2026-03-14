@@ -3250,3 +3250,46 @@ several dead ends (FOMC chain arb, sniper maker mode). No new live edges discove
 2. Restart bot to activate 99c guard (Matthew decision needed)
 3. GEFS weather test (Monday March 16)
 4. sol_drift Stage 2 graduation (still at 28/30)
+
+## Session 71 — 2026-03-14 (monitoring only)
+
+### Bot State
+- PID 17982 running throughout session. No restarts.
+- All-time: +6.67 → +7.63 USD (+0.96 USD net this session)
+- Today live: 137 settled, 135W/2L (98.5% WR), +51.44 USD
+- sol_drift: 28/30 (no graduation — 2 more bets needed)
+- xrp_drift: 19/30. Tests: 1164 (no code changes this session)
+- Last commit: 804cec7 (S70 wrap docs) — no new commits this session
+
+### Changes Made
+None — pure monitoring session.
+
+### Monitoring Loop Architecture (for S72+)
+Background bash tasks on this macOS system hit exit 144 (SIGHUP) at ~18-20 min.
+Multi-check scripts (4x5min = 20min) killed on final check.
+Solution: single-check 5-min cycles. Sleep 300, one DB query, exit. Chain from Claude.
+Python helper /tmp/polybot_check.py avoids quoting issues in inline Python.
+Both script files must be re-created at session start (temp files don't persist).
+
+### Key Observations
+- 99c guard (S70 commit 8d252ae) still NOT active — bot not restarted yet.
+  Two 99c-vicinity losses observed today (~14.40 and ~14.85 USD).
+  Priority #1 for S72: restart bot to activate the guard.
+- Sniper performing well otherwise: 135W/2L = 98.5% on the day.
+- sol_drift stayed at 28/30 — no new drift bets fired this session.
+
+### Self-Grade: C+
+- No code work done (monitoring only)
+- Monitoring loop took 5 iterations to stabilize (exit 144, syntax error, concurrent write)
+- Final solution (Python helper + single-check cycle) is solid going forward
+- +0.96 USD net is small but bot stayed healthy for 3+ hours unsupervised
+
+### What Next Chat Must Do Differently
+RESTART THE BOT FIRST. The 99c guard prevents -14.85 USD losses but requires restart.
+One restart command, 30 seconds, then monitoring as usual.
+
+### Next Session Priorities
+1. Restart bot (activates 99c guard from S70)
+2. sol_drift graduation watch (28/30 — 2 bets from Stage 2)
+3. NCAA bracket markets — check if 1-vs-16 matchups priced at 90c+
+4. GEFS weather test (Monday March 16 only)
