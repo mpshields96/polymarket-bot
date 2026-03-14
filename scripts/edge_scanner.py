@@ -550,6 +550,19 @@ def compare_market(
     )
 
 
+# ── Game-in-progress filter ───────────────────────────────────────────────
+
+def _game_started(commence_time: str) -> bool:
+    """Return True if the game has already started (commence_time is in the past)."""
+    if not commence_time:
+        return False
+    try:
+        game_start = datetime.fromisoformat(commence_time.replace("Z", "+00:00"))
+        return game_start < datetime.now(timezone.utc)
+    except (ValueError, TypeError):
+        return False  # unparseable — don't filter
+
+
 # ── Main scan ─────────────────────────────────────────────────────────────
 
 async def run_scan(
@@ -626,6 +639,13 @@ async def run_scan(
             comp = compare_market(market, odds_lookup, odds_sport)
             if comp:
                 total_matched += 1
+                # Skip in-progress/settled games (commence_time already passed)
+                if _game_started(comp.commence_time):
+                    logger.debug(
+                        "Skip %s — game started %s",
+                        comp.kalshi_ticker, comp.commence_time,
+                    )
+                    continue
                 if comp.best_edge >= min_edge:
                     all_opportunities.append(comp)
 

@@ -15,6 +15,7 @@ from scripts.edge_scanner import (
     _parse_kalshi_game_title,
     _kalshi_taker_fee,
     _devig_h2h,
+    _game_started,
     parse_odds_games,
     OddsComparison,
 )
@@ -199,3 +200,42 @@ class TestNormalize:
 
     def test_empty(self):
         assert _normalize("") == ""
+
+
+# ── Game-in-progress filter ───────────────────────────────────────────────
+
+class TestGameStarted:
+    """Tests for _game_started() — filters in-progress and settled games."""
+
+    def test_past_game_is_started(self):
+        """A game that started hours ago is in-progress — should be filtered."""
+        assert _game_started("2020-01-01T00:00:00Z") is True
+
+    def test_future_game_not_started(self):
+        """A game starting tomorrow is not in-progress — should be kept."""
+        assert _game_started("2099-12-31T23:59:59Z") is False
+
+    def test_empty_string_not_filtered(self):
+        """Empty commence_time: don't filter (missing data, keep market)."""
+        assert _game_started("") is False
+
+    def test_none_like_empty(self):
+        """None commence_time: don't filter."""
+        assert _game_started(None) is False
+
+    def test_invalid_timestamp_not_filtered(self):
+        """Unparseable timestamp: don't filter (fail safe)."""
+        assert _game_started("not-a-date") is False
+
+    def test_z_suffix_parsed_correctly(self):
+        """Z suffix (UTC) must be parsed correctly, not raise an error."""
+        # Recent past: definitely started
+        assert _game_started("2026-01-01T00:00:00Z") is True
+
+    def test_recent_future_not_started(self):
+        """A game starting 1 hour from now should not be filtered."""
+        from datetime import datetime, timezone, timedelta
+        future = (datetime.now(timezone.utc) + timedelta(hours=1)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+        assert _game_started(future) is False
