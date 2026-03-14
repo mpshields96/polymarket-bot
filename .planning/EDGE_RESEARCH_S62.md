@@ -889,23 +889,213 @@ F. **Props/totals** — NCAAB over/under totals have different pricing dynamics
     Many trades are at recurring counts (93, 187, 935, 2000 fp) — likely automated
     market makers. The 93/187/935/2000 pattern suggests systematic MM activity.
 
-### REVISED FINAL PRIORITY STACK (Session 65)
+### 26. ATP TENNIS + NCAAB IN-PLAY MARKET STRUCTURE (Session 66 — 2026-03-14)
+
+  RESEARCH QUESTION: Do tennis and NCAAB markets have sustained 90c+ in-play windows
+  like crypto sniper? S65 found NBA/NHL go silent during games. Tennis and NCAAB untested.
+
+  DATA SOURCE: Kalshi /markets/trades endpoint. KXATPMATCH (ATP match winner).
+  Series analyzed: KXATPMATCH (8 settled matches, Miami Open March 12 2026).
+  KXNCAAMBGAME (KU vs Houston, Big 12 Championship March 13 2026).
+
+  ATP TENNIS FINDINGS:
+
+  A. GENUINE IN-PLAY PRICING EXISTS (unlike NBA/NHL which go silent)
+     Evidence: Medvedev vs Drakos match (KXATPMATCH-26MAR12DRAMED-MED)
+       Pre-match: 58-65c consistently all of March 12 (Medvedev slight favorite)
+       Match starts ~23:45 UTC: prices ramp from 63c → 81c → 92c+ over 2 hours
+       3149 total trades across 22 hours. Volume SPIKES from 292 to 711 to 478 to 455/bucket
+       during the match (volume spike = match in progress).
+       90c+ window: 62 min (00:59 → 02:01 UTC March 13)
+
+  B. HEAVY FAVORITES SHOW PRE-MATCH 90c+ (NOT in-play)
+     Evidence: Sinner vs Tiafoe (KXATPMATCH-26MAR12TIESIN-SIN)
+       FIRST TRADE was already at 92c (before match started!)
+       Held 91-93c for 26+ hours, then settlement burst
+       Pattern: Sinner (#1-2 world) vs Tiafoe — pre-match odds reflect heavy favorite status
+       NOT exploitable — can't enter before match when settlement timing unknown
+
+  C. SUSPENDED MATCHES CREATE FALSE LONG WINDOWS
+     Evidence: Alcaraz vs Norrie (KXATPMATCH-26MAR12ALCNOR-ALC)
+       503-minute "window" at 90c+
+       Pattern: match started at night (~74c → 91c in first 30 min), then SUSPENDED
+       Next day completion. Market stayed at 91-95c overnight waiting for resumption.
+       REAL in-play window was maybe 30-60 min. Remaining 400+ min = suspension delay.
+
+  D. CAPITAL EFFICIENCY COMPARISON
+     Medvedev match (genuine case): buy at 90c at 00:59, settle at 99c at 02:01
+     Return: 9c on 90c = 10% in 62 min
+     Crypto sniper: 10% in 2-3 min (30x better per unit time)
+     Tennis sniper: 10% per hour vs crypto 10% per 2.5 min. 24x worse capital efficiency.
+
+  E. FATAL STRUCTURAL PROBLEM: Settlement timing unknown
+     Cannot predict when match ends. Capital could be locked 30 min or 20+ hours.
+     No live score API integrated. Cannot distinguish "match at set point" from "match suspended".
+
+  F. HOW TO DISTINGUISH MATCH-IN-PROGRESS FROM PRE-MATCH:
+     Volume signature: pre-match = 5-50 trades/30min. In-match = 300-700 trades/30min.
+     Price signature: pre-match is flat (63c for hours). In-match ramps continuously.
+     A volume monitoring system could detect match start (volume spike) and estimate completion.
+
+  NCAAB BASKETBALL FINDINGS:
+
+  A. GENUINE IN-PLAY PRICING (unlike NBA/NHL which go silent)
+     Evidence: KU vs Houston Big 12 Championship (KXNCAAMBGAME-26MAR13KUHOU-*)
+       Houston pre-match: 67-70c (consistent for 18 hours before game)
+       Game starts ~01:00 UTC March 14: volume spikes from 180/bucket to 1138/bucket
+       Houston rises: 67c → 69c → 81c → 93c over 2 hours
+       KU falls: 32c → 32c → 23c → 18c → 9c → 1c
+       12,628 total trades across 2 games (massive volume vs crypto sniper games)
+
+  B. 90c+ WINDOW: 56 MINUTES, MOSTLY POST-GAME
+     Houston hits 90c at 02:56 UTC (estimate: ~3-4 min before game ends)
+     Settlement at 03:52 UTC = 56 min total at 90c+
+     In-game 90c+ time: ~4 min. Post-game settlement wait: ~52 min.
+     PROBLEM: 90c threshold only crossed in final 4 min of a blowout — too short to trade manually.
+     PROBLEM: 52 min settlement delay for 10c profit = 10% in 56 min. 14x worse than crypto.
+
+  C. CAPITAL EFFICIENCY REALITY
+     Entry at 90c with 4 min game time left → wait 56 min → settle at 99c
+     Without live scores, impossible to know the 4-minute window to enter.
+     With live scores + code: possible in theory. But 56-min tie-up of capital is poor.
+
+  D. NCAAB IS DIFFERENT FROM NBA/NHL
+     NBA/NHL markets on Kalshi go SILENT during games (confirmed S65).
+     NCAAB markets actively price throughout (8437 trades for KU, continuous price movement).
+     This is a structural difference — NCAAB market makers stay active during games.
+     Why: NCAA audiences are college students + fans who trade in-game more actively.
+
+  COMBINED VERDICT — TENNIS AND NCAAB SNIPER AT CURRENT SCALE:
+
+  NOT viable as sniper replacements. Two hard problems:
+  1. Settlement timing unknown (tennis: variable 30 min to 20+ hours; NCAAB: 52 min post-game)
+  2. Capital efficiency: 14-24x worse than crypto sniper on per-minute basis
+
+  WHAT WOULD MAKE IT VIABLE (higher bankroll, future research):
+  - Tennis: free live score API (ATP Tour has one, unofficial) + volume-spike detection for match start
+  - NCAAB: live score API (ESPN unofficial: site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard)
+    + entry logic: "leading by 20+ with 3 min remaining" = 90c+ entry
+  - Both require: $500+ bankroll to make 52-min wait worthwhile
+  - Both require: new code module (sports_sniper_v2.py with live score integration)
+
+  MARCH MADNESS RELEVANCE (March 20+):
+  - Sweet 16 markets open (KXNCAAMBGAME-26MAR14*): 1-vs-4 seed games
+  - High-seed vs low-seed blowouts could create 90c+ in final 5 min
+  - Same capital efficiency problem. Same settlement delay.
+  - Monitor but do not build at current bankroll/scale.
+
+### REVISED FINAL PRIORITY STACK (Session 66)
 
   PRIORITY 1 — ONLY VALIDATED EDGE (unchanged):
-    Expiry sniper at 90c+. 95.1% WR. Everything else is research.
+    Expiry sniper at 90c+. 96% WR at 50 bets. Everything else is research.
 
-  PRIORITY 2 — WEATHER GEFS ON WEEKDAYS:
-    Wait for Monday HIGHNY markets. GEFS ensemble already built (S63).
+  PRIORITY 2 — WEATHER GEFS ON WEEKDAYS (Monday March 16):
+    HIGHNY markets open weekdays only. GEFS ensemble already built (S63).
     Signal fires when GEFS probability differs from Kalshi price by 5%+.
-    Cannot test until Monday (no HIGHNY on weekends).
+    Cannot test until Monday — test FIRST THING Monday morning.
 
-  PRIORITY 3 — MAKER_MODE ON DRIFT (now wired, S65):
-    DONE: added maker_mode=True to btc_drift and eth_drift in main.py.
-    Not yet wired on sol_drift (best signal — risky to change).
+  PRIORITY 3 — SOL DRIFT GRADUATION (2 more bets):
+    28/30 live settled bets. 2 more → Stage 2 analysis.
+    Monitor each session with --graduation-status.
 
   DEAD ENDS — STOP REVISITING:
-    Non-crypto sports sniper: market structure doesn't support sustained 90c+ windows
+    Tennis sniper at current scale: settlement timing unknown, 24x worse capital efficiency
+    NCAAB sniper at current scale: 52-min post-game wait, 14x worse capital efficiency
+    NBA/NHL sniper: market goes silent during games (S65 confirmed)
     Weather NO at 99c: terrible capital efficiency at our scale
     Sports pre-game arbitrage: efficiently priced (S62/S63 confirmed)
     FOMC model without CME FedWatch: broken
     BALLDONTLIE API: overpriced
+
+  OPEN FOR FUTURE RESEARCH (when bankroll >500 USD):
+    Tennis sniper + live score API: volume spike detects match start, score detects match end
+    NCAAB in-game sniper: live score integration for "blowout with 3 min left" detection
+    March Madness upset structure: 1-vs-16 blowouts with known game end time
+
+---
+
+## SESSION 68 ADDITIONS (2026-03-14)
+
+### 27. SNIPER PRICE BUCKET DEEP ANALYSIS (167 live settled bets)
+
+  FINDING: 90-94c bucket is the profit engine. Do NOT raise trigger to 95c.
+
+  Bucket breakdown (all-time 167 live settled):
+
+    below 87c: 2 bets, 100% WR, EV=1.54 USD/bet, ROI=16.5% [too few to trust]
+    90-94c: 84 bets, 97.6% WR, EV=0.618 USD/bet, ROI=5.6% [MAIN PROFIT ENGINE]
+    95-96c: 43 bets, 97.7% WR, EV=0.042 USD/bet, ROI=0.4% [NEARLY BREAK-EVEN]
+    97-98c: 26 bets, 100% WR, EV=0.17 USD/bet, ROI=1.6% [small sample, ok]
+    99c: 12 bets, 100% WR, EV=0 USD/bet, ROI=0% [break-even, Kalshi fees eat margin]
+
+  WHY 95-96c is terrible despite high WR:
+    At 95c, you win 5c per contract. One loss of 14.40 USD = wipes 342 win-profits.
+    At 90c, you win 10c per contract. One loss = wipes 88 win-profits.
+    LOWER trigger price = HIGHER margin per win = better loss absorption.
+
+  RECOMMENDATION:
+    - Keep trigger at 90c (confirmed optimal)
+    - Do NOT raise to 95c (eliminates the profit engine)
+    - Do NOT lower to 87c without paper testing (only 2 data points)
+    - Consider a SOFT MAX at 97c (bets above 97c have zero to negative real EV)
+
+### 28. OTHER CRYPTO 15-MIN SERIES — CONFIRMED INACTIVE
+
+  Checked: KXBCH15M, KXBNB15M, KXADA15M, KXDOGE15M
+  All returned 0 open markets via API (March 14, 2026).
+  KXBTC15M, KXETH15M, KXSOL15M, KXXRP15M are the only active series.
+  Cannot increase opportunity count by adding new crypto series.
+
+### 29. KALSHI-WIDE 90c+ MARKET SCAN — NOTHING ACTIONABLE
+
+  Scanned all open markets for 90c+ bid/ask with volume > 500:
+  Result: 67 markets found — ALL are KXMVE parlay markets.
+  KXMVE parlays at "100c": these are settled-but-unresolved parlays where
+  YES=0c (all legs lost) → NO implied at 100c. Not tradeable for profit.
+  NO other market categories have sustained 90c+ prices with real liquidity.
+  Crypto 15-min is the UNIQUE venue for this strategy.
+
+### 30. TODAY'S EXCEPTIONAL PERFORMANCE — WHAT DROVE IT
+
+  March 14, 2026: 125 bets, 124W (99% WR), +60.92 USD
+  Compare: March 13, 2026: 42 bets, 40W (95% WR), +0.29 USD
+
+  Two factors explain the 200x P&L increase:
+  1. Bet size increase: avg 4.5 USD → 12.91 USD (bet size increase from S67)
+     15% bankroll cap: at 89 USD bankroll, max per bet = 13.34 USD
+  2. Volatility: 3x more opportunities (125 vs 42 bets) due to crypto volatility
+
+  Implied daily P&L range at new bet cap:
+    Low volatility day: ~30-40 bets, ~18-25 USD expected
+    High volatility day: ~100-130 bets, ~60-80 USD expected
+    Average estimate: ~40-60 bets, ~25-40 USD expected daily
+
+### 31. MARCH MADNESS ANALYSIS — NOT WORTH BUILDING (March 20+)
+
+  NCAA tournament Round 1 starts March 20, 2026.
+  1-vs-16 seeds: 99.2% historical WR → structural edge IF Kalshi prices at 90c+
+  
+  Why NOT to build a March Madness sniper module:
+    Capital efficiency: 2+ hour game + 52 min settlement = 60x worse than crypto sniper
+    Total EV for whole tournament: ~10-20 USD (vs 25-60 USD from sniper daily)
+    Settlement timing unknown (no live score API integrated)
+    Capital tied up 2.5+ hours per game = can't redeploy for crypto sniper
+
+  Monitor but do not build at current scale.
+
+### REVISED PRIORITY STACK (Session 68)
+
+  PRIORITY 1 — Bot monitoring and sniper operation (automated)
+  PRIORITY 2 — Sol drift graduation (need 2 more bets — passive)
+  PRIORITY 3 — GEFS weather test Monday March 16 (HIGHNY markets)
+  PRIORITY 4 — March Madness bracket review March 15 (passive, monitor only)
+  
+  DEAD ENDS CONFIRMED THIS SESSION:
+    Other crypto 15-min series (BCH/BNB/ADA/DOGE): 0 active markets
+    FOMC/FED markets: no liquid near-term markets
+    NCAAB conference tournament: no bid/ask (illiquid)
+    KXMVE parlay markets: settled-but-not-paid, not tradeable
+    KXBTCD weekly markets: null bid/ask (weekend illiquidity)
+    Lowering sniper trigger to 87c: insufficient data (only 2 bets)
+    Raising sniper trigger to 95c: confirmed terrible EV (0.4% ROI)
+
