@@ -1202,3 +1202,77 @@ F. **Props/totals** — NCAAB over/under totals have different pricing dynamics
     NCAAB totals (KXNCAAMBTOTAL): near-zero volume, wide spreads
     NCAAB half-spreads (KXNCAAMB1HSPREAD): 67c bid-ask spread, untradeable
 
+
+### 36. FOMC CROSS-MARKET CHAIN CONSISTENCY — NOT EXPLOITABLE (Session 70)
+
+  Checked all 80 open KXFEDDECISION markets at ~19:30 UTC March 14.
+  Five outcome types per meeting: H0 (hold), H25 (hold after 1 prior cut),
+  H26 (hold after 2 cuts), C25 (cut 25bp), C26 (cut 50bp cumulative).
+
+  Chain analysis (Hold probability by meeting date):
+    26MAR: 99.5%  (11.2M vol, 1c spread) — near certain, 4 days away
+    26APR: 92.5%  (254K vol, 1c spread) — liquid, efficiently priced
+    26JUN: 64.0%  (44K vol, 4c spread) — moderate liquidity
+    26JUL: 60.5%  (3,735 vol, 1c spread) — thin
+    26SEP: 67.0%  (131 vol, 10c spread) — essentially illiquid
+    26OCT: 71.0%  (414 vol, 10c spread) — illiquid
+    26DEC: 74.5%  (2,476 vol, 5c spread) — low liquidity
+    27JAN: 68.5%  (3,106 vol, 1c spread) — thin
+
+  Chain "violations" detected (hold probability increasing over time):
+    SEP > JUL, OCT > SEP, DEC > OCT
+    These appear backward (later meetings can't be MORE certain of holding if
+    earlier meeting held). But these are LIQUIDITY ARTIFACTS — with only 131-414
+    contracts traded in these markets, a few retail bets can move prices 10%.
+
+  Key finding: No cross-market arbitrage exists.
+    Near-term markets (MAR, APR) are priced by sophisticated traders (10M+ vol)
+    Far-term markets (JUL+) are illiquid noise (wide spreads eat any edge)
+    The "violations" cannot be exploited — bid/ask spreads are 5-10c wide
+    Any arb trade would immediately lose money to the spread
+
+  FOMC edge only viable through INFORMATION SPEED (CPI speed-play):
+    After April 10 CPI surprise: APR and JUN markets will reprice
+    APR Hold (92.5c mid, 1c spread): significant repricing if CPI surprises
+    JUN Hold (64.0c mid, 4c spread): larger movement expected
+    Target: CPI monitor detects release → buy BEFORE repricing completes
+    CPI release monitor (scripts/cpi_release_monitor.py) ready for April 10.
+
+  VERDICT: No structural FOMC chain arb. Speed-play is the only viable FOMC edge.
+
+### 37. SNIPER MAKER MODE ANALYSIS — NOT VIABLE FOR SNIPER (Session 70)
+
+  Checked whether adding maker_mode=True to expiry_sniper_loop() would save fees.
+
+  Fee math at 90c YES:
+    Kalshi taker fee = 7% × price × (1-price) = 7% × 0.90 × 0.10 = 0.63c/contract
+    For 5 USD bet at 90c: 5.56 contracts × 0.63c = 3.5c = 0.035 USD saved per bet
+    At 135 bets/day: 135 × 0.035 = 4.73 USD/day potential savings
+
+  Why maker mode fails for the sniper:
+    1. Sniper fires in final 840 seconds — urgency requires guaranteed fills
+    2. Post-only order at bid price (90c) waits for seller — market may skip to 95c
+    3. If market is approaching expiry, takers are the natural flow, not makers
+    4. At 90c, there's very little two-sided flow to fill maker orders against
+    5. Risk of missing fill entirely > 0.035 USD fee savings per bet
+
+  Current status: drift loops (btc/eth/sol/xrp) already use maker_mode=True (S65)
+    These work because drift markets have longer windows and two-sided flow at 35-65c
+    Sniper stays taker-only — correct design, no change needed.
+
+  VERDICT: Sniper maker mode = dead end. Drift maker mode already implemented.
+
+### REVISED PRIORITY STACK (Session 70)
+
+  PRIORITY 1 — Bot monitoring (automated, ongoing)
+  PRIORITY 2 — Sol drift graduation (28/30 — 2 more needed → Stage 2 eval)
+  PRIORITY 3 — NCAA tournament markets after bracket drops (March 15 23:00 UTC)
+    Specifically: 1-vs-16 seed Round 1 games, historical 99.4% 1-seed win rate
+    If Kalshi prices these at 90-93c, edge is confirmed by FLB + historical data
+    Use ncaab_live_monitor.py for observation. Research only, no auto-trading.
+  PRIORITY 4 — GEFS weather test Monday March 16 (first weekday HIGHNY check)
+  PRIORITY 5 — CPI release monitor ready (April 10 08:30 ET)
+
+  DEAD ENDS ADDED THIS SESSION:
+    FOMC cross-market chain arb: illiquidity artifacts beyond July, no exploitable gap
+    Sniper maker mode: urgency incompatible with maker order risk of non-fill
