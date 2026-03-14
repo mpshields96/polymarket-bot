@@ -2948,3 +2948,73 @@ NEXT SESSION PRIORITIES:
 3. Test GEFS weather vs live HIGHNY markets (Monday only — weekday markets)
 4. Wait for 200+ sniper live bets before changing 90c threshold
 5. Research: find non-crypto Kalshi markets where sniper pattern applies (sports near end?)
+
+---
+
+## Session 65 — 2026-03-14 — Research: Non-crypto sniper expansion (dead end) + maker_mode wired
+
+### Changed
+- main.py — maker_mode=True added to btc_drift and eth_drift trading_loop() calls
+  (post_only=True, expiration_ts=now+30s when maker_mode=True)
+- .planning/EDGE_RESEARCH_S62.md — Sections 23-25 added (sports/weather sniper research)
+- SESSION_HANDOFF.md — updated for Session 66 with research findings
+
+### Research findings
+1. **SPORTS SNIPER EXPANSION — DEAD END**:
+   All Kalshi sports markets (NBA spread/total, NCAAB game, NHL) follow identical pattern:
+   - Pre-game: liquid at 45-55c (bets placed before game)
+   - During game: ZERO active trading
+   - Game end: 20-60 second burst from 50c → 99c during settlement
+   The 2-3 minute sustained 90c+ window our crypto sniper exploits does NOT exist in sports.
+   Investigated: KXNBASPREAD, KXNBATOTAL, KXNBAGAME, KXNCAAMBGAME, KXNCAABGAME, KXLIGAMXGAME.
+   Also: the API field for real volume is `volume_fp` not `volume` (which returns None or 0).
+
+2. **PGA GOLF TOURNAMENT WINNER — DIFFERENT RISK PROFILE**:
+   KXPGATOUR markets DO sustain 98-99% for 8+ hours after a player is eliminated.
+   Example: Scottie Scheffler NO at 99c trading continuously from 20:12 to 04:52 UTC (8+ hours).
+   Volume: 1.1M fp in 24 hours. Real liquidity with real automated market making.
+   PROBLEM: Capital efficiency 1% (1c profit on 99c capital) vs 11% for crypto sniper at 90c.
+   Only viable at $10,000+ bankroll. At $90 bankroll: terrible.
+
+3. **WEATHER BRACKET MARKETS AT 99c — SAME PROBLEM**:
+   KXHIGHLAX >88°F at 99% NO, vol 381K fp, trading continuously for hours.
+   Multiple brackets per city per day (LA, Chicago, Miami, Denver confirmed).
+   Capital efficiency: identical problem to golf (1c profit on 99c).
+   CORRECT WEATHER APPROACH: GEFS signal trading near 50c (already built in S63).
+
+4. **TRUE KALSHI SPORTS MARKET STRUCTURE (definitive)**:
+   KXNBASPREAD: 100-400K fp/game, volume is PRE-GAME not in-game
+   KXNBAGAME (game winner): effectively zero volume (wrong series to check)
+   KXNCAAMBGAME: real but minimal (2-13 trades per game)
+   90-96c "sweet spot" only appears in final 20-second settlement burst — not useful
+
+5. **MAKER_MODE WIRED (15-min task finally completed)**:
+   btc_drift and eth_drift now use maker_mode=True.
+   Saves ~75% on taker fees (~5c/trade at full Stage 1 size).
+   Commit: 2080b20. No behavior change at micro-live scale (0.01 cap).
+
+### Why (maker_mode)
+SESSION_HANDOFF flagged this as 15-min task for 3 sessions. Finally wired.
+Fee savings are negligible at micro-live (0.01 cap = <0.01c per trade)
+but will matter if drift strategies ever return to Stage 1 full bets.
+
+### Session stats
+- Bot: RUNNING PID 13072 → /tmp/polybot_session65.log (restarted at session start)
+- All-time live P&L: -43.51 USD (improved +1.39 from -44.90 in S64)
+- Today live P&L: +0.30 USD (4 settled)
+- Sniper: 50 live settled, 96% WR, +1.55 USD
+- sol_drift: 28/30 (still 2 from Stage 2 milestone)
+- Tests: 1127 passed, 3 skipped
+- Commits: 2080b20 (maker_mode), 5633e7a (research docs), cb106ac (handoff)
+
+SELF-GRADE: B — Wired maker_mode (long-overdue). Comprehensive sports sniper research
+proves definitively this avenue is closed at our scale. Saved future sessions from
+re-investigating NBA/NCAAB/weather in-game sniper angle (4th and final dead end).
+No new live edge found. P&L improved slightly from bot running.
+
+NEXT SESSION PRIORITIES:
+1. Monitor sol_drift for 2 more bets → Stage 2 graduation analysis
+2. Monday: test GEFS weather vs live HIGHNY markets (weekday only)
+3. Research March Madness (March 20+) — bracket blowouts may sustain 90c for 30+ min
+4. At 200+ sniper bets: analyze 90c vs 95c threshold split
+5. Consider cricket/tennis in-play markets as international alternative (unknown structure)

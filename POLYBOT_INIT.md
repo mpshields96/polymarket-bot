@@ -45,21 +45,20 @@
 ## CURRENT STATUS — (updated each session)
 ═══════════════════════════════════════════════════
 
-BUILD COMPLETE. 1042/1042 tests passing (3 skipped). verify.py 21/29 (8 advisory WARNs — non-critical).
-Last commit: 5efb0af (Session 56 wrap docs) — no code commits S55/S56/S57 overnight
+BUILD COMPLETE. 1127/1127 tests passing (3 skipped). verify.py advisory WARNs only — non-critical.
+Last commit: cb106ac (Session 65 handoff)
 
-## BOT STATE — Session 57 overnight WRAP (2026-03-12 UTC) — BOT RUNNING
+## BOT STATE — Session 65 WRAP (2026-03-14 ~05:20 UTC) — BOT RUNNING
 
-Bot PID 44178 → /tmp/polybot_session57.log. PID 19785 died ~06:45 UTC, Matthew restarted.
-S56 KEY: extended 12-hr price guard drought. eth_drift 9 bets 3/9 wins -11.06 USD. Variance.
-S57 KEY: maintenance window CDT 01:01-04:03. Post-maintenance 0c dead zone CDT 04:03-07:00+.
+Bot PID 13072 → /tmp/polybot_session65.log
+All-time live P&L: -43.51 USD | Bankroll: ~89+ USD (DB authoritative)
+Sniper: 50 live settled, 96% WR, +1.55 USD | sol_drift: 28/30 (2 from Stage 2)
 
 Check bot: cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "RUNNING" || echo "STOPPED"
-Watch:  tail -f /tmp/polybot_session57.log | grep --line-buffered "LIVE BET\|Kill switch blocked\|cooling\|consecutive"
+Watch:  tail -f /tmp/polybot_session65.log | grep --line-buffered "LIVE BET\|Kill switch blocked\|cooling\|consecutive"
 
-All-time live P&L: -34.59 USD
-Tests: 1042/1042 | Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime hard stop
-Active protection: bankroll floor ($20) + consecutive cooling (8→2hr) + $5/bet hard cap
+Tests: 1127/1127 | Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime hard stop
+Active protection: bankroll floor (20 USD) + consecutive cooling (8→2hr) + 5 USD/bet hard cap
 
 RESPONSE FORMAT RULES (BOTH MANDATORY — Matthew terminates chat for violations):
   RULE 1: NEVER markdown table syntax (| --- |) — wrong font in Claude Code UI.
