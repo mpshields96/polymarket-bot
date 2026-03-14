@@ -36,14 +36,14 @@ LOCK_FILE = PROJECT_ROOT / "kill_switch.lock"
 EVENT_LOG = PROJECT_ROOT / "KILL_SWITCH_EVENT.log"
 
 # ── Hard limits — these cannot be changed by config ──────────────
-HARD_MAX_TRADE_USD = 5.00         # Absolute ceiling per trade
+HARD_MAX_TRADE_USD = 15.00        # Absolute ceiling per trade (raised S65: 5→15 per Matthew directive)
 HARD_MIN_BANKROLL_USD = 20.00     # Below $20 = hard stop
 DAILY_LOSS_LIMIT_PCT = 0.20       # 20% daily loss = soft kill (resets midnight)
 CONSECUTIVE_LOSS_LIMIT = 8        # Losses before cooling period (raised Session 41: daily limit governs at Stage 1)
 COOLING_PERIOD_HOURS = 2          # Hours to pause after CONSECUTIVE_LOSS_LIMIT
 MAX_HOURLY_TRADES = 15            # Trades per hour before rate-limit pause
 MAX_AUTH_FAILURES = 3             # Consecutive auth failures before halt
-MAX_TRADE_PCT = 0.05              # 5% of bankroll per trade
+MAX_TRADE_PCT = 0.15              # 15% of bankroll per trade (raised S65: 5%→15% per Matthew directive)
 
 
 class KillSwitchState:

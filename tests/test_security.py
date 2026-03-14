@@ -179,25 +179,25 @@ class TestAuthModuleSafety:
 # ── Kill switch safety ────────────────────────────────────────────
 
 class TestKillSwitchSafety:
-    def test_single_trade_never_exceeds_5_dollars(self):
-        """Hard cap of $5 must be enforced regardless of bankroll."""
+    def test_single_trade_never_exceeds_15_dollars(self):
+        """Hard cap of $15 must be enforced regardless of bankroll. (S65: raised 5→15)"""
         from src.risk.kill_switch import KillSwitch, LOCK_FILE
         if LOCK_FILE.exists():
             LOCK_FILE.unlink()
         ks = KillSwitch(starting_bankroll_usd=10000.0)
-        # Even with a huge bankroll, $5.01 must be blocked
-        ok, reason = ks.check_order_allowed(trade_usd=5.01, current_bankroll_usd=10000.0)
-        assert not ok, "Trade of $5.01 must be blocked regardless of bankroll size"
+        # Even with a huge bankroll, $15.01 must be blocked
+        ok, reason = ks.check_order_allowed(trade_usd=15.01, current_bankroll_usd=10000.0)
+        assert not ok, "Trade of $15.01 must be blocked regardless of bankroll size"
 
     def test_bankroll_pct_cap_enforced(self):
-        """5% of bankroll cap must be enforced at small bankroll sizes."""
+        """15% of bankroll cap must be enforced at small bankroll sizes. (S65: raised 5%→15%)"""
         from src.risk.kill_switch import KillSwitch, LOCK_FILE
         if LOCK_FILE.exists():
             LOCK_FILE.unlink()
         ks = KillSwitch(starting_bankroll_usd=30.0)
-        # 5% of $30 = $1.50, so $2 must be blocked
-        ok, _ = ks.check_order_allowed(trade_usd=2.00, current_bankroll_usd=30.0)
-        assert not ok, "Trade of $2 must be blocked when bankroll is $30 (exceeds 5%)"
+        # 15% of $30 = $4.50, so $5 must be blocked
+        ok, _ = ks.check_order_allowed(trade_usd=5.00, current_bankroll_usd=30.0)
+        assert not ok, "Trade of $5 must be blocked when bankroll is $30 (exceeds 15%)"
 
     def test_hard_stop_requires_manual_reset(self):
         """Once a hard stop is triggered (via auth failures), no trade can pass without manual reset."""
