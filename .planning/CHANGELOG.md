@@ -3138,3 +3138,48 @@ NEXT SESSION PRIORITIES:
 2. sol_drift graduation watch (28/30 — 2 more bets → Stage 2 at 10 USD max)
 3. Monday March 16: GEFS weather signal vs live HIGHNY markets
 4. At 200+ sniper bets: threshold analysis (90c vs 95c split)
+
+---
+
+## Session 69 (2026-03-14) — Research: KXBTCD analysis, edge scanner fix
+
+### What Changed
+- FIX: edge_scanner.py — _game_started() filter (7 new tests), commit 24a087e
+  Prevents in-progress games from showing fake 13%+ edges in scan results
+- DOCS: SESSION_HANDOFF.md updated to Session 70
+- DOCS: EDGE_RESEARCH_S62.md — Sections 32-35 added (S69 research findings)
+
+### Research Findings This Session
+- KXBTCD near-expiry sniper: CONFIRMED DEAD END
+  $500 threshold gaps prevent clean 90-95c zone. Cliff from 38c→87c→98c.
+  In final 14 min, markets either at 99c (certain) or 0c (impossible). No 90-95c.
+- NCAA tournament markets: NOT OPEN YET. Bracket drops March 15, 6pm ET.
+  KXMARMAD champion futures exist (30 markets) but all at 0-1c = worthless longshots.
+- KXNCAAMBTOTAL/KXNCAABSPREAD: near-zero volume (0-32 contracts), 67c bid-ask spreads.
+  Not suitable for any strategy.
+- Sports pre-game arb with fixed filter: max 1.1% taker edge tonight. Dead end confirmed.
+
+### Bot State (mid-session ~19:15 UTC)
+- Sniper today: 133/135 = 98.5% WR, +50.33 USD live today
+- All-time live: +6.52 USD (dropped from +17.11 due to second 14.85 USD loss at ~18:15 UTC)
+- sol_drift: 28/30 (still 2 from graduation)
+- Tests: 1147 passing
+
+### Lessons Learned
+- KXBTCD threshold structure is fundamental — threshold spacing creates pricing cliffs,
+  not smooth ramps. No version of daily/weekly threshold sniper can work at our scale.
+- The game-in-progress bug (S62 Section 22) was hiding the true sports edge ceiling.
+  With filter fixed: confirmed max 1.1% taker edge pre-game. Not actionable.
+- NCAA totals/spreads are illiquid relative to game-winner markets — wrong venue for edge.
+
+### Self-Grade: B
+Comprehensive investigation of 3 potential edge sources, all confirmed dead ends.
+One real code fix (game-in-progress filter) that makes the scanner trustworthy.
+Could not find new edge this session — correct null result, honestly documented.
+
+### Next Session Priorities
+1. Monitor bot health — 2 losses today, watch for consecutive losses
+2. sol_drift graduation watch (28/30 — 2 more bets → Stage 2)
+3. Monday March 16: GEFS weather signal vs live HIGHNY markets (first viable test)
+4. Check NCAA tournament markets after bracket drops (March 15, 6pm ET)
+   Specifically: 1-vs-16 seed matchups if priced at 90c+ = sniper edge
