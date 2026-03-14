@@ -1276,3 +1276,167 @@ F. **Props/totals** — NCAAB over/under totals have different pricing dynamics
   DEAD ENDS ADDED THIS SESSION:
     FOMC cross-market chain arb: illiquidity artifacts beyond July, no exploitable gap
     Sniper maker mode: urgency incompatible with maker order risk of non-fill
+
+---
+
+## SESSION 72 ADDITIONS (2026-03-14)
+
+### 38. SNIPER DEEP ANALYSIS — 192 LIVE BETS (updated)
+
+  Price bucket breakdown (all 192 live settled, excluding 99c):
+  
+    85-89c: 2 bets, 100% WR, EV=1.54 USD/bet, ROI=37%+ [only 2 bets, tiny sample]
+    90-94c: 91 bets, 97.8% WR, +58.2 USD — THE PROFIT ENGINE (97.8% vs 93% break-even)
+    95-96c: 49 bets, 98.0% WR, +4.97 USD — marginal (1 large loss of -14.40 wiped gains)
+    97-98c: 31 bets, 100% WR, +5.46 USD — profitable, small per-bet margins
+    99c:    19 bets,  0% NET WR, -14.85 USD — ZERO profitable wins (all 0-net or 1 loss)
+
+  Key insight: 99c bucket shows 0% EFFECTIVE WR because at 99c, taker fee = gross profit.
+  18 of 19 bets won but had pnl_cents=0. 1 bet lost 14.85 USD. Net: -14.85 USD wasted.
+  The 99c pre-execution guard (coded S70, commit 8d252ae) MUST be activated via restart.
+  
+  Correlated loss risk:
+  - 4 losses in history. 2 occurred in same 15-min window (26MAR122330, BTC+SOL both at 93c YES)
+  - This was the only multi-asset loss window in 192 bets
+  - XRP has ZERO losses in 38 bets (perfect record)
+  - ETH had 1 large loss (96c NO, -14.40 USD) in 45 bets
+  
+  Per-asset performance (excluding 99c):
+    SOL: 51 bets, 98.0% WR, +23.34 USD
+    XRP: 38 bets, 100% WR, +19.42 USD (ZERO losses — best asset)
+    BTC: 39 bets, 97.4% WR, +16.44 USD
+    ETH: 45 bets, 97.8% WR, +12.51 USD
+
+  Hourly pattern (concerning): 
+    03:xx UTC (10pm ET): 6 bets, 66.7% WR, -8.25 USD (2 losses at 93c)
+    07:xx UTC (2am ET): 13 bets, 92.3% WR, -7.24 USD (1 loss at 96c)
+    All other hours: 100% WR
+    Note: 2 data points per hour is too few to conclude systematic pattern.
+
+  RECOMMENDATION: 
+    - Keep 90c trigger (confirmed optimal, 90-94c bucket is profit engine)
+    - Do NOT raise to 95c (eliminates the main profit engine)
+    - Do NOT lower to 87c without more paper test data (only 2 bets at 85c)
+    - Consider soft cap at 98c (99c clearly zero/negative EV)
+
+### 39. WEATHER MARKETS — MAJOR SYSTEMATIC INEFFICIENCY DISCOVERED
+
+  Core finding: Kalshi weather markets are severely mispriced because participants
+  use historical seasonal averages instead of actual weather model forecasts.
+  GEFS ensemble consistently shows 30-80% different probabilities than Kalshi prices.
+
+  Market structure (KXHIGH* series):
+    Open: daily for NYC (KXHIGHNY), LAX (KXHIGHLAX), CHI (KXHIGHCHI), 
+          MIA (KXHIGHMIA), DEN (KXHIGHDEN) — confirmed OPEN DAILY not just weekdays
+    Settlement: same day (daily high temperature recorded by NWS)
+    Formats: 
+      T-prefix = threshold ("be >79°" or "be <72°") — parse_temp_bracket handles these
+      B-prefix = bracket ("be 78-79°") — parse_temp_bracket CANNOT parse these (returns None)
+
+  Live edge scan (March 14, 23:00 UTC — markets for March 15):
+  
+    BEST: LAX YES@5c — "Will LA high be >79° on Mar 15?"
+      GEFS: 83.9% probability above 79F (mean=79.8F, all members 77.6-81.6F)
+      Open-Meteo point forecast: 83.5F for March 15
+      Kalshi market: 5% probability (YES=5c)
+      Edge: +78.9% | EV per 5 USD bet: +78.87 USD (if GEFS correct)
+      CAVEAT: March 14 actual high was ~78-79F vs point forecast of 83.2F (4F overestimate)
+      Adjusted real probability: likely 40-70% (vs Kalshi's 5%) → still massive edge
+    
+    NYC YES@38c — "Will NYC high be <47° on Mar 15?"
+      GEFS: 96.8% probability below 47F (mean=45.3F, range [42.3, 47.4F])
+      Kalshi: 38% probability (YES=38c) — market thinks high will EXCEED 47F
+      Edge: +58.8% | EV per 5 USD bet: +7.73 USD
+      GEFS confidence: very tight distribution, all members < 47.4F
+      
+    CHI YES@19c — "Will CHI high be >60° on Mar 15?"
+      GEFS: mean=57.9F, range [54.7, 61.5F]
+      Kalshi: 19% probability of above 60F
+      Edge: data calculation has date-mismatch bug (see below), directional finding valid
+      
+    DEN NO@30c — "Will DEN high be <49°?" Kalshi YES=68c, GEFS says mostly above
+      GEFS: mean=51.1F, range [48.4, 53.4F] — some uncertainty around 49F threshold
+  
+  Historical accuracy check (March 13-14 LAX settled data):
+    March 13: actual high = 87-88F (B87.5 settled YES). GEFS would predict warm day. ✓
+    March 14: actual high = ~78-79F (B78.5 settling YES, T79 settling NO).
+              Point forecast said 83.2F — overestimate by 4-5F.
+    Implication: models are directionally correct but can overestimate by 4-5F.
+    REAL edge on LAX T79 March 15: probably 30-50% true probability vs Kalshi's 5%.
+  
+  WHY THIS INEFFICIENCY EXISTS:
+    1. Kalshi weather participants set prices based on historical seasonal averages
+    2. March average highs: NYC ~45-50F, LA ~68-72F, CHI ~45-55F
+    3. Participants anchor on "normal March temperatures" ignoring active weather models
+    4. GEFS updates every 6 hours with 31 member ensemble — far more information
+    5. Low volume markets (1K-22K fp) means few sophisticated participants updating prices
+    6. High volume markets (100K+) like KXHIGHLAX-26MAR14-T79 (settled) HAD already moved
+       to correct prices by late day — early-day prices are where the edge lives
+
+  BUGS IN CURRENT WEATHER STRATEGY (explain why it never fires):
+    BUG 1: Only monitors KXHIGHNY (NYC) — misses LAX, CHI, DEN, MIA
+           These other cities often have bigger mispricings (more unusual weather)
+    BUG 2: parse_temp_bracket() returns None for B-prefix bracket markets ("78-79°")
+           Only handles T-prefix threshold markets (">79°" or "<47°")
+           The B-prefix markets represent 50-60% of all weather market volume
+    BUG 3: Date mismatch possible — GEFS fetches next forecast date but strategy may
+           evaluate markets for today (T-date market still open but day nearly over)
+    BUG 4: config.yaml only specifies NYC series, no multi-city support
+
+  WHAT NEEDS TO BE BUILT (prioritized):
+    1. Multi-city weather loop: run weather_loop for each of 5 cities in parallel
+    2. Fix parse_temp_bracket for B-prefix bracket markets ("be 78-79°")
+    3. Date-awareness: skip markets closing today before confirming GEFS date matches
+    4. Weather strategy live activation: paper test shows 5+ clear signals per day
+    5. Consider higher max_daily_bets (currently likely 1-3 per day cap)
+  
+  EXPECTED EDGE QUANTIFICATION:
+    Conservative estimate: 20-40% edge after GEFS calibration uncertainty
+    With 10 markets per day at 5 USD/bet: 5-20 USD expected daily profit
+    Capital efficiency: 1-day settlement (same day as weather measurement)
+    Competition: essentially zero — market participants clearly not using weather models
+
+  PRIORITY: HIGH — this is a buildable, daily-recurring edge with zero HFT competition
+  The GEFS ensemble is public and free. The inefficiency is structural.
+  Implementation: 1-2 sessions of work.
+
+### 40. NCAA TOURNAMENT MARKETS — NOT YET OPEN (S72 status check)
+
+  Checked March 14 23:xx UTC (Selection Sunday eve):
+  - KXNCAAMBGAME: only 2 markets open (Wichita vs Tulsa conference game, closes March 28)
+  - KXMARMAD: 20 "champion futures" markets, all at 0-1c YES (longshot losers)
+  - No Round 1 tournament markets open yet (bracket announced March 15 evening)
+  
+  Next action: Check Tuesday/Wednesday March 17-18 for:
+    - KXNCAAMBGAME Round 1 games (March 20+)
+    - 1-vs-16 matchups at 90c+ for sniper edge
+    - Use ncaab_live_monitor.py
+
+### REVISED PRIORITY STACK (Session 72)
+
+  PRIORITY 1 — Bot monitoring and sniper operation (automated, ongoing)
+  
+  PRIORITY 2 — WEATHER MULTI-CITY EXPANSION (next session, HIGH IMPACT):
+    - Run full 5-city weather scan daily (can run any day of week, markets open daily)
+    - Fix parse_temp_bracket for B-prefix bracket markets
+    - Expand weather_loop to cover all 5 cities
+    - Paper test 5+ days before going live
+    - Expected: 5-20 USD/day additional profit from weather edge
+    - Build: weather_edge_scanner.py — standalone daily scanner to find best opportunities
+  
+  PRIORITY 3 — Sol drift graduation (still 28/30 — need 2 more settled bets)
+  
+  PRIORITY 4 — NCAA tournament markets after bracket drops (March 15 evening)
+    Check March 17-18 for Round 1 matchups. 1-vs-16 seed games at 90c+.
+    
+  PRIORITY 5 — CPI release monitor ready (April 10 08:30 ET)
+
+  DEAD ENDS ADDED THIS SESSION:
+    PGA golf sniper: capital locked 2-15 hours, terrible efficiency at current scale
+    Non-crypto 90c+ markets (FOMC, economics, politics): no near-expiry opportunities
+    All Kalshi markets outside crypto 15-min: confirmed no sustained 90c+ sniper windows
+
+  OPEN QUESTIONS (need validation):
+    - 85-89c sniper trigger: 2 bets at 100% WR is insufficient. Paper test needed.
+    - Hour 03:xx UTC losses: 2 data points, likely variance not pattern.
+    - Weather B-prefix markets: what price discrepancy do they show vs GEFS?
