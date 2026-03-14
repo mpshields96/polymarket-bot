@@ -810,3 +810,102 @@ F. **Props/totals** — NCAAB over/under totals have different pricing dynamics
     Crypto 15-min expansion (only 4 series exist, dead)
     FOMC model without term structure (broken, confirmed)
     BALLDONTLIE API (overpriced vs existing data sources, dead)
+
+---
+
+## SESSION 65 ADDITIONS (2026-03-14)
+
+### 23. NON-CRYPTO SNIPER EXPANSION — FULL INVESTIGATION (DEAD END)
+
+  Research question: Do any Kalshi sports or weather markets provide a sustained
+  90c+ window (like crypto 15-min) that our sniper could target?
+
+  Markets investigated:
+    KXNBAGAME (NBA game winner): zero in-game liquidity, zero volume
+    KXNCAABGAME (NCAAB game winner): zero in-game liquidity, zero volume
+    KXNBASPREAD (NBA spread): ~309K fp volume but ALL in the last 60 seconds
+    KXNBATOTAL (NBA over/under): same pattern as spread — burst at settlement
+    KXNCAAMBGAME (NCAAB game winner): 3-13 trades per game, all at 99c during settlement
+    KXPGATOUR (PGA golf tournament): sustained 98-99% for 8+ hours BUT terrible capital efficiency
+
+  Key finding — market structure:
+    Pre-game: liquid, 45-55c (pre-game spread bets placed)
+    During game: near-zero active trading
+    Game end: 20-60 second burst from 50c to 99c during settlement
+    Post-game: stays at 99c for hours (settlement period)
+
+  The 90-96c zone that matters for efficient sniper (10c profit on 90-96c cost)
+  appears only in the FINAL 20 SECONDS before settlement. Zero sustained window.
+
+  This is fundamentally different from crypto 15-min where:
+    - Continuous price discovery throughout the 15-min window
+    - Gradual drift to 90c+ as BTC moves
+    - Stable 2-3 minute window at 90c+ with room to execute
+
+  VERDICT: Sports sniper expansion is NOT viable. Market structure doesn't support it.
+
+### 24. WEATHER MARKETS AT 99c — WRONG APPROACH FOR OUR SCALE
+
+  Discovery: KXHIGH* markets (LA, Chicago, Miami, Denver) have many bracket
+  contracts at 99% NO for hours when the actual temperature is clearly outside
+  the bracket.
+
+  Example: KXHIGHLAX >88°F on March 13 at 99% NO, volume 381,869 fp,
+  trading continuously for hours once the daily high is recorded.
+
+  Why this seems interesting: long window, structural certainty, real liquidity
+
+  Why it DOESN'T work at our scale:
+    Capital efficiency: pay 99c to earn 1c = 1% return on capital
+    Compare: pay 90c to earn 10c = 11% return on capital (crypto sniper)
+    At $90 bankroll, buying 90 contracts of weather NO = $89.10 at risk for $0.90 profit
+    That's our ENTIRE bankroll for less profit than one crypto sniper bet
+
+  When this WOULD work:
+    At $10,000+ bankroll: deploy $9,900 on weather NO for $100 profit
+    Daily weather P&L at large scale could be $50-100/day
+    But we need 110x bankroll growth first
+
+  VERDICT: Weather NO sniper = viable strategy for large capital, not our current scale.
+  Continue with GEFS signal trading (already built) for uncertain brackets near 50c.
+
+### 25. SPORTS MARKET STRUCTURE — DEFINITIVE MAP
+
+  True active sports series on Kalshi (where real trading happens):
+    KXNBASPREAD (NBA point spread): 100K-400K fp/game, mostly pre-game
+    KXNBATOTAL (NBA total points): similar structure to spread
+    KXNCAAMBGAME (NCAAB game winner): 2K-20K fp/game, minimal liquidity
+    KXPGATOUR (PGA golf tournament winner): 2M+ fp per player, multi-day
+    KXNHLEAST/KXNHLPLAYOFF: season-long markets, long settlement period
+    KXHIGH* (weather high temp): 5-10 bracket markets per city per day
+
+  Series with ZERO meaningful volume:
+    KXNBAGAME (NBA game winner — not spread): zero volume, zero trades
+    KXNCAABGAME (different from KXNCAAMBGAME): zero volume
+    KXNBAPTS (NBA player points props): zero volume
+    KXNBASPREAD for future games: zero pre-game prices (markets empty until game day)
+
+  Market-making observation:
+    Many trades are at recurring counts (93, 187, 935, 2000 fp) — likely automated
+    market makers. The 93/187/935/2000 pattern suggests systematic MM activity.
+
+### REVISED FINAL PRIORITY STACK (Session 65)
+
+  PRIORITY 1 — ONLY VALIDATED EDGE (unchanged):
+    Expiry sniper at 90c+. 95.1% WR. Everything else is research.
+
+  PRIORITY 2 — WEATHER GEFS ON WEEKDAYS:
+    Wait for Monday HIGHNY markets. GEFS ensemble already built (S63).
+    Signal fires when GEFS probability differs from Kalshi price by 5%+.
+    Cannot test until Monday (no HIGHNY on weekends).
+
+  PRIORITY 3 — MAKER_MODE ON DRIFT (now wired, S65):
+    DONE: added maker_mode=True to btc_drift and eth_drift in main.py.
+    Not yet wired on sol_drift (best signal — risky to change).
+
+  DEAD ENDS — STOP REVISITING:
+    Non-crypto sports sniper: market structure doesn't support sustained 90c+ windows
+    Weather NO at 99c: terrible capital efficiency at our scale
+    Sports pre-game arbitrage: efficiently priced (S62/S63 confirmed)
+    FOMC model without CME FedWatch: broken
+    BALLDONTLIE API: overpriced
