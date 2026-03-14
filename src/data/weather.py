@@ -52,11 +52,13 @@ _NWS_USER_AGENT = "polymarket-bot/1.0 (automated-trading; paper-mode)"
 # ── City presets ──────────────────────────────────────────────────────
 
 
-CITY_NYC = {"latitude": 40.71, "longitude": -74.01, "timezone": "America/New_York", "city_name": "NYC"}
-CITY_CHI = {"latitude": 41.88, "longitude": -87.63, "timezone": "America/Chicago",  "city_name": "CHI"}
+CITY_NYC = {"latitude": 40.71, "longitude": -74.01, "timezone": "America/New_York",      "city_name": "NYC"}
+CITY_CHI = {"latitude": 41.88, "longitude": -87.63, "timezone": "America/Chicago",       "city_name": "CHI"}
 CITY_LA  = {"latitude": 34.05, "longitude": -118.24, "timezone": "America/Los_Angeles", "city_name": "LA"}
-CITY_PHX = {"latitude": 33.45, "longitude": -112.07, "timezone": "America/Phoenix", "city_name": "PHX"}
-CITY_DAL = {"latitude": 32.78, "longitude": -96.80,  "timezone": "America/Chicago",  "city_name": "DAL"}
+CITY_PHX = {"latitude": 33.45, "longitude": -112.07, "timezone": "America/Phoenix",     "city_name": "PHX"}
+CITY_DAL = {"latitude": 32.78, "longitude": -96.80,  "timezone": "America/Chicago",     "city_name": "DAL"}
+CITY_DEN = {"latitude": 39.74, "longitude": -104.98, "timezone": "America/Denver",      "city_name": "DEN"}
+CITY_MIA = {"latitude": 25.76, "longitude": -80.19,  "timezone": "America/New_York",    "city_name": "MIA"}
 
 
 class WeatherFeed:
@@ -524,9 +526,11 @@ def load_gefs_from_config() -> GEFSEnsembleFeed:
         city_map = {
             "nyc": CITY_NYC, "new_york": CITY_NYC, "new york": CITY_NYC,
             "chi": CITY_CHI, "chicago": CITY_CHI,
-            "la": CITY_LA, "los_angeles": CITY_LA,
+            "la": CITY_LA, "los_angeles": CITY_LA, "lax": CITY_LA,
             "phx": CITY_PHX, "phoenix": CITY_PHX,
             "dal": CITY_DAL, "dallas": CITY_DAL,
+            "den": CITY_DEN, "denver": CITY_DEN,
+            "mia": CITY_MIA, "miami": CITY_MIA,
         }
         city_params = city_map.get(city, CITY_NYC)
         refresh_sec = w.get("refresh_interval_seconds", _DEFAULT_REFRESH_INTERVAL_SEC)
@@ -537,6 +541,27 @@ def load_gefs_from_config() -> GEFSEnsembleFeed:
         timezone=city_params["timezone"],
         city_name=city_params.get("city_name", "NYC"),
         refresh_interval_seconds=refresh_sec,
+    )
+
+
+# Kalshi KXHIGH* series map: city key → (series_ticker, CITY_* params)
+KALSHI_WEATHER_CITIES = {
+    "nyc": ("KXHIGHNY",  CITY_NYC),
+    "lax": ("KXHIGHLAX", CITY_LA),
+    "chi": ("KXHIGHCHI", CITY_CHI),
+    "den": ("KXHIGHDEN", CITY_DEN),
+    "mia": ("KXHIGHMIA", CITY_MIA),
+}
+
+
+def build_gefs_feed(city_params: dict, refresh_interval_seconds: float = _DEFAULT_REFRESH_INTERVAL_SEC) -> "GEFSEnsembleFeed":
+    """Build a GEFSEnsembleFeed for any city params dict."""
+    return GEFSEnsembleFeed(
+        latitude=city_params["latitude"],
+        longitude=city_params["longitude"],
+        timezone=city_params["timezone"],
+        city_name=city_params.get("city_name", ""),
+        refresh_interval_seconds=refresh_interval_seconds,
     )
 
 

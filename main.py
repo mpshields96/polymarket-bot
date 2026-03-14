@@ -2732,9 +2732,21 @@ async def main():
     logger.info("Strategy loaded: %s (paper-only BTC orderbook imbalance)", btc_imbalance_strategy.name)
     eth_imbalance_strategy = load_eth_imbalance_from_config()
     logger.info("Strategy loaded: %s (PAPER-ONLY — ETH orderbook imbalance, Brier 0.340 disabled live S47)", eth_imbalance_strategy.name)
+    from src.data.weather import KALSHI_WEATHER_CITIES, build_gefs_feed
+    from src.strategies.weather_forecast import WeatherForecastStrategy as _WeatherStrategy
+    # NYC weather feed + strategy (loaded from config as before)
     weather_feed = weather_feed_load()
     weather_strategy = weather_strategy_load()
     logger.info("Strategy loaded: %s (paper-only NYC weather forecast)", weather_strategy.name)
+    # Additional city feeds + strategies (LAX, CHI, DEN, MIA)
+    _weather_other_cities = {}  # city_key → (feed, strategy, series_ticker)
+    for _city_key, (_series, _city_params) in KALSHI_WEATHER_CITIES.items():
+        if _city_key == "nyc":
+            continue  # NYC already handled above
+        _feed = build_gefs_feed(_city_params)
+        _strat = _WeatherStrategy(weather_feed=_feed, name_override=f"weather_{_city_key}_v1")
+        _weather_other_cities[_city_key] = (_feed, _strat, _series)
+        logger.info("Strategy loaded: weather_%s_v1 (paper-only %s weather, %s)", _city_key, _city_params["city_name"], _series)
     fred_feed = fred_feed_load()
     fomc_strategy = fomc_strategy_load(fred_feed=fred_feed)
     logger.info("Strategy loaded: %s (paper-only FOMC yield curve, fires ~8x/year)", fomc_strategy.name)
@@ -3034,6 +3046,25 @@ async def main():
         ),
         name="weather_loop",
     )
+    # Additional city weather loops: LAX, CHI, DEN, MIA (paper-only, staggered 2s apart)
+    _weather_other_tasks = []
+    for _i, (_ck, (_wfeed, _wstrat, _wseries)) in enumerate(_weather_other_cities.items()):
+        _delay = 45.0 + _i * 2.0  # 45, 47, 49, 51s (stagger from NYC at 43s)
+        _t = asyncio.create_task(
+            weather_loop(
+                kalshi=kalshi,
+                weather_strategy=_wstrat,
+                weather_feed=_wfeed,
+                kill_switch=kill_switch,
+                db=db,
+                series_ticker=_wseries,
+                loop_name=f"weather_{_ck}",
+                initial_delay_sec=_delay,
+                max_daily_bets=max_daily_bets_paper,
+            ),
+            name=f"weather_{_ck}_loop",
+        )
+        _weather_other_tasks.append(_t)
     # FOMC rate: paper-only, polls every 30 min, stagger 51s
     fomc_task = asyncio.create_task(
         fomc_loop(
@@ -3222,6 +3253,8 @@ async def main():
         btc_imbalance_task.cancel()
         eth_imbalance_task.cancel()
         weather_task.cancel()
+        for _wt in _weather_other_tasks:
+            _wt.cancel()
         fomc_task.cancel()
         unemployment_task.cancel()
         sol_task.cancel()
@@ -3259,6 +3292,8 @@ async def main():
         btc_imbalance_task.cancel()
         eth_imbalance_task.cancel()
         weather_task.cancel()
+        for _wt in _weather_other_tasks:
+            _wt.cancel()
         fomc_task.cancel()
         unemployment_task.cancel()
         sol_task.cancel()
