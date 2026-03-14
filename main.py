@@ -2868,6 +2868,7 @@ async def main():
             # price in and retains real edge. Restrict to NO-only until YES edge recovers.
             direction_filter="no",
             btc_move_condition=_btc_move_condition,
+            maker_mode=True,  # S65: post_only=True, 30s expiration. Saves ~75% on fees (~5c/trade).
         ),
         name="drift_loop",
     )
@@ -2898,6 +2899,7 @@ async def main():
             # (≥30 per side — meets PRINCIPLES.md threshold). Same pattern as btc/sol reversed.
             # Estimated +2.54 USD/day. Re-evaluate at 30+ YES-only settled bets.
             direction_filter="yes",
+            maker_mode=True,  # S65: post_only=True, 30s expiration. Saves ~75% on fees (~5c/trade).
         ),
         name="eth_drift_loop",
     )
