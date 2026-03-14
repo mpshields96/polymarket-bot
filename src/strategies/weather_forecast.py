@@ -102,8 +102,8 @@ def parse_temp_bracket(title: str) -> Optional[Tuple[float, float]]:
     if m:
         return (float(m.group(1)), float('inf'))
 
-    # "X° to Y°" / "X-Y°"
-    m = re.search(r'(\d+)\s*[°°]?\s*(?:degrees?)?\s+(?:to|-)\s+(\d+)', title, re.IGNORECASE)
+    # "X° to Y°" / "X-Y°" / "X-Y°" (no spaces around dash, e.g. Kalshi KXHIGH* bracket markets)
+    m = re.search(r'(\d+)\s*[°°]?\s*(?:degrees?)?(?:\s+to\s+|\s*-\s*)(\d+)', title, re.IGNORECASE)
     if m:
         return (float(m.group(1)), float(m.group(2)))
 

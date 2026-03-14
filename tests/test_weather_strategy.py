@@ -115,6 +115,24 @@ class TestParseTempBracket:
     def test_numeric_only_title_returns_none(self):
         assert parse_temp_bracket("100") is None
 
+    def test_kalshi_kxhigh_bracket_no_spaces(self):
+        # Kalshi KXHIGH* bracket markets: "be 78-79°" (no spaces around dash)
+        lower, upper = parse_temp_bracket("Will the **high temp in LA** be 78-79° on Mar 15, 2026?")
+        assert lower == 78.0
+        assert upper == 79.0
+
+    def test_kalshi_kxhigh_above_gt_symbol(self):
+        # KXHIGH* above market: "be >79°"
+        lower, upper = parse_temp_bracket("Will the **high temp in LA** be >79° on Mar 15, 2026?")
+        assert lower == 79.0
+        assert upper == float("inf")
+
+    def test_kalshi_kxhigh_below_lt_symbol(self):
+        # KXHIGH* below market: "be <72°"
+        lower, upper = parse_temp_bracket("Will the **high temp in LA** be <72° on Mar 15, 2026?")
+        assert lower == float("-inf")
+        assert upper == 72.0
+
 
 # ── Normal distribution math ──────────────────────────────────────────
 
