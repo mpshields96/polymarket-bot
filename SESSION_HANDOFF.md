@@ -1,11 +1,11 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-14 (Session 67 — bet size increase + monitoring, +10.37 USD)
+# Last updated: 2026-03-14 (Session 68 — research: NCAAB monitor, sniper bucket analysis)
 # ═══════════════════════════════════════════════════════════════
 
-## COPY-PASTE THIS TO START A NEW SESSION (Session 68)
+## COPY-PASTE THIS TO START A NEW SESSION (Session 69)
 
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 68).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 69).
 
 MANDATORY READING BEFORE ANY ACTION:
   cat SESSION_HANDOFF.md
@@ -13,15 +13,16 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 67 wrap — 2026-03-14 ~08:35 UTC):
-  Bot RUNNING PID 15236 — log at /tmp/polybot_session66.log
-  Sniper: 89 live bets placed (75 settled per graduation), 42W/1L today (+9.28 USD)
+BOT STATE (Session 68 wrap — 2026-03-14 ~17:35 UTC):
+  Bot RUNNING PID 17982 — log at /tmp/polybot_session68.log
+  Sniper: 168 live settled total, 122W/1L today (+60.92 USD — exceptional day!)
   btc_drift + eth_drift MICRO-LIVE (0.01 cap) — confirmed losers, contained.
-  sol_drift: 28/30 — STILL 2 from Stage 2 milestone.
-  KEY CHANGE THIS SESSION: HARD_MAX raised 5→15 USD, MAX_TRADE_PCT raised 5%→15%
+  sol_drift: 28/30 — STILL 2 from Stage 2 milestone. MONITOR THIS.
+  All-time live P&L: +17.11 USD (was -34.53 at S67 start = +51.64 gained!)
+  Tests: 1140 passing. Last commit: e624877 (S68 NCAAB monitor + research)
 
-RESTART COMMAND (Session 68):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session68.log 2>&1 &
+RESTART COMMAND (Session 69):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session69.log 2>&1 &
   Then verify: ps aux | grep "[m]ain.py" — exactly 1. Then cat bot.pid.
 
 If --health shows "HARD STOP": The March 1 hard stop event is HISTORICAL (30% lifetime stop was DISABLED in S34). No lock file = safe to restart. Proceed.
@@ -30,19 +31,20 @@ If --health shows "HARD STOP": The March 1 hard stop event is HISTORICAL (30% li
 
 ---
 
-KEY STATE (Session 67 wrap — 2026-03-14 08:35 UTC):
-  Bot: RUNNING PID 15236 → /tmp/polybot_session66.log
-  All-time live P&L: -34.53 USD (improved from -43.51 at session start = +10.37 USD gained)
-  Bankroll: ~89+ USD (DB authoritative — check --report)
-  Tests: 1127 passed, 3 skipped
-  Last commit: 8b279e6 (S67 risk cap raise)
+KEY STATE (Session 68 wrap — 2026-03-14 17:35 UTC):
+  Bot: RUNNING PID 17982 → /tmp/polybot_session68.log
+  All-time live P&L: +17.11 USD (was -34.53 at S67 start = massive gain in 2 sessions)
+  Bankroll: ~90+ USD (DB authoritative — check --report)
+  Tests: 1140 passing
+  Last commit: e624877 (S68 research)
 
-SESSION 67 KEY CHANGES:
-  1. HARD_MAX_TRADE_USD: 5.00 → 15.00 (Matthew explicit directive: 100 USD in 10 days)
-  2. MAX_TRADE_PCT: 0.05 → 0.15 (sniper now bets 13-15 USD/bet vs old 4.47 USD)
-  3. Sniper at new sizes: 42W/1L today. +9.28 USD from 43 settled bets.
-  4. One loss: 14.40 USD at 96c went wrong (-14.40). Recovered partially in session.
-  5. All 1127 tests pass. Commit 8b279e6.
+SESSION 68 KEY CHANGES (autoresearch session):
+  1. RESEARCH: Sniper price bucket analysis — 90-94c = profit engine (ROI 5.6%)
+  2. RESEARCH: 95-96c bucket = nearly break-even (0.4% ROI). DO NOT raise threshold to 95c.
+  3. NEW CODE: scripts/ncaab_live_monitor.py (research tool, ESPN + Kalshi live cross-check)
+  4. NEW TESTS: tests/test_ncaab_monitor.py (10 tests, all passing)
+  5. CONFIRMED DEAD ENDS: BCH/BNB/ADA/DOGE inactive, FOMC no liquidity, KXMVE not tradeable
+  6. CONFIRMED: Sniper expected daily P&L = 25-40 USD calm / 60-80 USD volatile
 
 RISK NOTE FOR SESSION 68:
   Daily loss (live) = 14.40 / 22.31 USD (65%). This is the ONE sniper loss today.
@@ -50,31 +52,36 @@ RISK NOTE FOR SESSION 68:
   Soft stop is DISABLED so bot keeps trading. But watch for consecutive losses.
   At 15 USD/bet, 2 consecutive losses = -28 USD drawdown on ~89 USD bankroll = painful.
 
-PENDING TASKS (Session 68 — PRIORITY ORDER):
+PENDING TASKS (Session 69 — PRIORITY ORDER):
 
-  #1 MONITOR BOT — daily loss counter is at 65%. No blocking risk but watch.
-     If 2+ consecutive losses: note it. Bot will keep trading (soft stop disabled).
+  #1 MONITOR BOT — all clear. 0 consecutive losses. Sniper at 99% WR.
+     If 3+ consecutive losses: note it. Bot keeps trading (soft stop disabled).
      If 5+ consecutive losses: consider pausing manually (Matthew decision).
 
-  #2 SOL STAGE 2 GRADUATION — 2 MORE BETS!
-     28/30 live bets. 2 more settled → Stage 2 milestone (10 USD max/bet).
-     At 10 USD/bet with Brier 0.176, sol_drift becomes a serious earner.
-     Watch --graduation-status.
+  #2 SOL STAGE 2 GRADUATION — STILL 2 MORE BETS NEEDED!
+     28/30 live bets. 2 more settled → Stage 2 analysis (10 USD max/bet eval).
+     Run --graduation-status each check. THIS IS THE BIGGEST LEVER.
 
   #3 GEFS WEATHER TEST (Monday only — March 16):
      HIGHNY markets only open weekdays. Compare GEFS probs to Kalshi prices.
      If GEFS finds >5% edge in uncertain brackets (~50c), weather is viable.
 
-  #4 SNIPER THRESHOLD ANALYSIS (when 200+ live bets):
-     Currently 75 settled. At 200+ bets, revisit raising min from 90c to 95c.
-     (90-94c bucket: marginal EV. 95-99c: negative EV at exact 95% WR.)
+  #4 SNIPER THRESHOLD ANALYSIS — COMPLETED S68. KEY FINDING:
+     DO NOT raise trigger to 95c. 90-94c bucket is the profit engine (5.6% ROI).
+     95-96c bucket has 0.4% ROI — nearly break-even. Threshold stays at 90c.
+
+  #5 NCAA TOURNAMENT BRACKET (Selection Sunday March 15):
+     Bracket announced today (March 15) at 6pm ET. Markets open tonight/Monday.
+     1-vs-16 games: 99%+ historical WR. If Kalshi opens at 90c for 1-seed = edge.
+     Run scripts/ncaab_live_monitor.py (research only, no auto-trading).
+     Current sniper handles ONLY crypto 15-min — NCAA needs separate logic.
 
 125 USD PROFIT GOAL:
-  All-time: -34.53 USD. Need +159.53 more.
-  Key levers: (1) sniper at new 15 USD cap = ~8-12 USD/day theoretical EV,
-  (2) sol_drift 2 bets from Stage 2 (10 USD max/bet, Brier 0.176 = excellent),
+  All-time: +17.11 USD. Need +107.89 more.
+  At 25-40 USD/day (calm) or 60-80 USD/day (volatile): 2-5 days to goal!
+  Key levers: (1) sniper at 15 USD cap sustaining 90c+ opportunities,
+  (2) sol_drift Stage 2 graduation (10 USD max/bet, Brier 0.176 = excellent),
   (3) avoid consecutive losses (each costs 14+ USD now)
-  At 8 USD/day: goal reached in ~20 days. At 12 USD/day: ~13 days.
 
 RESPONSE FORMAT RULES (permanent — both mandatory):
   RULE 1: NEVER markdown table syntax (| --- |) — wrong font in Claude Code UI.
