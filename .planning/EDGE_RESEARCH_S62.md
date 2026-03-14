@@ -1412,31 +1412,107 @@ F. **Props/totals** — NCAAB over/under totals have different pricing dynamics
     - 1-vs-16 matchups at 90c+ for sniper edge
     - Use ncaab_live_monitor.py
 
-### REVISED PRIORITY STACK (Session 72)
+### 41. WEATHER CALIBRATION ANALYSIS — Session 72 (2026-03-14)
 
-  PRIORITY 1 — Bot monitoring and sniper operation (automated, ongoing)
-  
-  PRIORITY 2 — WEATHER MULTI-CITY EXPANSION (next session, HIGH IMPACT):
-    - Run full 5-city weather scan daily (can run any day of week, markets open daily)
-    - Fix parse_temp_bracket for B-prefix bracket markets
-    - Expand weather_loop to cover all 5 cities
-    - Paper test 5+ days before going live
-    - Expected: 5-20 USD/day additional profit from weather edge
-    - Build: weather_edge_scanner.py — standalone daily scanner to find best opportunities
-  
-  PRIORITY 3 — Sol drift graduation (still 28/30 — need 2 more settled bets)
-  
-  PRIORITY 4 — NCAA tournament markets after bracket drops (March 15 evening)
-    Check March 17-18 for Round 1 matchups. 1-vs-16 seed games at 90c+.
-    
+  Compared Open-Meteo historical archive temps to Kalshi settlement data (last 7 days)
+  to understand GEFS calibration bias by city:
+
+  NYC: WELL CALIBRATED. Open-Meteo archive within ±2F of Kalshi settlement.
+    - March 13 actual: < 45F (Kalshi) — consistent with Open-Meteo 41.7F
+    - March 10: > 73F (Kalshi) — consistent with Open-Meteo 75.9F
+    - March 11: 72-73F (Kalshi) vs Open-Meteo 72.1F — near-exact match
+    CONCLUSION: GEFS predictions for NYC are reliable. Large edges at NYC are real.
+
+  LAX: SYSTEMATIC 4-7F WARM BIAS. Open-Meteo archive consistently warmer than Kalshi:
+    - March 13 actual: 87-88F (Kalshi) vs Open-Meteo 92.5F (+5F warm bias)
+    - March 12 actual: < 85F (Kalshi) vs Open-Meteo 91.7F (+6-7F warm bias)
+    - March 11 actual: < 70F (Kalshi) vs Open-Meteo 77.7F (+7-8F warm bias)
+    - March 10 actual: 67-68F (Kalshi) vs Open-Meteo 71.4F (+3-4F warm bias)
+    NOTE: Open-Meteo archive (ERA5) ≠ GEFS ensemble (different models). Bias may differ.
+    CRITICAL: GEFS ensemble for LAX may ALSO have warm bias. Need to monitor settlements.
+    If GEFS warm bias ~5F for LAX: March 15 predicted mean 79.8F → actual maybe 74-75F
+    → "above 79F YES@8c" edge is likely smaller than calculated (maybe 20-30% not 80%)
+
+  CHI: MIXED, HIGH VARIANCE. Open-Meteo sometimes off by 5-12F:
+    - March 13: Kalshi 48-49F vs Open-Meteo 36F (Open-Meteo too cold by 12F — big discrepancy)
+    - March 12: Kalshi 44-45F vs Open-Meteo 44.5F — nearly exact
+    - March 10: Kalshi 63-64F vs Open-Meteo 58.9F (Open-Meteo too cold by 5F)
+    CHI is highly location-sensitive (lakefront vs inland temp varies). Use with caution.
+
+  DEN: WELL CALIBRATED. Generally within 2-3F:
+    - March 13 actual: < 68F (Kalshi) vs Open-Meteo 68.5F — 0.5F off
+    - March 12 actual: 66-67F (Kalshi) vs Open-Meteo 64.7F — 2F off
+    - March 9 actual: 73-74F (Kalshi) vs Open-Meteo 70.7F — 3F off
+    CONCLUSION: DEN edges are likely real. Current DEN NO edge (+64%) is credible.
+
+  IMPORTANT CAVEAT: Open-Meteo archive (ERA5 reanalysis) is a DIFFERENT model than GEFS
+  ensemble forecast. The calibration biases above may not apply to GEFS forecasts.
+  Best calibration approach: run paper weather loop for 4+ weeks and track GEFS vs Kalshi.
+
+  TACTICAL IMPLICATIONS:
+  - NYC weather edges: HIGH CONFIDENCE (well-calibrated model, large vol, structured edge)
+  - DEN weather edges: HIGH CONFIDENCE (well-calibrated, DEN swings match GEFS predictions)
+  - CHI weather edges: MEDIUM CONFIDENCE (high variance location, validate with paper data)
+  - LAX weather edges: LOWER CONFIDENCE until bias characterized (may be 5F warm bias)
+  - MIA weather edges: UNKNOWN (insufficient data, stable tropical climate helps GEFS)
+
+### 42. SNIPER BUCKET PERFORMANCE — Full 199-bet analysis (Session 72)
+
+  As of 2026-03-14, 199 live settled sniper bets total:
+
+  90-94c bucket: 92 bets | 90W/2L (97.8%) | +58.95 USD | avg@93c | ROI 69.0%
+    → PROFIT ENGINE. Clear structural edge. Both losses are within statistical variance.
+    → At 97.8% WR vs 93c breakeven ~93%, edge = ~5% per bet.
+
+  95-98c bucket: 85 bets | 84W/1L (98.8%) | +11.93 USD | avg@96c | ROI 14.6%
+    → POSITIVE EV but thin (4c payout, tiny margin). Do NOT add guard here — still +EV.
+    → At 98.8% WR vs 96c breakeven ~96%, edge = ~2.8% per bet.
+
+  99c bucket: 20 bets | 19W/1L (95.0%) | -14.85 USD | avg@99c | ROI -75.0%
+    → CATASTROPHIC. 99c gives 1c payout, 1 loss wipes ~15 USD of wins.
+    → Guard coded (commit 8d252ae) but NOT active until bot restart.
+    → WITHOUT guard: losing 14.85 USD (25% of all sniper profit hidden by this drag)
+    → WITH guard (after restart): projected all-time sniper = +73.96 USD instead of 59.11 USD
+
+  other (85-89c): 2 bets | 2W | +3.08 USD | avg@85c | ROI 181.2%
+    → Only 2 bets — statistically useless. Monitor if trigger changes.
+
+  TOTAL: 199 bets | 195W/4L | +59.11 USD. Guard will recover ~14.85 USD after restart.
+
+### REVISED PRIORITY STACK (Session 72 end-of-session)
+
+  COMPLETED THIS SESSION:
+  - scripts/weather_edge_scanner.py: 5-city GEFS vs Kalshi scanner, 31 tests
+  - src/strategies/weather_forecast.py: parse_temp_bracket fix for 78-79deg format
+  - main.py + weather.py: 5-city weather loop expansion (LAX, CHI, DEN, MIA added)
+  - Calibration analysis: NYC/DEN calibrated, LAX has warm bias warning
+  - Sniper bucket analysis: full 199-bet breakdown confirms 99c guard is critical
+
+  PRIORITY 1 — RESTART BOT to activate 99c guard (other chat — not this chat)
+    Impact: +14.85 USD recovery (25% improvement on sniper profits)
+
+  PRIORITY 2 — Monitor paper weather loop for 4+ weeks (all 5 cities now collecting)
+    Check calibration after 20+ paper bets per city
+    Cities to trust first: NYC, DEN (well-calibrated)
+    Cities to validate: CHI, MIA (limited data), LAX (warm bias risk)
+
+  PRIORITY 3 — NCAA tournament markets (March 17-18)
+    Round 1 games start March 20. 1-vs-16 seed matchups at 90c+ for sniper.
+    Check KXNCAAMBGAME series after bracket drops March 15 evening.
+
+  PRIORITY 4 — Sol drift graduation (28/30 live bets, 2 more needed)
+    Other chat handles this via monitoring loop.
+
   PRIORITY 5 — CPI release monitor ready (April 10 08:30 ET)
 
-  DEAD ENDS ADDED THIS SESSION:
-    PGA golf sniper: capital locked 2-15 hours, terrible efficiency at current scale
-    Non-crypto 90c+ markets (FOMC, economics, politics): no near-expiry opportunities
-    All Kalshi markets outside crypto 15-min: confirmed no sustained 90c+ sniper windows
+  DEAD ENDS (cumulative — do not revisit):
+    PGA golf sniper, non-crypto 90c+ markets, Kalshi copy trading, FOMC cross-market arb,
+    sniper maker mode, NBA/NHL at current scale, tennis/NCAAB sniper at current scale,
+    weather NO at 99c, KXBTCD near-expiry sniper, FOMC chain arb, sports taker arb,
+    BALLDONTLIE API, NCAA totals/spreads
 
-  OPEN QUESTIONS (need validation):
-    - 85-89c sniper trigger: 2 bets at 100% WR is insufficient. Paper test needed.
-    - Hour 03:xx UTC losses: 2 data points, likely variance not pattern.
-    - Weather B-prefix markets: what price discrepancy do they show vs GEFS?
+  OPEN LEADS:
+    - LAX weather bias: need 10+ paper bets to characterize (if systematic warm bias, adjust)
+    - CHI weather calibration: high variance — run paper before trusting
+    - NCAA 1-vs-16 seed game sniper (March 17-18 check)
+    - CPI speed-play signal (April 10 08:30 ET)

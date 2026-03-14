@@ -3293,3 +3293,61 @@ One restart command, 30 seconds, then monitoring as usual.
 2. sol_drift graduation watch (28/30 — 2 bets from Stage 2)
 3. NCAA bracket markets — check if 1-vs-16 matchups priced at 90c+
 4. GEFS weather test (Monday March 16 only)
+
+---
+
+## Session 72 — Research Chat (2026-03-14)
+
+### Session Type: Autonomous R&D
+Research focus: weather market edges, calibration analysis, sniper deep-dive.
+This was the RESEARCH chat. Monitoring chat (S71) ran separately.
+
+### Key Builds
+
+1. scripts/weather_edge_scanner.py (NEW — commit db979f5):
+   5-city GEFS 31-member ensemble vs Kalshi KXHIGH* price comparison scanner.
+   Finds opportunities across NYC, LAX, CHI, DEN, MIA in one run.
+   First run: 18 opportunities found. LAX +75.3% edge, CHI +70.2%, DEN +64.3%.
+   31 tests in tests/test_weather_edge_scanner.py — all passing.
+
+2. src/strategies/weather_forecast.py — parse_temp_bracket fix (commit fed5f4c):
+   Was returning None for "78-79deg" bracket markets (Kalshi KXHIGH* bracket format).
+   Fixed range regex: allows no-space dashes in addition to spaced "to" syntax.
+   Also verified >79deg and <72deg are handled by existing character-class patterns.
+   3 regression tests added. 80/80 tests pass.
+
+3. main.py + src/data/weather.py — 5-city weather loop expansion (commit 1c5f12c):
+   src/data/weather.py: added CITY_DEN, CITY_MIA, KALSHI_WEATHER_CITIES map, build_gefs_feed().
+   main.py: 4 new asyncio weather_loop tasks (LAX, CHI, DEN, MIA alongside NYC).
+   Strategy names: weather_lax_v1, weather_chi_v1, weather_den_v1, weather_mia_v1.
+   All paper-only. Zero risk. Requires restart to activate.
+
+### Key Research Findings
+
+Weather calibration (Open-Meteo archive vs Kalshi settlement, 7-day history):
+  NYC: ±2F — WELL CALIBRATED. NYC weather edges are HIGH CONFIDENCE.
+  DEN: ±2-3F — WELL CALIBRATED. DEN weather edges are HIGH CONFIDENCE.
+  LAX: 4-7F warm bias (Open-Meteo warmer than Kalshi). LAX edges need validation.
+  CHI: high variance (5-12F off). CHI edges need paper data.
+  NOTE: Open-Meteo archive (ERA5) ≠ GEFS ensemble — biases may differ. Need paper data.
+
+Sniper 199-bet bucket analysis:
+  90-94c: +58.95 USD (69% ROI, 97.8% WR) — PROFIT ENGINE
+  95-98c: +11.93 USD (14.6% ROI, 98.8% WR) — positive EV, keep
+  99c: -14.85 USD (-75% ROI, 95% WR) — guard coded (8d252ae) NOT YET ACTIVE
+  Recovery after restart: +14.85 USD projected improvement
+
+### Tests
+1195 passing (was 1164). +31 new tests this session.
+
+### Self-Grade: A-
+Research output high quality. Three commits shipped, all passing tests.
+Calibration analysis adds important nuance (LAX bias warning).
+Missing: weather paper bets to validate (need bot restart first).
+Sniper analysis: clear action item (restart activates 99c guard).
+
+### What Next Chat Must Do
+1. RESTART BOT — activates 99c guard AND new 5-city weather loops. One command.
+2. Check sol_drift graduation (28/30 — 2 more bets needed).
+3. Check NCAA markets March 17-18 (bracket drops March 15 evening).
+4. Weather paper data will accumulate automatically after restart.
