@@ -1099,3 +1099,106 @@ F. **Props/totals** — NCAAB over/under totals have different pricing dynamics
     Lowering sniper trigger to 87c: insufficient data (only 2 bets)
     Raising sniper trigger to 95c: confirmed terrible EV (0.4% ROI)
 
+---
+
+## SESSION 69 ADDITIONS (2026-03-14)
+
+### 32. KXBTCD DAILY THRESHOLD NEAR-EXPIRY SNIPER — CONFIRMED DEAD END
+
+  Research question: Can the expiry sniper be expanded to KXBTCD daily markets
+  in their final 840 seconds when BTC is clearly above/below the daily threshold?
+
+  Market structure (live probe, 19:00 UTC March 14):
+    KXBTCD 5pm ET slot (21:00 UTC): 40 markets, thresholds at $500 increments
+    BTC current price: ~$70,750
+    T70,250 YES: bid=0.87, ask=0.88 (at 2 hours remaining)
+    T70,750 YES: bid=0.38, ask=0.39 (at 2 hours remaining)
+    T69,750 YES: bid=0.98, ask=0.99 (at 2 hours remaining)
+    KXBTCD 3pm ET slot (19:00 UTC, closing NOW): all at 99c or 0c, illiquid
+
+  Why the sniper can't fire here:
+    1. Threshold granularity ($500 steps) creates cliff from 38c to 87c to 98c
+       No threshold naturally lands at 90-95c — the gap jumps over it
+    2. In the FINAL 14 MINUTES before 5pm ET, BTC is usually far from threshold
+       Markets jump to 99c directly (BTC moved hours ago)
+    3. The rare case where BTC is $200-300 above threshold at t-14min:
+       Market prices this at 90-95c but TRUE probability ≈ 90-95% (correctly priced)
+       No systematic bias to exploit (unlike 15-min windows where drift commits early)
+    4. Settlement is based on BTC price at exactly 5pm ET — one data point
+       15-min sniper: settlement based on AVERAGE over interval (less volatile)
+       Daily sniper: single-moment settlement = more susceptible to last-second moves
+    5. Weekend KXBTCD markets: near-zero liquidity (confirmed: bid=0 ask=0.01)
+
+  VERDICT: KXBTCD near-expiry sniper not viable. Dead end confirmed.
+
+### 33. NCAA TOURNAMENT MARKETS — NOT OPEN YET (bracket announced March 15)
+
+  Checked all series at 19:00 UTC March 14 (Selection Sunday eve):
+    KXNCAABPICKS, KXNCAABCHAMP, KXCBB, KXNCAABBRACKET, KXMM26 — all 0 markets
+    KXMARMAD (champion futures): 30 markets open, all at 0-1c bid (longshot losers)
+    KXNCAAMBGAME open: 18 conference tournament games (March 28 close dates)
+    No March Madness round-specific markets exist yet
+
+  KXMARMAD champion futures: Nebraska 1.3M vol at 0c bid, Wisconsin 2M vol at 1c bid
+    These are all teams that won't win the championship (correctly priced at ~0%)
+    Even the "favorites" for the tournament would be priced at 5-15c max
+    Capital efficiency terrible at any price: tournament takes 5 weeks to settle
+    NOT worth building a scanner for these
+
+  NEXT ACTION: Check Tuesday/Wednesday after bracket drops (March 15) for:
+    - New KXNCAAMBGAME markets for Round 1 games (March 20+)
+    - Any 1-vs-16 seed games at 90c+ (structural favorite-longshot edge)
+    - Use ncaab_live_monitor.py as the observation tool
+
+### 34. NCAA TOTAL POINTS + SPREAD MARKETS — LOW VOLUME, WIDE SPREADS
+
+  Checked: KXNCAAMBTOTAL, KXNCAAMBSPREAD, KXNCAAMB1HSPREAD
+    KXNCAAMBTOTAL: 20 markets, but volume 0-25 per market (near-zero liquidity)
+    KXNCAAMBSPREAD: 20 markets, volume 0-32, bid-ask spreads 3-35c (wide)
+    KXNCAAMB1HSPREAD: 10 liquid markets, but bid=0.13 / ask=0.80 = 67c spread (!)
+
+  These markets are controlled by a single market maker with huge margins.
+  Not suitable for any strategy (taker or maker) at these spreads.
+
+  VERDICT: NCAAB totals and half-spreads are illiquid dead ends.
+
+### 35. EDGE SCANNER — GAME-IN-PROGRESS FILTER ADDED (code fix)
+
+  Bug fixed: S62 Section 22 documented "FIX NEEDED: Filter scanner to games
+  with commence_time > now + 30min." This was never implemented.
+
+  Symptoms (re-confirmed in live run): Wisconsin/Michigan and Vanderbilt/Florida
+  showed 13.8% and 3.6% "taker edge" because games had started 2 hours earlier.
+  Kalshi showed live in-game prices; Pinnacle still showed pre-game odds.
+  Inverted bid/ask (bid=50c, ask=1c) was the telltale sign of settled markets.
+
+  Fix implemented:
+    - Added _game_started(commence_time: str) -> bool helper function
+    - run_scan() now calls _game_started() before appending any opportunity
+    - Games that started before current UTC time are silently skipped (DEBUG log)
+    - Fail-safe: empty or unparseable timestamps are NOT filtered
+    - 7 new tests in TestGameStarted (34 total, all passing)
+    - Commit: 24a087e
+
+  Post-fix scan results (19:11 UTC, March 14):
+    50 matched markets | 0 pre-game opportunities above 2% taker edge
+    Only pre-game market found: Washington vs Boston, 1.1% taker edge (not actionable)
+
+  FINAL CONFIRMATION: Sports pre-game taker arb is dead — cleanly confirmed
+  with correct filter. Max 1.1% edge tonight. The 2.4% S62 finding holds.
+
+### REVISED PRIORITY STACK (Session 69)
+
+  PRIORITY 1 — Bot monitoring and sniper operation (automated)
+  PRIORITY 2 — Sol drift graduation (still 28/30 — need 2 more settled bets)
+  PRIORITY 3 — GEFS weather test Monday March 16 (first weekday HIGHNY check)
+  PRIORITY 4 — NCAA tournament markets after bracket drops (March 15 6pm ET)
+    Watch for 1-vs-16 seed games opening at 90c+ for favorable sniper edge
+    Use ncaab_live_monitor.py for observation. Do NOT build auto-trader yet.
+
+  DEAD ENDS ADDED THIS SESSION:
+    KXBTCD near-expiry sniper: threshold gaps prevent 90-95c zone (confirmed)
+    KXMARMAD champion futures: longshot market, illiquid, weeks to settle
+    NCAAB totals (KXNCAAMBTOTAL): near-zero volume, wide spreads
+    NCAAB half-spreads (KXNCAAMB1HSPREAD): 67c bid-ask spread, untradeable
+

@@ -1,11 +1,11 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-14 (Session 68 — research: NCAAB monitor, sniper bucket analysis)
+# Last updated: 2026-03-14 (Session 69 — research: KXBTCD analysis, edge scanner fix)
 # ═══════════════════════════════════════════════════════════════
 
-## COPY-PASTE THIS TO START A NEW SESSION (Session 69)
+## COPY-PASTE THIS TO START A NEW SESSION (Session 70)
 
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 69).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 70).
 
 MANDATORY READING BEFORE ANY ACTION:
   cat SESSION_HANDOFF.md
@@ -13,13 +13,13 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 68 wrap — 2026-03-14 ~17:35 UTC):
+BOT STATE (Session 69 mid-session — 2026-03-14 ~19:15 UTC):
   Bot RUNNING PID 17982 — log at /tmp/polybot_session68.log
-  Sniper: 168 live settled total, 122W/1L today (+60.92 USD — exceptional day!)
+  Sniper: 135 live settled today, 133W/2L (98.5% WR), +50.33 USD today
   btc_drift + eth_drift MICRO-LIVE (0.01 cap) — confirmed losers, contained.
   sol_drift: 28/30 — STILL 2 from Stage 2 milestone. MONITOR THIS.
-  All-time live P&L: +17.11 USD (was -34.53 at S67 start = +51.64 gained!)
-  Tests: 1140 passing. Last commit: e624877 (S68 NCAAB monitor + research)
+  All-time live P&L: +6.52 USD (dropped from +20.92 due to the 14.85 USD loss at ~18:15 UTC)
+  Tests: 1147 passing. Last commit: 24a087e (edge_scanner game-in-progress filter)
 
 RESTART COMMAND (Session 69):
   pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session69.log 2>&1 &
@@ -38,23 +38,26 @@ KEY STATE (Session 68 wrap — 2026-03-14 17:35 UTC):
   Tests: 1140 passing
   Last commit: e624877 (S68 research)
 
-SESSION 68 KEY CHANGES (autoresearch session):
+SESSION 69 KEY CHANGES (autoresearch session — 2026-03-14):
+  1. FIX: edge_scanner game-in-progress filter added (_game_started() helper, 7 tests)
+     Games already started no longer show fake 13%+ edges. Commit: 24a087e
+  2. CONFIRMED DEAD ENDS: KXBTCD near-expiry sniper (threshold gaps prevent 90-95c zone)
+  3. CONFIRMED DEAD ENDS: NCAA tournament markets not open yet (bracket March 15)
+  4. CONFIRMED DEAD ENDS: KXNCAAMBTOTAL/KXNCAABSPREAD — near-zero volume, wide spreads
+  5. CONFIRMED: Sports pre-game arb = max 1.1% taker edge (dead end, scanner now clean)
+  6. RESEARCH: KXMARMAD champion futures exist (30 markets) but all at 0-1c = longshots
+  7. Tests: 1147 passing (was 1140)
+
+SESSION 68 KEY CHANGES (kept for context):
   1. RESEARCH: Sniper price bucket analysis — 90-94c = profit engine (ROI 5.6%)
   2. RESEARCH: 95-96c bucket = nearly break-even (0.4% ROI). DO NOT raise threshold to 95c.
   3. NEW CODE: scripts/ncaab_live_monitor.py (research tool, ESPN + Kalshi live cross-check)
-  4. NEW TESTS: tests/test_ncaab_monitor.py (10 tests, all passing)
-  5. CONFIRMED DEAD ENDS: BCH/BNB/ADA/DOGE inactive, FOMC no liquidity, KXMVE not tradeable
-  6. CONFIRMED: Sniper expected daily P&L = 25-40 USD calm / 60-80 USD volatile
+  4. NEW TESTS: tests/test_ncaab_monitor.py (10 tests)
+  5. CONFIRMED: Sniper expected daily P&L = 25-40 USD calm / 60-80 USD volatile
 
-RISK NOTE FOR SESSION 68:
-  Daily loss (live) = 14.40 / 22.31 USD (65%). This is the ONE sniper loss today.
-  If another large loss fires today: daily loss counter hits 65%+, approaching soft cap display.
-  Soft stop is DISABLED so bot keeps trading. But watch for consecutive losses.
-  At 15 USD/bet, 2 consecutive losses = -28 USD drawdown on ~89 USD bankroll = painful.
+PENDING TASKS (Session 70 — PRIORITY ORDER):
 
-PENDING TASKS (Session 69 — PRIORITY ORDER):
-
-  #1 MONITOR BOT — all clear. 0 consecutive losses. Sniper at 99% WR.
+  #1 MONITOR BOT — 2 losses today (14.85 USD each). Consecutive count: check.
      If 3+ consecutive losses: note it. Bot keeps trading (soft stop disabled).
      If 5+ consecutive losses: consider pausing manually (Matthew decision).
 
@@ -66,22 +69,20 @@ PENDING TASKS (Session 69 — PRIORITY ORDER):
      HIGHNY markets only open weekdays. Compare GEFS probs to Kalshi prices.
      If GEFS finds >5% edge in uncertain brackets (~50c), weather is viable.
 
-  #4 SNIPER THRESHOLD ANALYSIS — COMPLETED S68. KEY FINDING:
-     DO NOT raise trigger to 95c. 90-94c bucket is the profit engine (5.6% ROI).
-     95-96c bucket has 0.4% ROI — nearly break-even. Threshold stays at 90c.
-
-  #5 NCAA TOURNAMENT BRACKET (Selection Sunday March 15):
-     Bracket announced today (March 15) at 6pm ET. Markets open tonight/Monday.
+  #4 NCAA TOURNAMENT BRACKET (Selection Sunday March 15 — 6pm ET):
+     Bracket announced tonight. Markets open tomorrow/Monday.
      1-vs-16 games: 99%+ historical WR. If Kalshi opens at 90c for 1-seed = edge.
-     Run scripts/ncaab_live_monitor.py (research only, no auto-trading).
-     Current sniper handles ONLY crypto 15-min — NCAA needs separate logic.
+     Use scripts/ncaab_live_monitor.py to scan (research only, no auto-trading).
+     DO NOT build automated NCAAB trader — settlement timing problem unsolved.
 
 125 USD PROFIT GOAL:
-  All-time: +17.11 USD. Need +107.89 more.
-  At 25-40 USD/day (calm) or 60-80 USD/day (volatile): 2-5 days to goal!
+  All-time: +6.52 USD. Need +118.48 more.
+  At 25-40 USD/day (calm) or 60-80 USD/day (volatile): 3-5 days to goal!
   Key levers: (1) sniper at 15 USD cap sustaining 90c+ opportunities,
   (2) sol_drift Stage 2 graduation (10 USD max/bet, Brier 0.176 = excellent),
   (3) avoid consecutive losses (each costs 14+ USD now)
+  NOTE: All-time dropped from +17.11 to +6.52 due to 14.85 USD loss at ~18:15 UTC.
+        Today live P&L still strong: +50.33 USD (133/135 = 98.5% WR).
 
 RESPONSE FORMAT RULES (permanent — both mandatory):
   RULE 1: NEVER markdown table syntax (| --- |) — wrong font in Claude Code UI.
@@ -110,6 +111,7 @@ MATTHEW'S STANDING DIRECTIVES:
   Budget: 30% of 5-hour token limit. Model: Opus 4.6.
 
 RESEARCH FILES (for context if continuing R&D):
-  .planning/EDGE_RESEARCH_S62.md — comprehensive findings (S66 tennis/NCAAB in-play at end)
-  scripts/edge_scanner.py — reusable Kalshi-vs-Pinnacle scanner tool
-  tests/test_edge_scanner.py — 27 tests
+  .planning/EDGE_RESEARCH_S62.md — comprehensive findings (S69 additions at end)
+  scripts/edge_scanner.py — Kalshi-vs-Pinnacle scanner (now with game-in-progress filter)
+  tests/test_edge_scanner.py — 34 tests
+  scripts/ncaab_live_monitor.py — ESPN + Kalshi NCAAB live cross-check tool
