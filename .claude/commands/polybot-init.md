@@ -65,29 +65,30 @@ IF no clear direction:
 ═══════════════════════════════════════════════════
 CURRENT STATE (auto-updated by wrap commands)
 ═══════════════════════════════════════════════════
-Last updated: Session 64 (2026-03-13)
-Bot: STOPPED per Matthew directive (end of S64)
-All-time P&L: -44.90 USD
-Bankroll: ~89.56 USD (DB authoritative)
+Last updated: Session 67 (2026-03-14)
+Bot: RUNNING PID 15236 → /tmp/polybot_session66.log
+All-time P&L: -34.53 USD
+Bankroll: ~89+ USD (DB authoritative — check --report)
 Tests: 1127 passing, 3 skipped
-Last commit: 4ff17d8
+Last commit: 8b279e6
 
 Live strategies:
-  btc_drift: MICRO-LIVE (demoted S60) — confirmed loser, 54 live bets, Brier 0.247
-  eth_drift: MICRO-LIVE (demoted S60) — confirmed loser, 94 live bets, Brier 0.250
+  btc_drift: MICRO-LIVE (demoted S60) — confirmed loser
+  eth_drift: MICRO-LIVE (demoted S60) — confirmed loser
   sol_drift: STAGE 1 — 28/30 bets, Brier 0.176, BEST SIGNAL, 2 from milestone!
-  xrp_drift: MICRO — 19/30 bets, Brier 0.266, 1 consecutive
-  expiry_sniper: LIVE — 42 settled (95.2% WR), EV +0.007 USD/bet
+  xrp_drift: MICRO — 19/30 bets, Brier 0.266
+  expiry_sniper: LIVE — 89 live bets total, 42W/1L today (+9.28 USD today)
+  RISK CAPS RAISED S67: HARD_MAX 5→15 USD, MAX_TRADE_PCT 5%→15% (Matthew directive)
+  Sniper now bets 13-15 USD/bet vs old 4.47 USD/bet
 
 Direction filters (do not change):
   btc_drift="no" | eth_drift="yes" | sol_drift="no" | xrp_drift="yes"
 
-Research state (S64):
-  maker_mode=True BUILT (S63) but NOT YET ACTIVATED — easy win, just wire in main.py
-  GEFS ensemble built (S63) — needs weekday HIGHNY markets to test (Monday)
-  Sniper bucket analysis: 90-94c marginal (-3.01 USD), 95-99c profitable (+2.60 USD)
+Research state (S67):
+  GEFS ensemble built (S63) — needs weekday HIGHNY markets to test (Monday March 16)
+  Sniper bucket analysis: 90-94c marginal, 95-99c profitable
   Dead ends: sports arb, crypto expansion (only 4 15-min series exist), BALLDONTLIE
-  Next: activate maker_mode for drift, test GEFS on Monday
+  Next: GEFS test Monday, sol_drift Stage 2 graduation (2 bets away), sniper threshold analysis at 200+
 
 IMPORTANT — MARCH 1 HARD STOP IN --health: HISTORICAL, NOT BLOCKING.
   30% lifetime stop was DISABLED in S34. No kill_switch.lock file. Safe to restart.
@@ -107,4 +108,4 @@ STANDING DIRECTIVES
 - Matthew is a doctor with a new baby — no time for back-and-forth
 - Two parallel chats may run — keep overhead under 15% per chat
 - Loading screen tip at end of every response (one recommendation)
-- Target: +125 USD all-time profit. Currently -44.90 USD. Need +169.90 more.
+- Target: +125 USD all-time profit. Currently -34.53 USD. Need +159.53 more.

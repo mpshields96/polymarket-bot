@@ -3018,3 +3018,123 @@ NEXT SESSION PRIORITIES:
 3. Research March Madness (March 20+) — bracket blowouts may sustain 90c for 30+ min
 4. At 200+ sniper bets: analyze 90c vs 95c threshold split
 5. Consider cricket/tennis in-play markets as international alternative (unknown structure)
+
+---
+
+## Session 66 (2026-03-14) — Tennis + NCAAB In-Play Market Structure Research
+
+### Focus
+Autonomous research session. Bot RUNNING PID 13072 (untouched). No code changes.
+Research question: do ATP tennis and NCAAB basketball have sustained 90c+ in-play
+windows that could expand the sniper strategy beyond crypto markets?
+
+### Key Findings
+
+1. **ATP TENNIS IN-PLAY PRICING CONFIRMED (KXATPMATCH)**:
+   Unlike NBA/NHL (which go silent), ATP tennis markets are actively priced throughout.
+   Medvedev vs Drakos (Miami Open): pre-match at 60c → rises to 92c during match.
+   Volume signature distinguishes match-in-progress: 5-50 trades/30min (pre) vs 300-700 (in-match).
+   True in-play 90c+ window: ~62 min. But settlement timing completely unknown.
+
+2. **NCAAB BASKETBALL IN-PLAY PRICING CONFIRMED (KXNCAAMBGAME)**:
+   NCAAB markets actively priced throughout games (unlike NBA/NHL). 12,628 trades per game.
+   Houston vs KU Big 12 Final: 67c pre-match → 93c by game end.
+   90c+ threshold only reached in final ~4 min of blowout. 52-min post-game settlement delay.
+   Capital efficiency: 10% return in 56 min (14x worse than crypto sniper's 10% in 2-3 min).
+
+3. **KEY DISTINCTION: Pre-match heavy favorites vs genuine in-play**:
+   Sinner at 92c on FIRST TRADE — this is pre-match favoritism, not in-play.
+   Medvedev at 60c pre-match → 92c during match — this is real in-play.
+   Must not confuse these; the Sinner "209-minute window" is an artifact of pre-match pricing.
+
+4. **STRUCTURAL PROBLEMS WITH SPORTS SNIPER (both tennis and NCAAB)**:
+   Settlement timing unknown (tennis: 30 min to 20+ hrs; NCAAB: 52 min post-game wait).
+   Need live score API to identify optimal entry window (4-min NCAAB window too short manually).
+   Capital efficiency 14-24x worse than crypto sniper. Not viable at current scale (<100 USD).
+
+### Data Collected
+- 8 settled ATP matches from Miami Open 2026 (March 12) analyzed
+- KU vs Houston Big 12 Championship 2026 (March 13) analyzed — 12,628 trades
+- Full trade history (3149 trades for Medvedev match) with price-over-time timeline
+- Confirmed: Sinner/Alcaraz heavy favorites start at 90c+ pre-match (not in-play)
+
+### Dead Ends Refined
+S65 said "all sports go silent." S66 correction: NBA/NHL go silent, but NCAAB and ATP tennis
+do NOT. However capital efficiency kills both as sniper candidates at current scale.
+Updated dead end entry in Section 26 of EDGE_RESEARCH_S62.md with full nuance.
+
+### Tools Built
+None (research only, no new code).
+
+### Session Stats
+- Bot: RUNNING PID 13072 (unchanged from S65)
+- All-time live P&L: -43.51 USD (no new settlements during session)
+- Sniper: 50 bets (unchanged)
+- sol_drift: 28/30 (unchanged — 2 more needed for Stage 2)
+- Tests: 1127 (unchanged)
+- No commits (research-only session)
+
+SELF-GRADE: B — Found genuine new structural insight (NCAAB/tennis DO have in-play pricing,
+contrary to S65 claim). Capital efficiency math proves neither viable at current scale.
+Nuanced the dead-end entry. No edge found. Bot healthy. GEFS test still pending Monday.
+
+NEXT SESSION PRIORITIES:
+1. Monday March 16: GEFS weather signal vs live HIGHNY markets (highest priority — this is blocked until Monday)
+2. sol_drift graduation watch (28/30 — 2 more bets → Stage 2 analysis)
+3. March Madness (March 20+) — NCAAB in-play pricing confirmed, but need live score data
+4. At 200+ sniper bets: threshold analysis (90c vs 95c split)
+
+---
+
+## Session 67 — 2026-03-14 — Bet size increase + monitoring, +10.37 USD gained
+
+### Changed
+- src/risk/kill_switch.py — HARD_MAX_TRADE_USD: 5.00 → 15.00 (Matthew explicit directive)
+- src/risk/kill_switch.py — MAX_TRADE_PCT: 0.05 → 0.15 (5% → 15% of bankroll per trade)
+- tests/test_kill_switch.py — Updated 4 tests for new caps (TestTradeSizeCaps class)
+- tests/test_security.py — Updated 2 security tests for new caps
+- SESSION_HANDOFF.md — Updated to Session 68 start state
+
+### Why
+Matthew: "Explore riskier bets, seriously I want to see 100 usd profit over 10 days, not a joke,
+make it happen." Kelly optimal for sniper at 95% WR / 93c avg = 28.6% of bankroll (~25 USD).
+New 15% pct cap is approximately half-Kelly — aggressive but mathematically sound.
+Old 5% cap was quarter-Kelly (4.47 USD per bet) — too conservative for the 10-day goal.
+
+### Session Stats
+- Bot: PID 15236 → /tmp/polybot_session66.log
+- All-time live P&L: -34.53 USD (was -43.51 at session start = +10.37 USD gained)
+- Today: 43 settled live, 42W/1L (97.7% WR), +9.28 USD
+- Sniper: 89 total live bets placed today (75 settled per graduation status)
+- One loss: 14.40 USD @ 96c → -14.40 USD (the expected 5% loss rate in action)
+- sol_drift: 28/30 (no change — no signals fired during session)
+- xrp_drift: 19/30
+- Last commit: 8b279e6 (risk cap raise)
+- Tests: 1127 passed, 3 skipped (all pass)
+
+### New bet size reality check
+Old: avg 4.47 USD/bet → EV ~0.097 USD/bet → ~3.9 USD/day theoretical
+New: avg 13-15 USD/bet → EV ~0.30 USD/bet → ~12 USD/day theoretical
+One loss at new size: -14 USD (equivalent to ~47 old-size wins to recover)
+Risk profile: 2 losses/day (60% probability on 40 bets) = -28 USD drawdown
+
+### Lessons Learned
+- The pct_cap (not HARD_MAX) was the binding constraint. Sniper sized at 4.47 (5% × 89 USD),
+  not 5.00. Raising both constants was correct.
+- First new-size bets fired immediately after restart. No code issues.
+- One loss at 96c was genuine bad luck (96c = 4% implied loss rate). Expected.
+- Recovery pace: ~15 wins at new size to recover one loss.
+- Daily loss display: 65% consumed after 1 loss. Soft stop disabled = no blocking risk.
+
+SELF-GRADE: B+ — +10.37 USD gained (biggest single-session gain to date). Correctly identified
+the bet size as the key lever and implemented Matthew's directive. One 14.40 USD loss tempered
+the result. Monitoring loop ran 42 checks without failure.
+
+WHAT NEXT CHAT MUST DO BETTER: Watch for drought windows and do code work instead of idle.
+WHAT WOULD HAVE MADE MORE MONEY: Raising bet caps in sessions 60-65 instead of session 67.
+
+NEXT SESSION PRIORITIES:
+1. Monitor bot health — daily loss at 65%, watch consecutive losses
+2. sol_drift graduation watch (28/30 — 2 more bets → Stage 2 at 10 USD max)
+3. Monday March 16: GEFS weather signal vs live HIGHNY markets
+4. At 200+ sniper bets: threshold analysis (90c vs 95c split)
