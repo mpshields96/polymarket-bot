@@ -1,11 +1,11 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-13 (Session 64 wrap — research + monitoring, bot restarted)
+# Last updated: 2026-03-14 (Session 65 — maker_mode wired + sports sniper research)
 # ═══════════════════════════════════════════════════════════════
 
-## COPY-PASTE THIS TO START A NEW SESSION (Session 65)
+## COPY-PASTE THIS TO START A NEW SESSION (Session 66)
 
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 65).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 66).
 
 MANDATORY READING BEFORE ANY ACTION:
   cat SESSION_HANDOFF.md
@@ -13,14 +13,15 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 64 wrap — 2026-03-13 ~17:40 CDT / 22:40 UTC):
-  Bot STOPPED by Matthew — will need restart for Session 65.
-  Sniper: 42 live settled (95.2% WR). pct_cap fix active.
+BOT STATE (Session 65 wrap — 2026-03-14 ~00:20 CDT / 05:20 UTC):
+  Bot RUNNING PID 13072 — log at /tmp/polybot_session65.log
+  Sniper: 50 live settled (96% WR), +1.55 USD
   btc_drift + eth_drift MICRO-LIVE (0.01 cap) — confirmed losers, contained.
+  maker_mode=True NOW WIRED for btc_drift + eth_drift (post_only, 30s expiration)
   sol_drift: 28/30 — STILL 2 from Stage 2 milestone.
 
-RESTART COMMAND (Session 65):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session65.log 2>&1 &
+RESTART COMMAND (Session 66):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session66.log 2>&1 &
   Then verify: ps aux | grep "[m]ain.py" — exactly 1. Then cat bot.pid.
 
 If --health shows "HARD STOP": The March 1 hard stop event is HISTORICAL (30% lifetime stop was DISABLED in S34). No lock file = safe to restart. Proceed.
@@ -29,72 +30,57 @@ If --health shows "HARD STOP": The March 1 hard stop event is HISTORICAL (30% li
 
 ---
 
-KEY STATE (Session 64 wrap — 2026-03-13 22:40 UTC):
-  Bot: STOPPED (Matthew stopping for the day)
-  All-time live P&L: -44.90 USD (improved +0.70 from -45.60 in S63)
-  Bankroll: ~89.56 USD (DB value — higher than S63 handoff, DB is authoritative)
-  Tests: 1127 passed, 3 skipped (no code changes this session)
-  Last commit: 4ff17d8 (S63 wrap docs)
+KEY STATE (Session 65 wrap — 2026-03-14 05:20 UTC):
+  Bot: RUNNING PID 13072 → /tmp/polybot_session65.log
+  All-time live P&L: -43.51 USD (improved +1.39 from -44.90 in S64)
+  Bankroll: ~89+ USD (DB authoritative)
+  Tests: 1127 passed, 3 skipped
+  Last commit: 5633e7a (Session 65 research docs)
 
-SESSION 64 WAS A RESEARCH + MONITORING SESSION:
+SESSION 65 WAS IMPLEMENTATION + RESEARCH:
 
-  1. BOT RESTARTED (was stopped since S61):
-     PID 10100 → /tmp/polybot_session64.log
-     All loops running clean. No blockers.
+  1. BOT RESTARTED (was stopped since S64):
+     PID 13072 → /tmp/polybot_session65.log. All loops running clean.
 
-  2. SNIPER PRICE BUCKET ANALYSIS (key finding):
-     90-94c: 21 bets, 90.5% WR, -3.01 USD (marginally unprofitable at breakeven)
-     95-99c: 20 bets, 100% WR, +2.60 USD (profitable)
-     CONCLUSION: Sample too small (42 total) to make threshold changes yet.
-     Need 200+ before raising min from 90c to 95c.
-     EV per bet: +0.007 USD. At 40 bets/day = +0.28 USD/day.
+  2. MAKER_MODE=TRUE WIRED — DONE:
+     btc_drift and eth_drift now use maker_mode=True (post_only, 30s expiry).
+     Saves ~75% on taker fees per trade. Commit: 2080b20.
 
-  3. CRYPTO 15-MIN EXPANSION: IMPOSSIBLE
-     Checked BNB/BCH/ADA/DOGE/LINK — all have 0 open 15-min markets.
-     Only BTC/ETH/SOL/XRP exist. Sniper volume ceiling confirmed.
+  3. NON-CRYPTO SNIPER EXPANSION — COMPREHENSIVE DEAD END:
+     Full investigation of NBA/NCAAB/NHL/PGA/Weather markets.
+     KEY FINDING: All sports follow same pattern:
+       pre-game liquid → in-game silent → 20-60 second settlement burst
+     The 90c+ sustained window needed for sniper does NOT exist in any sports market.
+     PGA golf and weather at 99c NO: real hours-long windows but terrible capital
+     efficiency (1c profit on 99c capital = 1% return vs 11% for crypto sniper at 90c).
+     Full findings: .planning/EDGE_RESEARCH_S62.md Section 23-25. Commit: 5633e7a.
 
-  4. SPORTS SCANNER (afternoon run):
-     All 3 "edges" were from in-progress games (fake edges from live vs pre-game odds).
-     Pre-game max: ~2.4% taker — dead end confirmed for 3rd time.
+SESSION 65 SELF-RATING: B
+  Wired maker_mode (finally). Comprehensive sports sniper dead-end documented.
+  Sniper at 96% WR (50 bets), P&L improved +1.39 USD.
 
-  5. ETH_DRIFT MICRO-LIVE CONFIRMED:
-     Today's -14.26 USD eth_drift loss was from PRE-DEMOTION full-size bets.
-     Current bets: 1 contract (~0.35-0.49 USD each). Going forward: negligible impact.
+PENDING TASKS (Session 66 — PRIORITY ORDER):
 
-SESSION 64 SELF-RATING: C+
-  Restarted bot (good). Research found no new edge. Failed to activate maker_mode=True
-  (built in S63, still not wired). Sports/crypto expansion dead ends confirmed again.
+  #1 SOL STAGE 2 GRADUATION — 2 MORE BETS!
+     28/30 live bets. 2 more settled → Stage 2 milestone. Watch for it.
 
-PENDING TASKS (Session 65 — PRIORITY ORDER):
+  #2 GEFS WEATHER TEST (Monday only — March 16):
+     HIGHNY markets only open weekdays. Compare GEFS ensemble probs to Kalshi prices.
+     If GEFS finds >5% edge in uncertain brackets (~50c), weather is viable.
 
-  #1 RESTART BOT — stopped by Matthew end of S64.
+  #3 SNIPER THRESHOLD ANALYSIS (when 200+ live bets):
+     50 live settled. At 200+ bets, revisit whether to raise min from 90c to 95c.
+     Current: 96% WR across all. But 90-94c bucket may still be marginal.
 
-  #2 SOL STAGE 2 GRADUATION — 2 MORE BETS!
-     28/30 live bets. 2 more settled → Stage 2 milestone.
-
-  #3 ACTIVATE maker_mode=True FOR DRIFT (15 min of work!):
-     ALREADY BUILT in S63. Just needs main.py wiring.
-     Pass maker_mode=True to btc_drift + eth_drift trading_loop() calls.
-     Saves ~5c/trade. Low risk — post_only rejected orders just don't fill.
-     This is the easiest win available. Do it in Session 65.
-
-  #4 GEFS WEATHER TEST (Monday only):
-     Wait for HIGHNY markets Monday. Compare GEFS ensemble probs to Kalshi prices.
-     If GEFS finds >5% edge where old parametric didn't, weather is viable.
-
-  #5 SNIPER THRESHOLD ANALYSIS (when 200+ live bets):
-     Currently only 42 live settled. At 200+ bets, revisit whether to raise
-     min price from 90c to 95c (95-99c bucket profitable, 90-94c marginal).
-
-  #6 NON-CRYPTO SNIPER EXPANSION:
-     Research whether sports in-game markets (e.g. NBA game winner last 2 min)
-     trade at 90c+ and could expand sniper volume. No development yet.
+  #4 VOLUME EXPANSION (no clear path yet):
+     Sniper ceiling = 4 crypto series. No sports/weather sniper viable at current scale.
+     Next research: March Madness (March 20+) — does bracket blowout give sustained window?
+     Cricket/tennis during matches — different market structure than US sports?
 
 125 USD PROFIT GOAL:
-  All-time: -44.90 USD. Need +169.90 more.
-  Key levers: (1) sniper at +0.28 USD/day = 609 days at current rate (too slow!),
-  (2) sol 2 from Stage 2, (3) maker_mode saves ~10 USD over 200 drift trades,
-  (4) need higher-EV sniper volume or new strategy
+  All-time: -43.51 USD. Need +168.51 more.
+  Key levers: (1) sniper 96% WR, +0.28 USD/day = 602 days (too slow!)
+  (2) sol_drift 2 bets from Stage 2 (bet sizes double), (3) maker_mode now wired
 
 RESPONSE FORMAT RULES (permanent — both mandatory):
   RULE 1: NEVER markdown table syntax (| --- |) — wrong font in Claude Code UI.
@@ -122,6 +108,6 @@ MATTHEW'S STANDING DIRECTIVES:
   Budget: 30% of 5-hour token limit. Model: Opus 4.6.
 
 RESEARCH FILES (for context if continuing R&D):
-  .planning/EDGE_RESEARCH_S62.md — comprehensive findings (S64 bucket analysis at end)
+  .planning/EDGE_RESEARCH_S62.md — comprehensive findings (S65 sports sniper research at end)
   scripts/edge_scanner.py — reusable Kalshi-vs-Pinnacle scanner tool
   tests/test_edge_scanner.py — 27 tests
