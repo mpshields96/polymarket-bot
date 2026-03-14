@@ -1,11 +1,11 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-14 (Session 69 — research: KXBTCD analysis, edge scanner fix)
+# Last updated: 2026-03-14 (Session 70 — critical 99c sniper fix + CPI monitor + FOMC research)
 # ═══════════════════════════════════════════════════════════════
 
-## COPY-PASTE THIS TO START A NEW SESSION (Session 70)
+## COPY-PASTE THIS TO START A NEW SESSION (Session 71)
 
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 70).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 71).
 
 MANDATORY READING BEFORE ANY ACTION:
   cat SESSION_HANDOFF.md
@@ -13,13 +13,13 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 69 mid-session — 2026-03-14 ~19:15 UTC):
+BOT STATE (Session 70 wrap — 2026-03-14 ~19:50 UTC):
   Bot RUNNING PID 17982 — log at /tmp/polybot_session68.log
-  Sniper: 135 live settled today, 133W/2L (98.5% WR), +50.33 USD today
+  Sniper: 136 live settled today, 134W/2L (98.5% WR), +50.48 USD today
   btc_drift + eth_drift MICRO-LIVE (0.01 cap) — confirmed losers, contained.
   sol_drift: 28/30 — STILL 2 from Stage 2 milestone. MONITOR THIS.
-  All-time live P&L: +6.52 USD (dropped from +20.92 due to the 14.85 USD loss at ~18:15 UTC)
-  Tests: 1147 passing. Last commit: 24a087e (edge_scanner game-in-progress filter)
+  All-time live P&L: +6.67 USD
+  Tests: 1164 passing. Last commit: 8d252ae (sniper 99c price drift guard)
 
 RESTART COMMAND (Session 69):
   pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session69.log 2>&1 &
@@ -38,28 +38,27 @@ KEY STATE (Session 68 wrap — 2026-03-14 17:35 UTC):
   Tests: 1140 passing
   Last commit: e624877 (S68 research)
 
-SESSION 69 KEY CHANGES (autoresearch session — 2026-03-14):
+SESSION 70 KEY CHANGES (autoresearch — 2026-03-14):
+  1. CRITICAL FIX: sniper 99c price drift guard (main.py + 5 tests). Commit: 8d252ae
+     Root: generate_signal() rejects 99c (edge < 0) but execution price drifts 97→99c.
+     At 99c: min fee (1c) = gross profit (1c) → 0 net. One loss = -14.85 USD, 16 wins = 0 USD.
+     Fix: pre-execution price check in live path before orderbook fetch, logs and skips at 99c+.
+  2. NEW: scripts/cpi_release_monitor.py + 12 tests. Run April 10, 2026 08:30 ET. Commit: fcedb57
+     Polls BLS API + KXFEDDECISION every 10s, detects repricing lag after CPI surprise.
+  3. RESEARCH: FOMC chain consistency — no cross-market arb. Near-term markets (MAR/APR)
+     priced efficiently by institutions. Far-term violations are liquidity artifacts.
+  4. RESEARCH: Sniper maker mode dead end — urgency in final 840s incompatible with maker fills.
+  5. Tests: 1164 passing (was 1147)
+
+SESSION 69 KEY CHANGES (kept for context):
   1. FIX: edge_scanner game-in-progress filter added (_game_started() helper, 7 tests)
-     Games already started no longer show fake 13%+ edges. Commit: 24a087e
-  2. CONFIRMED DEAD ENDS: KXBTCD near-expiry sniper (threshold gaps prevent 90-95c zone)
-  3. CONFIRMED DEAD ENDS: NCAA tournament markets not open yet (bracket March 15)
-  4. CONFIRMED DEAD ENDS: KXNCAAMBTOTAL/KXNCAABSPREAD — near-zero volume, wide spreads
-  5. CONFIRMED: Sports pre-game arb = max 1.1% taker edge (dead end, scanner now clean)
-  6. RESEARCH: KXMARMAD champion futures exist (30 markets) but all at 0-1c = longshots
-  7. Tests: 1147 passing (was 1140)
+  2. CONFIRMED DEAD ENDS: KXBTCD near-expiry sniper, NCAA totals/spreads, sports pre-game arb
+  3. Tests: 1147 passing (was 1140)
 
-SESSION 68 KEY CHANGES (kept for context):
-  1. RESEARCH: Sniper price bucket analysis — 90-94c = profit engine (ROI 5.6%)
-  2. RESEARCH: 95-96c bucket = nearly break-even (0.4% ROI). DO NOT raise threshold to 95c.
-  3. NEW CODE: scripts/ncaab_live_monitor.py (research tool, ESPN + Kalshi live cross-check)
-  4. NEW TESTS: tests/test_ncaab_monitor.py (10 tests)
-  5. CONFIRMED: Sniper expected daily P&L = 25-40 USD calm / 60-80 USD volatile
+PENDING TASKS (Session 71 — PRIORITY ORDER):
 
-PENDING TASKS (Session 70 — PRIORITY ORDER):
-
-  #1 MONITOR BOT — 2 losses today (14.85 USD each). Consecutive count: check.
-     If 3+ consecutive losses: note it. Bot keeps trading (soft stop disabled).
-     If 5+ consecutive losses: consider pausing manually (Matthew decision).
+  #1 MONITOR BOT — bot has 99c guard now, but still monitoring needed.
+     Sol drift at 28/30 — watch for graduation milestone.
 
   #2 SOL STAGE 2 GRADUATION — STILL 2 MORE BETS NEEDED!
      28/30 live bets. 2 more settled → Stage 2 analysis (10 USD max/bet eval).
@@ -69,20 +68,29 @@ PENDING TASKS (Session 70 — PRIORITY ORDER):
      HIGHNY markets only open weekdays. Compare GEFS probs to Kalshi prices.
      If GEFS finds >5% edge in uncertain brackets (~50c), weather is viable.
 
-  #4 NCAA TOURNAMENT BRACKET (Selection Sunday March 15 — 6pm ET):
-     Bracket announced tonight. Markets open tomorrow/Monday.
-     1-vs-16 games: 99%+ historical WR. If Kalshi opens at 90c for 1-seed = edge.
+  #3 GEFS WEATHER TEST (Monday only — March 16):
+     HIGHNY markets only open weekdays. Compare GEFS probs to Kalshi prices.
+     If GEFS finds >5% edge in uncertain brackets (~50c), weather is viable.
+
+  #4 NCAA TOURNAMENT BRACKET (Selection Sunday March 15 — 6pm ET = 23:00 UTC):
+     Bracket announced TONIGHT. Markets open tomorrow/Monday.
+     1-vs-16 games: 99.4% historical WR (155-1 since 1985). Historical edge confirmed.
+     If Kalshi opens 1-seed at 90c → pure favorable-longshot bias = exploit.
      Use scripts/ncaab_live_monitor.py to scan (research only, no auto-trading).
      DO NOT build automated NCAAB trader — settlement timing problem unsolved.
 
+  #5 SNIPER PRICE GUARD — NEEDS BOT RESTART TO TAKE EFFECT
+     The 99c pre-execution guard was added to main.py (commit 8d252ae) but the bot
+     was NOT restarted (Matthew directive: autonomous restarts require check-in first).
+     Restart at next opportunity to activate the 99c guard. Command in RESTART section above.
+
 125 USD PROFIT GOAL:
-  All-time: +6.52 USD. Need +118.48 more.
+  All-time: +6.67 USD. Need +118.33 more.
   At 25-40 USD/day (calm) or 60-80 USD/day (volatile): 3-5 days to goal!
   Key levers: (1) sniper at 15 USD cap sustaining 90c+ opportunities,
   (2) sol_drift Stage 2 graduation (10 USD max/bet, Brier 0.176 = excellent),
-  (3) avoid consecutive losses (each costs 14+ USD now)
-  NOTE: All-time dropped from +17.11 to +6.52 due to 14.85 USD loss at ~18:15 UTC.
-        Today live P&L still strong: +50.33 USD (133/135 = 98.5% WR).
+  (3) 99c guard now coded — once restarted, prevents future -14.85 USD 99c losses
+  NOTE: All-time: +6.67 USD today. Today live P&L: +50.48 USD (134/136 = 98.5% WR).
 
 RESPONSE FORMAT RULES (permanent — both mandatory):
   RULE 1: NEVER markdown table syntax (| --- |) — wrong font in Claude Code UI.

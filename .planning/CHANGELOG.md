@@ -3183,3 +3183,70 @@ Could not find new edge this session — correct null result, honestly documente
 3. Monday March 16: GEFS weather signal vs live HIGHNY markets (first viable test)
 4. Check NCAA tournament markets after bracket drops (March 15, 6pm ET)
    Specifically: 1-vs-16 seed matchups if priced at 90c+ = sniper edge
+
+## Session 70 — 2026-03-14 (autoresearch continuation)
+
+### Bot State
+- PID 17982 running throughout. All-time: +6.52 → +6.67 USD during session.
+- Today: 136 settled, 134W/2L (98.5% WR), +50.48 USD
+- sol_drift: 28/30 (no graduation yet), xrp=19/30
+- Tests: 1147 → 1164 passing
+
+### Changes Made
+
+#### 1. CRITICAL FIX: Sniper 99c price drift guard (main.py + tests)
+Commit: 8d252ae
+
+Root cause: generate_signal() correctly rejects 99c signals (edge = -0.0007 < 0,
+since win_prob capped at 0.99 = price exactly). BUT the live execution price can
+drift from 97c → 99c in the 0.1-1s between signal generation and orderbook fetch.
+At 99c: min fee (1c per contract) = gross profit (1c per contract) → 0 net.
+Result: 17 live bets at 99c → 16 wins = 0 USD + 1 loss = -14.85 USD = net -14.85.
+
+Fix: added pre-execution price check in expiry_sniper_loop live path, before
+orderbook fetch (saves an API call). Logs and skips at market.yes_price >= 99.
+Also adds: _SNIPER_MAX_ENTRY_CENTS documentation in code.
+
+5 new tests in TestExpirySniperFeeFloor:
+- Confirms 99c YES/NO already blocked by strategy edge check (belt+suspenders)
+- Confirms 97c allowed
+- Documents fee floor math at 99c (gross=15c, fee=15c, net=0)
+- Documents fee floor math at 98c (gross=30c, fee=15c, net=15c = positive)
+
+Impact: prevents all future -14.85 USD losses from 99c execution drift.
+The 99c guard needs a bot restart to take effect.
+
+#### 2. NEW: scripts/cpi_release_monitor.py + tests/test_cpi_monitor.py
+Commit: fcedb57
+- Phase 1: 3-min pre-release BLS API polling (series CUSR0000SA0)
+- Phase 2: 5-min post-release KXFEDDECISION price monitoring
+- detect_price_change: 2c threshold, round(delta,4) for float safety
+- 12 tests: 8 for detect_price_change, 4 for summarize_markets
+- Run on April 10, 2026 at 08:30 ET to measure CPI repricing lag
+
+#### 3. RESEARCH: FOMC chain consistency analysis
+Commit: 7f10094
+- Fetched all 80 KXFEDDECISION markets, analyzed Hold probability chain
+- Near-term (MAR=99.5%, APR=92.5%) efficient (11M+, 254K vol, 1c spread)
+- Far-term "violations" (SEP > JUL) = liquidity artifacts (131-414 vol, 10c spread)
+- Conclusion: no cross-market arb. Speed-play (CPI monitor) only viable FOMC edge.
+
+#### 4. RESEARCH: Sniper maker mode dead end
+- Drift loops already use maker_mode=True (S65) saving ~75% on fees
+- Sniper at 99c+ urgency: fill risk outweighs 0.035 USD/bet fee savings
+- No change needed — sniper correctly uses taker orders
+
+### Lessons
+1. Always check fee_calculator minimum (1c floor) against gross profit at extreme prices
+2. Signal price ≠ execution price — 0.1-1s market movement can change economics
+3. FOMC cross-market arb requires CME FedWatch calibration ($25/month) to exploit — not yet
+
+### Self-Grade: B+
+Critical bug found and fixed (99c guard). CPI monitor committed. Research confirmed
+several dead ends (FOMC chain arb, sniper maker mode). No new live edges discovered.
+
+### Next Session Priority
+1. NCAA bracket markets (Selection Sunday March 15 — bracket drops 23:00 UTC tonight)
+2. Restart bot to activate 99c guard (Matthew decision needed)
+3. GEFS weather test (Monday March 16)
+4. sol_drift Stage 2 graduation (still at 28/30)
