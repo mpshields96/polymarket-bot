@@ -1634,3 +1634,106 @@ obvious improvements without historical price-at-loss-time data.
      Run: python3 scripts/weather_edge_scanner.py --min-edge 0.10
   4. Monitor sniper performance at 20 USD bet size (first full day active today)
   5. CPI speed-play — ready for April 10 08:30 ET (run scripts/cpi_release_monitor.py then)
+
+### 45. SESSION 74 RESEARCH (2026-03-15 ~07:00-10:00 UTC)
+
+**BOT STATUS:**
+- Running PID 33894 → /tmp/polybot_session74.log
+- All-time live P&L at session start: +24.77 USD
+- All-time live P&L at session end: +7.64 USD (large SOL loss mid-session)
+- Sniper bet size: 20 USD (raised S72 15→20 per Matthew)
+
+**SNIPER LOSS INVESTIGATION (trade 2169, -19.20 USD):**
+- SOL YES@96c x20 — lost at 02:30 UTC March 15
+- SOL reversed hard in final seconds before expiry
+- This is the FOURTH SOL structural loss (all 4 listed in S73 analytics)
+- Per PRINCIPLES.md: 71 SOL bets is insufficient to conclude structural issue
+  z-score for SOL vs other assets: ~1.3, p~0.10 (not significant)
+  Decision: do NOT add SOL-specific guard. Revisit at 200 SOL sniper bets.
+- Current SOL sniper P&L: -16.56 USD (94.4% WR, 4 losses)
+- XRP comparison: 100% WR, +27.66 USD (no losses at all)
+
+**SNIPER BUCKET ANALYSIS (240 bets, updated):**
+  85-89c (below threshold): not fired (guard prevents)
+  90-94c: 110 bets, 107W/3L (97.3%), +62.95 USD — PROFIT ENGINE
+  95-96c: 61 bets, 59W/2L (96.7%), -7.30 USD — NEGATIVE but distorted
+  97-98c: 45 bets, 45W/0L (100%), +8.79 USD
+  99c: 22 bets, 21W/1L, -14.85 USD — 99c guard ACTIVE (prevents future)
+  Total: 240 bets, 234W/6L (97.5%), +52.67 USD
+
+IMPORTANT — 95-96c bucket EV distortion:
+  The -7.30 USD at 95-96c is NOT evidence of negative EV at that price.
+  Historical contamination: old wins at 5 USD cap, recent losses at 20 USD cap.
+  Decision: do NOT add 95-96c guard per PRINCIPLES.md. Need 200+ bets at
+  current 20 USD size for valid EV assessment. Current data is poisoned by
+  3 different bet sizes across the strategy's history.
+
+**PER-ASSET SNIPER BREAKDOWN (Session 74 deep analysis):**
+  XRP: 100% WR, +27.66 USD — no losses ever (57+ bets)
+  BTC: ~98% WR, +24.84 USD
+  ETH: ~98.3% WR, +19.88 USD
+  SOL: 94.4% WR, -16.56 USD — only negative-P&L asset (4 losses)
+
+  SOL risk flag: All 4 structural losses are SOL. But 71 bets, p~0.10.
+  Wait for 200 SOL bets before any SOL-specific action.
+
+**NON-CRYPTO 90c+ MARKET SCAN (CONFIRMED DEAD END):**
+- Exhaustively scanned 2000+ Kalshi markets across all non-crypto series
+- Result: ZERO markets found at 88c+ YES for non-crypto
+- Checked: PGA PLAYERS Championship (Aberg 58c YES = drift zone, not sniper)
+  NBA game markets, NHL game markets, entertainment, politics, economics
+- Sports/entertainment market structure doesn't produce sustained 90c+ windows
+  compatible with sniper timing (840-second window requirement)
+- CONCLUSION: Sniper expansion to non-crypto is a DEAD END. Do not revisit.
+- Best non-crypto lead from scan: PGA favorites at 60-80c (drift zone research)
+
+**WEATHER CALIBRATION TRACKER BUILT:**
+- Script: scripts/weather_calibration.py
+- Checks all weather paper bets in DB
+- Fetches current market prices via Kalshi API
+- Infers outcomes: YES@0-2c + NO bet = LIKELY_WIN, YES@98-100c + NO bet = LIKELY_LOSS
+- 5-tier inference: LIKELY_WIN, PROB_WIN, OPEN, PROB_LOSS, LIKELY_LOSS
+- 33 tests in tests/test_weather_calibration.py (all passing)
+- Commit: 0c47366
+- March 15 paper bets all show OPEN (Kalshi settlement delayed 1-2 days)
+  Markets show status=closed but result=OPEN → settlement loop won't trigger
+  Need "finalized" status. Check again March 16-17.
+
+**CPI MARKET STRUCTURE ANALYSIS:**
+- KXCPI series: 20 markets open for April 10 BLS CPI release
+- Settlement: "CPI increases by more than X% in March 2026" = MoM change
+- Key thresholds: T0.6 at ~80c YES, T0.7 at ~56c YES
+- Market pricing 80% chance MoM > 0.6% (tariff narrative dominant)
+- Speed-play approach: detect BLS surprise at 08:30 ET April 10
+  Trade before market fully reprices the surprise
+- Script ready: scripts/cpi_release_monitor.py
+- Key risk: BLS releases are instant-priced by algorithms now (sub-second)
+  Our edge window: 5-15 seconds after release if strong surprise
+  Smaller surprise (consensus miss) = more exploitable window
+
+**NCAA TOURNAMENT:**
+- KXNCAAMBGAME: 0 markets open as of 06:41 UTC March 15
+- Bracket dropped March 15 evening ET — markets not yet created
+- Confirmed: scanner script works correctly (scripts/ncaa_tournament_scanner.py)
+- RUN: March 17-18 for Round 1 market creation (games March 20-21)
+- Command: python3 scripts/ncaa_tournament_scanner.py --min-edge 0.03
+
+**ANNUAL BTC MARKETS (KXBTCMAXY/KXBTCMINY):**
+- Analyzed KXBTCMAXY (annual BTC high) and KXBTCMINY (annual BTC low)
+- Problem: 9+ month settlement window = capital locked up with no information edge
+- These are essentially drift zone (35-65c) markets stretched over a year
+- GEFS-style signal doesn't exist for annual crypto forecasting at our scale
+- CONCLUSION: Dead end. No edge, capital inefficiency.
+
+**DEAD ENDS ADDED (Session 74):**
+  Non-crypto 90c+ market expansion (exhaustive scan, 0 found in 2000 markets)
+  Annual BTC price range markets (KXBTCMAXY/KXBTCMINY — 9+ month lockup, drift zone)
+
+**REVISED PRIORITY STACK (Session 74 end):**
+  1. Sol drift graduation — 28/30 → passive (other chat monitoring)
+  2. NCAA scanner — run March 17-18 (scripts/ncaa_tournament_scanner.py --min-edge 0.03)
+  3. Weather calibration — check March 15 paper bets when finalized (est. March 16-17)
+     Key bet: LAX YES@8c for ">79°F March 15" — if LAX loses, confirms warm bias
+     Action if loss: raise LAX edge threshold from 20% to 30%+ in weather strategy
+  4. CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)
+  5. Sniper per-asset monitoring — flag if SOL reaches 200 bets with WR still ~94%

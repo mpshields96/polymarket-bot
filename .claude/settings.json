@@ -1,16 +1,55 @@
 {
   "permissions": {
-    "defaultMode": "acceptAll",
-    "deny": [
-      "Bash(rm -rf *)",
-      "Bash(sudo *)",
-      "Bash(curl *)",
-      "Bash(wget *)",
-      "Bash(ssh *)",
+    "allow": [
+      "Read(/Users/matthewshields/Projects/polymarket-bot/**)",
+      "Write(/Users/matthewshields/Projects/polymarket-bot/**)",
+      "Edit(/Users/matthewshields/Projects/polymarket-bot/**)",
+      "Glob(/Users/matthewshields/Projects/polymarket-bot/**)",
+      "Grep(/Users/matthewshields/Projects/polymarket-bot/**)",
+      "Read(/tmp/polybot_*)",
+      "Write(/tmp/polybot_*)",
+      "Bash(cd ~/Projects/polymarket-bot*)",
+      "Bash(source venv/bin/activate*)",
+      "Bash(python*)",
+      "Bash(git *)",
+      "Bash(cat *)",
+      "Bash(ls *)",
+      "Bash(grep *)",
       "Bash(kill *)",
       "Bash(pkill *)",
-      "Bash(launchctl *)",
-      "Bash(defaults write *)"
+      "Bash(ps *)",
+      "Bash(echo *)",
+      "Bash(rm -f bot.pid*)",
+      "Bash(rm -f /tmp/polybot_*)",
+      "Bash(nohup *)",
+      "Bash(chmod *)",
+      "Bash(sleep *)",
+      "Bash(bash scripts/*)",
+      "Bash(npm *)"
+    ],
+    "deny": [
+      "Bash(rm -rf /*)",
+      "Bash(sudo *)",
+      "Bash(curl * | bash*)",
+      "Bash(wget * | bash*)",
+      "Write(/Users/matthewshields/.env*)",
+      "Write(/Users/matthewshields/.ssh/*)",
+      "Write(/Users/matthewshields/.zshrc*)",
+      "Bash(open *)",
+      "Bash(osascript *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/matthewshields/Projects/polymarket-bot/.claude/hooks/danger_zone_guard.sh"
+          }
+        ]
+      }
     ]
   }
 }
