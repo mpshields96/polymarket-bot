@@ -40,6 +40,7 @@ Log file: /tmp/soccer_monitor_<series>.log
 import argparse
 import asyncio
 import base64
+import csv
 import json
 import os
 import sys
@@ -275,12 +276,40 @@ def get_markets(series_ticker: str, date_filter: str | None) -> dict[str, dict]:
 # ── Price tracker ──────────────────────────────────────────────────────────
 
 class PriceTracker:
-    def __init__(self, label: str):
+    def __init__(self, label: str, csv_path: str | None = None):
         self.label = label
         self._last: dict[str, float] = {}
-        self._crossings: dict[str, tuple[str, float]] = {}  # ticker → (time, price)
+        self._crossings: dict[str, tuple[str, float, float]] = {}  # ticker → (iso_time, price, epoch)
         self._ever_moved: dict[str, bool] = {}
         self._lock = threading.Lock()
+        self._csv_path = csv_path
+        self._csv_file = None
+        self._csv_writer = None
+        if csv_path:
+            self._csv_file = open(csv_path, 'w', newline='', buffering=1)
+            self._csv_writer = csv.writer(self._csv_file)
+            self._csv_writer.writerow([
+                'timestamp_utc', 'ticker', 'mid_cents', 'change_cents',
+                'above_90c', 'seconds_above_90c', 'game_state',
+            ])
+
+    def _write_csv(self, ticker: str, mid: float, change: float, game_state: str):
+        if not self._csv_writer:
+            return
+        now_iso = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+        above = mid >= SNIPER_THRESHOLD
+        secs_above = 0.0
+        if above and ticker in self._crossings:
+            secs_above = round(time.time() - self._crossings[ticker][2], 1)
+        self._csv_writer.writerow([
+            now_iso,
+            ticker,
+            round(mid * 100, 1),
+            round(change * 100, 1),
+            1 if above else 0,
+            secs_above,
+            game_state,
+        ])
 
     def observe(self, ticker: str, mid: float, state: str):
         with self._lock:
@@ -297,13 +326,15 @@ class PriceTracker:
                 logger.info(f'  [MOVE] {ticker} | {int(mid*100)}c {d}{int(abs(change)*100)}c | {state}')
             if mid >= SNIPER_THRESHOLD:
                 if ticker not in self._crossings:
-                    self._crossings[ticker] = (now, mid)
+                    self._crossings[ticker] = (now, mid, time.time())
                     logger.warning(f'  *** 90c+ CROSSING: {ticker} {int(mid*100)}c @ {now} | {state} ***')
                 elif moved:
                     logger.warning(f'  *** STILL 90c+: {ticker} {int(mid*100)}c | {state} ***')
             elif ticker in self._crossings:
-                crossed_at, crossed_price = self._crossings.pop(ticker)
-                logger.info(f'  [DROPPED] {ticker} → {int(mid*100)}c | was 90c+ since {crossed_at} | {state}')
+                crossed_at, crossed_price, crossed_epoch = self._crossings.pop(ticker)
+                duration = round(time.time() - crossed_epoch, 0)
+                logger.info(f'  [DROPPED] {ticker} → {int(mid*100)}c | was 90c+ for {int(duration)}s since {crossed_at} | {state}')
+            self._write_csv(ticker, mid, change, state)
             self._last[ticker] = mid
 
     def summary(self) -> str:
@@ -314,8 +345,8 @@ class PriceTracker:
 
 # ── REST mode ──────────────────────────────────────────────────────────────
 
-def run_rest(series: str, espn_url: str, date_filter: str | None, poll_sec: int):
-    tracker = PriceTracker(series)
+def run_rest(series: str, espn_url: str, date_filter: str | None, poll_sec: int, csv_path: str | None = None):
+    tracker = PriceTracker(series, csv_path=csv_path)
     cycle = 0
     while True:
         cycle += 1
@@ -346,9 +377,9 @@ def run_rest(series: str, espn_url: str, date_filter: str | None, poll_sec: int)
 
 # ── WebSocket mode ─────────────────────────────────────────────────────────
 
-async def run_ws(series: str, espn_url: str, date_filter: str | None):
+async def run_ws(series: str, espn_url: str, date_filter: str | None, csv_path: str | None = None):
     import websockets
-    tracker = PriceTracker(series)
+    tracker = PriceTracker(series, csv_path=csv_path)
     ws_path = '/trade-api/ws/v2'
     ws_url = f'wss://api.elections.kalshi.com{ws_path}'
     markets = get_markets(series, date_filter)
@@ -470,15 +501,19 @@ def main():
     logger = logging.getLogger(__name__)
 
     cfg = ESPN_CONFIGS[args.series]
+    date_tag = args.date or 'nodate'
+    csv_path = f'/tmp/soccer_sniper_data_{args.series}_{date_tag}.csv'
+
     logger.info(f'=== Soccer Monitor: {cfg["name"]} ({args.series}) — Research Only ===')
     logger.info(f'Mode: {"WebSocket" if args.ws else f"REST poll {args.interval}s"} | date={args.date}')
     logger.info(f'Log: {log_file}')
+    logger.info(f'CSV: {csv_path}')
     logger.info('')
 
     if args.ws:
-        asyncio.run(run_ws(args.series, cfg['url'], args.date))
+        asyncio.run(run_ws(args.series, cfg['url'], args.date, csv_path=csv_path))
     else:
-        run_rest(args.series, cfg['url'], args.date, args.interval)
+        run_rest(args.series, cfg['url'], args.date, args.interval, csv_path=csv_path)
 
 
 logger = logging.getLogger(__name__)
