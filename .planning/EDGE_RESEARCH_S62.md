@@ -2705,3 +2705,44 @@ and analysis shows at least 3 confirmed 90c+ crossings with timing data.
 
   DEAD ENDS (all previous + no new ones this session)
 
+
+
+---
+
+## SESSION 84 ADDENDUM — International Break Discovery
+
+All soccer monitoring targets from Sessions 82-84 were invalidated by the international break.
+Games rescheduled — actual dates and UCL QF stage:
+
+EPL BRE vs WOL: was "26MAR16" → actual close March 30 (game March 28-29 weekend)
+UCL "March 17" group: actual close March 31 — these are QF 1ST LEGS
+  ARSLEV (Arsenal vs Leverkusen, 20:00 UTC) — Arsenal at HOME
+  MCIRMA (Man City vs Real Madrid, 20:00 UTC) — MCI at HOME, but RMA 766K vol (!)
+  CFCPSG (Chelsea vs PSG, 20:00 UTC) — PSG 174K vs CFC 41K
+  SPOBOG (Sporting vs Bodo/Glimt, 17:45 UTC) — BOG 501K vol anomaly again
+
+UCL "March 18" group: actual close April 1 — QF 1ST LEGS batch 2
+  BARNEW (Barcelona vs Newcastle, 17:45 UTC) — BAR 65K vs NEW 21K
+  LFCGAL (Liverpool vs Galatasaray, 20:00 UTC) — LFC 25K vs GAL 142K (!)
+  BMUATA (Bayern vs Atalanta, 20:00 UTC) — BMU 23K vs ATA 8K
+  TOTATM (Tottenham vs Atletico, 20:00 UTC) — ATM 64K vs TOT 5K
+
+All markets currently 0c bid (no liquidity yet, 16 days out). Check prices 1-2 days before games.
+
+VOLUME ANOMALIES to note:
+  RMA 766K vs MCI 72K: RMA was a huge upset winner in last round (26c pre-game, MID_GAME 90c+)
+  Sharp money may be on RMA again as underdog — or just retail following March 10 result
+  GAL 142K vs LFC 25K: Galatasaray beat Liverpool in last round — public momentum
+  BOG 501K vs SPO 27K: recurring anomaly — Bodo/Glimt has massive following
+
+UPDATED MONITORING SCHEDULE:
+  March 30: EPL BRE vs WOL (check prices closer, likely BRE favored ~55-65c)
+  March 31: UCL QF 1st legs — ARS (expected ~65-75c at home) is TIER 1 target
+  April 1: UCL QF 1st legs — ATM vs Tottenham (ATM favored), BAR vs Newcastle
+  All of these are 1ST LEGS so no aggregate advantage, pure squad quality
+
+SNIPER VALIDITY FOR QF 1ST LEGS:
+  Same mechanism applies — if Arsenal leads 2-0 at Leverkusen by halftime, price hits 90c+
+  QF teams are elite, more likely to have dominant wins than regular season
+  Expected MID_GAME rate: ~40% (UCL base rate) for teams at 60c+ pre-game
+
