@@ -63,8 +63,8 @@ SESSION 76 OVERNIGHT KEY CHANGES:
   4. Security verified: .env NOT in git history, .gitignore working, credentials safe ✓
   5. Overnight monitor started at /tmp/polybot_night_monitor.log (5-min cycle checks)
 
-RESTART COMMAND (Session 78 — use session76.log):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session76.log 2>&1 &
+RESTART COMMAND (Session 79 — use session79.log):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session79.log 2>&1 &
   Then verify: ps aux | grep "[m]ain.py" — exactly 1. Then cat bot.pid.
 
 If --health shows "HARD STOP": HISTORICAL. The 30% lifetime stop was DISABLED in S34.
