@@ -3393,3 +3393,26 @@ Sniper analysis: clear action item (restart activates 99c guard).
 3. Check March 14 weather settlements after ~04:00 UTC for GEFS calibration.
 4. Weather paper data accumulating automatically (5 cities active).
 5. Bot is running PID 32120 → /tmp/polybot_session73.log.
+
+## Session 73 Research (2026-03-15 ~05:00 UTC)
+
+### Changes
+- HARD_MAX_TRADE_USD raised 15→20 USD per Matthew directive (commit a5f9a82)
+  - Tests updated: test_single_trade_never_exceeds_20_dollars (was 15)
+  - Activated by bot restart PID 33894 → /tmp/polybot_session74.log
+- scripts/ncaa_tournament_scanner.py: one-shot NCAA tournament edge scanner (commit cab991f)
+  - Compares Kalshi KXNCAAMBGAME prices to the-odds-api sharp book prices
+  - Highlights heavy favorites (90c+) underpriced by Kalshi
+  - Run March 17-18 when Round 1 markets open (1 credit/run)
+
+### Research Findings
+- KXMV parlay markets: zero volume, Kalshi-only market maker — dead end
+- NBA in-game sniper: 75x worse capital efficiency vs crypto sniper — dead end
+- BNB/BCH 15M: series dormant, no meaningful markets — sniper at max 4-series coverage
+- No other short-expiry series discovered on Kalshi
+- Sniper analytics (199 bets): SOL poor performance explained entirely by fee-floor bug
+  XRP=+23.91/57, BTC=+22.98/49, ETH=+17.59/57, SOL=+0.79/67 (SOL recovers after 99c fix)
+- Sniper now at 20 USD max: all-time P&L +20.24 USD (was +13.40 at session start)
+
+### Dead Ends Added
+  KXMV parlay markets, NBA in-game sniper (capital efficiency)

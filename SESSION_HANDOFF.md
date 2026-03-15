@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-15 (Session 72 research cont — fee-floor bug fixed)
+# Last updated: 2026-03-15 (Session 73 research — sniper analytics, NCAA scanner built)
 # ═══════════════════════════════════════════════════════════════
 
 ## COPY-PASTE THIS TO START A NEW SESSION (Session 74)
@@ -13,11 +13,11 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 72 research cont — 2026-03-15 ~03:00 UTC):
-  Bot RUNNING PID 32120 → /tmp/polybot_session73.log
-  Log: /tmp/polybot_session73.log (restarted 22:54 UTC to activate fee-floor fix)
-  All-time live P&L: +13.40 USD (--report authoritative)
-  Tests: 1198 passing. Last commit: 1d12f46 (fee-floor guard fix)
+BOT STATE (Session 73 — 2026-03-15 ~05:00 UTC):
+  Bot RUNNING PID 33894 → /tmp/polybot_session74.log
+  Log: /tmp/polybot_session74.log (restarted 23:38 PT March 15 to activate 20 USD cap)
+  All-time live P&L: +20.24 USD (--report authoritative)
+  Tests: 1198 passing. Last commit: cab991f (NCAA tournament scanner)
 
 RESTART COMMAND (Session 74 — NEW LOG):
   pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session74.log 2>&1 &
@@ -84,21 +84,19 @@ PENDING TASKS (Session 74 — PRIORITY ORDER):
      Each check: ./venv/bin/python3 main.py --graduation-status | grep sol
      When 30/30 achieved: run full Stage 2 analysis (10 USD max/bet evaluation).
 
-  #2 NCAA TOURNAMENT (bracket drops March 15 evening US time, Round 1 = March 20-21).
-     Check KXNCAAMBGAME on March 17-18 for 1-vs-16 matchups at 90c+.
-     Use scripts/ncaab_live_monitor.py to scan. NO auto-trading until evaluated.
-     First Four games: March 19 (First Four = March 19-20).
+  #2 NCAA TOURNAMENT SCANNER — run scripts/ncaa_tournament_scanner.py on March 17-18.
+     Bracket dropped March 15 evening ET. Round 1 games: March 20-21.
+     Run: python3 scripts/ncaa_tournament_scanner.py --min-edge 0.03
+     Cost: ~1 odds-api credit per run. Focus on 1-vs-16 and 2-vs-15 seed matchups.
+     NO auto-trading until evaluated. First Four: March 19-20.
 
-  #3 WEATHER CALIBRATION DATA — check March 14 settlements (available ~04:00+ UTC March 15).
-     Run after 04:00 UTC: python3 scripts/weather_edge_scanner.py --min-edge 0.10
-     Also check KXHIGHNY-26MAR14, KXHIGHLAX-26MAR14, etc. settlement results vs GEFS forecast.
-     Key question: LAX warm bias (4-7F) vs GEFS — does GEFS actually beat Kalshi pricing?
-     March 15 paper bets: LAX YES@8c (GEFS 93.5%), CHI YES@26c (GEFS 96.8%), MIA NO@72c.
-     Check these settlements tomorrow (2026-03-16) for calibration.
+  #3 WEATHER CALIBRATION DATA — March 14 settlements (not yet available as of 05:00 UTC).
+     Background task checking (~90 min = ~06:00 UTC). Will notify when done.
+     Run: python3 scripts/weather_edge_scanner.py --min-edge 0.10
+     Key: LAX YES@8c and CHI YES@26c paper bets placed March 15.
 
   #4 WEATHER PAPER DATA (collecting now, all 5 cities — data starts March 15).
      Check after 4+ weeks for calibration. Trust NYC/DEN first (well-calibrated).
-     Run: python3 scripts/weather_edge_scanner.py --min-edge 0.10 for daily scan.
 
   #5 MONITOR CONSECUTIVE LOSSES (watch for streak during market volatility).
      Kill switch fires at 8 consecutive. Daily check: grep "consecutive" /tmp/polybot_session*.log | tail -5

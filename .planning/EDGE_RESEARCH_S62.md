@@ -1574,3 +1574,63 @@ DEAD ENDS (cumulative — do not revisit):
   weather NO at 99c, KXBTCD near-expiry sniper, FOMC chain arb, sports taker arb,
   BALLDONTLIE API, NCAA totals/spreads, KXBTCD daily sniper (markets are fair-priced),
   FOMC March 2026 (no market exists on Kalshi — gap from Jan to Dec 2026)
+
+### 44. SESSION 73 RESEARCH (2026-03-15 ~05:00 UTC)
+
+**BOT STATUS:**
+- Running PID 33894 → /tmp/polybot_session74.log
+- All-time live P&L: +20.24 USD (was +13.40 at session start — +6.84 gained)
+- HARD_MAX_TRADE_USD raised from 15→20 USD (commit a5f9a82, active after restart)
+- Sniper today: 24/25 (96%), +3.76 USD at 20 USD bet size
+
+**MARKETS SCANNED (all confirmed dead ends for today):**
+- KXNCAAMBGAME: 0 open (bracket dropped March 15 evening, Round 1 starts March 20-21)
+- KXBNB15M/KXBCH15M: 0 active (series don't have meaningful live markets)
+- KXMV parlay markets (KXMVESPORTSMULTIGAMEEXTENDED, KXMVECROSSCATEGORY): zero volume, Kalshi is only market maker, can't trade at scale
+- NBA in-game sniper (KXNBAGAME at 90c+): capital efficiency 75x worse than crypto sniper (120-min game vs 2.5-min window). Not worth building.
+- No other short-expiry (≤30 min) binary series found on Kalshi
+
+**SNIPER DEEP ANALYTICS (199 settled bets):**
+By asset:
+  XRP: 57 bets, 100% WR, +23.91 USD (avg@96c) — best performer
+  BTC: 49 bets, 98% WR, +22.98 USD (avg@94c)
+  ETH: 57 bets, 98% WR, +17.59 USD (avg@95c)
+  SOL: 67 bets, 96% WR, +0.79 USD (avg@95c) — near zero but explained by fee-floor bug
+
+By side:
+  NO: 113 bets, 98% WR, +34.78 USD
+  YES: 117 bets, 97% WR, +30.49 USD
+
+All 5 structural losses:
+  1. SOL YES@99c x15 | -14.85 USD — FEE-FLOOR BUG (now fixed by guard in live.py)
+  2. SOL NO@92c x16 | -14.72 USD — structural reversal (coin recovered)
+  3. ETH NO@96c x15 | -14.40 USD — structural reversal (coin recovered)
+  4. SOL YES@93c x5 | -4.65 USD — early micro-bet period
+  5. BTC YES@93c x5 | -4.65 USD — early micro-bet period
+
+KEY INSIGHT: SOL's poor +0.79 USD total was entirely explained by the fee-floor bug
+(7 bets at 99c = -14.85 USD). After fee-floor fix, SOL 90-98c = +15.64 USD expected.
+No systematic NO-side bias: 2 NO-side structural losses are within normal variance for
+2% loss rate at n=200. No filter justified without more data.
+
+The sniper code already has drift direction consistency filter — well-implemented, no
+obvious improvements without historical price-at-loss-time data.
+
+**NCAA TOURNAMENT SCANNER BUILT (scripts/ncaa_tournament_scanner.py):**
+- One-shot scanner: Kalshi KXNCAAMBGAME vs the-odds-api sharp book comparison
+- Highlights heavy favorites (90c+) underpriced by Kalshi vs Pinnacle
+- Uses ~1 odds-api credit per run
+- Commit: cab991f
+- RUN March 17-18 when Kalshi opens Round 1 markets
+
+**DEAD ENDS ADDED:**
+  KXMV parlay markets (zero volume), NBA in-game sniper (75x capital efficiency loss)
+
+**REVISED PRIORITY STACK (Session 73 end):**
+  1. Sol drift graduation — 28/30 live bets → 2 more needed for Stage 2 eval (monitoring chat)
+  2. NCAA scanner — run scripts/ncaa_tournament_scanner.py on March 17-18 (1 API credit/run)
+     Focus on Round 1 1-vs-16 and 2-vs-15 seed matchups at 90c+ if underpriced vs Pinnacle
+  3. Weather calibration — check March 14 settlements when available (~morning March 15)
+     Run: python3 scripts/weather_edge_scanner.py --min-edge 0.10
+  4. Monitor sniper performance at 20 USD bet size (first full day active today)
+  5. CPI speed-play — ready for April 10 08:30 ET (run scripts/cpi_release_monitor.py then)
