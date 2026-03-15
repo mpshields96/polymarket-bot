@@ -179,15 +179,15 @@ class TestAuthModuleSafety:
 # ── Kill switch safety ────────────────────────────────────────────
 
 class TestKillSwitchSafety:
-    def test_single_trade_never_exceeds_15_dollars(self):
-        """Hard cap of $15 must be enforced regardless of bankroll. (S65: raised 5→15)"""
+    def test_single_trade_never_exceeds_20_dollars(self):
+        """Hard cap of 20 USD must be enforced regardless of bankroll. (S72: raised 15→20 per Matthew)"""
         from src.risk.kill_switch import KillSwitch, LOCK_FILE
         if LOCK_FILE.exists():
             LOCK_FILE.unlink()
         ks = KillSwitch(starting_bankroll_usd=10000.0)
-        # Even with a huge bankroll, $15.01 must be blocked
-        ok, reason = ks.check_order_allowed(trade_usd=15.01, current_bankroll_usd=10000.0)
-        assert not ok, "Trade of $15.01 must be blocked regardless of bankroll size"
+        # Even with a huge bankroll, 20.01 USD must be blocked
+        ok, reason = ks.check_order_allowed(trade_usd=20.01, current_bankroll_usd=10000.0)
+        assert not ok, "Trade of 20.01 USD must be blocked regardless of bankroll size"
 
     def test_bankroll_pct_cap_enforced(self):
         """15% of bankroll cap must be enforced at small bankroll sizes. (S65: raised 5%→15%)"""
