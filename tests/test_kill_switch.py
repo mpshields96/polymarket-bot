@@ -57,44 +57,43 @@ def ks():
 
 class TestTradeSizeCaps:
     def test_trade_at_hard_cap_allowed(self, ks):
-        # S65: hard cap raised to 15 USD; 15% of 100 = 15 USD so both caps pass
-        ok, reason = ks.check_order_allowed(trade_usd=15.00, current_bankroll_usd=100.0)
+        # S78: hard cap 15 USD, pct cap 10% of 200 = 20 USD, so hard cap binds at 15
+        ok, reason = ks.check_order_allowed(trade_usd=15.00, current_bankroll_usd=200.0)
         assert ok, reason
 
     def test_trade_above_hard_cap_blocked(self, ks):
-        # S65: HARD_MAX raised 5→15 USD (Matthew directive for 100 USD/10 day goal)
-        ok, reason = ks.check_order_allowed(trade_usd=15.01, current_bankroll_usd=100.0)
+        # S78: HARD_MAX lowered 20→15 USD (Matthew directive — reduce variance)
+        ok, reason = ks.check_order_allowed(trade_usd=15.01, current_bankroll_usd=200.0)
         assert not ok
         assert "15.01" in reason or "hard cap" in reason.lower()
 
     def test_trade_exceeds_pct_cap_blocked(self, ks):
-        # 20% of $100 = $20 — exceeds 15% pct cap AND $15 hard cap
+        # 20% of $100 = $20 — exceeds 10% pct cap ($10) AND $15 hard cap
         ok, reason = ks.check_order_allowed(trade_usd=20.00, current_bankroll_usd=100.0)
         assert not ok
 
     def test_pct_cap_is_lower_than_hard_cap(self, ks):
-        # $50 bankroll — 15% = $7.50, which is lower than $15 hard cap
+        # $50 bankroll — 10% = $5.00, which is lower than $15 hard cap
         ok, reason = ks.check_order_allowed(trade_usd=10.00, current_bankroll_usd=50.0)
         assert not ok
         assert "bankroll" in reason.lower() or "%" in reason
 
     def test_pct_cap_applies_at_small_bankroll(self, ks):
-        # $40 bankroll, 15% = $6.00 max
-        ok, _ = ks.check_order_allowed(trade_usd=6.00, current_bankroll_usd=40.0)
+        # $40 bankroll, 10% = $4.00 max
+        ok, _ = ks.check_order_allowed(trade_usd=4.00, current_bankroll_usd=40.0)
         assert ok
         ok2, reason = ks.check_order_allowed(trade_usd=6.01, current_bankroll_usd=40.0)
         assert not ok2
 
     def test_pct_cap_floating_point_boundary(self, ks):
-        """S65: MAX_TRADE_PCT raised 5%→15%. Sniper sizes to round(bankroll*0.15,2)-0.01.
-        Verify kill switch passes a trade 1 cent under the exact 15% boundary."""
-        # At 94.4 bankroll: 15% = 14.16 exactly. 14.16/94.4 = 0.15+epsilon possible.
-        # Sniper uses 14.15 (one cent under). Must pass.
-        ok, reason = ks.check_order_allowed(trade_usd=14.15, current_bankroll_usd=94.4)
-        assert ok, f"14.15 at 94.4 bankroll should pass pct_cap: {reason}"
-        # 14.17 must always fail (strictly over 15%).
-        ok2, _ = ks.check_order_allowed(trade_usd=14.17, current_bankroll_usd=94.4)
-        assert not ok2, "14.17 at 94.4 bankroll should exceed pct_cap"
+        """S78: MAX_TRADE_PCT lowered 15%→10%. Sniper sizes to round(bankroll*0.10,2)-0.01.
+        Verify kill switch passes a trade 1 cent under the exact 10% boundary."""
+        # At 94.4 bankroll: 10% = 9.44 exactly. Sniper uses 9.43 (one cent under). Must pass.
+        ok, reason = ks.check_order_allowed(trade_usd=9.43, current_bankroll_usd=94.4)
+        assert ok, f"9.43 at 94.4 bankroll should pass pct_cap: {reason}"
+        # 9.45 must always fail (strictly over 10%).
+        ok2, _ = ks.check_order_allowed(trade_usd=9.45, current_bankroll_usd=94.4)
+        assert not ok2, "9.45 at 94.4 bankroll should exceed pct_cap"
 
 
 # ── 2. Daily loss tracking (cap DISABLED — user directive Session 41) ────────
