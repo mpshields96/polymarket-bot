@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-15 (Session 73 research — sniper analytics, NCAA scanner built)
+# Last updated: 2026-03-15 (Session 72 monitoring wrap — 8 cycles, +14.06 USD gained)
 # ═══════════════════════════════════════════════════════════════
 
 ## COPY-PASTE THIS TO START A NEW SESSION (Session 74)
@@ -13,11 +13,12 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 73 — 2026-03-15 ~05:00 UTC):
+BOT STATE (Session 72 monitoring wrap — 2026-03-15 05:17 UTC):
   Bot RUNNING PID 33894 → /tmp/polybot_session74.log
   Log: /tmp/polybot_session74.log (restarted 23:38 PT March 15 to activate 20 USD cap)
-  All-time live P&L: +20.24 USD (--report authoritative)
-  Tests: 1198 passing. Last commit: cab991f (NCAA tournament scanner)
+  All-time live P&L: +21.69 USD (--report at 05:17 UTC — authoritative)
+  Today (March 15): +5.21 USD sniper (26/27), xrp -0.59 USD
+  Tests: 1198 passing. Last commit: ac82301 (Session 73 research wrap docs)
 
 RESTART COMMAND (Session 74 — NEW LOG):
   pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session74.log 2>&1 &
@@ -48,8 +49,8 @@ WEATHER LOOPS STATUS (confirmed active after 22:00 UTC restart):
 
 GRADUATION STATUS (checked 2026-03-15 ~02:10 UTC):
   sol_drift_v1: 28/30 bets, Brier 0.176, P&L +13.48 USD — needs 2 more to Stage 2
-  xrp_drift_v1: 19/30 bets, Brier 0.266, P&L -1.12 USD — needs 11 more
-  expiry_sniper_v1: 75/30 bets — LIVE uncapped
+  xrp_drift_v1: 20/30 bets, Brier 0.270, P&L -1.71 USD — needs 10 more
+  expiry_sniper_v1: 75/30 bets — LIVE uncapped (20 USD max active)
 
 SESSION 72 RESEARCH KEY CHANGES (2026-03-14 to 2026-03-15):
   1. BUILT: scripts/weather_edge_scanner.py — 5-city GEFS vs Kalshi scanner (31 tests). Commit: db979f5
@@ -106,7 +107,7 @@ PENDING TASKS (Session 74 — PRIORITY ORDER):
      Use 5-min SINGLE-CHECK cycles. Helper at /tmp/polybot_check.py — rewrite each session.
 
 125 USD PROFIT GOAL:
-  All-time: +13.40 USD. Need ~+111.60 more.
+  All-time: +21.69 USD. Need ~+103.31 more.
   Sniper is profit engine. Fee-floor fix (1d12f46) NOW ACTIVE — blocks all 99c bets.
   Key levers: (1) sol Stage 2 graduation (+5 USD/bet potential at 10 USD max),
               (2) weather edges (paper calibration building — live after 4+ weeks),
