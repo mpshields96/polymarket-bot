@@ -1516,3 +1516,61 @@ F. **Props/totals** — NCAAB over/under totals have different pricing dynamics
     - CHI weather calibration: high variance — run paper before trusting
     - NCAA 1-vs-16 seed game sniper (March 17-18 check)
     - CPI speed-play signal (April 10 08:30 ET)
+
+### 43. SESSION 72 RESEARCH CONTINUATION (2026-03-15 ~03:00 UTC)
+
+**BOT STATUS AFTER S72 RESEARCH:**
+- All 5 city weather loops now CONFIRMED ACTIVE (bot restarted twice — 2nd restart at 22:00 UTC needed because 1st restart was BEFORE commit 1c5f12c)
+- First paper bets placed for all 5 cities (March 15 markets):
+  - LAX: YES@8c (GEFS 93.5% ≥79F) — 5 bets placed
+  - CHI: YES@26c (GEFS 96.8% <60F) — 5 bets placed
+  - DEN: NO@7c (GEFS 93.5% ≥49F) — 1 bet placed
+  - MIA: 3 bets placed (NO@72c, NO@61c, YES@18c)
+  - NYC: 0 bets (no open markets at restart time)
+
+**FEE-FLOOR BUG FOUND AND FIXED (commit 1d12f46):**
+- Bug: NO@99c slips through 99c guard in live.py. Root cause: YES-equiv(NO@99c) = 1c ∈ [1,99].
+- Live incident: trade 2111 KXXRP15M NO@99c placed at 22:44 UTC (signal was 93c, orderbook drifted)
+- Fix: added raw price_cents >= 99 || <= 1 block BEFORE YES-equiv conversion in execute()
+- 3 new regression tests (TestSniperFeeFlorBlock). 1198 tests total.
+- Impact: prevents exact repeat of -14.85 USD scenario from the 99c bucket analysis
+
+**MARKETS SCANNED (no opportunities found):**
+- FOMC: No March 2026 market on Kalshi (gap from 26JAN settled to 26DEC open). FOMC loop is running paper but finds no March markets. The strategy is effectively dormant until June 2026.
+- NBA/NHL: 20 NBA + 20 NHL game markets open. No high-confidence (90c+) tonight except GSW/NYK at 86c (below threshold). Edge scanner: 0 opportunities at 2% threshold (same as before).
+- NCAA: No KXNCAAMBGAME markets open yet. Bracket drops March 15 evening US time. Re-check March 17-18.
+- KXBTCD daily: All markets within 2% of Black-Scholes fair value at BTC~71K. No edge.
+- CPI: KXCPI-26MAR open (30K+ vol on T0.7 at 49c). No forecasting edge without Bloomberg consensus. Speed-play only (April 10 08:30 ET).
+
+**REVISED PRIORITY STACK (Session 72 final):**
+
+COMPLETED THIS SESSION:
+- 5-city weather scanner, fix, expansion — all done, paper collecting
+- Off-peak promotion documented (all 3 key files + commit 3c59276)
+- Fee-floor bug fixed (commit 1d12f46, 3 regression tests)
+- Bot PID 32120 → session73.log, all fixes active
+
+PRIORITY 1 — Sol drift graduation (28/30 bets)
+  Check hourly: ./venv/bin/python3 main.py --graduation-status | grep sol
+  When 30/30: full Stage 2 analysis (10 USD max/bet evaluation per PRINCIPLES.md)
+
+PRIORITY 2 — NCAA bracket (March 15 evening US time)
+  Re-check KXNCAAMBGAME March 17-18 for 1-vs-16 seed matchups at 90c+
+  Use scripts/ncaab_live_monitor.py. First Four games March 19-20.
+
+PRIORITY 3 — Weather calibration check (after March 14 settlements ~04:00 UTC)
+  Key calibration bets: LAX YES@8c (93.5%), CHI YES@26c (96.8%), DEN NO@7c (93.5%)
+  If all 3 win: strong GEFS validation for these cities
+  If LAX loses: confirms warm bias — adjust LAX edge threshold upward (needs 10+ bets)
+
+PRIORITY 4 — Weather paper data accumulation (collect 4+ weeks before going live)
+  Daily scanner: python3 scripts/weather_edge_scanner.py --min-edge 0.10
+  Trust first: NYC (±2F), DEN (±2-3F)
+  Validate before live: LAX (warm bias risk), CHI (high variance), MIA (unknown)
+
+DEAD ENDS (cumulative — do not revisit):
+  PGA golf sniper, non-crypto 90c+ markets, Kalshi copy trading, FOMC cross-market arb,
+  sniper maker mode, NBA/NHL at current scale, tennis/NCAAB sniper at current scale,
+  weather NO at 99c, KXBTCD near-expiry sniper, FOMC chain arb, sports taker arb,
+  BALLDONTLIE API, NCAA totals/spreads, KXBTCD daily sniper (markets are fair-priced),
+  FOMC March 2026 (no market exists on Kalshi — gap from Jan to Dec 2026)
