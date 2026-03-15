@@ -1,11 +1,11 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-14 (Session 72 research — weather expansion + calibration)
+# Last updated: 2026-03-15 (Session 72 research cont — weather loops confirmed active)
 # ═══════════════════════════════════════════════════════════════
 
-## COPY-PASTE THIS TO START A NEW SESSION (Session 73)
+## COPY-PASTE THIS TO START A NEW SESSION (Session 74)
 
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 73).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 74).
 
 MANDATORY READING BEFORE ANY ACTION:
   cat SESSION_HANDOFF.md
@@ -13,14 +13,14 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 72 research wrap — 2026-03-14 ~23:50 UTC):
-  Bot LIKELY STILL RUNNING PID 17982 — check with: ps aux | grep "[m]ain.py"
-  Log: /tmp/polybot_session68.log (unchanged — research chat didn't touch bot)
-  All-time live P&L: +11.35 USD approx (was +7.63 at session start, ran all day)
-  Tests: 1195 passing (was 1164). Last commit: 1c5f12c (S72 weather expansion)
+BOT STATE (Session 72 research cont — 2026-03-15 ~02:10 UTC):
+  Bot RUNNING PID 31341 → /tmp/polybot_session73.log
+  Log: /tmp/polybot_session73.log (new — restarted ~22:00 UTC to activate 5-city weather)
+  All-time live P&L: +12.28 USD (--report authoritative)
+  Tests: 1195 passing. Last commit: 3c59276 (off-peak promotion docs)
 
-RESTART COMMAND (Session 73 — NEW LOG):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session73.log 2>&1 &
+RESTART COMMAND (Session 74 — NEW LOG):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session74.log 2>&1 &
   Then verify: ps aux | grep "[m]ain.py" — exactly 1. Then cat bot.pid.
 
 If --health shows "HARD STOP": HISTORICAL. The 30% lifetime stop was DISABLED in S34.
@@ -29,14 +29,29 @@ If --health shows "HARD STOP": HISTORICAL. The 30% lifetime stop was DISABLED in
 
 ---
 
-KEY STATE (Session 72 research — 2026-03-14 ~23:50 UTC):
-  Bot: CHECK WITH ps aux (may still be PID 17982 → /tmp/polybot_session68.log)
-  All-time live P&L: ~+11.35 USD (check with --report)
-  Bankroll: ~90+ USD (DB authoritative)
+KEY STATE (Session 72 research cont — 2026-03-15 ~02:10 UTC):
+  Bot: PID 31341 → /tmp/polybot_session73.log (CONFIRMED RUNNING)
+  All-time live P&L: +12.28 USD
+  Bankroll: ~147 USD (reported at startup — DB authoritative)
   Tests: 1195 passing
-  Last commit: 1c5f12c (S72 weather expansion to 5 cities)
+  Last commit: 3c59276 (off-peak promotion docs — all 3 key files updated)
 
-SESSION 72 RESEARCH KEY CHANGES (this chat — 2026-03-14):
+WEATHER LOOPS STATUS (confirmed active after 22:00 UTC restart):
+  All 5 city loops now running and placing paper trades:
+  NYC: weather_forecast_v1 → KXHIGHNY (original loop, ~45F March 15)
+  LAX: weather_lax_v1 → KXHIGHLAX (active — placed 5 paper trades, 80.1F forecast)
+  CHI: weather_chi_v1 → KXHIGHCHI (active — placed 5 paper trades, 57.8F forecast)
+  DEN: weather_den_v1 → KXHIGHDEN (active — placed 1 paper trade, 51.5F forecast)
+  MIA: weather_mia_v1 → KXHIGHMIA (active — placed 3 paper trades, 80.3F forecast)
+  First paper trades placed for all cities at ~21:59 UTC for March 15 markets.
+  CHI YES@26c (GEFS 96.8%) and LAX YES@8c (GEFS 93.5%) are highest-confidence signals.
+
+GRADUATION STATUS (checked 2026-03-15 ~02:10 UTC):
+  sol_drift_v1: 28/30 bets, Brier 0.176, P&L +13.48 USD — needs 2 more to Stage 2
+  xrp_drift_v1: 19/30 bets, Brier 0.266, P&L -1.12 USD — needs 11 more
+  expiry_sniper_v1: 75/30 bets — LIVE uncapped
+
+SESSION 72 RESEARCH KEY CHANGES (2026-03-14 to 2026-03-15):
   1. BUILT: scripts/weather_edge_scanner.py — 5-city GEFS vs Kalshi scanner (31 tests). Commit: db979f5
      First run found 18 opportunities: LAX +75.3% edge, CHI +70.2%, DEN +64.3%, NYC +58.1%
   2. FIX: parse_temp_bracket in weather_forecast.py — now handles 78-79deg bracket format.
@@ -44,8 +59,8 @@ SESSION 72 RESEARCH KEY CHANGES (this chat — 2026-03-14):
      3 regression tests added.
   3. EXPANDED: Weather loop now covers all 5 Kalshi KXHIGH* cities (LAX, CHI, DEN, MIA added).
      src/data/weather.py: added CITY_DEN, CITY_MIA, KALSHI_WEATHER_CITIES, build_gefs_feed().
-     main.py: 4 new weather_loop tasks (weather_lax_v1, weather_chi_v1, weather_den_v1, weather_mia_v1).
-     Commit: 1c5f12c. Restart required for new loops to activate.
+     main.py: 4 new weather_loop tasks. Commit: 1c5f12c.
+     NOTE: Bot needed 2nd restart (22:00 UTC) because S72 first restart was BEFORE commit 1c5f12c.
   4. RESEARCH: Weather calibration analysis vs Kalshi settlements (7-day history):
      NYC: well-calibrated (±2F). Edges are HIGH CONFIDENCE.
      DEN: well-calibrated (±2-3F). Edges are HIGH CONFIDENCE.
@@ -54,40 +69,46 @@ SESSION 72 RESEARCH KEY CHANGES (this chat — 2026-03-14):
   5. RESEARCH: Sniper 199-bet bucket analysis:
      90-94c: +58.95 USD (69% ROI) — PROFIT ENGINE
      95-98c: +11.93 USD (14.6% ROI) — positive, do NOT add guard
-     99c: -14.85 USD (-75% ROI) — GUARD CODED (8d252ae) BUT NOT ACTIVE until restart
-  6. Tests: 1195 passing (was 1164). +31 new tests.
+     99c: -14.85 USD (-75% ROI) — GUARD CODED (8d252ae) + ACTIVE (restart at 22:00 UTC)
+  6. DOCS: Off-peak double limits promotion documented in SESSION_HANDOFF + AUTONOMOUS_CHARTER + POLYBOT_INIT.
+     Commit: 3c59276.
+  7. Tests: 1195 passing (was 1164). +31 new tests.
 
-PENDING TASKS (Session 73 — PRIORITY ORDER):
+PENDING TASKS (Session 74 — PRIORITY ORDER):
 
-  #1 RESTART BOT — activates 99c pre-execution guard + new 5-city weather loops.
-     BOTH uncommitted code changes now need restart: 99c guard (8d252ae) + weather expansion (1c5f12c).
-     Without restart: missing 5 new city loops + losing money on every 99c sniper bet.
-     Restart command above. New log: /tmp/polybot_session73.log.
-
-  #2 SOL STAGE 2 GRADUATION — need 2 more settled bets (28/30 live).
+  #1 SOL STAGE 2 GRADUATION — need 2 more settled bets (28/30 live).
      Each check: ./venv/bin/python3 main.py --graduation-status | grep sol
      When 30/30 achieved: run full Stage 2 analysis (10 USD max/bet evaluation).
 
-  #3 NCAA TOURNAMENT (bracket drops March 15 evening, Round 1 = March 20-21).
+  #2 NCAA TOURNAMENT (bracket drops March 15 evening US time, Round 1 = March 20-21).
      Check KXNCAAMBGAME on March 17-18 for 1-vs-16 matchups at 90c+.
      Use scripts/ncaab_live_monitor.py to scan. NO auto-trading until evaluated.
+     First Four games: March 19 (First Four = March 19-20).
 
-  #4 WEATHER PAPER DATA (collecting now, all 5 cities after restart):
+  #3 WEATHER CALIBRATION DATA — check March 14 settlements (available ~04:00+ UTC March 15).
+     Run after 04:00 UTC: python3 scripts/weather_edge_scanner.py --min-edge 0.10
+     Also check KXHIGHNY-26MAR14, KXHIGHLAX-26MAR14, etc. settlement results vs GEFS forecast.
+     Key question: LAX warm bias (4-7F) vs GEFS — does GEFS actually beat Kalshi pricing?
+     March 15 paper bets: LAX YES@8c (GEFS 93.5%), CHI YES@26c (GEFS 96.8%), MIA NO@72c.
+     Check these settlements tomorrow (2026-03-16) for calibration.
+
+  #4 WEATHER PAPER DATA (collecting now, all 5 cities — data starts March 15).
      Check after 4+ weeks for calibration. Trust NYC/DEN first (well-calibrated).
      Run: python3 scripts/weather_edge_scanner.py --min-edge 0.10 for daily scan.
 
   #5 MONITOR CONSECUTIVE LOSSES (watch for streak during market volatility).
      Kill switch fires at 8 consecutive. Daily check: grep "consecutive" /tmp/polybot_session*.log | tail -5
 
-  MONITORING NOTE FOR S73:
+  MONITORING NOTE FOR S74:
      Background tasks on this system timeout at ~18-20 min (exit 144 = SIGHUP).
      Use 5-min SINGLE-CHECK cycles. Helper at /tmp/polybot_check.py — rewrite each session.
 
 125 USD PROFIT GOAL:
-  All-time: ~+11.35 USD. Need ~+113.65 more.
-  Sniper is profit engine. 99c guard (after restart) recovers 14.85 USD.
-  Key levers: (1) restart for 99c guard + weather loops, (2) sol Stage 2 graduation,
-              (3) weather edges (paper now, live after 4+ weeks calibration)
+  All-time: +12.28 USD. Need ~+112.72 more.
+  Sniper is profit engine. 99c guard now ACTIVE (protects ~14.85 USD/cycle).
+  Key levers: (1) sol Stage 2 graduation (+5 USD/bet potential),
+              (2) weather edges (paper calibration building — live after 4+ weeks),
+              (3) NCAA 1-vs-16 seed sniper opportunities (March 19-21).
 
 RESPONSE FORMAT RULES (permanent — both mandatory):
   RULE 1: NEVER markdown table syntax (| --- |) — wrong font in Claude Code UI.
