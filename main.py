@@ -1549,6 +1549,18 @@ async def expiry_sniper_loop(
                             )
                             continue
 
+                        # S81: Slippage guard — skip if price has moved down 3c+ from signal price.
+                        # Trade 2786 example: signal at 90c, fill at 86c (-4c slippage), edge evaporated.
+                        # Model confidence = 0 below 87c, so any fill <88c is out-of-model territory.
+                        _MAX_SLIPPAGE_CENTS = 3
+                        if _live_price < signal.price_cents - _MAX_SLIPPAGE_CENTS:
+                            logger.warning(
+                                "[expiry_sniper] %s %s: price slipped %dc (signal=%dc, now=%dc) — skip (slippage risk)",
+                                ticker, signal.side.upper(),
+                                signal.price_cents - _live_price, signal.price_cents, _live_price,
+                            )
+                            continue
+
                         # Fetch orderbook for this specific market
                         try:
                             orderbook = await kalshi.get_orderbook(ticker)
