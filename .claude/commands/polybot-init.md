@@ -65,40 +65,48 @@ IF no clear direction:
 ═══════════════════════════════════════════════════
 CURRENT STATE (auto-updated by wrap commands)
 ═══════════════════════════════════════════════════
-Last updated: Session 80 (2026-03-15) — RESEARCH SESSION
-Bot: RUNNING PID 68296 → /tmp/polybot_session76.log (NOT session79.log)
-All-time P&L: -18.88 USD | Session gain: +10.60 USD (125 bets, 94% WR)
-Bankroll: ~131 USD | Tests: 1281 passing
-Last commit: abfdb49 (S80 research wrap — research quality directive)
+Last updated: Session 84 (2026-03-15) — RESEARCH SESSION — soccer FLB validated, Pattern 2 hook deployed
+Bot: RUNNING PID 9054 → /tmp/polybot_session81.log
+All-time P&L: -32.82 USD (today: -4.55 USD, 132 settled, 90% WR)
+Bankroll: ~125 USD | Tests: 1319 passing, 3 skipped
+Last commit: 9dbf889 (feat: block XRP YES@94c/97c and SOL YES@94c)
 
 Live strategies:
-  btc_drift: STAGE 1 (5 USD cap) — direction_filter="no"
-  eth_drift: STAGE 1 (5 USD cap) — direction_filter="yes"
-  sol_drift: STAGE 1 (5 USD cap) — 29/30 bets, Brier 0.184, +6.07 USD — NEEDS 1 MORE BET
-    When 30th bet settles: remove calibration_max_usd=5.0 → None in main.py, restart
-    Don't require limiting_factor==kelly — pct_cap governs at current bankroll
-  xrp_drift: MICRO — 20/30 bets, Brier 0.270, -1.71 USD
-  expiry_sniper: LIVE (20 USD cap, 15% pct cap) — ~320+ bets, PROFITABLE CORE
-    BLOCKED: 96c both sides (IL-10), 97c NO (IL-10), 98c NO (IL-11), 99c/1c (IL-5)
-    ACTIVE BUCKETS: 91c-95c both sides (100% WR), 97c YES (100% WR), 98c YES (100% WR)
+  btc_drift: STAGE 1 — direction_filter="no", low activity
+  eth_drift: STAGE 1 — direction_filter="yes", low activity
+  sol_drift: GRADUATED — 30/30 bets, Brier 0.191, +1.23 USD — full Kelly active (calibration_max=None)
+  xrp_drift: MICRO — 22/30 bets, Brier 0.265, -1.63 USD — needs 8 more
+  expiry_sniper: LIVE (20 USD cap, 15% pct cap) — PRIMARY ENGINE
+    BLOCKED: 96c both (IL-10), 97c NO (IL-10), 98c NO (IL-11), 99c/1c (IL-5)
+    BLOCKED per-asset (S81): KXXRP YES@94c, KXXRP YES@97c, KXSOL YES@94c
+    ACTIVE BUCKETS: 91c-95c BTC/ETH both sides, 97c YES all assets, 98c YES all assets
 
 Direction filters (do not change):
   btc_drift="no" | eth_drift="yes" | sol_drift="no" | xrp_drift="yes"
+
+Safety hooks (Pattern 1 + 2):
+  PreToolUse: .claude/hooks/danger_zone_guard.sh — advisory Iron Laws check on 6 DANGER ZONE files
+  PostToolUse: .claude/hooks/verify_revert.sh — auto-revert if tests fail after editing DANGER ZONE file
+  BOUNDS.md: 18 Iron Laws with file:line, incident history, test references
 
 RESEARCH QUALITY DIRECTIVE (Matthew S80 — MANDATORY):
   New edge research must meet SNIPER STANDARD or better:
   Named mechanism + Named counterparty + Different from sniper AND speed-play + Paper-test protocol
   Kalshi API scanning without structural hypothesis = data mining = NOT research.
 
-Research state (S80):
+Research state (S84):
+  scripts/soccer_candle_analyzer.py — UCL/EPL MID_GAME analysis via Kalshi candlestick API
+    VALIDATED: FLB edge, 0/3 false positive rate at 90c, UCL 40% MID_GAME rate
+    FIRST LIVE TEST: EPL BRE vs WOL (March 30), UCL QF (March 31 + April 1)
+    NOTE: ALL soccer postponed due to international break — do not monitor until March 30
   scripts/ncaa_tournament_scanner.py — run March 17-18, 1 credit/call, Round 1 March 20-21
-  scripts/weather_calibration.py — check paper bets ~04:00 UTC March 16 (10 pending)
-  scripts/cpi_release_monitor.py — run April 10, 08:30 ET (BLS quota burned — do NOT run before then)
+  scripts/weather_calibration.py — check paper bets ~04:00 UTC March 16 (bets pending settlement)
+  scripts/cpi_release_monitor.py — run April 10, 08:30 ET
   Dead ends (cumulative): sports taker arb, BALLDONTLIE, FOMC model, NBA/NHL sniper,
     sniper maker mode, NCAA totals, KXMV parlay, NBA in-game sniper, BNB/BCH/DOGE 15M,
     KXBTCD hourly non-5PM, FOMC March 2026, non-crypto 90c+ markets, annual BTC range,
-    KXBTCD near-expiry (always 99c/0c or 50c — no 90-98c zone), hourly WR patterns (noise)
-  Next: NCAA scanner March 17-18, sol drift graduation (29/30), CPI April 10
+    KXBTCD near-expiry, hourly WR patterns, soccer underdogs below 60c pre-game
+  Next: NCAA March 17-18, weather calibration March 16, soccer UCL March 31/April 1
 
 IMPORTANT — MARCH 1 HARD STOP IN --health: HISTORICAL, NOT BLOCKING.
   30% lifetime stop was DISABLED in S34. No kill_switch.lock file. Safe to restart.
