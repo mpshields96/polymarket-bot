@@ -2280,3 +2280,165 @@ The polybot-autoresearch framework needs tighter criteria. Valid research must h
 4. Different mechanism from existing sniper (not threshold/asset variants)
 5. Willing to spend days validating — quality over quantity
 Data-mining existing trades for time-of-day or minor asset patterns is NOT valid research.
+
+---
+
+## SESSION 82 DEEP ANALYSIS — 2026-03-15
+
+### SOCCER SETTLEMENT MECHANICS CONFIRMED (Critical finding)
+
+From KXUCLGAME market API data (settlement_timer_seconds field + rules_primary):
+  early_close_condition: "This market will close and expire after a winner is declared."
+  settlement_timer_seconds: 30
+  rules_primary: "...after 90 minutes plus stoppage time (does not include extra time or penalties)..."
+
+INTERPRETATION: settlement_timer=30s means 30 SECONDS AFTER THE FINAL WHISTLE, not during play.
+The market stays OPEN throughout the full 90 minutes (+ stoppage time). There is NO early close
+based on in-game price (unlike hypothetical mid-game settlement).
+
+IMPLICATION: Soccer sniper has 20-90 minute capital lockup from 90c+ crossing to settlement.
+This is fundamentally different from crypto 15-min sniper (30s lockup).
+
+Capital efficiency comparison:
+  Crypto 15-min sniper: 30s lockup per bet, buy at 95c YES/NO, profit ~5-6c per dollar
+  Soccer sniper:        20-60 min lockup, buy at 90c, profit ~11c per dollar
+  Efficiency ratio:     Soccer generates more profit per bet but at ~100x capital lockup time
+  Net per-hour return:  Both roughly 6-8% per hour on locked capital (rough estimate)
+  Frequency:            Crypto fires many times/day, soccer fires ~1-2x per WEEK max
+
+
+### HISTORICAL WIN RATE ANALYSIS (EPL 921 markets + UCL 516 markets)
+
+METHODOLOGY: Pulled ALL settled KXEPLGAME + KXUCLGAME markets. Analyzed previous_yes_bid_dollars
+vs result field to estimate win rate by price threshold.
+
+RESULTS (by prev_bid threshold):
+
+EPL win rates:
+  prev_bid >= 60c: 50W/5L = 91% WR (55 total observations)
+  prev_bid >= 65c: 49W/3L = 94% WR (52 total)
+  prev_bid >= 70c: 47W/2L = 96% WR (49 total)
+  prev_bid >= 75c: 46W/1L = 98% WR (47 total)  <- LFC vs TOT today was the 1 loss
+  prev_bid >= 80c: 45W/0L = 100% WR (45 total)
+  prev_bid >= 90c: 43W/0L = 100% WR (43 total)
+
+UCL win rates:
+  prev_bid >= 60c: 24W/1L = 96% WR (25 total)
+  prev_bid >= 75c: 23W/1L = 96% WR (24 total)
+  prev_bid >= 80c: 22W/0L = 100% WR (22 total)
+  prev_bid >= 90c: 22W/0L = 100% WR (22 total)
+
+KEY INSIGHT: Teams at 80c+ prev_bid win 100% of the time across 67 combined games (45+22).
+This is strong evidence that the favorite-longshot bias extends into soccer in-play markets.
+
+FALSE POSITIVE CASES (EPL, prev_bid > 60c, result=no):
+  LFC at 76c LOST (today, March 15 — drew with Tottenham)
+  MUN at 67c LOST (to West Ham)
+  BRI (Brighton) at 61c LOST (to West Ham)
+  LFC at 71c LOST (to Sunderland)
+  LEE (Leeds) at 64c LOST
+
+ALL 5 false positives are below 77c. Zero false positives above 77c in the entire dataset.
+
+CAVEAT: prev_bid is the LAST API snapshot before settlement. It captures the price near game end,
+NOT necessarily mid-game. A team at 76c "near the end" might reflect a tight game that went
+to a late winner (like LFC today). Or it might reflect a team that was at 90c mid-game and gave
+up a goal to fall back to 76c. The live monitoring is required to distinguish these cases.
+
+
+### FREQUENCY ANALYSIS (how often does sniper opportunity arise?)
+
+EPL: 921 settled markets / 3 per game = 307 games
+  Winners with prev_bid 10-94c (had live movement): 32 of 307 = 10.4% of games
+  Opportunities per EPL matchweek (~10 games): ~1 game per matchweek on average
+
+UCL: 516 markets / 3 per game = 172 games
+  Winners with prev_bid 10-94c: 7 of 172 = 4.1% of games
+  Opportunities per UCL round (~8 first-leg games): ~0.3 games per round
+
+COMBINED ACROSS LEAGUES (EPL + UCL + La Liga + Serie A):
+  If La Liga and Serie A are similar to EPL: ~4-6 opportunities per week across all leagues
+  At 11% profit per 20 USD bet: ~0.88-1.32 USD per week from soccer sniper
+  VERDICT: Low frequency, low profit at current bankroll scale
+
+CAPITAL EFFICIENCY vs CRYPTO 15-MIN SNIPER:
+  Current sniper P&L rate: approximately +6-10 USD per session (estimate)
+  Soccer sniper: 1-2 bets per week maximum = 0.5-1 USD per week
+  Soccer is ~10x lower frequency and profit vs crypto sniper at current scale.
+  Not worth REPLACING crypto sniper. Value: SUPPLEMENTAL income stream.
+
+
+### SPORTS GAME MARKETS — EXPANDED SCOPE CHECK
+
+Checked: NBA game markets (KXNBAGAME), NHL game markets (KXNHLGAME)
+  Both series exist with can_close_early=True, settlement_timer=30s structure
+  But: NBA games had 0 open markets checked during this session
+  These series were previously noted as "skeleton built, disabled" in CLAUDE.md
+  Leave for future investigation if soccer sniper validates well.
+
+
+### MARCH 17-18 UCL MARKET SNAPSHOT
+
+Games and current prices (as of 2026-03-15):
+  March 17 17:45 UTC: Sporting CP (SPO=60c) vs Bodo/Glimt (BOG=21c)  — vol: SPO 27K, BOG 481K
+  March 17 20:00 UTC: Arsenal (ARS=76c) vs Leverkusen (LEV=8c)        — vol: ARS 55K, LEV 69K
+  March 17 20:00 UTC: Chelsea (CFC=45c) vs PSG (PSG=34c)              — vol: CFC 40K, PSG 171K
+  March 17 20:00 UTC: Man City (MCI=64c) vs Real Madrid (RMA=20c)     — vol: MCI 71K, RMA 750K (!)
+
+VOLUME ANOMALIES (whale bets?):
+  BOG (Bodo/Glimt, a small Norwegian club) has 481K vol vs SPO (Sporting) 27K — 18x imbalance
+  RMA (Real Madrid) has 750K vol vs MCI (Man City) 71K — 10x imbalance, RMA is heavy underdog
+  These large-volume underdog bets are suspicious: either retail bias or a big whale
+
+BEST SNIPER CANDIDATES March 17:
+  ARS (Arsenal) at 76c: home game, heavy favorite, most likely to build decisive lead
+  MCI (Man City) at 64c: home game, but RMA's 750K vol at NO suggests sharp money on underdog
+  CFC (Chelsea) at 45c: near-even match vs PSG, risky for sniper
+
+March 18 UCL markets (from previous analysis):
+  Bayern (BMU) at 74c vs Atalanta
+  Liverpool (LFC) at 77c vs Galatasaray
+  Barcelona (BAR) at 61c vs Newcastle
+  Atletico/Tottenham near 50/50
+
+
+### TOOLS UPDATED THIS SESSION
+
+1. scripts/soccer_live_monitor.py: Added structured CSV logging (commit 9d4e765)
+   CSV path: /tmp/soccer_sniper_data_<SERIES>_<DATE>.csv
+   Columns: timestamp_utc, ticker, mid_cents, change_cents, above_90c, seconds_above_90c, game_state
+   Purpose: post-game analysis of timing, duration, and false-positive rate
+
+2. Also: crossing timestamp now stores epoch for accurate duration calculations
+   Log now shows: "[DROPPED] MUN → 65c | was 90c+ for 312s since 20:14:33 UTC"
+
+
+### UPDATED VALIDATION CRITERIA FOR SOCCER SNIPER
+
+Before committing any live capital to soccer sniper:
+1. Must observe 90c+ crossing in at least 3 LIVE games (not just from prev_bid data)
+2. Must see crossing happen BEFORE minute 75 (not in final minutes, needs lead time)
+3. Must confirm the 30s settlement is truly "30s after full-time" not some earlier trigger
+4. Win rate at live-observed 90c+ must be >=95% across observed sample
+5. Capital efficiency calculation: if 30-min average lockup, soccer gives 11%/30min return
+   Compare to crypto: at 5c profit per bet, 30s lockup = 5%/30s return (600x better per minute)
+   Conclusion: soccer sniper is VALID supplemental income but not a replacement for crypto
+
+HARD GATE: Do NOT place any live soccer sniper bets until after March 17-18 live monitoring
+and analysis shows at least 3 confirmed 90c+ crossings with timing data.
+
+
+### PRIORITY STACK UPDATE (Session 82)
+
+1. Sol drift graduation (29/30, Brier 0.184 — waiting for 30th bet to settle)
+2. EPL live monitor: March 16 starting 19:45 UTC (BRE vs WOL)
+   Command: python scripts/soccer_live_monitor.py --series KXEPLGAME --ws --date 26MAR16
+3. UCL live monitor: March 17 starting 17:15 UTC
+   Command: python scripts/soccer_live_monitor.py --series KXUCLGAME --ws --date 26MAR17
+   WATCH: ARS (76c) as prime candidate. RMA 750K vol anomaly — worth monitoring.
+4. UCL live monitor: March 18 starting 17:15 UTC
+   Command: python scripts/soccer_live_monitor.py --series KXUCLGAME --ws --date 26MAR18
+   WATCH: LFC (77c), BMU (74c) as prime candidates.
+5. NCAA scanner: March 17-18 when KXNCAAMBGAME markets open (currently 0 open)
+6. After monitoring: analyze CSV data for timing patterns
+7. If 3+ confirmed crossings with pre-75min timing: build soccer sniper execution module
