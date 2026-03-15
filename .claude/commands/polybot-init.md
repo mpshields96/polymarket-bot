@@ -65,29 +65,31 @@ IF no clear direction:
 ═══════════════════════════════════════════════════
 CURRENT STATE (auto-updated by wrap commands)
 ═══════════════════════════════════════════════════
-Last updated: Session 67 (2026-03-14)
-Bot: RUNNING PID 15236 → /tmp/polybot_session66.log
-All-time P&L: -34.53 USD
-Bankroll: ~89+ USD (DB authoritative — check --report)
-Tests: 1127 passing, 3 skipped
-Last commit: 8b279e6
+Last updated: Session 77 (2026-03-15)
+Bot: RUNNING PID 51612 → /tmp/polybot_session76.log
+All-time P&L: -6.08 USD (sniper +46.36, drift -52.44)
+Tests: 1281 passing, 3 skipped
+Last commit: 074bc33
 
 Live strategies:
-  btc_drift: MICRO-LIVE (demoted S60) — confirmed loser
-  eth_drift: MICRO-LIVE (demoted S60) — confirmed loser
-  sol_drift: STAGE 1 — 28/30 bets, Brier 0.176, BEST SIGNAL, 2 from milestone!
-  xrp_drift: MICRO — 19/30 bets, Brier 0.266
-  expiry_sniper: LIVE — 89 live bets total, 42W/1L today (+9.28 USD today)
-  RISK CAPS RAISED S67: HARD_MAX 5→15 USD, MAX_TRADE_PCT 5%→15% (Matthew directive)
-  Sniper now bets 13-15 USD/bet vs old 4.47 USD/bet
+  btc_drift: STAGE 1 (5 USD cap) — 54 live bets, Brier 0.247, -11.12 USD
+  eth_drift: STAGE 1 (5 USD cap) — 97 live bets, Brier 0.250, -25.02 USD
+  sol_drift: STAGE 1 (5 USD cap, restored S76) — 29/30 bets, Brier 0.184, +6.07 USD
+  xrp_drift: MICRO — 20/30 bets, Brier 0.270, -1.71 USD
+  expiry_sniper: LIVE (20 USD cap) — 292 bets all-time, +46.36 USD PROFITABLE CORE
+    96c BLOCKED (IL-10, S76), 97c-NO BLOCKED (IL-10, S76), 99c BLOCKED (IL-5)
+    Post-guard restart: 35/35 wins, +22.95 USD in 5h — guard working perfectly
 
 Direction filters (do not change):
   btc_drift="no" | eth_drift="yes" | sol_drift="no" | xrp_drift="yes"
 
-Research state (S67):
-  GEFS ensemble built (S63) — needs weekday HIGHNY markets to test (Monday March 16)
-  Sniper bucket analysis: 90-94c marginal, 95-99c profitable
-  Dead ends: sports arb, crypto expansion (only 4 15-min series exist), BALLDONTLIE
+Research state (S77):
+  scripts/ncaa_tournament_scanner.py — run March 17-18, Round 1 markets March 20-21
+  scripts/weather_calibration.py — check paper bet outcomes (LAX, CHI, DEN)
+  scripts/cpi_release_monitor.py — run April 10, 08:30 ET
+  Dead ends (cumulative): sports taker arb, BALLDONTLIE, FOMC model, NBA/NHL sniper,
+    sniper maker mode, NCAA totals, KXMV parlay, NBA in-game sniper, BNB/BCH/DOGE 15M,
+    KXBTCD hourly non-5PM, FOMC March 2026, non-crypto 90c+ markets, annual BTC range
   Next: GEFS test Monday, sol_drift Stage 2 graduation (2 bets away), sniper threshold analysis at 200+
 
 IMPORTANT — MARCH 1 HARD STOP IN --health: HISTORICAL, NOT BLOCKING.

@@ -3696,3 +3696,47 @@ Matthew directive: "don't lose money, ensure failsafes 100%".
   3. NCAA scanner March 17-18
   4. Weather calibration check (March 16-17)
   5. Sol drift 30th bet → Stage 2 graduation eval
+
+---
+
+## Session 77 — 2026-03-15 ~08:20–13:15 UTC
+**Type:** Diagnostic + monitoring
+**Focus:** Confirm 96c/97c guard works, overnight supervision
+
+### P&L
+  All-time live: -6.08 USD (improved from -10.28 at session start → +4.20 USD gained)
+  Today live: -23.15 USD (89 settled, 85% WR) — bulk from pre-guard 96/97c losses
+  Sniper post-restart (guard active): 35 bets, 35/35 wins (100%), +22.95 USD in ~5h
+
+### Strategy counts
+  expiry_sniper_v1: 292 live bets all-time, +46.36 USD — profitable core
+  sol_drift_v1: 29/30 — still needs 1 more for Stage 2 eval
+  xrp_drift_v1: 20/30 — needs 10 more
+  eth_drift_v1: 97 live bets, -25.02 USD (biggest live drain)
+  btc_drift_v1: 54 live bets, -11.12 USD
+
+### Key findings
+  1. Guard confirmed working — zero 96c bets, zero 97c-NO bets since 08:25 UTC restart
+  2. The two big losses Matthew saw (-19.20, -18.43 USD) were placed BEFORE guard was deployed
+     They settled TODAY but were placed at 06:26 and 07:09 UTC, before 08:04 UTC commit
+  3. "1090 stale open trades" warning is benign — ALL paper (sports_futures 1038, fomc 50, copy_trader 2)
+  4. Sniper bucket analysis shows 90c YES as next concern (2/3 current-era, -17.91 USD)
+     But n=3 is far too small. No action until 20+ current-era bets per PRINCIPLES.md.
+  5. Drift strategies are the P&L drag (-52.44 USD combined live). Sniper carrying the account.
+
+### Self-rating: B-
+  WINS: Correctly triaged Matthew's anger, proved guard was already working, zero panic changes,
+    started clean overnight monitoring loop, produced clear bucket analysis.
+  LOSSES: Zero new code shipped. Session was entirely reactive — guard was deployed in S76.
+    All-time P&L improvement (+4.20 USD) came from the bot running, not from this session's work.
+  WHY B- NOT C: Correctly NOT making panic changes (no PRINCIPLES.md violations). That discipline
+    is worth credit. But the session added no new value beyond confirming existing work.
+
+### What next chat must do better
+  Start monitoring immediately on session open, then use drought time to check sol_drift graduation.
+  Don't spend the session just reading logs — pivot to productive work during quiet periods.
+
+### What would have made more money earlier
+  The 96c/97c guard (deployed S74/S76) was worth ~37 USD structural drag saved per month.
+  Earlier deployment = more saved. Already fixed. Next highest impact: reduce bet size on 90c
+  markets (single reversal = -20 USD = wipes 10 wins) — but needs Matthew's approval on MAX_TRADE_PCT.

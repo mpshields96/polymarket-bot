@@ -1,11 +1,11 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-15 (Session 76 overnight — Stage 1 cap restored, guard audit, monitoring active)
+# Last updated: 2026-03-15 (Session 77 wrap — guard confirmed working, post-restart sniper 35/35 wins)
 # ═══════════════════════════════════════════════════════════════
 
-## COPY-PASTE THIS TO START A NEW SESSION (Session 77 — RESEARCH or MONITORING)
+## COPY-PASTE THIS TO START A NEW SESSION (Session 78)
 
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 77).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 78).
 
 MANDATORY READING BEFORE ANY ACTION:
   cat SESSION_HANDOFF.md
@@ -13,11 +13,10 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 76 overnight — 2026-03-15 ~08:25 UTC restart):
+BOT STATE (Session 77 wrap — 2026-03-15 ~13:15 UTC):
   Bot RUNNING PID 51612 → /tmp/polybot_session76.log
-  All-time live P&L: -29.03 USD (heavy losses today — analysis below)
-  Bankroll: ~124 USD (DB authoritative)
-  Tests: 1281 passing. Last commit: 05bcd65 (Stage 1 cap restored)
+  All-time live P&L: -6.08 USD (sniper +46.36 USD, drift strategies -52.44 USD)
+  Tests: 1281 passing. Last commit: 074bc33 (docs: bucket analysis)
 
 SESSION 76 OVERNIGHT KEY CHANGES:
   1. DEPLOYED 96c/97c negative-EV bucket guard (commit cd32feb):
@@ -67,11 +66,11 @@ If --health shows "HARD STOP": HISTORICAL. The 30% lifetime stop was DISABLED in
 
 ---
 
-GRADUATION STATUS (2026-03-15 overnight):
+GRADUATION STATUS (2026-03-15 ~13:15 UTC):
   sol_drift_v1: 29/30 bets, Brier 0.184, P&L +6.07 USD — needs 1 more to Stage 2 eval
-    Stage 1 cap restored at $5 (was auto-promoted to $10 when bankroll crossed $100)
+    Stage 1 cap at 5 USD (restored S76 overnight). When 30th settles: check Brier + limiting_factor.
   xrp_drift_v1: 20/30 bets, Brier 0.270, P&L -1.71 USD — needs 10 more
-  expiry_sniper_v1: LIVE 20 USD cap, all-time live P&L -29.03 USD (heavy today)
+  expiry_sniper_v1: 292 live bets, all-time P&L +46.36 USD — PROFITABLE CORE
 
 SNIPER BUCKET ANALYSIS (post-S76 guard — updated overnight):
   BLOCKED (96c, 97c NO): working ✓ — no new bets since restart
@@ -98,23 +97,19 @@ SESSION 74 RESEARCH KEY CHANGES (2026-03-15 ~07:00-10:30 UTC):
   4. CONFIRMED DEAD END: non-crypto 90c+ market scan — 0 found in 2000+ markets
   5. CONFIRMED DEAD END: annual BTC range markets (KXBTCMAXY/KXBTCMINY) — 9+ month lockup
 
-PENDING TASKS (Session 77 — PRIORITY ORDER):
-  #0 DONE — 96c/97c guard deployed + Stage 1 cap restored. PID 51612 → session76.log.
+PENDING TASKS (Session 78 — PRIORITY ORDER):
   #1 DECISION NEEDED: Matthew review MAX_TRADE_PCT (15% current vs 5% original)
-     At 90c with $19.80 bets: 1 loss wipes 10 wins. Loss today -19.80 was within limits.
-     If Matthew wants to lower exposure per bet: change MAX_TRADE_PCT = 0.05 in kill_switch.py
-     DO NOT change without Matthew's explicit approval.
-  #2 NCAA scanner — run scripts/ncaa_tournament_scanner.py --min-edge 0.03 on March 17-18
+     At 90c with ~20 USD bets: 1 loss wipes 10 wins. Structural risk per bet is high.
+     Change MAX_TRADE_PCT = 0.05 in kill_switch.py — DO NOT change without Matthew approval.
+  #2 Sol drift graduation — 29/30, 1 more bet needed. Stage 1 cap at 5 USD.
+     When 30th bet settles: check Brier < 0.25 + limiting_factor==kelly → raise cap to 10 USD
+  #3 NCAA scanner — run scripts/ncaa_tournament_scanner.py --min-edge 0.03 on March 17-18
      When Kalshi opens Round 1 KXNCAAMBGAME markets (games March 20-21)
-  3. Weather calibration — check March 15 paper bets when finalized (est March 15-16 UTC)
+  #4 Weather calibration — check paper bets when settled
      Run: python3 scripts/weather_calibration.py --pending
-     Key bets: LAX YES@8c (93.5% GEFS probability), CHI NO@91c, DEN NO@7c
-     If LAX loses: confirms warm bias — adjust LAX edge threshold to 30%+
-  4. Sol drift graduation — 29/30 → 1 more bet needed. Stage 1 cap at $5 (restored S76 overnight).
-     When 30th bet settles: evaluate Stage 2 (raise cap to $10) — check Brier + limiting_factor
-  5. CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)
-  6. Weather edge scanner — run again at 14:00 UTC when March 16 KXHIGH* markets open
-     LAX forecast mean=86F for March 16 (warm day likely). Check if Kalshi misprices again.
+     Key bets: LAX YES@8c, CHI NO@91c, DEN NO@7c
+  #5 CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)
+  #6 Weather edge scanner — run daily at 14:00 UTC when KXHIGH* markets open
 
 RESEARCH STATE:
   scripts/cpi_release_monitor.py — run April 10, 08:30 ET
