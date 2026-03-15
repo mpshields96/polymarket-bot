@@ -137,25 +137,17 @@ SESSION 74 RESEARCH KEY CHANGES (2026-03-15 ~07:00-10:30 UTC):
   4. CONFIRMED DEAD END: non-crypto 90c+ market scan — 0 found in 2000+ markets
   5. CONFIRMED DEAD END: annual BTC range markets (KXBTCMAXY/KXBTCMINY) — 9+ month lockup
 
-SESSION 80 KEY FINDINGS (2026-03-15 monitoring chat):
-  1. CORRECT LOG PATH: Bot writes to /tmp/polybot_session76.log (NOT session79.log)
-     SESSION_HANDOFF had wrong log path. Always check: ls -la /tmp/polybot_session*.log
-  2. GUARD VIOLATIONS EXPLAINED: Today's 3 losses at 96c/97c/98c (06:31, 07:15, 13:30 UTC)
-     were from PRE-GUARD bot instances. Current bot (since 15:07 UTC) has 0 guard violations.
-     IL-10, IL-11, IL-5 all confirmed working in live.py lines 121-155.
-  3. P&L TRAJECTORY: All-time improved from -38.97 → -35.96 USD in 1 hour of post-guard trading.
-     Post-guard active bucket wins are consistently small (+0.60 to +3.12 USD per win).
-     Single guard-bucket loss = -14 to -17 USD (wipes 16-20 wins). Guards are critical.
-  4. BANKROLL: ~116.52 USD (estimate based on S79 confirmed 123 USD - net losses since)
-  5. CPI MARKETS: KXCPI-26MAR-T0.5 YES=90c (vol=33,066), T0.4 YES=93c (vol=15,448)
-     Both in active sniper buckets. BUT these are monthly markets, not 15M — sniper doesn't fire on them.
-     CPI speed-play still April 10 only (scripts/cpi_release_monitor.py → KXFEDDECISION series).
-  6. 94c YES BUCKET WATCH: 33 bets all-time, 94%WR, -13.37 USD. Fee break-even is 94.37%.
-     NOT a guard candidate yet (need 200+ bets, p<0.05). Monitor — may become IL-12 at 100+ bets.
-  7. SOL DRIFT: 29/30, Brier=0.184, +6.07 USD. NO side: 82%WR on 17 bets (above break-even).
-     When 30th bet settles: remove calibration_max_usd=5.0 from main.py line 2952 → None.
-     NOTE: limiting_factor at current bankroll (116 USD) = pct_cap (5.8 USD), NOT kelly.
-     Graduation gate: just 30 bets + Brier<0.25 + positive P&L. Don't require kelly.
+SESSION 80 KEY FINDINGS (2026-03-15 monitoring — wrap):
+  1. SESSION GAIN: -29.48 → -18.88 USD all-time (+10.60 USD in ~8 hours, 94% WR, 125+ bets settled)
+  2. GUARD VALIDITY: Guards (IL-10/IL-11) are objectively justified by fee math, NOT trauma.
+     Break-even WR: 96c=96.3%, 97c-NO=97.2%, 98c-NO=98.1%. Sniper can't sustain these long-term.
+     96c YES guard (17 bets, 94.1% WR) is the most borderline — revisit at 50+ bets if desired.
+     NO@97c and NO@98c: fee math alone justifies blocking regardless of sample size.
+  3. AUTONOMY RULE FIXED: polybot-auto command updated — no confirmations ever when invoked.
+     Memory saved to prevent repeat violations.
+  4. MONITOR SCRIPT FIXED: Python extracted to /tmp/polybot_check.py — no more heredoc conflicts.
+  5. SOL DRIFT: 29/30, Brier=0.184, +6.07 USD. Graduation gate = 30 bets + Brier<0.25 (no kelly req).
+     When 30th settles: remove calibration_max_usd=5.0 → None in main.py, restart bot.
 
 PENDING TASKS (Session 81 — PRIORITY ORDER):
   #1 Sol drift graduation — 29/30, 1 more bet needed. Stage 1 cap at 5 USD.
