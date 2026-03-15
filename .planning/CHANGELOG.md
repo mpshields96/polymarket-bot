@@ -3454,3 +3454,75 @@ ONE THING DONE EARLIER WOULD HAVE MADE MORE MONEY: Research chat raised cap to 2
 4. Chain monitoring cycles, confirm single process
 
 ### Tests: 1198 passing | Last commit: ac82301
+
+## Session 74 Research (2026-03-15 ~07:00-10:30 UTC)
+
+### Session Type: Research + Security Hardening
+
+### Tools Built
+- scripts/weather_calibration.py — checks all weather paper bets in DB, fetches current Kalshi
+  prices, infers outcomes (LIKELY_WIN/PROB_WIN/OPEN/PROB_LOSS/LIKELY_LOSS) from market prices.
+  33 tests in tests/test_weather_calibration.py. Commit: 0c47366
+- BOUNDS.md — 9 Iron Laws with exact file:line enforcement, historical incident, and test ref.
+  Read this before editing any DANGER ZONE file.
+- .claude/hooks/danger_zone_guard.sh — PreToolUse hook: intercepts edits to TIER 1 files
+  (live.py, kill_switch.py, sizing.py), runs 1275 tests before allowing. Exits 2 on failure.
+- .claude/settings.json — PreToolUse hook wiring added.
+- scripts/verify_change.sh — verify-revert loop: git stash → pytest → DB baseline check →
+  restore stash if VERIFIED, drop if REVERTED. No git history destruction.
+- scripts/check_strategy_baseline.py — DB win-rate query vs threshold for any strategy.
+  17 tests in tests/test_check_strategy_baseline.py. Commit: 403f5d4
+- tests/test_kalshi_input_validation.py — 27 tests for SEC-1/2/3 fixes. Commit: 0e6f417
+
+### Security Fixes
+- SEC-1: _dollars_to_cents() and _fp_to_int() now validate parsed values in [0,100] / [0,1e9]
+  Previously: float("NaN")*100 raised ValueError (safe by accident); float("999.99")*100=99999
+  (also safely rejected by 1-99 guard, but implicitly). Now explicit. kalshi.py lines 54-70.
+- SEC-2: KalshiAPIError body truncated to 300 chars in __str__. .body attr unchanged.
+  Prevents full Kalshi API error responses (with account/order data) from flooding session logs.
+- SEC-3: data/*.json added to .gitignore. Scan result files reveal strategy focus areas.
+  Was: only data/sdata_quota.json excluded. Now: all data/*.json excluded, !data/.gitkeep kept.
+
+### Research Findings
+- Non-crypto 90c+ market scan: EXHAUSTIVE — scanned 2000+ markets across all Kalshi series.
+  Result: ZERO markets at 88c+ YES outside crypto 15-min series. Sniper expansion = dead end.
+  PGA PLAYERS Championship leader (Aberg) at 58c YES — drift zone, not sniper territory.
+- Annual BTC range markets (KXBTCMAXY/KXBTCMINY): 9+ month settlement lockup, drift zone pricing.
+  No forecasting edge. Capital efficiency catastrophic. Dead end.
+- XRP first structural sniper loss: trade 2197, XRP NO@97c x19 = -18.43 USD.
+  XRP reversed hard near expiry. First loss in 62 bets. p=0.07, not statistically significant.
+  Per PRINCIPLES.md: do NOT add XRP-specific guard. Revisit at 200 XRP bets.
+- SOL continuing pattern: 4 structural losses in 73 bets (94.5% WR). p~0.10.
+  Still not significant enough for action. Revisit at 200 SOL bets.
+- Sniper per-asset P&L (249 total settled, 97.2% WR, +40.37 USD):
+  BTC 52 bets 98.1% WR +25.03 USD | ETH 62 bets 98.4% WR +21.05 USD
+  SOL 73 bets 94.5% WR -14.94 USD | XRP 62 bets 98.4% WR +9.23 USD
+- Weather paper bets: all March 15 markets still OPEN (Kalshi settlement delayed 1-2 days).
+  Calibration script built and ready — run when markets finalize (est March 16-17).
+
+### Dead Ends Added
+  Non-crypto 90c+ sniper expansion (exhaustive scan, 0/2000+ markets qualify)
+  Annual BTC range markets KXBTCMAXY/KXBTCMINY (9+ month lockup, no edge)
+
+### Tests
+1275 passing (was 1198 at S73 start). +77 new tests across 3 new test files.
+
+### Self-Rating: B+
+DISCOVERIES: XRP first structural loss (noted, not actionable yet). Non-crypto sniper confirmed dead.
+TOOLS BUILT: weather_calibration.py, verify_change.sh, check_strategy_baseline.py, BOUNDS.md,
+  danger_zone_guard.sh, SEC-1/2/3 fixes. All tested. All committed.
+DEAD ENDS: Non-crypto 90c+ sniper (exhaustive), annual BTC range markets.
+EDGES FOUND: None new. Sniper edge is confirmed and maintained.
+GRADE: B+ — No new trading edge found, but substantial safety infrastructure added. The Iron Laws
+  hook and verify-revert loop prevent future live money losses from accidental parameter changes.
+  Security fixes make implicit safety explicit. Real value for a non-research session.
+ONE FINDING: XRP had its first loss (62 bets). If XRP WR degrades below 95% at 200 bets, 
+  revisit whether XRP has structural vulnerability to late reversals like SOL.
+ONE NEXT PRIORITY: NCAA Round 1 scanner on March 17-18. Real opportunity window — only 2 days.
+
+### What Next Chat Must Do
+1. NCAA scanner March 17-18 — python3 scripts/ncaa_tournament_scanner.py --min-edge 0.03
+2. Weather calibration when March 15 markets finalize — python3 scripts/weather_calibration.py --pending
+3. Monitor sol graduation (28/30 — 2 bets away from Stage 2 evaluation)
+4. XRP: note the first loss but do NOT act on it (insufficient data per PRINCIPLES.md)
+5. Bot is RUNNING PID 33894 → /tmp/polybot_session74.log
