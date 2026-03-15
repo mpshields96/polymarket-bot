@@ -1737,3 +1737,94 @@ IMPORTANT — 95-96c bucket EV distortion:
      Action if loss: raise LAX edge threshold from 20% to 30%+ in weather strategy
   4. CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)
   5. Sniper per-asset monitoring — flag if SOL reaches 200 bets with WR still ~94%
+
+---
+
+## Session 76 Overnight Research (2026-03-15 ~08:10-13:15 UTC)
+
+**PRIMARY OUTPUT: 96c/97c NEGATIVE-EV BUCKET GUARD DEPLOYED**
+
+Matthew explicitly approved the 96c/97c guard during the session.
+Implementation: src/execution/live.py (IL-10), 6 regression tests, BOUNDS.md updated.
+Commit: cd32feb
+Forward savings: ~37.47 USD structural drag eliminated.
+
+Blocked buckets (data):
+  96c both sides: 31 bets, 93.5% WR, -22.44 USD cumulative (needs >96% WR to break even)
+  97c NO-side:    13 bets, 92.3% WR, -15.03 USD cumulative (needs >97% WR to break even)
+  97c YES-side:   NOT blocked — 11 bets, 100% WR, +2.90 USD profitable
+
+**BUG FOUND AND FIXED: SOL_DRIFT STAGE 2 AUTO-PROMOTION**
+
+When bankroll crossed 100 USD, sizing module auto-promoted sol_drift to Stage 2 (10 USD cap).
+This happened before the manual graduation gate (30 bets + Brier + limiting_factor) was met.
+Evidence: trade 2243, sol_drift NO@57c, 13 contracts = 7.41 USD — double the historical avg of ~2 USD.
+Fix: calibration_max_usd=5.0 restored in main.py. Commit: 05bcd65.
+Re-evaluate when 30th bet settles (currently 29/30, Brier 0.184 = exceptional).
+
+**SNIPER BUCKET ANALYSIS (ERA-CORRECTED)**
+
+Historical bucket stats were contaminated by old small-bet era (5 contracts, ~4.65 USD/bet)
+when HARD_MAX was 5 USD. Current era = 16-20 contracts, ~18.62-19.80 USD/bet.
+
+Current-era (16+ contract) bucket performance:
+  93c YES: 9/9 = 100% WR (old-era had 2 losses at 4.65 USD — not representative)
+  92c NO:  5/6 = 83.3% WR (1 SOL reversal — not systematic, BTC = 3/3 = 100%)
+  90c YES: 2/3 = 66.7% WR (1 XRP reversal — only 3 bets, not actionable)
+  94-98c:  essentially 100% WR across all assets
+
+Pattern: BTC sniper near-perfect at all price levels. SOL and XRP (more volatile) each had
+1 single reversal in current era. Not systematic. Statistical noise at small sample sizes.
+
+Statistical significance tests (all at alpha=0.20):
+  92c NO (6 bets, 1 loss): p=39% vs H0: WR=92% — NOT significant
+  90c YES (3 bets, 1 loss): p=27% vs H0: WR=90% — NOT significant
+  Conclusion: No new guards warranted at current sample sizes.
+
+**CORRELATED SNIPER RISK — STRUCTURAL CONCERN DOCUMENTED**
+
+All 4 crypto assets (BTC/ETH/SOL/XRP) fire sniper simultaneously when prices move together.
+At ~18.62 USD/asset, 4 simultaneous open positions = ~75 USD of capital at risk per window.
+With HARD_MAX_TRADE_USD = 20 and MAX_TRADE_PCT = 15%, individual trades pass kill switch
+but combined exposure can reach 60-80% of bankroll in one 15-minute window.
+
+If a correlated reversal occurs (all 4 assets flip in final seconds), potential loss = ~75 USD.
+Historical evidence: has NOT happened yet, but the structural risk exists.
+
+Open question for Matthew: should a per-window concurrent position cap be added?
+Example: max 2 simultaneous live positions = max ~40 USD per window vs 75 USD.
+DO NOT implement without explicit approval — requires main.py + kill_switch changes.
+
+**FORWARD EV WITH GUARDS**
+
+Allowed buckets (90-95c, 97c YES, 98c):
+  191 historical bets, 97.9% WR, +75.73 USD total P&L, +0.39 USD EV per bet
+
+Blocked buckets (96c, 97c NO, 99c):
+  66 historical bets, 93.9% WR, -52.32 USD total P&L — structurally blocked going forward
+
+All drift strategies (btc/eth demoted to micro-live 0.01 cap, xrp micro-live):
+  These contributed ~52 USD of historical losses before demotion. Now negligible.
+  Sol_drift Stage 1 (5 USD cap): 29 bets, 75.9% WR, Brier 0.184 — positive EV going forward.
+
+**SECURITY AUDIT COMPLETED**
+
+.env file: NOT in git history (git log confirmed zero commits of .env).
+.gitignore: .env properly excluded.
+Credentials in source code: NONE found (IL-6 verified).
+data/*.json: gitignored (SEC-3 fix from S74 confirmed active).
+Remote: github.com/mpshields96/polymarket-bot — 4 commits ahead, not pushed.
+Conclusion: Credentials are safe. No credential exposure risk.
+
+**DEAD ENDS CONFIRMED (Session 76 overnight):**
+  Historical bucket analysis without era-correction: misleading (now corrected)
+  Treating bank-roll-triggered Stage 2 as equivalent to manually-gated Stage 2: bug, fixed
+
+**REVISED PRIORITY STACK (Session 76 end):**
+  1. Correlated sniper risk — Matthew decision needed on per-window position cap
+  2. MAX_TRADE_PCT decision — currently 15% (raised S65); at 90c, 1 loss = 15.9% bankroll drawdown
+     Matthew should decide: lower to 5% (smaller losses) or keep 15% (higher variance, higher volume)
+  3. NCAA scanner — run March 17-18 (scripts/ncaa_tournament_scanner.py --min-edge 0.03)
+  4. Weather calibration — check March 15 paper bets when finalized (est. March 16-17)
+  5. Sol drift graduation — 29/30 → Stage 2 eval when 30th bet settles, Brier 0.184 outstanding
+  6. CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)

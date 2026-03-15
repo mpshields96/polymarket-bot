@@ -3,7 +3,7 @@
 # Last updated: 2026-03-15 (Session 76 overnight — Stage 1 cap restored, guard audit, monitoring active)
 # ═══════════════════════════════════════════════════════════════
 
-## COPY-PASTE THIS TO START A NEW SESSION (Session 77)
+## COPY-PASTE THIS TO START A NEW SESSION (Session 77 — RESEARCH or MONITORING)
 
 You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 77).
 

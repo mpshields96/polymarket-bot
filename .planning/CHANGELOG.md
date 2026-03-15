@@ -3656,3 +3656,43 @@ Would be A if sol_drift graduated or weather calibration data was available.
    March 15 paper bets: LAX YES@8c, CHI NO@91c, DEN NO@7c — should settle ~20:00 UTC today
 4. Sol drift graduation — 28/30, 2 more bets needed → Stage 2 eval when hit 30
 5. Verify 96c/97c guard firing in logs: grep "96c\|97c.*negative" /tmp/polybot_session75.log
+
+## Session 76 Overnight Research (2026-03-15 ~08:10-13:15 UTC)
+
+**FOCUS:** Defensive session — guard deployment, bug fixes, system audit.
+Matthew directive: "don't lose money, ensure failsafes 100%".
+
+**TOOLS/CODE BUILT:**
+  - src/execution/live.py: 96c/97c negative-EV bucket guard (IL-10) — commit cd32feb
+  - tests/test_live_executor.py: TestSniperNegativeEvBucketGuard (6 tests) — same commit
+  - BOUNDS.md: Iron Law IL-10 added — same commit
+  - main.py: sol_drift calibration_max_usd restored to 5.0 (Stage 1 cap) — commit 05bcd65
+  - /tmp/polybot_night_monitor.sh: overnight monitoring script (PID 52238, running)
+  - SESSION_HANDOFF.md: updated with bucket analysis and Matthew decision items
+
+**KEY DATA FINDINGS:**
+  - 96c both sides: 31 bets, 93.5% WR, -22.44 USD → BLOCKED
+  - 97c NO-side: 13 bets, 92.3% WR, -15.03 USD → BLOCKED
+  - Forward allowed-bucket EV: 191 bets, 97.9% WR, +0.39 USD EV/bet
+  - Current-era 93c YES: 9/9 = 100% WR (old-era contamination corrected)
+  - Sol_drift Stage 2 auto-promotion bug: bankroll crossing 100 doubled max bet silently
+  - Correlated sniper risk: 4 assets simultaneously = ~75 USD capital at risk per window
+  - Consecutive losses: 1 (well below kill switch limit of 8)
+  - All-time live P&L: -6.08 USD (recovered from -29.03 overnight via sniper wins)
+
+**DEAD ENDS:**
+  - Historical bucket analysis without era-correction is misleading (bets were 4-5 USD in
+    old era vs 18-20 USD now — same price bucket shows different WR/EV due to Kelly sizing)
+  - Stage 2 bankroll threshold auto-promotion ≠ manual graduation gate (two different systems)
+
+**SELF-RATING: B+**
+  Fixed real structural bug (Stage 2 auto-promotion), deployed guard saving 37.47 USD forward drag,
+  rigorous bucket analysis with era-correction. No new edge discovered.
+  Lost points: no new edge found, session was entirely defensive.
+
+**NEXT SESSION PRIORITIES:**
+  1. Matthew decision: correlated position cap (per-window max exposure)
+  2. Matthew decision: MAX_TRADE_PCT (15% vs 5%)
+  3. NCAA scanner March 17-18
+  4. Weather calibration check (March 16-17)
+  5. Sol drift 30th bet → Stage 2 graduation eval
