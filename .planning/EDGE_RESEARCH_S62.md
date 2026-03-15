@@ -2220,15 +2220,52 @@ Run for March 18 games:
   (sniper at 94% WR on crypto is after guards; UCL at 94% = roughly break-even after fees at 90c)
   → Need 96%+ WR at 90c or better entry pricing (92-95c before commitment)
 
-**PRIORITY STACK (updated Session 81 research):**
+### EPL: ADDITIONAL CONFIRMATION + HIGHER FREQUENCY
+
+EPL (KXEPLGAME) has the SAME structure as UCL:
+  can_close_early=True, settlement_timer=30s, 90-minute game
+  Volume: 500K - 1.2M per big game (MUN vs AVL: 1.23M contracts)
+
+EPL TODAY (March 15 confirmed):
+  MUN (Manchester United) at 56c pre-close → WON at 99c (confirmed live movement)
+  LFC (Liverpool) at 75c pre-close → LOST (drew with Tottenham = LFC at 1c, TIE won)
+  LFC confirms risk: being at 75c pre-close doesn't mean safe. Need to enter DURING game.
+
+EPL COMING GAMES:
+  March 16: Brentford (BRE) vs Wolves (WOL). BRE=61c, WOL=16c. ~20:00 UTC kickoff.
+    → TEST TOMORROW: run soccer_live_monitor.py --series KXEPLGAME --ws --date 26MAR16
+  March 21-22: Multiple EPL games (LFC, MUN, CFC, others)
+
+EPL ADVANTAGE OVER UCL:
+  UCL: ~4 games/week during knockout rounds (8 total per round)
+  EPL: ~10 games per weekend, some midweek = 3x more opportunities per week
+  Comparable volume: up to 1.2M per EPL game vs 745K for UCL
+
+SERIES SUMMARY (soccer in-play sniper candidates, all confirmed can_close_early=True 30s):
+  KXUCLGAME:    100K-5M vol/game. Biweekly. 90-min. Best single-game liquidity.
+  KXEPLGAME:    500K-1.2M vol/game. Weekly. 90-min. Highest frequency.
+  KXLALIGAGAME: 100K-728K vol/game. Weekly. 90-min. Spain top division.
+  KXSERIEAGAME: 100K-512K vol/game. Weekly. 90-min. Italy top division.
+
+TOOLS BUILT:
+  scripts/ucl_live_monitor.py — UCL-specific, WebSocket mode recommended
+    Run: python scripts/ucl_live_monitor.py --ws --date 26MAR17
+  scripts/soccer_live_monitor.py — GENERIC: supports UCL, EPL, La Liga, Serie A
+    Run: python scripts/soccer_live_monitor.py --series KXEPLGAME --ws --date 26MAR16
+
+**PRIORITY STACK (updated Session 81 research — EPL added):**
 1. Sol drift graduation (29/30, Brier 0.184 — waiting for 30th bet)
-2. UCL live monitor: March 17 starting 17:30 UTC (Sporting/Bodo first)
-3. UCL live monitor: March 18 starting 17:30 UTC (4 more games)
-4. NCAA scanner: March 17-18 (KXNCAAMBGAME opens, check 1v16 underpriced)
-5. Weather calibration: March 16 ~04:00 UTC (10 pending paper bets settle)
-6. CPI speed-play: April 10 08:30 ET (BLS quota burned today — don't run until April 10)
-7. GDP speed-play: April 30 08:30 ET (register FRED key first)
-8. SOL/XRP 94c YES monitoring: watch for IL-12 candidate at 100+ bets
+2. EPL live monitor: March 16 starting 19:45 UTC (BRE vs WOL, first live test!)
+   Command: python scripts/soccer_live_monitor.py --series KXEPLGAME --ws --date 26MAR16
+3. UCL live monitor: March 17 starting 17:15 UTC (4 games)
+   Command: python scripts/soccer_live_monitor.py --series KXUCLGAME --ws --date 26MAR17
+4. UCL live monitor: March 18 starting 17:15 UTC (4 more games)
+   Command: python scripts/soccer_live_monitor.py --series KXUCLGAME --ws --date 26MAR18
+5. NCAA scanner: March 17-18 (KXNCAAMBGAME opens, check 1v16 underpriced)
+6. Weather calibration: March 16 ~04:00 UTC (10 pending paper bets settle)
+7. CPI speed-play: April 10 08:30 ET (BLS quota burned today — don't run until April 10)
+8. GDP speed-play: April 30 08:30 ET (register FRED key first)
+9. SOL/XRP 94c YES monitoring: watch for IL-12 candidate at 100+ bets
 
 **DEAD END CONFIRMED: KXBTCD near-expiry sniper (both 2PM and 5PM ET slots)**
 All daily KXBTCD threshold markets are priced at 99c/0c when far from threshold (blocked by IL-5).
