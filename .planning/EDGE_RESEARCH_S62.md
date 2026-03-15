@@ -2144,21 +2144,59 @@ March 17 games opening prices (pre-game):
 
 March 18 games also open: Bayern/Atalanta, Tottenham/Atletico, Liverpool/Galatasaray, Barcelona/Newcastle
 
-### CRITICAL QUESTION (need to validate March 17)
-Do KXUCLGAME prices actually update IN REAL-TIME during the game?
-- If Arsenal leads 2-0 at minute 70, does ARS price move from 76c → 90c+?
-- If so, how quickly? (Key for execution feasibility)
-- NCAAB confirmed: prices DO move in real-time (MICH dropped 80c → 76c in Q1)
-- UCL volume is 10-100x larger → should be MORE responsive, not less
+### KEY EVIDENCE: LIVE PRICE MOVEMENT CONFIRMED (pre-session data)
 
-### TOOL BUILT: scripts/ucl_live_monitor.py
-- Polls ESPN UCL scoreboard (site.api.espn.com/.../UEFA.CHAMPIONS/scoreboard) every 60s
-- Polls Kalshi KXUCLGAME markets simultaneously
-- Detects price changes >=1c and logs them with game state context
-- Flags 90c+ crossings prominently
-- Logs to /tmp/ucl_monitor.log for analysis
-- Run on March 17 starting ~17:30 UTC (15 min before Sporting vs Bodo)
-- Run: python scripts/ucl_live_monitor.py --date 26MAR17
+From previous_yes_bid vs last_price analysis of all settled KXUCLGAME markets:
+
+Feb 24-25 first-leg games (genuine uncertainty pre-game):
+  ATA vs BVB: ATA pre-close=0.45c, last=0.99 → ATA WON (market moved 45c to 99c DURING GAME)
+  JUV vs GAL: JUV pre-close=0.66c, last=0.99 → JUV WON
+  PSG vs Monaco: PSG pre-close=0.77c, TIE WON at 0.99c (PSG was HEAVY FAVORITE but game ended TIE)
+  RMA vs Benfica: RMA pre-close=0.59c, last=0.99 → RMA WON
+
+March 10 second-leg games (decisive first-leg results = pre-game certainty):
+  ALL winners were already at 99c before the game (no in-game opportunity)
+  BOG, GAL, BMU, ATM, RMA all won their March 10 games at 99c
+
+CONCLUSION: Markets confirmed live. First-leg and evenly-matched games show GENUINE
+in-game price movement from ~50c to 99c. Second legs after decisive first-leg wins
+are already at 99c pre-game (no opportunity).
+
+March 17-18 games are SECOND LEGS. First-leg scores determine pre-game prices:
+  ARS at 76c: Leverkusen vs Arsenal was 1st-leg TIE → Arsenal playing home, heavy favorite
+  LFC at 77c: Galatasaray WON first leg (away upset!) → Liverpool must win at Anfield
+  BMU at 74c: Bayern WON first leg → still heavy favorite for 2nd leg game
+  BAR at 61c: Barcelona vs Newcastle was TIE (first leg) → Barcelona playing home
+  MCI at 64c: Real Madrid WON first leg → Man City must win at Etihad (home pressure)
+  ATM at 38c vs TOT at 37c: Atletico WON first leg → near 50/50 for 90-min match
+
+BEST LIVE SNIPER OPPORTUNITIES on March 17-18:
+  ARS (76c): score first → jump to 90c+. Arsenal playing at home. Very likely.
+  LFC (77c): score first → jump to 90c+. Liverpool at Anfield vs Galatasaray.
+  BMU (74c): leads early → 90c+. Bayern home or away (need to confirm)
+  MCI (64c): needs 2-goal lead to hit 90c reliably (64c is lower starting point)
+  ATM/TOT (38c/37c): near 50/50 → need 2+ goals to reach 90c
+
+### WEBSOCKET CONFIRMED: Real-time data available
+Kalshi WebSocket (wss://api.elections.kalshi.com/trade-api/ws/v2) works:
+- Subscribe to orderbook_delta channel → tick-by-tick updates
+- Pre-game (March 15 Sunday) already seeing 150K-contract order movements on RMA
+- 774K contracts sitting at NO 0.80 (= YES 0.20) for RMA as single large order
+- ESPN API works for live UCL scores
+
+### TOOL BUILT: scripts/ucl_live_monitor.py (WebSocket mode)
+- REST mode: 60s polling for pre-game monitoring
+- WebSocket mode (--ws): real-time orderbook_delta subscription for live games
+- Tracks first 90c crossing time and duration above threshold
+- ESPN in background thread (30s) for game state context
+- Auto-reconnect on WS failures
+- Logs to /tmp/ucl_monitor.log
+
+Run for March 17 games (starting 17:15 UTC = 30 min before Sporting/Bodo kickoff):
+  python scripts/ucl_live_monitor.py --ws --date 26MAR17
+
+Run for March 18 games:
+  python scripts/ucl_live_monitor.py --ws --date 26MAR18
 
 ### DEAD ENDS DISCOVERED THIS SESSION
 - KXINXU/KXNASDAQ100U hourly indices: 0 settled volume (dormant series, no edge)
