@@ -2103,13 +2103,94 @@ BLOCKER: No FRED/BEA API key in .env. Register at fred.stlouisfed.org (free) to 
 
 Same mechanism as CPI speed-play (not a new structural edge — just another data release event). The cpi_release_monitor.py could be extended to cover GDP and payrolls with minimal changes.
 
-**PRIORITY STACK (updated Session 80 research):**
+---
+
+## SESSION 81 RESEARCH — UCL IN-PLAY SNIPER (2026-03-15)
+
+### HYPOTHESIS
+UEFA Champions League game winner markets (KXUCLGAME) may support a live in-play
+sniper strategy when a team is winning decisively in the 60-80 min range. The structural
+basis mirrors the crypto 15-min sniper: favorite-longshot bias + near-certainty outcome.
+
+### STRUCTURAL BASIS (why this could work)
+1. Favorite-longshot bias: markets systematically under-price near-certain outcomes
+2. Volume: KXUCLGAME has 745K+ contracts (Man City/Real Madrid) — 10-100x larger than NCAAB
+   (NCAAB had ~5-10K per game, UCL has 745K = 75-150x more liquidity)
+3. Settlement: can_close_early=True + settlement_timer_seconds=30
+   Winner is declared at 90 min + stoppage time; market settles within 30 seconds
+   Rules explicitly exclude extra time and penalties — so no ambiguity
+4. Capital efficiency: games run 90 min, but a decisive lead in min 70+ means only 20 min hold
+   (vs NCAAB which had 120 min hold = 75x worse than crypto 2.5 min sniper)
+
+### MARKET DATA (March 17 games, probed 2026-03-15 20:34 UTC)
+
+March 17 games opening prices (pre-game):
+  Man City (MCI) vs Real Madrid (RMA):
+    MCI: 63-64c | RMA: 19-20c (MCI heavy favorite)
+    RMA volume: 745,881 (highest of any March 17-18 market)
+    MCI volume: 71,605
+
+  Arsenal (ARS) vs Bayer Leverkusen (LEV):
+    ARS: 74-76c (heavy favorite) | LEV: 8-9c
+    ARS vol: 54,984 | LEV vol: 67,766
+
+  Chelsea (CFC) vs PSG:
+    CFC: 44-45c | PSG: 33-34c (fairly balanced)
+    CFC vol: 40,792 | PSG vol: 171,206
+
+  Sporting CP (SPO) vs Bodo/Glimt (BOG):
+    SPO: 59-61c | BOG: 21-22c (BOG = Norwegian minnow)
+    SPO vol: 26,923 | BOG vol: 477,504 (very high volume for major underdog)
+
+March 18 games also open: Bayern/Atalanta, Tottenham/Atletico, Liverpool/Galatasaray, Barcelona/Newcastle
+
+### CRITICAL QUESTION (need to validate March 17)
+Do KXUCLGAME prices actually update IN REAL-TIME during the game?
+- If Arsenal leads 2-0 at minute 70, does ARS price move from 76c → 90c+?
+- If so, how quickly? (Key for execution feasibility)
+- NCAAB confirmed: prices DO move in real-time (MICH dropped 80c → 76c in Q1)
+- UCL volume is 10-100x larger → should be MORE responsive, not less
+
+### TOOL BUILT: scripts/ucl_live_monitor.py
+- Polls ESPN UCL scoreboard (site.api.espn.com/.../UEFA.CHAMPIONS/scoreboard) every 60s
+- Polls Kalshi KXUCLGAME markets simultaneously
+- Detects price changes >=1c and logs them with game state context
+- Flags 90c+ crossings prominently
+- Logs to /tmp/ucl_monitor.log for analysis
+- Run on March 17 starting ~17:30 UTC (15 min before Sporting vs Bodo)
+- Run: python scripts/ucl_live_monitor.py --date 26MAR17
+
+### DEAD ENDS DISCOVERED THIS SESSION
+- KXINXU/KXNASDAQ100U hourly indices: 0 settled volume (dormant series, no edge)
+- Forex hourly series (KXEURUSDH, etc.): 0 open markets on weekends, near-zero volume
+- KXDOGE15M, KXBNB15M, KXBCH15M, KXADA15M: 0 open markets (dormant)
+- KXSOLD, KXSOLE: 0 volume (SOL daily/weekly threshold — no activity)
+
+### NEXT STEPS FOR UCL RESEARCH
+1. Run ucl_live_monitor.py on March 17 starting 17:30 UTC (Sporting game first)
+2. Log: do prices move at all? By how much? At what game states?
+3. Run again March 18 for 4 more games
+4. If prices move to 90c+: log entry timing, hold time, and whether early settlement occurs
+5. If successful: similar to NCAAB analysis, estimate capital efficiency vs crypto sniper
+   (20-min hold is 8x worse than crypto 2.5 min, but 10-100x more volume may compensate)
+
+### VALIDATION CRITERIA (before any live bet)
+- Must observe 90c+ crossing in at least 3 games with decisive leads
+- Must confirm early settlement happens within 5 min of lead being established
+- Capital efficiency must be >=5x better than NCAAB (that was 75x worse than crypto)
+- If a 20-min hold, capital efficiency = 20/2.5 = 8x worse → acceptable if WR stays 94%+
+  (sniper at 94% WR on crypto is after guards; UCL at 94% = roughly break-even after fees at 90c)
+  → Need 96%+ WR at 90c or better entry pricing (92-95c before commitment)
+
+**PRIORITY STACK (updated Session 81 research):**
 1. Sol drift graduation (29/30, Brier 0.184 — waiting for 30th bet)
-2. NCAA scanner: March 17-18 (KXNCAAMBGAME opens, check 1v16 underpriced)
-3. Weather calibration: March 16 ~04:00 UTC (10 pending paper bets settle)
-4. CPI speed-play: April 10 08:30 ET (BLS quota burned today — don't run until April 10)
-5. GDP speed-play: April 30 08:30 ET (register FRED key first)
-6. SOL/XRP 94c YES monitoring: watch for IL-12 candidate at 100+ bets
+2. UCL live monitor: March 17 starting 17:30 UTC (Sporting/Bodo first)
+3. UCL live monitor: March 18 starting 17:30 UTC (4 more games)
+4. NCAA scanner: March 17-18 (KXNCAAMBGAME opens, check 1v16 underpriced)
+5. Weather calibration: March 16 ~04:00 UTC (10 pending paper bets settle)
+6. CPI speed-play: April 10 08:30 ET (BLS quota burned today — don't run until April 10)
+7. GDP speed-play: April 30 08:30 ET (register FRED key first)
+8. SOL/XRP 94c YES monitoring: watch for IL-12 candidate at 100+ bets
 
 **DEAD END CONFIRMED: KXBTCD near-expiry sniper (both 2PM and 5PM ET slots)**
 All daily KXBTCD threshold markets are priced at 99c/0c when far from threshold (blocked by IL-5).
