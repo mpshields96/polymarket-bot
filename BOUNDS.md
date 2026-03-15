@@ -72,12 +72,13 @@ exceeding the hourly rate limit by 1.
 
 ### IL-3: HARD_MAX_TRADE_USD may only be raised by explicit Matthew directive
 
-**Rule:** `HARD_MAX_TRADE_USD = 15.00` in `kill_switch.py` (line 39). Strategy loops
+**Rule:** `HARD_MAX_TRADE_USD = 20.00` in `kill_switch.py` (line 39). Strategy loops
 must clamp: `trade_usd = min(size_result.recommended_usd, HARD_MAX_TRADE_USD)`.
 No strategy code may pass a `trade_usd` larger than this constant.
 To raise the cap: Matthew must explicitly direct it, document it in CHANGELOG.md,
 and it must go through verify_change.sh.
-(S78: lowered 20→15 USD per Matthew directive — reduce variance after high-loss day)
+(S79: restored 15→20 USD per Matthew directive — guards block structural losses, size on winners)
+(S78: temporarily lowered 20→15 USD after high-loss day; reversed once guard analysis confirmed safety)
 
 **Why:** The 20 USD cap is the only mechanical backstop against Kelly over-sizing
 at Stage 2+. Bankroll floor ($20) + consecutive cooling + this cap = the full
@@ -247,4 +248,4 @@ Revisit when bucket has 200+ bets at current bet size.
 
 ---
 
-*Last updated: Session 78 (2026-03-15). Add new laws here when new invariants are established.*
+*Last updated: Session 79 (2026-03-15). Add new laws here when new invariants are established.*

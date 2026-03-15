@@ -3795,3 +3795,44 @@ Matthew directive: "don't lose money, ensure failsafes 100%".
   3. Sol drift graduation — 29/30, needs 1 more bet
   4. Monitor sniper performance at new 10%/15 USD bet size
   5. Run weather scanner early morning UTC (GEFS + open markets timing window)
+
+---
+
+## Session 79 (2026-03-15 — research chat) — Bet Size Restoration
+
+### Context
+Matthew reviewed March 14 performance (+60.26 USD, 157W/2L, 159 bets) and directed:
+  - Restore MAX_TRADE_PCT to 15%, HARD_MAX_TRADE_USD to 20 USD
+  - Keep all guards (IL-5/IL-10/IL-11) active
+  - "Go back to winning like they did, go win money"
+
+### March 14 guard-adjusted analysis
+Active buckets (90-95c, 97c YES, 98c YES): 107 bets, 107W/0L, +79.87 USD
+Blocked buckets (96c, 97c NO, 98c NO, 99c): 52 bets, 50W/2L, -19.61 USD (net drag)
+Conclusion: Guards would have IMPROVED March 14 from +60.26 to +79.87 USD
+
+### EV math for restored sizing
+With 15% / 20 USD:
+  At 113 USD bankroll: bet = min(16.95, 20) = 16.95 USD (PCT cap governs below 133 USD)
+  At 134 USD bankroll: bet = min(20.1, 20) = 20 USD (hard max governs above 133 USD)
+  March 14 avg bet was 13.77 USD; 16.95 is 23% larger → proportionally more EV
+  All-time active-bucket EV: +0.39 USD/bet at 13.17 USD avg → scales to +0.50 USD/bet at 16.95 USD
+
+### Changes made
+  Commit 9ff6e6d: kill_switch.py restored MAX_TRADE_PCT=0.15, HARD_MAX_TRADE_USD=20
+  Tests updated to match: TestTradeSizeCaps.test_trade_at_hard_cap_allowed (20 USD)
+    test_trade_above_hard_cap_blocked (20.01 USD blocked)
+    test_pct_cap_floating_point_boundary (15% boundary at 94.4 bankroll: 14.15/14.17)
+  BOUNDS.md IL-3 updated to reflect 20 USD cap restored
+
+Bot restarted PID 67158 → /tmp/polybot_session79.log
+
+### Confirmed guard stack (unchanged)
+  IL-5: 99c YES / 1c NO — blocked
+  IL-10: 96c both sides, 97c NO — blocked
+  IL-11: 98c NO — blocked
+  Active buckets: 90-95c both sides, 97c YES, 98c YES — all profitable historically
+
+### All-time active bucket performance at session 79 start
+  222 settled bets, 217W/5L (97.7% WR), +86.22 USD total P&L
+
