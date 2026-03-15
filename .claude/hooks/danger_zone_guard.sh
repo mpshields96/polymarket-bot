@@ -33,6 +33,9 @@ DANGER_ZONE_FILES=(
     "src/execution/live.py"
     "src/risk/kill_switch.py"
     "src/risk/sizing.py"
+    "src/auth/kalshi_auth.py"
+    "src/platforms/kalshi.py"
+    "main.py"
 )
 
 # ── Read file_path from tool input JSON (stdin) ───────────────────────
@@ -78,9 +81,55 @@ echo "" >&2
 
 cd "$PROJ_ROOT"
 
+check_iron_laws() {
+    local warnings=0
+
+    echo "" >&2
+    echo "── IRON LAWS ADVISORY CHECK ────────────────────────────────────" >&2
+
+    # LAW 3: expiry_sniper slippage guard must be present in main.py
+    # (price_guard_min=1 is intentional for NO-side bets; the real guard is
+    # the _MAX_SLIPPAGE_CENTS pre-execution check added in S81)
+    if ! grep -q "_MAX_SLIPPAGE_CENTS" "$PROJ_ROOT/main.py" 2>/dev/null; then
+        echo "WARNING [LAW 3]: _MAX_SLIPPAGE_CENTS slippage guard missing from main.py" >&2
+        echo "  Expected pre-execution check: if _live_price < signal.price_cents - _MAX_SLIPPAGE_CENTS" >&2
+        echo "  Trade 2786 (YES@86c, -19.78 USD) was caused by missing this guard." >&2
+        warnings=$((warnings + 1))
+    fi
+
+    # LAW 5: no hardcoded credentials in .py files
+    local cred_hits
+    cred_hits=$(grep -rn "BEGIN RSA PRIVATE KEY\|KALSHI_API_KEY_ID\s*=\s*\"[^\"]\|sk-ant-" \
+        "$PROJ_ROOT/src" "$PROJ_ROOT/main.py" 2>/dev/null | grep -v "\.pyc" || true)
+    if [[ -n "$cred_hits" ]]; then
+        echo "WARNING [LAW 5]: Possible hardcoded credentials detected:" >&2
+        echo "$cred_hits" >&2
+        warnings=$((warnings + 1))
+    fi
+
+    # LAW 2: kill_switch HARD_MAX_TRADE_USD must be 20.00
+    local hard_max
+    hard_max=$(grep -m1 "HARD_MAX_TRADE_USD\s*=" "$PROJ_ROOT/src/risk/kill_switch.py" \
+        2>/dev/null | grep -oE "[0-9]+\.[0-9]+" || echo "NOT_FOUND")
+    if [[ "$hard_max" != "20.00" ]]; then
+        echo "WARNING [LAW 2]: HARD_MAX_TRADE_USD=$hard_max in kill_switch.py" >&2
+        echo "  Expected 20.00. Verify this change is intentional." >&2
+        warnings=$((warnings + 1))
+    fi
+
+    if [[ $warnings -eq 0 ]]; then
+        echo "All Iron Laws checks passed." >&2
+    else
+        echo "$warnings warning(s) above — advisory only, edit is NOT blocked." >&2
+    fi
+    echo "────────────────────────────────────────────────────────────────" >&2
+    echo "" >&2
+}
+
 if "$PYTHON" -m pytest tests/ -q --tb=short 2>&1 >&2; then
     echo "" >&2
     echo "✓ Tests passed — edit to $REL_PATH is allowed." >&2
+    check_iron_laws
     echo "" >&2
     exit 0
 else
