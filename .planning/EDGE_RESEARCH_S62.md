@@ -1899,3 +1899,83 @@ GEFS forecasts 24-48 hours ahead. Scanner useless when open market date != GEFS 
   4. Monitor sniper at new sizes — verify 11.29 USD → 15 USD ceiling as bankroll grows
   5. CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)
   6. Correlated sniper risk — still unresolved (need Matthew decision on per-window cap)
+
+---
+
+## SESSION 79 RESEARCH FINDINGS (2026-03-15)
+
+**MARCH 14 GUARD-ADJUSTED ANALYSIS — DEFINITIVE**
+
+Guard-separated March 14 performance:
+  Active buckets (90-95c, 97c YES, 98c YES): 107 bets, 107W/0L, +79.87 USD
+  Blocked buckets (96c, 97c NO, 98c NO, 99c): 52 bets, 50W/2L, -19.61 USD
+
+Guards would have IMPROVED March 14 from +60.26 to +79.87 USD (no losses blocked).
+The 2 blocked-bucket losses (-14.40 USD at 96c NO, -14.85 USD at 99c YES) are permanently prevented.
+
+**BET SIZE RESTORATION ANALYSIS**
+
+March 14 avg active-bucket bet size: 13.77 USD (15% cap, ~92 USD bankroll)
+After restoration (15%/20 USD): at 113 USD bankroll, bet = min(16.95, 20) = 16.95 USD
+First confirmed new-size bet: yes@97c = 18.43 USD (15% of ~123 USD bankroll)
+
+Bankroll has grown to ~123 USD from session 78 wins:
+  At 123 USD: 15% = 18.45 → 19 contracts @ 97c = 18.43 USD ✓
+
+Forward EV calculation at restored sizes:
+  All-time active-bucket WR: 97.7% (222 settled)
+  EV scales with bet size: +0.39 USD/bet * (18.43/13.17) = +0.55 USD/bet
+  At March 14 volume (107 active bets/day): projected ~+59 USD/day
+  With March 14 blocked bets eliminated: no structural drag
+
+**88c EXECUTION INVESTIGATION — NOT A BUG**
+
+Trade 2650 stored in DB at 88c despite IL-4 90c trigger:
+  Signal generated: "BUY YES @ 91c" (ABOVE 90c trigger — correct)
+  Order executed at 88c (orderbook showed better price available)
+  Result: WIN +1.43 USD
+  DB stores EXECUTION price, not signal price. IL-4 enforced correctly at signal level.
+
+**KXBTCD FRIDAY SNIPER — DEAD END**
+
+KXBTCD 5PM markets have meaningful volume (35K+ on nearest-money contract at 94c).
+Could theoretically fire in final 840s before 5PM ET Friday.
+Dead end because: only 1 bet/day per expiry vs 15M series (96 windows/day).
+Volume: ~35K vs 15M BTC at hundreds of thousands.
+Capital efficiency: 15M wins by overwhelming margin. Not worth engineering cost.
+
+**ALTERNATIVE CRYPTO 15M SERIES — CONFIRMED DEAD**
+
+Checked: KXBNB15M, KXBCH15M, KXDOGE15M, KXAVAX15M, KXLINK15M, KXADA15M, KXLTC15M
+All show 0 open markets. Bot already covers all 4 active series (BTC/ETH/SOL/XRP).
+
+**NCAA SEED MATCHUP PRE-ANALYSIS**
+
+Ready for March 17-18 when KXNCAAMBGAME markets open:
+  1v16 matchups: 99.3% WR historically → prices at ~99c → BLOCKED by IL-5
+    But: if Kalshi underprices at 93-95c → massive 4-6% structural edge (active bucket!)
+  2v15 matchups: 94% WR historically → prices at ~94c → ACTIVE BUCKET
+    Sweet spot: exactly in the 90-95c range with structural edge vs sharp books
+  3v14: 84.7% → ~84c (below sniper range)
+  
+Action: run ncaa_tournament_scanner.py --min-edge 0.03 on March 17-18
+Focus on: 1v16 underpriced at 93-95c (if any), 2v15 at 90-94c
+Expected: 1-2 high-confidence pre-game bets at ~14-18 USD each
+
+**ASSET EV BREAKDOWN (all-time active buckets)**
+
+BTC: 47 bets, 46W/1L (97.9% WR), +29.70 USD, +0.63 USD/bet
+ETH: 58 bets, 58W/0L (100% WR), +39.34 USD, +0.68 USD/bet (BEST)
+SOL: 66 bets, 64W/2L (97.0% WR), +23.53 USD, +0.36 USD/bet
+XRP: 55 bets, 53W/2L (96.4% WR), -3.19 USD, -0.06 USD/bet
+  Note: XRP negative EV is from 2 losses at old 19.74 USD bet sizes. 
+  At 16.95 USD max: forward EV positive (96.4% WR > 94% break-even at 95c avg).
+  Need 200+ bets before considering guard per PRINCIPLES.md.
+
+**UPDATED PRIORITY STACK (Session 79 end):**
+  1. Sol drift graduation — 29/30, 1 more bet needed (Stage 1 cap 5 USD)
+  2. NCAA scanner — run March 17-18 (focus: 1v16 underpriced, 2v15 near 94c)
+  3. Weather calibration — March 15 bets settle ~04:00 UTC March 16
+  4. Monitor bet sizes at restored levels (first win: 18.43 USD at 123 USD bankroll)
+  5. CPI speed-play — April 10 08:30 ET
+  6. XRP monitoring — 96.4% WR active bucket needs 200+ bets before evaluation
