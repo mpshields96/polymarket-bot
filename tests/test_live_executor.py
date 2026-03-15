@@ -987,3 +987,118 @@ class TestSniperFeeFlorBlock:
 
         assert result is not None
         kalshi.create_order.assert_called_once()
+
+
+# ── 96c/97c negative-EV bucket guard tests ──────────────────────────────────
+
+
+class TestSniperNegativeEvBucketGuard:
+    """Regression: 96c and 97c-NO are historically negative EV.
+
+    Data (S75 analysis, all-time sniper live bets):
+      96c YES: 17 bets, 94.1% WR, -13.35 USD  (needs >96% WR to break even)
+      96c NO:  14 bets, 92.9% WR,  -9.09 USD  (needs >96% WR to break even)
+      97c NO:  13 bets, 92.3% WR, -15.03 USD  (needs >97% WR to break even)
+      97c YES: 11 bets, 100%  WR,  +2.90 USD  (profitable -- keep)
+
+    Guard added S75: block 96c (both sides) and 97c NO only.
+    """
+
+    async def test_yes_at_96c_blocked(self, live_env, bypass_first_run):
+        """YES@96c is blocked -- historically -13.35 USD at 94.1% WR (need >96%)."""
+        ob = make_orderbook(no_bid=4)  # no_bid=4 -> yes_ask = 100-4 = 96c
+        signal = make_signal(side="yes", price_cents=93)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal, make_market(yes_price=96, no_price=4), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="expiry_sniper_v1",
+            price_guard_min=1, price_guard_max=99,
+        )
+
+        assert result is None
+        kalshi.create_order.assert_not_called()
+        db.save_trade.assert_not_called()
+
+    async def test_no_at_96c_blocked(self, live_env, bypass_first_run):
+        """NO@96c is blocked -- historically -9.09 USD at 92.9% WR (need >96%)."""
+        ob = make_orderbook(yes_bid=4)  # yes_bid=4 -> no_ask = 100-4 = 96c
+        signal = make_signal(side="no", price_cents=93)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal, make_market(yes_price=4, no_price=96), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="expiry_sniper_v1",
+            price_guard_min=1, price_guard_max=99,
+        )
+
+        assert result is None
+        kalshi.create_order.assert_not_called()
+        db.save_trade.assert_not_called()
+
+    async def test_no_at_97c_blocked(self, live_env, bypass_first_run):
+        """NO@97c is blocked -- historically -15.03 USD at 92.3% WR (need >97%)."""
+        ob = make_orderbook(yes_bid=3)  # yes_bid=3 -> no_ask = 100-3 = 97c
+        signal = make_signal(side="no", price_cents=93)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal, make_market(yes_price=3, no_price=97), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="expiry_sniper_v1",
+            price_guard_min=1, price_guard_max=99,
+        )
+
+        assert result is None
+        kalshi.create_order.assert_not_called()
+        db.save_trade.assert_not_called()
+
+    async def test_yes_at_97c_not_blocked(self, live_env, bypass_first_run):
+        """YES@97c is NOT blocked -- historically +2.90 USD at 100% WR (profitable)."""
+        ob = make_orderbook(no_bid=3)  # no_bid=3 -> yes_ask = 100-3 = 97c
+        signal = make_signal(side="yes", price_cents=93)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal, make_market(yes_price=97, no_price=3), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="expiry_sniper_v1",
+            price_guard_min=1, price_guard_max=99,
+        )
+
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
+    async def test_yes_at_95c_not_blocked(self, live_env, bypass_first_run):
+        """YES@95c is NOT blocked -- 35 bets, 100% WR, +18.32 USD (profitable)."""
+        ob = make_orderbook(no_bid=5)  # no_bid=5 -> yes_ask = 95c
+        signal = make_signal(side="yes", price_cents=93)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal, make_market(yes_price=95, no_price=5), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="expiry_sniper_v1",
+            price_guard_min=1, price_guard_max=99,
+        )
+
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
+    async def test_yes_at_98c_not_blocked(self, live_env, bypass_first_run):
+        """YES@98c is NOT blocked -- 26 bets, 100% WR, +3.47 USD (profitable)."""
+        ob = make_orderbook(no_bid=2)  # no_bid=2 -> yes_ask = 98c
+        signal = make_signal(side="yes", price_cents=93)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal, make_market(yes_price=98, no_price=2), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="expiry_sniper_v1",
+            price_guard_min=1, price_guard_max=99,
+        )
+
+        assert result is not None
+        kalshi.create_order.assert_called_once()

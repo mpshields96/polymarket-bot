@@ -212,4 +212,22 @@ restores (VERIFIED) or drops (REVERTED) the stash automatically.
 
 ---
 
-*Last updated: Session 74 (2026-03-15). Add new laws here when new invariants are established.*
+### IL-10: 96c and 97c-NO bets are blocked — structurally negative EV
+
+**Rule:** `live.py` (after fee-floor guard): if `price_cents == 96`, return None.
+If `price_cents == 97 and signal.side == "no"`, return None.
+97c YES is NOT blocked (100% WR historically, profitable).
+
+**Why:** At 96c, gross profit is 4c/contract. At 97c, it's 3c. Kalshi taker fee at these
+prices plus correlated reversal risk means break-even requires 96%+ and 97%+ WR respectively.
+Historical live data (S75, 44 bets in these buckets):
+  96c both sides: 31 bets, 93.5% WR, -22.44 USD cumulative
+  97c NO:         13 bets, 92.3% WR, -15.03 USD cumulative
+Total structural drag: ~37.47 USD. Same mechanism as IL-5 (99c fee-floor).
+Revisit when either bucket has 200+ bets at current bet size.
+
+**Test:** `tests/test_live_executor.py::TestSniperNegativeEvBucketGuard`
+
+---
+
+*Last updated: Session 75 (2026-03-15). Add new laws here when new invariants are established.*

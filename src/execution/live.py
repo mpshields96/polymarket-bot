@@ -129,6 +129,25 @@ async def execute(
         )
         return None
 
+    # ── Negative-EV bucket guard: 96c and 97c-NO ─────────────────────────────
+    # These buckets are structurally unprofitable based on live bet history:
+    #   96c both sides: 31 bets, 93.5% WR, -22.44 USD (needs 96%+ to break even)
+    #   97c NO-side:    13 bets, 92.3% WR, -15.03 USD (needs 97%+ to break even)
+    #   97c YES-side:   11 bets, 100% WR,   +2.90 USD -- profitable, NOT blocked
+    # Validated S74/S75. Revisit at 200+ bets per price level per side.
+    if price_cents == 96:
+        logger.info(
+            "[live] Execution price 96c -- both sides historically negative EV "
+            "(93.5%% WR at 31 bets, needs >=96%% to break even) -- skip",
+        )
+        return None
+    if price_cents == 97 and signal.side == "no":
+        logger.info(
+            "[live] Execution price 97c NO-side -- historically negative EV "
+            "(92.3%% WR at 13 bets, needs >=97%% to break even) -- skip",
+        )
+        return None
+
     # ── Execution-time price guard ────────────────────────────────────────
     # Convert execution price to YES-equivalent for range + slippage checks.
     # Protects against HFT repricing in the asyncio gap after signal generation.
