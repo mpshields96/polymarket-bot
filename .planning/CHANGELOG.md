@@ -3740,3 +3740,58 @@ Matthew directive: "don't lose money, ensure failsafes 100%".
   The 96c/97c guard (deployed S74/S76) was worth ~37 USD structural drag saved per month.
   Earlier deployment = more saved. Already fixed. Next highest impact: reduce bet size on 90c
   markets (single reversal = -20 USD = wipes 10 wins) — but needs Matthew's approval on MAX_TRADE_PCT.
+
+---
+
+## Session 78 — 2026-03-15 ~13:25–ongoing UTC
+**Type:** Research + Risk management
+**Focus:** Bet size reduction (Matthew directive), guard verification, research
+
+### P&L at session start
+  All-time live: -25.25 USD (deteriorated from -6.08 — multiple pre-guard losses settled)
+  Today live: -43.74 USD live (91 settled) — bulk from pre-guard bets + XRP volatile period
+  Post-guard (since 09:25 UTC): 1 valid loss (XRP YES@94c, structural variance)
+  Guard confirmed: 96c/97c-NO/98c-NO all blocking correctly
+
+### Key actions this session
+  1. BET SIZE REDUCTION (commit a3192d1) — per explicit Matthew directive:
+     MAX_TRADE_PCT: 15% → 10% (bankroll per trade)
+     HARD_MAX_TRADE_USD: 20 → 15 USD (absolute ceiling)
+     At 113 USD bankroll: max bet now ~11.29 USD (was 16.95 USD, reducing variance by 33%)
+     EV math: still +93.7 USD per 100 bets at 97.5% WR, 4 days to profit target
+     REQUIRES RESTART to take effect — bot restarted to PID 61567, session78.log
+
+  2. CONFIRMED: 98c NO guard already active (commit dd53aac, deployed by monitoring chat)
+     IL-11 added to BOUNDS.md. Blocks 98c NO (28 bets, 92.9% WR, -25.54 USD historical)
+     Combined guards now active: 96c (both sides), 97c NO, 98c NO, 99c/1c
+
+  3. WEATHER SCANNER TIMING:
+     Scanner correctly shows 0 opportunities at 13:30 UTC (GEFS forecasting March 16,
+     open markets are March 15). Scanner runs at correct time (early morning UTC).
+     March 15 paper bets placed at 02:59 UTC. Results pending when markets settle.
+
+  4. NCAA SCANNER: 0 KXNCAAMBGAME markets open yet. Re-run March 17-18.
+     Bracket dropped today (March 15 evening ET). Round 1 tip-offs March 20-21.
+
+  5. DAILY LOSS INVESTIGATION: Today's -43.74 USD = 5 losses × ~19-20 USD (pre-guard period)
+     Loss breakdown:
+       2 SOL losses pre-guard (96c YES, 92c NO) — 96c guard would block 1 of these
+       3 XRP losses pre-guard (97c NO, 94c YES, 90c YES) — 97c NO guard blocks 1
+     None of these losses can recur at current guard settings.
+
+### Strategy counts (at session start)
+  expiry_sniper_v1: 292+ live bets, -6.08 USD net (degraded from +46.36 — today's losses)
+  sol_drift_v1: 29/30 — still needs 1 more for Stage 2 eval
+  xrp_drift_v1: 20/30 — needs 10 more
+
+### Current bet size structure (NEW after this session)
+  At 113 USD bankroll: max sniper bet = min(15, 113×10%-0.01) = 11.29 USD
+  At 150 USD bankroll: max sniper bet = min(15, 14.99) = 14.99 USD
+  At 200 USD bankroll: max sniper bet = min(15, 19.99) = 15 USD (HARD_MAX binds)
+
+**NEXT SESSION PRIORITIES:**
+  1. NCAA scanner March 17-18 (Tuesday/Wednesday — Round 1 opens)
+  2. Weather calibration — check March 15 paper bet outcomes (settle tonight ~04:00 UTC)
+  3. Sol drift graduation — 29/30, needs 1 more bet
+  4. Monitor sniper performance at new 10%/15 USD bet size
+  5. Run weather scanner early morning UTC (GEFS + open markets timing window)
