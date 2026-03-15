@@ -76,12 +76,14 @@ GRADUATION STATUS (2026-03-15 overnight):
 SNIPER BUCKET ANALYSIS (post-S76 guard — updated overnight):
   BLOCKED (96c, 97c NO): working ✓ — no new bets since restart
   PROFITABLE BUCKETS: 91c-95c both sides (100% WR), 98c (100% WR), 97c YES (100% WR)
-  MONITORED (not yet blocking — small sample):
-    90c YES: 3 bets, 67% WR → -17.91 USD (latest: XRP YES@90c loss today -19.80 USD)
-      Only 3 bets — not statistically significant (p=27% vs H0: WR>=90%). DO NOT BLOCK yet.
-      Risk: at $19.80/bet, 1 loss wipes 10 wins. Need 20+ bets before evaluating a guard.
-    92c NO: 8 bets, 87.5% WR → -8.77 USD (1 loss from SOL bet)
-      Similar concern. Monitor at 20+ bets. Not actionable yet.
+  MONITORED — current-era analysis (bets placed since HARD_MAX raised to 15-20 USD):
+    90c YES: 2/3 current-era bets (67% WR, -17.91 USD). 1 loss = XRP reversal. BTC 100%.
+      Not systematic. Old-era bets had much smaller size. DO NOT BLOCK at 3 bets.
+    92c NO: 5/6 current-era bets (83% WR). 1 loss = SOL reversal. BTC 3/3 = 100%.
+      Not systematic. Need 20+ current-era bets before evaluating guard.
+    93c YES: OLD concern resolved. Current-era = 9/9 = 100% WR. Old-era small bets skewed.
+    Summary: SOL and XRP more volatile → single reversals at 90-92c. BTC = perfect.
+      All are within normal statistical variance. No new guards needed at current data.
   MATTHEW DECISION NEEDED: Should MAX_TRADE_PCT be lowered from 15% back to 5%?
     At 15% with $124 bankroll, one 90c loss = -$19.80 = 15.9% drawdown in 1 bet.
     This was raised from 5% to 15% in Session 65 per Matthew's directive.
