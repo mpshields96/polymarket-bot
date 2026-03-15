@@ -2949,7 +2949,9 @@ async def main():
             slippage_ticks=paper_slippage_ticks,
             fill_probability=paper_fill_probability,
             trade_lock=_live_trade_lock,
-            calibration_max_usd=None,  # STAGE 1: Kelly + HARD_MAX_TRADE_USD ($5) governs
+            calibration_max_usd=5.0,  # STAGE 1 cap restored S76: bankroll crossed $100 auto-promoted to Stage 2
+            # but manual graduation gate (30 bets + Brier + limiting_factor="kelly") not yet complete.
+            # Reverted to $5 cap (29/30 bets settled, 76% WR). Re-evaluate after 30th bet settles.
             btc_move_condition=_btc_move_condition,
             direction_filter="no",  # S51: NO wins 11/11 (100%), YES only 63.6% — filter YES bets
         ),
