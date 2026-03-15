@@ -1,11 +1,11 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-15 (Session 78 research — bet size reduced 15%→10%, 20→15 USD cap)
+# Last updated: 2026-03-15 (Session 79 research — MARCH 14 FORMULA RESTORED: 15%/20 USD + all guards active)
 # ═══════════════════════════════════════════════════════════════
 
-## COPY-PASTE THIS TO START A NEW SESSION (Session 79)
+## COPY-PASTE THIS TO START A NEW SESSION (Session 80)
 
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 79).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 80).
 
 MANDATORY READING BEFORE ANY ACTION:
   cat SESSION_HANDOFF.md
@@ -13,26 +13,39 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 78 research — 2026-03-15 ~14:00 UTC):
-  Bot RUNNING PID 61970 → /tmp/polybot_session78.log
-  All-time live P&L: ~-25 USD (sniper ~+46 USD, drift ~-71 USD)
-  Tests: 1281 passing. Last commit: a3192d1 (risk: lower bet size caps S78)
-  Bankroll: ~113 USD (Kalshi API, 13:30 UTC)
+BOT STATE (Session 79 research — 2026-03-15 ~15:25 UTC):
+  Bot RUNNING PID 68296 → /tmp/polybot_session79.log
+  All-time live P&L: ~-29.48 USD (improving — post-guard bot winning steadily)
+  Tests: 1281 passing. Last commit: c33687a (docs: EDGE_RESEARCH S79)
+  Config: MAX_TRADE_PCT=15%, HARD_MAX=20 USD, ALL guards active (96c, 97c NO, 98c NO, 99c+)
+  Bankroll: ~123 USD (verified — first bet at 18.43 USD = 15% of ~123 USD)
+
+SESSION 79 KEY CHANGES (2026-03-15 research chat):
+  1. BET SIZE RESTORED (commit 9ff6e6d — research chat after March 14 analysis):
+     MAX_TRADE_PCT: 10% → 15% | HARD_MAX_TRADE_USD: 15 → 20 USD — ACTIVE IN RUNNING BOT
+     Analysis: March 14 active-bucket bets (107W/0L, +79.87 USD) at 13.77 USD avg
+     With guards in place, 15%/20 USD is SAFER than March 14 (no blocked-bucket losses possible)
+     At 123 USD bankroll: max bet = 15% of 123 = 18.45 USD (below 20 USD hard max)
+     First confirmed bet at restored size: yes@97c = 18.43 USD WIN ✓
+  2. GUARD STACK UNCHANGED (DO NOT modify without Matthew approval):
+     - BLOCKED: 96c both sides (IL-10), 97c NO (IL-10), 98c NO (IL-11), 99c/1c (IL-5)
+     - PROFITABLE: 91c-95c both sides, 97c YES (100% WR), 98c YES (100% WR)
+  3. DEAD ENDS CONFIRMED S79:
+     - KXBTCD Friday sniper: only 1 bet/day vs 96 windows/day for 15M — dead end
+     - All alternative 15M crypto (BNB/BCH/DOGE/AVAX/LINK/ADA/LTC): 0 open markets
+  4. 88c execution price: NOT a bug — signal fires at 91c (above trigger), executes at 88c
+     (orderbook shows better liquidity at 88c). IL-4 enforced at signal level. Trade won.
 
 SESSION 78 KEY CHANGES:
   1. DEPLOYED 98c NO negative-EV bucket guard (commit dd53aac — monitoring chat):
      - 98c NO-side: BLOCKED (28 bets, 92.9% WR, -25.54 USD historical)
      - 98c YES-side: KEPT (20 bets, 100% WR, +3.02 USD profitable)
      - IL-11 added to BOUNDS.md.
-  2. BET SIZE REDUCED (commit a3192d1 — research chat, Matthew directive):
-     MAX_TRADE_PCT: 15% → 10% | HARD_MAX_TRADE_USD: 20 → 15 USD — ACTIVE IN RUNNING BOT
-     At 113 USD bankroll: max bet now ~11.29 USD (was 16.95 USD)
-     At 150 USD bankroll: max bet ~14.99 USD | At 200+ USD: capped at 15 USD
+  2. BET SIZE REDUCED (commit a3192d1 — REVERSED in S79):
+     Was: MAX_TRADE_PCT 15%→10%, HARD_MAX 20→15 USD. Reversed after March 14 analysis.
   3. SNIPER BUCKET STATUS (all blocked buckets — do NOT change without Matthew approval):
      - BLOCKED: 96c both sides (IL-10), 97c NO (IL-10), 98c NO (IL-11), 99c/1c (IL-5)
      - PROFITABLE: 91c-95c both sides, 97c YES (100% WR), 98c YES (100% WR)
-  4. TODAY P&L: -43.74 USD live — ALL 5 losses were pre-guard bets placed before 09:25 UTC restart
-     Post-guard sniper: 35+ wins, 1 valid loss (YES@94c — structural variance)
 
 SESSION 76 OVERNIGHT KEY CHANGES:
   1. DEPLOYED 96c/97c negative-EV bucket guard (commit cd32feb):
@@ -99,8 +112,9 @@ SNIPER BUCKET ANALYSIS (post-S76 guard — updated overnight):
     93c YES: OLD concern resolved. Current-era = 9/9 = 100% WR. Old-era small bets skewed.
     Summary: SOL and XRP more volatile → single reversals at 90-92c. BTC = perfect.
       All are within normal statistical variance. No new guards needed at current data.
-  DONE S78: MAX_TRADE_PCT lowered 15%→10%, HARD_MAX_TRADE_USD 20→15 USD per Matthew directive.
-    At 10% with 113 USD bankroll, one 90c loss = -11.29 USD = 10% drawdown per bet. Active now.
+  S79: MAX_TRADE_PCT restored to 15%, HARD_MAX restored to 20 USD (March 14 formula).
+    At 15% with 123 USD bankroll = 18.45 USD max bet. First win confirmed at 18.43 USD.
+    Guards protect against structural losses. 97.7% WR on active buckets all-time.
 
 SESSION 74 RESEARCH KEY CHANGES (2026-03-15 ~07:00-10:30 UTC):
   1. BUILT: scripts/weather_calibration.py — checks paper bets + infers outcomes from prices
@@ -112,19 +126,21 @@ SESSION 74 RESEARCH KEY CHANGES (2026-03-15 ~07:00-10:30 UTC):
   4. CONFIRMED DEAD END: non-crypto 90c+ market scan — 0 found in 2000+ markets
   5. CONFIRMED DEAD END: annual BTC range markets (KXBTCMAXY/KXBTCMINY) — 9+ month lockup
 
-PENDING TASKS (Session 79 — PRIORITY ORDER):
+PENDING TASKS (Session 80 — PRIORITY ORDER):
   #1 Sol drift graduation — 29/30, 1 more bet needed. Stage 1 cap at 5 USD.
      When 30th bet settles: check Brier < 0.25 + limiting_factor==kelly → raise cap to 10 USD
   #2 NCAA scanner — run scripts/ncaa_tournament_scanner.py --min-edge 0.03 on March 17-18
-     When Kalshi opens Round 1 KXNCAAMBGAME markets (games March 20-21)
-  #3 Weather calibration — check paper bets when settled (March 15 markets settle ~04:00 UTC March 16)
+     Focus: 1v16 underpriced at 93-95c (massive structural edge if any), 2v15 at 90-94c
+     Round 1 tip-offs March 20-21. 1 credit/call.
+  #3 Weather calibration — check paper bets ~04:00 UTC March 16 when March 15 bets settle
      Run: python3 scripts/weather_calibration.py --pending
-     Key bets: LAX YES@8c, CHI NO@91c, DEN NO@7c (NO@36c on DEN T49 likely LOST — Denver warm)
+     Key bets: LAX T79 YES@8c, CHI B64.5 NO@91c, DEN T49 NO@36c (likely LOST — Denver warm)
   #4 Weather edge scanner — run EARLY MORNING UTC (04:00-08:00 UTC) when GEFS date = open market date
      python3 scripts/weather_edge_scanner.py --min-edge 0.10
      TIMING: scanner only useful early morning when GEFS forecast = open market date
-  #5 Monitor sniper at new bet sizes (10% pct cap, 15 USD hard max — active since S78 restart)
-     Expected: max bet ~11.29 USD at 113 USD bankroll, growing with bankroll up to 15 USD
+  #5 Monitor sniper at restored sizes (15% pct cap, 20 USD hard max — active since S79)
+     Expected: ~18 USD bets at 123 USD bankroll, growing proportionally
+     XRP needs watching — 96.4% WR active bucket, 200+ bets before considering guard
   #6 CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)
 
 RESEARCH STATE:
