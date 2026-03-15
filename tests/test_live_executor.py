@@ -1104,3 +1104,57 @@ class TestSniperNegativeEvBucketGuard:
 
         assert result is not None
         kalshi.create_order.assert_called_once()
+
+
+# ── Iron Law 3: expiry_sniper price_guard_min must be 87 ────────────────────
+
+
+class TestExpirySnipPriceGuardLaw3:
+    """Iron Law 3: expiry_sniper must pass price_guard_min=87 to execute().
+
+    The model's price_confidence formula floors at 87c. Any fill below 87c is
+    off-model territory. The sniper must enforce this floor via price_guard_min=87
+    in its live.execute() call.
+    """
+
+    def test_expiry_sniper_uses_87c_floor(self):
+        """LAW 3: main.py expiry_sniper_loop must pass price_guard_min=87.
+
+        Fails if price_guard_min=1 (the off-model permissive value).
+        Passes once main.py is fixed to price_guard_min=87.
+        """
+        import re
+        main_src = open("main.py").read()
+        # Find the expiry_sniper execute() call block
+        # It must contain price_guard_min=87, not price_guard_min=1
+        sniper_block_match = re.search(
+            r"expiry_sniper.*?price_guard_min\s*=\s*(\d+)",
+            main_src,
+            re.DOTALL,
+        )
+        assert sniper_block_match, "price_guard_min not found in expiry_sniper block"
+        assert sniper_block_match.group(1) == "87", (
+            f"LAW 3 VIOLATION: expiry_sniper price_guard_min={sniper_block_match.group(1)}, "
+            f"expected 87 (model floor). Below 87c is off-model territory."
+        )
+
+    async def test_execute_rejects_86c_when_guard_is_87(self, live_env, bypass_first_run):
+        """execute() returns None when YES execution price is 86c and price_guard_min=87."""
+        # no_bid=14 -> yes_ask = 100 - 14 = 86c
+        ob = make_orderbook(no_bid=14)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+        result = await execute(
+            make_signal(side="yes", price_cents=88),
+            make_market(yes_price=86),
+            ob,
+            5.0,
+            kalshi,
+            db,
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=87,
+            price_guard_max=99,
+        )
+        assert result is None, "execute() must reject 86c when price_guard_min=87"
+        kalshi.create_order.assert_not_called()
