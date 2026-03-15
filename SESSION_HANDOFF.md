@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-15 (Session 72 research cont — weather loops confirmed active)
+# Last updated: 2026-03-15 (Session 72 research cont — fee-floor bug fixed)
 # ═══════════════════════════════════════════════════════════════
 
 ## COPY-PASTE THIS TO START A NEW SESSION (Session 74)
@@ -13,11 +13,11 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 72 research cont — 2026-03-15 ~02:10 UTC):
-  Bot RUNNING PID 31341 → /tmp/polybot_session73.log
-  Log: /tmp/polybot_session73.log (new — restarted ~22:00 UTC to activate 5-city weather)
-  All-time live P&L: +12.28 USD (--report authoritative)
-  Tests: 1195 passing. Last commit: 3c59276 (off-peak promotion docs)
+BOT STATE (Session 72 research cont — 2026-03-15 ~03:00 UTC):
+  Bot RUNNING PID 32120 → /tmp/polybot_session73.log
+  Log: /tmp/polybot_session73.log (restarted 22:54 UTC to activate fee-floor fix)
+  All-time live P&L: +13.40 USD (--report authoritative)
+  Tests: 1198 passing. Last commit: 1d12f46 (fee-floor guard fix)
 
 RESTART COMMAND (Session 74 — NEW LOG):
   pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session74.log 2>&1 &
@@ -29,12 +29,12 @@ If --health shows "HARD STOP": HISTORICAL. The 30% lifetime stop was DISABLED in
 
 ---
 
-KEY STATE (Session 72 research cont — 2026-03-15 ~02:10 UTC):
-  Bot: PID 31341 → /tmp/polybot_session73.log (CONFIRMED RUNNING)
-  All-time live P&L: +12.28 USD
-  Bankroll: ~147 USD (reported at startup — DB authoritative)
-  Tests: 1195 passing
-  Last commit: 3c59276 (off-peak promotion docs — all 3 key files updated)
+KEY STATE (Session 72 research cont — 2026-03-15 ~03:00 UTC):
+  Bot: PID 32120 → /tmp/polybot_session73.log (CONFIRMED RUNNING)
+  All-time live P&L: +13.40 USD (was +7.63 at S72 start — gained +5.77 today)
+  Bankroll: ~147 USD (DB authoritative)
+  Tests: 1198 passing
+  Last commit: 1d12f46 (fee-floor guard fix — blocks 99c/1c raw execution prices)
 
 WEATHER LOOPS STATUS (confirmed active after 22:00 UTC restart):
   All 5 city loops now running and placing paper trades:
@@ -72,7 +72,11 @@ SESSION 72 RESEARCH KEY CHANGES (2026-03-14 to 2026-03-15):
      99c: -14.85 USD (-75% ROI) — GUARD CODED (8d252ae) + ACTIVE (restart at 22:00 UTC)
   6. DOCS: Off-peak double limits promotion documented in SESSION_HANDOFF + AUTONOMOUS_CHARTER + POLYBOT_INIT.
      Commit: 3c59276.
-  7. Tests: 1195 passing (was 1164). +31 new tests.
+  7. BUG FIX: 99c fee-floor guard in live.py (S72 cont — commit 1d12f46).
+     Bug: NO@99c → YES-equiv 1c passes price_guard_max=99 check. Trade 2111 placed at 99c.
+     Fix: explicit raw price_cents >= 99 || <= 1 block BEFORE YES-equiv conversion.
+     3 new regression tests in TestSniperFeeFlorBlock.
+  8. Tests: 1198 passing (was 1164). +34 new tests total this session.
 
 PENDING TASKS (Session 74 — PRIORITY ORDER):
 
@@ -104,11 +108,13 @@ PENDING TASKS (Session 74 — PRIORITY ORDER):
      Use 5-min SINGLE-CHECK cycles. Helper at /tmp/polybot_check.py — rewrite each session.
 
 125 USD PROFIT GOAL:
-  All-time: +12.28 USD. Need ~+112.72 more.
-  Sniper is profit engine. 99c guard now ACTIVE (protects ~14.85 USD/cycle).
-  Key levers: (1) sol Stage 2 graduation (+5 USD/bet potential),
+  All-time: +13.40 USD. Need ~+111.60 more.
+  Sniper is profit engine. Fee-floor fix (1d12f46) NOW ACTIVE — blocks all 99c bets.
+  Key levers: (1) sol Stage 2 graduation (+5 USD/bet potential at 10 USD max),
               (2) weather edges (paper calibration building — live after 4+ weeks),
               (3) NCAA 1-vs-16 seed sniper opportunities (March 19-21).
+  WARNING: Today's P&L was -3.67 (16 bets, 15W/1L). The 1 loss = the 99c NO bug (trade 2111)
+  which lost 14.85 USD. Without the bug, today would be ~+11.18 USD from 15 wins.
 
 RESPONSE FORMAT RULES (permanent — both mandatory):
   RULE 1: NEVER markdown table syntax (| --- |) — wrong font in Claude Code UI.
