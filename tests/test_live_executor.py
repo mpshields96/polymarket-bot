@@ -1110,32 +1110,36 @@ class TestSniperNegativeEvBucketGuard:
 
 
 class TestExpirySnipPriceGuardLaw3:
-    """Iron Law 3: expiry_sniper must pass price_guard_min=87 to execute().
+    """Iron Law 3: expiry_sniper must not fill at prices below the signal price floor.
 
-    The model's price_confidence formula floors at 87c. Any fill below 87c is
-    off-model territory. The sniper must enforce this floor via price_guard_min=87
-    in its live.execute() call.
+    The model's price_confidence formula floors at 87c. Any fill far below the
+    signal price is off-model territory (trade 2786: signal at 90c, fill at 86c = -19.78 USD).
+
+    S81 implementation: slippage guard in main.py checks `_live_price < signal.price_cents - 3`
+    BEFORE orderbook fetch. price_guard_min=1 in live.execute() is intentional to allow
+    NO-side bets (YES-equiv can be 5-9c for NO@91-95c, which would be blocked by min=87).
     """
 
-    def test_expiry_sniper_uses_87c_floor(self):
-        """LAW 3: main.py expiry_sniper_loop must pass price_guard_min=87.
+    def test_expiry_sniper_slippage_guard_present_in_main(self):
+        """LAW 3: main.py expiry_sniper_loop must contain slippage guard (_MAX_SLIPPAGE_CENTS).
 
-        Fails if price_guard_min=1 (the off-model permissive value).
-        Passes once main.py is fixed to price_guard_min=87.
+        S81: slippage guard replaces the price_guard_min=87 approach. The slippage guard
+        checks current market price vs signal price before placing the order, catching
+        the case where market moves from 90c to 86c between signal and execution.
+
+        Fails if the guard is removed from main.py.
         """
         import re
         main_src = open("main.py").read()
-        # Find the expiry_sniper execute() call block
-        # It must contain price_guard_min=87, not price_guard_min=1
-        sniper_block_match = re.search(
-            r"expiry_sniper.*?price_guard_min\s*=\s*(\d+)",
-            main_src,
-            re.DOTALL,
+        assert "_MAX_SLIPPAGE_CENTS" in main_src, (
+            "LAW 3 VIOLATION: _MAX_SLIPPAGE_CENTS slippage guard missing from main.py. "
+            "Trade 2786 (YES@86c, -19.78 USD) was caused by missing this guard. "
+            "Signal fired at 90c but executed at 86c — must be caught before orderbook fetch."
         )
-        assert sniper_block_match, "price_guard_min not found in expiry_sniper block"
-        assert sniper_block_match.group(1) == "87", (
-            f"LAW 3 VIOLATION: expiry_sniper price_guard_min={sniper_block_match.group(1)}, "
-            f"expected 87 (model floor). Below 87c is off-model territory."
+        # Verify the guard checks against signal.price_cents (not a hardcoded threshold)
+        assert "signal.price_cents - _MAX_SLIPPAGE_CENTS" in main_src, (
+            "LAW 3 VIOLATION: slippage guard must compare _live_price against signal.price_cents, "
+            "not a hardcoded threshold."
         )
 
     async def test_execute_rejects_86c_when_guard_is_87(self, live_env, bypass_first_run):

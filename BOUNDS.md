@@ -248,4 +248,127 @@ Revisit when bucket has 200+ bets at current bet size.
 
 ---
 
-*Last updated: Session 79 (2026-03-15). Add new laws here when new invariants are established.*
+---
+
+### IL-12: Kelly floor truncation must remain synchronized with kill switch pct cap
+
+**Rule:** `sizing.py` line 136: `size = math.floor(size * 100) / 100`.
+The floored value must always satisfy `size / bankroll <= MAX_TRADE_PCT` at the same bankroll.
+The kill switch pct cap check in `check_order_allowed()` (line 174) evaluates the same value
+that sizing produces — they must agree. Never change `math.floor()` to `round()` or `math.ceil()`.
+
+**Why:** At bankroll=$31.79, pct_cap=4.7685. `floor`→4.76 passes (4.76/31.79=14.97%).
+`round`→4.77 fails (4.77/31.79=15.01% > 15% cap). A round() change silently blocks
+valid bets at specific bankroll values with no clear error message.
+
+**Test:** `tests/test_iron_laws.py::TestIL12SizingKillSwitchInteraction`
+
+---
+
+### IL-13: kalshi_payout() always receives YES price, regardless of bet side
+
+**Rule:** For any call to `kalshi_payout(yes_price_cents, side)`:
+- YES-side bet at price P: pass `yes_price_cents=P`
+- NO-side bet at price P (where P is the NO price): pass `yes_price_cents=100-P`
+
+Pattern: `yes_for_payout = signal.price_cents if signal.side == "yes" else (100 - signal.price_cents)`
+
+**Why:** Session 20: `kalshi_payout(signal.price_cents, "no")` was called where price_cents
+was the NO price (40c). Should have been 60c (YES price). Result: wrong edge calculation,
+miscalibrated Brier scores, unreliable graduation data for several hours.
+
+**Test:** `tests/test_iron_laws.py::TestIL13KalshiPayoutNOSideConversion`
+
+---
+
+### IL-14: Settlement loop only calls record_win/record_loss for live trades
+
+**Rule:** `main.py` settlement_loop line 1192:
+```python
+if not trade["is_paper"]:
+    if won:
+        kill_switch.record_win()
+    else:
+        kill_switch.record_loss(abs(pnl_cents) / 100.0)
+```
+This `if not trade["is_paper"]` guard must never be removed.
+
+**Why:** Session 21: paper losses counted toward the live daily loss limit, halting live
+trading after a paper losing streak. Paper bets are not real money — risk governance
+(consecutive loss cooling, daily limits) must only trigger on live outcomes.
+
+**Test:** `tests/test_iron_laws.py::TestIL14SettlementLoopIsPaperFilter`
+
+---
+
+### IL-15: All live orders must pass kill_switch + execute atomically inside _live_trade_lock
+
+**Rule:** In every live loop in `main.py`, the sequence:
+  1. `kill_switch.check_order_allowed()`
+  2. `await live.execute()`
+  3. `kill_switch.record_trade()`
+must be wrapped inside `async with _live_trade_lock:`. The lock is created once in `main()`
+and passed to all live loops. Never remove the lock or move any of these three steps outside it.
+
+**Why:** Session 24: two concurrent loops both passed check_order_allowed() before either
+called record_trade(). The hourly counter incremented only after execution, so both loops
+went through — exceeding the rate limit by 1.
+
+**Test:** `tests/test_kill_switch.py::TestCheckOrderAllowed` (shallow); integration test not yet written.
+
+---
+
+### IL-16: _FIRST_RUN_CONFIRMED must be set True by main.py after startup confirmation
+
+**Rule:** `live.py` line 34 initializes `_FIRST_RUN_CONFIRMED = False`.
+After the operator types "CONFIRM" at the interactive startup prompt, `main.py` must set:
+```python
+import src.execution.live as live_exec_mod
+live_exec_mod._FIRST_RUN_CONFIRMED = True
+```
+This must happen before any live trading loop starts.
+
+**Why:** Session 20: when stdin is piped (`nohup ... < /tmp/confirm.txt`), `input()` receives
+"" not "CONFIRM". The flag is never set to True, so every call to `execute()` silently returns
+None. The bot runs for hours without placing any live bets — no error in the log.
+
+**Test:** `tests/test_iron_laws.py::TestIL16FirstRunConfirmedModuleState`
+`tests/test_live_executor.py::TestExecuteGuards::test_guard_first_run_not_confirmed_returns_none`
+
+---
+
+### IL-17: Bankroll floor check runs before pct-of-bankroll cap check
+
+**Rule:** In `kill_switch.check_order_allowed()` (lines 165–179), the order of checks is:
+  1. Bankroll floor (line 166): absolute constraint — never bet if bankroll <= $20
+  2. Per-trade hard cap (line 171): absolute ceiling on bet size
+  3. Pct-of-bankroll cap (line 174): relative constraint
+Never reorder these. Absolute constraints before relative constraints.
+
+**Why:** Code clarity and debugging. If pct cap runs first at low bankroll, the error
+message says "15% exceeded" when the real issue is "bankroll at floor". The floor
+check always runs first so the error is unambiguous.
+
+**Test:** `tests/test_iron_laws.py::TestIL12SizingKillSwitchInteraction::test_bankroll_floor_checked_before_pct_cap`
+
+---
+
+### IL-18: strategy_name passed to live.execute() must come from strategy.name, never hardcoded
+
+**Rule:** Every live loop call to `live.execute(..., strategy_name=...)` must pass the value
+from the strategy object (`strategy.name`) or a loop parameter. Never a string literal like
+`strategy_name="btc_lag"`.
+
+For loops reusing BTCDriftStrategy (eth/sol/xrp drift), the `name_override` parameter at
+construction time is the sole mechanism: `BTCDriftStrategy(name_override="eth_drift_v1")`.
+
+**Why:** Session 20: eth_lag loop was copy-pasted from btc_lag with hardcoded `strategy="btc_lag"`.
+eth_lag bets were recorded as "btc_lag" in the DB for several hours. Calibration data and
+graduation counters for both strategies became unreliable.
+
+**Test:** `tests/test_iron_laws.py::TestIL18StrategyNameNotHardcoded`
+`tests/test_live_executor.py::TestRegressions::test_strategy_name_not_hardcoded_btc_lag`
+
+---
+
+*Last updated: Session 81 (2026-03-15). IL-12 through IL-18 added with regression tests in tests/test_iron_laws.py.*
