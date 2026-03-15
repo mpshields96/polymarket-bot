@@ -2060,3 +2060,67 @@ Actual savings: blocked bucket in S80 alone (today's violations) = -56.25 USD pr
   3. Weather calibration: check ~04:00 UTC March 16 (pending bets from today settle)
   4. CPI speed-play: April 10 08:30 ET (script ready)
   5. XRP monitoring: 58 bets, 97%WR, -0.76 USD (small sample, no guard warranted)
+
+---
+
+## Session 80 Research (2026-03-15 monitoring + research chat)
+
+**BOT STATE:** PID 68296, writing to /tmp/polybot_session76.log. Post-guard all-time P&L improving from -43 → -22 USD over 3 hours. Pre-guard violations explained: 3 blocked-bucket losses (07:15, 13:30 UTC) from stale bot instance before S79 restart at 15:07 UTC.
+
+**SOL/XRP VOLATILITY ASYMMETRY — MONITORING LEAD (NOT ACTIONABLE YET):**
+
+All-time sniper by asset:
+- BTC: 72 bets, 99%WR, +38.97 USD
+- ETH: 86 bets, 99%WR, +35.96 USD  
+- SOL: 95 bets, 95%WR, -18.73 USD
+- XRP: 90 bets, 96%WR, -29.81 USD
+
+SOL+XRP together destroy the strategy's P&L (-48.54 USD combined) while BTC+ETH are the profit center (+74.93 USD). Many losses are in pre-guard blocked buckets.
+
+**Specific watch: 94c YES bucket for SOL and XRP:**
+- SOL 94c YES: 11 bets, 90.9%WR, -8.33 USD (fee break-even = 94.37%. Below break-even.)
+- XRP 94c YES: 14 bets, 92.9%WR, -9.69 USD (also below break-even.)
+- BTC+ETH 94c YES: ~10 bets, ~100%WR, positive (no losses)
+
+Structural explanation: SOL/XRP are 3-5x more volatile than BTC/ETH on 15M timeframes. At 94c YES near expiry, reversal is more likely for volatile assets because 6c gross margin is wiped by a single reversal. Fee break-even at 94c requires 94.37%WR — SOL/XRP can't sustain this.
+
+**ACTION: Do NOT guard yet. Need 200+ bets at 94c YES for SOL and XRP separately (PRINCIPLES.md). Currently 25 combined. Monitor at 100+ bets for preliminary evidence.**
+
+If SOL 94c YES hits 100+ bets still below 94.37%WR with p<0.1, flag as IL-12 candidate.
+
+**KXGDP SPEED-PLAY (April 30) — NEW SERIES:**
+
+KXGDP markets (Q1 2026 GDP, close April 30):
+- T1.0 YES=86c vol=45,813 (86% chance GDP > 1.0%)
+- T1.5 YES=77c vol=51,541
+- T2.0 YES=65c vol=52,937
+
+BEA publishes GDP advance estimate on April 30 at 08:30 ET. Same speed-play mechanism as CPI:
+- Detect BEA release via API
+- Bet markets at 86c+ before Kalshi reprices (30-120 second window)
+
+BLOCKER: No FRED/BEA API key in .env. Register at fred.stlouisfed.org (free) to get FRED key. FRED has GDP data (series GDPC1) with same access pattern as BLS.
+
+Same mechanism as CPI speed-play (not a new structural edge — just another data release event). The cpi_release_monitor.py could be extended to cover GDP and payrolls with minimal changes.
+
+**PRIORITY STACK (updated Session 80 research):**
+1. Sol drift graduation (29/30, Brier 0.184 — waiting for 30th bet)
+2. NCAA scanner: March 17-18 (KXNCAAMBGAME opens, check 1v16 underpriced)
+3. Weather calibration: March 16 ~04:00 UTC (10 pending paper bets settle)
+4. CPI speed-play: April 10 08:30 ET (BLS quota burned today — don't run until April 10)
+5. GDP speed-play: April 30 08:30 ET (register FRED key first)
+6. SOL/XRP 94c YES monitoring: watch for IL-12 candidate at 100+ bets
+
+**DEAD END CONFIRMED: KXBTCD near-expiry sniper (both 2PM and 5PM ET slots)**
+All daily KXBTCD threshold markets are priced at 99c/0c when far from threshold (blocked by IL-5).
+When near threshold, priced at ~50c (no structural edge).
+No middle ground exists for 90-98c sniper zone. Same confirmed for KXETHD.
+
+**RESEARCH METHODOLOGY NOTE (Session 80 feedback from Matthew):**
+The polybot-autoresearch framework needs tighter criteria. Valid research must have:
+1. Named mechanism (why does the market misprice this? who is the losing counterparty?)
+2. Academic or economic basis (not just pattern-matching on historical data)
+3. Quantifiable edge with clear paper-test protocol and minimum N
+4. Different mechanism from existing sniper (not threshold/asset variants)
+5. Willing to spend days validating — quality over quantity
+Data-mining existing trades for time-of-day or minor asset patterns is NOT valid research.
