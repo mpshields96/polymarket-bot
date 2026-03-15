@@ -8,13 +8,19 @@ PURPOSE:
     for UCL in-play sniper feasibility.
 
 USAGE:
-    python scripts/ucl_live_monitor.py
-    python scripts/ucl_live_monitor.py --date 26MAR17   # filter to specific match-day
-    python scripts/ucl_live_monitor.py --interval 30    # poll every 30s (default 60)
+    python scripts/ucl_live_monitor.py                   # REST polling mode (default)
+    python scripts/ucl_live_monitor.py --date 26MAR17    # filter to specific match-day
+    python scripts/ucl_live_monitor.py --ws              # WebSocket mode (real-time)
+    python scripts/ucl_live_monitor.py --ws --date 26MAR17
+
+MODES:
+    REST (default): polls Kalshi every 60s, ESPN every 60s. Suitable for pre-game monitoring.
+    WebSocket (--ws): subscribes to Kalshi orderbook_delta channel for tick-by-tick prices.
+                      Use during live games for precise 90c+ crossing detection.
 
 OUTPUT:
     Logs to stdout and /tmp/ucl_monitor.log
-    Only shows price changes ≥1c and 90c+ threshold crossings
+    Only shows price changes and 90c+ threshold crossings
 
 RESEARCH QUESTIONS:
     1. Do KXUCLGAME markets update in real-time during a live UCL game?
@@ -29,6 +35,14 @@ KEY HYPOTHESIS:
     - 90-min game + can_close_early = settlement within 30s of result
     - Large leads in 60+ min = near-certainty, market may reach 90c+
 
+EVIDENCE FROM SETTLED GAMES (March 10, 2026):
+    - ATM won vs Tottenham: ATM last_price=0.99 (CONFIRMED live price movement)
+    - GAL won vs Liverpool: GAL last_price=0.99 (Galatasaray ~8c pre-game, massive upset)
+    - RMA won vs MCI: RMA last_price=0.99, vol=2.8M
+    - BMU won vs Atalanta: BMU last_price=0.99
+    - TIE in LEV vs ARS: TIE last_price=0.99 (note: Leverkusen vs Arsenal ended in tie)
+    All winners at 99c = markets DO update live and were actively traded to near-certainty
+
 DO NOT USE FOR LIVE TRADING. Research only.
 
 MATCH SCHEDULE (March 2026):
@@ -39,11 +53,15 @@ MATCH SCHEDULE (March 2026):
 """
 
 import argparse
+import asyncio
+import base64
+import json
 import os
 import sys
 import time
 import logging
 import requests
+import threading
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -66,84 +84,40 @@ SNIPER_THRESHOLD = 0.90
 
 ESPN_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer/UEFA.CHAMPIONS/scoreboard'
 
-# ESPN team abbreviation → Kalshi KXUCLGAME team code
-# Manually built from known March 17-18 matchups + common UCL teams
+# ESPN team display name → Kalshi KXUCLGAME team code
 TEAM_MAP: dict[str, str] = {
-    # Real Madrid
-    'REAL MADRID': 'RMA',
-    'REAL': 'RMA',
-    # Manchester City
-    'MANCHESTER CITY': 'MCI',
-    'MAN CITY': 'MCI',
-    # Arsenal
+    'REAL MADRID': 'RMA', 'REAL': 'RMA',
+    'MANCHESTER CITY': 'MCI', 'MAN CITY': 'MCI', 'MAN. CITY': 'MCI',
     'ARSENAL': 'ARS',
-    # Bayer Leverkusen
-    'BAYER LEVERKUSEN': 'LEV',
-    'LEVERKUSEN': 'LEV',
-    # Chelsea
+    'BAYER LEVERKUSEN': 'LEV', 'LEVERKUSEN': 'LEV',
     'CHELSEA': 'CFC',
-    # Paris Saint-Germain
-    'PARIS SAINT-GERMAIN': 'PSG',
-    'PARIS SG': 'PSG',
-    'PSG': 'PSG',
-    # Sporting CP
-    'SPORTING CP': 'SPO',
-    'SPORTING': 'SPO',
-    # FK Bodo/Glimt
-    'BODO/GLIMT': 'BOG',
-    'BODO': 'BOG',
-    "FK BODO": 'BOG',
-    # Bayern Munich
-    'BAYERN MUNICH': 'BMU',
-    'BAYERN': 'BMU',
-    # Atalanta
-    'ATALANTA': 'ATA',
-    # Tottenham
-    'TOTTENHAM HOTSPUR': 'TOT',
-    'TOTTENHAM': 'TOT',
-    # Atletico Madrid
-    'ATLETICO DE MADRID': 'ATM',
-    'ATLETICO MADRID': 'ATM',
-    'ATL. MADRID': 'ATM',
-    # Liverpool
-    'LIVERPOOL': 'LFC',
-    # Galatasaray
+    'PARIS SAINT-GERMAIN': 'PSG', 'PARIS SG': 'PSG', 'PSG': 'PSG',
+    'SPORTING CP': 'SPO', 'SPORTING': 'SPO',
+    'BODO/GLIMT': 'BOG', 'BODO': 'BOG', 'FK BODO': 'BOG',
+    'BAYERN MUNICH': 'BMU', 'BAYERN': 'BMU', 'FC BAYERN MÜNCHEN': 'BMU',
+    'ATALANTA': 'ATA', 'ATALANTA BC': 'ATA',
+    'TOTTENHAM HOTSPUR': 'TOT', 'TOTTENHAM': 'TOT',
+    'ATLETICO DE MADRID': 'ATM', 'ATLETICO MADRID': 'ATM', 'ATL. MADRID': 'ATM',
+    'LIVERPOOL': 'LFC', 'LIVERPOOL FC': 'LFC',
     'GALATASARAY': 'GAL',
-    # Barcelona
-    'FC BARCELONA': 'BAR',
-    'BARCELONA': 'BAR',
-    # Newcastle
-    'NEWCASTLE UNITED': 'NEW',
-    'NEWCASTLE': 'NEW',
-    # Borussia Dortmund (potential future)
+    'FC BARCELONA': 'BAR', 'BARCELONA': 'BAR',
+    'NEWCASTLE UNITED': 'NEW', 'NEWCASTLE': 'NEW',
     'BORUSSIA DORTMUND': 'DOR',
-    # AC Milan
     'AC MILAN': 'MIL',
-    # Inter Milan
-    'INTER MILAN': 'INT',
-    'INTERNAZIONALE': 'INT',
-    # Benfica
-    'BENFICA': 'BEN',
-    # Club Brugge
+    'INTERNAZIONALE': 'INT', 'INTER MILAN': 'INT',
+    'BENFICA': 'BEN', 'SL BENFICA': 'BEN',
     'CLUB BRUGGE': 'CLB',
-    # Juventus
     'JUVENTUS': 'JUV',
-    # Celtic
     'CELTIC': 'CEL',
-    # Feyenoord
     'FEYENOORD': 'FEY',
-    # Lazio
-    'LAZIO': 'LAZ',
-    # Porto
-    'FC PORTO': 'POR',
-    'PORTO': 'POR',
+    'FC PORTO': 'POR', 'PORTO': 'POR',
 }
 
 
 # ── ESPN ───────────────────────────────────────────────────────────────────
 
 def get_live_ucl_games() -> list[dict]:
-    """Return all in-progress UCL games from ESPN."""
+    """Return all UCL games from ESPN (any status)."""
     try:
         r = requests.get(ESPN_URL, timeout=10)
         r.raise_for_status()
@@ -155,8 +129,8 @@ def get_live_ucl_games() -> list[dict]:
             status = comp.get('status', {})
             state = status.get('type', {}).get('name', '')
 
-            home_score = away_score = 0
             home_name = away_name = 'UNK'
+            home_score = away_score = 0
             home_kalshi = away_kalshi = None
 
             for t in teams:
@@ -164,15 +138,10 @@ def get_live_ucl_games() -> list[dict]:
                 name_upper = name.upper()
                 score = int(t.get('score', 0) or 0)
                 kalshi_code = _lookup_team(name_upper)
-
                 if t.get('homeAway') == 'home':
-                    home_name = name
-                    home_score = score
-                    home_kalshi = kalshi_code
+                    home_name, home_score, home_kalshi = name, score, kalshi_code
                 else:
-                    away_name = name
-                    away_score = score
-                    away_kalshi = kalshi_code
+                    away_name, away_score, away_kalshi = name, score, kalshi_code
 
             games.append({
                 'event_id': e.get('id', ''),
@@ -195,7 +164,6 @@ def get_live_ucl_games() -> list[dict]:
 
 
 def _lookup_team(name_upper: str) -> str | None:
-    """Try exact then partial match in TEAM_MAP."""
     if name_upper in TEAM_MAP:
         return TEAM_MAP[name_upper]
     for key, code in TEAM_MAP.items():
@@ -204,7 +172,7 @@ def _lookup_team(name_upper: str) -> str | None:
     return None
 
 
-# ── Kalshi ─────────────────────────────────────────────────────────────────
+# ── Kalshi auth ─────────────────────────────────────────────────────────────
 
 _auth = None
 
@@ -222,15 +190,37 @@ def _get_auth():
     return _auth
 
 
+def _make_ws_headers(path: str) -> list[tuple[str, str]]:
+    """Build signed WebSocket headers for Kalshi."""
+    from dotenv import load_dotenv
+    load_dotenv()
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import padding
+    from cryptography.hazmat.backends import default_backend
+
+    ts = str(int(time.time() * 1000))
+    msg = ts + 'GET' + path
+    with open(os.getenv('KALSHI_PRIVATE_KEY_PATH'), 'rb') as f:
+        private_key = serialization.load_pem_private_key(f.read(), password=None, backend=default_backend())
+    sig = private_key.sign(
+        msg.encode(),
+        padding.PSS(mgf=padding.MGF1(hashes.SHA256()), salt_length=padding.PSS.DIGEST_LENGTH),
+        hashes.SHA256(),
+    )
+    return [
+        ('KALSHI-ACCESS-KEY', os.getenv('KALSHI_API_KEY_ID')),
+        ('KALSHI-ACCESS-TIMESTAMP', ts),
+        ('KALSHI-ACCESS-SIGNATURE', base64.b64encode(sig).decode()),
+    ]
+
+
+# ── Kalshi REST ─────────────────────────────────────────────────────────────
+
 def get_ucl_markets(date_filter: str | None = None) -> dict[str, dict]:
-    """
-    Return dict of {kalshi_team_code: market_dict} for open KXUCLGAME markets.
-    If date_filter provided (e.g. '26MAR17'), only return markets with that date.
-    """
+    """Return dict of {kalshi_team_code: market_dict} for open KXUCLGAME markets."""
     auth = _get_auth()
     path = '/trade-api/v2/markets'
-    params = 'series_ticker=KXUCLGAME&status=open&limit=100'
-    url = f'https://api.elections.kalshi.com{path}?{params}'
+    url = f'https://api.elections.kalshi.com{path}?series_ticker=KXUCLGAME&status=open&limit=100'
     try:
         r = requests.get(url, headers=auth.headers('GET', path), timeout=10)
         r.raise_for_status()
@@ -238,20 +228,15 @@ def get_ucl_markets(date_filter: str | None = None) -> dict[str, dict]:
         result = {}
         for m in markets:
             ticker = m.get('ticker', '')
-
             if date_filter and date_filter.upper() not in ticker.upper():
                 continue
-
-            # Last segment after final hyphen is team code (RMA, MCI, TIE, etc.)
             parts = ticker.split('-')
             if len(parts) < 3:
                 continue
             team_code = parts[-1].upper()
-
             yb = float(m.get('yes_bid_dollars') or 0)
             ya = float(m.get('yes_ask_dollars') or 0)
             last = float(m.get('last_price_dollars') or 0)
-
             result[team_code] = {
                 'ticker': ticker,
                 'title': m.get('title', '')[:60],
@@ -261,91 +246,85 @@ def get_ucl_markets(date_filter: str | None = None) -> dict[str, dict]:
                 'mid': round((yb + ya) / 2, 3) if (yb + ya) > 0 else last,
                 'volume': float(m.get('volume_fp') or 0),
                 'close_time': m.get('close_time', ''),
-                'status': m.get('status', ''),
             }
         return result
     except Exception as e:
-        logger.warning(f'Kalshi UCL fetch error: {e}')
+        logger.warning(f'Kalshi REST fetch error: {e}')
         return {}
 
 
-# ── Observation log ────────────────────────────────────────────────────────
+# ── Price tracker ──────────────────────────────────────────────────────────
 
 class PriceTracker:
     """Track price history per market ticker for change detection."""
 
     def __init__(self):
-        self._last: dict[str, float] = {}  # ticker → last logged mid price
-        self._crossings: dict[str, float] = {}  # ticker → price at 90c crossing
-        self._price_moved: dict[str, bool] = {}  # ticker → ever moved from start?
-        self._initial: dict[str, float] = {}  # ticker → price at first observation
+        self._last: dict[str, float] = {}
+        self._crossings: dict[str, float] = {}
+        self._ever_moved: dict[str, bool] = {}
+        self._initial: dict[str, float] = {}
+        self._crossing_times: dict[str, str] = {}  # ticker → UTC time of first 90c crossing
+        self._lock = threading.Lock()
 
     def observe(self, ticker: str, mid: float, game_state: str) -> None:
-        """Log price observation, highlighting changes and threshold crossings."""
-        prev = self._last.get(ticker)
+        with self._lock:
+            now = datetime.now(timezone.utc).strftime('%H:%M:%S UTC')
+            prev = self._last.get(ticker)
 
-        if ticker not in self._initial:
-            self._initial[ticker] = mid
-            self._price_moved[ticker] = False
-            logger.info(f'  [INIT] {ticker} | {int(mid*100)}c')
+            if ticker not in self._initial:
+                self._initial[ticker] = mid
+                self._ever_moved[ticker] = False
+                logger.info(f'  [INIT] {ticker} | {int(mid*100)}c @ {now}')
 
-        change = mid - prev if prev is not None else 0
-        moved = abs(change) >= 0.01  # ≥1c change
+            change = (mid - prev) if prev is not None else 0
+            moved = abs(change) >= 0.01
 
-        if moved:
-            self._price_moved[ticker] = True
-            direction = '▲' if change > 0 else '▼'
-            logger.info(
-                f'  [MOVE] {ticker} | {int(mid*100)}c {direction}{int(abs(change)*100)}c | {game_state}'
-            )
-
-        if mid >= SNIPER_THRESHOLD:
-            if ticker not in self._crossings:
-                self._crossings[ticker] = mid
-                logger.warning(
-                    f'  *** 90c+ CROSSING: {ticker} at {int(mid*100)}c | {game_state} ***'
+            if moved:
+                self._ever_moved[ticker] = True
+                direction = '▲' if change > 0 else '▼'
+                logger.info(
+                    f'  [MOVE] {ticker} | {int(mid*100)}c {direction}{int(abs(change)*100)}c | {game_state}'
                 )
-            elif moved:
-                logger.warning(
-                    f'  *** STILL 90c+: {ticker} at {int(mid*100)}c | {game_state} ***'
-                )
-        else:
-            if ticker in self._crossings:
-                del self._crossings[ticker]
-                logger.info(f'  [DROPPED] {ticker} fell below 90c → {int(mid*100)}c | {game_state}')
 
-        self._last[ticker] = mid
+            if mid >= SNIPER_THRESHOLD:
+                if ticker not in self._crossings:
+                    self._crossings[ticker] = mid
+                    self._crossing_times[ticker] = now
+                    logger.warning(
+                        f'  *** 90c+ CROSSING: {ticker} at {int(mid*100)}c | {game_state} | time={now} ***'
+                    )
+                elif moved:
+                    logger.warning(
+                        f'  *** STILL 90c+: {ticker} at {int(mid*100)}c {direction}{int(abs(change)*100)}c '
+                        f'| {game_state} ***'
+                    )
+            else:
+                if ticker in self._crossings:
+                    first_time = self._crossing_times.pop(ticker, '?')
+                    del self._crossings[ticker]
+                    logger.info(
+                        f'  [DROPPED] {ticker} fell below 90c → {int(mid*100)}c '
+                        f'| was above since {first_time} | {game_state}'
+                    )
 
-    def has_ever_moved(self, ticker: str) -> bool:
-        return self._price_moved.get(ticker, False)
+            self._last[ticker] = mid
 
     def summary(self) -> str:
-        movers = [t for t, v in self._price_moved.items() if v]
+        movers = sum(1 for v in self._ever_moved.values() if v)
         crossings = list(self._crossings.keys())
         return (
-            f'Movers (ever): {len(movers)} | Active 90c+: {len(crossings)}'
-            + (f' ACTIVE: {", ".join(crossings)}' if crossings else '')
+            f'Movers (ever): {movers} | Active 90c+: {len(crossings)}'
+            + (f' → {", ".join(crossings)}' if crossings else '')
         )
 
 
-# ── Main loop ──────────────────────────────────────────────────────────────
+# ── REST polling mode ──────────────────────────────────────────────────────
 
-def main():
-    parser = argparse.ArgumentParser(description='UCL Live Monitor (Research Only)')
-    parser.add_argument('--date', default=None, help='Match date filter e.g. 26MAR17')
-    parser.add_argument('--interval', type=int, default=DEFAULT_POLL_SEC,
-                        help=f'Poll interval seconds (default {DEFAULT_POLL_SEC})')
-    args = parser.parse_args()
-
-    logger.info('=== UCL Live Monitor (Research Only — NOT a trading bot) ===')
-    logger.info(f'Poll interval: {args.interval}s | Threshold: {int(SNIPER_THRESHOLD*100)}c')
-    if args.date:
-        logger.info(f'Date filter: {args.date}')
-    logger.info('Watching: KXUCLGAME markets for live in-play price movement')
-    logger.info('')
-
+def run_rest_mode(date_filter: str | None, poll_sec: int):
     tracker = PriceTracker()
     cycle = 0
+
+    logger.info(f'REST mode: poll every {poll_sec}s')
 
     while True:
         cycle += 1
@@ -353,59 +332,225 @@ def main():
 
         all_games = get_live_ucl_games()
         live_games = [g for g in all_games if g['state'] == 'STATUS_IN_PROGRESS']
-        scheduled = [g for g in all_games if g['state'] in ('STATUS_SCHEDULED',)]
-        markets = get_ucl_markets(args.date)
+        markets = get_ucl_markets(date_filter)
 
-        # ── No live games ──
         if not live_games:
-            game_count = len(all_games)
-            sched_count = len(scheduled)
-            mkt_count = len(markets)
-
-            if cycle % 5 == 1:  # Log only every 5th cycle when no live games
+            if cycle % 5 == 1:
+                sched = sum(1 for g in all_games if g['state'] == 'STATUS_SCHEDULED')
                 logger.info(
-                    f'[{now_utc}] No live UCL games | ESPN events={game_count} scheduled={sched_count}'
-                    f' | Kalshi markets={mkt_count}'
+                    f'[{now_utc}] No live games | ESPN events={len(all_games)} scheduled={sched}'
+                    f' | Kalshi markets={len(markets)}'
                 )
-                # Still probe market prices when no live game — detect pre-game movement
-                if markets:
-                    for team_code, m in sorted(markets.items(), key=lambda x: -x[1]['volume']):
-                        if m['mid'] > 0:
-                            game_state = f'PRE-GAME | vol={int(m["volume"])}'
-                            tracker.observe(m['ticker'], m['mid'], game_state)
+                for team_code, m in sorted(markets.items(), key=lambda x: -x[1]['volume']):
+                    if m['mid'] > 0:
+                        tracker.observe(m['ticker'], m['mid'], f'PRE-GAME vol={int(m["volume"])}')
+        else:
+            for g in live_games:
+                lead = g['home_score'] - g['away_score']
+                state = (
+                    f'{g["home_name"]} {g["home_score"]}-{g["away_score"]} {g["away_name"]}'
+                    f' | {g["detail"]}'
+                )
+                logger.info(f'[{now_utc}] LIVE: {state}')
 
-        # ── Live games ──
-        for g in live_games:
-            lead_home = g['home_score'] - g['away_score']
-            game_state = (
-                f'{g["home_name"]} {g["home_score"]}-{g["away_score"]} {g["away_name"]}'
-                f' | {g["detail"]} | lead={lead_home:+d}'
-            )
-            logger.info(f'[{now_utc}] LIVE: {game_state}')
+                for team_code, side_lead in [
+                    (g['home_kalshi'], lead),
+                    (g['away_kalshi'], -lead),
+                    ('TIE', 0),
+                ]:
+                    if not team_code or team_code not in markets:
+                        continue
+                    m = markets[team_code]
+                    if m['mid'] <= 0:
+                        continue
+                    tracker.observe(m['ticker'], m['mid'], f'{state} | lead={side_lead:+d}')
 
-            # Check each outcome's market price
-            for team_code, lead in [
-                (g['home_kalshi'], lead_home),
-                (g['away_kalshi'], -lead_home),
-                ('TIE', 0),  # Check TIE market too
-            ]:
-                if not team_code or team_code not in markets:
-                    if team_code and team_code not in markets:
-                        logger.debug(f'  No Kalshi market found for team_code={team_code}')
-                    continue
-
-                m = markets[team_code]
-                if m['mid'] <= 0:
-                    continue
-
-                detail = f'{game_state} | team={team_code} lead={lead:+d}'
-                tracker.observe(m['ticker'], m['mid'], detail)
-
-        # ── Periodic summary ──
         if cycle % 10 == 0:
-            logger.info(f'[SUMMARY at {now_utc}] {tracker.summary()}')
+            logger.info(f'[SUMMARY @ {now_utc}] {tracker.summary()}')
 
-        time.sleep(args.interval)
+        time.sleep(poll_sec)
+
+
+# ── WebSocket mode ─────────────────────────────────────────────────────────
+
+async def run_ws_mode(date_filter: str | None):
+    """Subscribe to Kalshi orderbook_delta via WebSocket for real-time price ticks."""
+    import websockets
+
+    tracker = PriceTracker()
+    ws_path = '/trade-api/ws/v2'
+    ws_url = f'wss://api.elections.kalshi.com{ws_path}'
+
+    # Get target market tickers
+    markets = get_ucl_markets(date_filter)
+    if not markets:
+        logger.warning('No open UCL markets found for WebSocket subscription')
+        return
+
+    tickers = [m['ticker'] for m in markets.values()]
+    # Map ticker → team_code for later lookups
+    ticker_to_code: dict[str, str] = {m['ticker']: code for code, m in markets.items()}
+    # Track best bid/ask per market (reconstructed from deltas)
+    orderbook: dict[str, dict] = {t: {'yes': {}, 'no': {}} for t in tickers}
+
+    logger.info(f'WS mode: subscribing to {len(tickers)} markets')
+    for t in tickers:
+        logger.info(f'  {t}')
+
+    # ESPN polling runs in background thread
+    last_games: list[dict] = []
+
+    def espn_thread():
+        nonlocal last_games
+        while True:
+            games = get_live_ucl_games()
+            last_games = games
+            live = [g for g in games if g['state'] == 'STATUS_IN_PROGRESS']
+            if live:
+                for g in live:
+                    lead = g['home_score'] - g['away_score']
+                    logger.info(
+                        f'  [ESPN] LIVE: {g["home_name"]} {g["home_score"]}-{g["away_score"]} {g["away_name"]}'
+                        f' | {g["detail"]} | lead={lead:+d}'
+                    )
+            time.sleep(30)  # ESPN every 30s during WS mode
+
+    t = threading.Thread(target=espn_thread, daemon=True)
+    t.start()
+
+    def get_game_state(team_code: str) -> str:
+        for g in last_games:
+            if g['state'] != 'STATUS_IN_PROGRESS':
+                continue
+            if g.get('home_kalshi') == team_code or g.get('away_kalshi') == team_code:
+                lead = g['home_score'] - g['away_score']
+                if g.get('away_kalshi') == team_code:
+                    lead = -lead
+                return (
+                    f'{g["home_name"]} {g["home_score"]}-{g["away_score"]} {g["away_name"]}'
+                    f' | {g["detail"]} | lead={lead:+d}'
+                )
+        return 'PRE-GAME or no live match found'
+
+    def compute_mid(ob: dict) -> float:
+        """Compute mid price from orderbook dict."""
+        # yes side: prices where buyers want to buy YES
+        yes_bids = sorted([float(p) for p in ob['yes'].keys() if float(ob['yes'][p]) > 0], reverse=True)
+        # no side: prices where buyers want to buy NO (= equivalent YES sellers)
+        no_bids = sorted([float(p) for p in ob['no'].keys() if float(ob['no'][p]) > 0], reverse=True)
+        if not yes_bids and not no_bids:
+            return 0.0
+        best_yes_bid = yes_bids[0] if yes_bids else 0.0
+        # best NO bid at price X = someone will sell YES at (1-X)
+        best_yes_ask = (1.0 - no_bids[0]) if no_bids else 1.0
+        if best_yes_bid > 0 and best_yes_ask < 1.0:
+            return round((best_yes_bid + best_yes_ask) / 2, 3)
+        elif best_yes_bid > 0:
+            return best_yes_bid
+        elif best_yes_ask < 1.0:
+            return best_yes_ask
+        return 0.0
+
+    reconnect_delay = 5
+    while True:
+        try:
+            headers = _make_ws_headers(ws_path)
+            async with websockets.connect(ws_url, additional_headers=headers, open_timeout=15) as ws:
+                logger.info(f'WS connected to {ws_url}')
+                reconnect_delay = 5  # reset on success
+
+                # Subscribe in batches of 10 (Kalshi limit)
+                for i in range(0, len(tickers), 10):
+                    batch = tickers[i:i+10]
+                    sub = json.dumps({
+                        'id': i + 1,
+                        'cmd': 'subscribe',
+                        'params': {
+                            'channels': ['orderbook_delta'],
+                            'market_tickers': batch,
+                        }
+                    })
+                    await ws.send(sub)
+
+                async for raw in ws:
+                    msg = json.loads(raw)
+                    msg_type = msg.get('type', '')
+
+                    if msg_type == 'subscribed':
+                        logger.info(f'  WS subscribed: channel={msg.get("msg", {}).get("channel")}')
+
+                    elif msg_type == 'orderbook_snapshot':
+                        body = msg.get('msg', {})
+                        ticker = body.get('market_ticker', '')
+                        if ticker not in orderbook:
+                            continue
+                        ob = orderbook[ticker]
+                        for p, qty in body.get('yes_dollars_fp', []):
+                            if float(qty) > 0:
+                                ob['yes'][p] = qty
+                            else:
+                                ob['yes'].pop(p, None)
+                        for p, qty in body.get('no_dollars_fp', []):
+                            if float(qty) > 0:
+                                ob['no'][p] = qty
+                            else:
+                                ob['no'].pop(p, None)
+                        mid = compute_mid(ob)
+                        team_code = ticker_to_code.get(ticker, ticker.split('-')[-1])
+                        game_state = get_game_state(team_code)
+                        tracker.observe(ticker, mid, f'WS_SNAPSHOT | {game_state}')
+
+                    elif msg_type == 'orderbook_delta':
+                        body = msg.get('msg', {})
+                        ticker = body.get('market_ticker', '')
+                        if ticker not in orderbook:
+                            continue
+                        price = body.get('price_dollars', '0')
+                        delta = float(body.get('delta_fp', 0))
+                        side = body.get('side', 'yes')
+                        ob = orderbook[ticker]
+
+                        if delta > 0:
+                            ob[side][price] = str(float(ob[side].get(price, '0')) + delta)
+                        else:
+                            existing = float(ob[side].get(price, '0')) + delta
+                            if existing <= 0:
+                                ob[side].pop(price, None)
+                            else:
+                                ob[side][price] = str(existing)
+
+                        mid = compute_mid(ob)
+                        if mid > 0:
+                            team_code = ticker_to_code.get(ticker, ticker.split('-')[-1])
+                            game_state = get_game_state(team_code)
+                            tracker.observe(ticker, mid, f'WS_DELTA | {game_state}')
+
+        except Exception as e:
+            logger.warning(f'WS error: {type(e).__name__}: {e} — reconnecting in {reconnect_delay}s')
+            await asyncio.sleep(reconnect_delay)
+            reconnect_delay = min(reconnect_delay * 2, 60)
+
+
+# ── Main ───────────────────────────────────────────────────────────────────
+
+def main():
+    parser = argparse.ArgumentParser(description='UCL Live Monitor (Research Only)')
+    parser.add_argument('--date', default=None, help='Match date filter e.g. 26MAR17')
+    parser.add_argument('--interval', type=int, default=DEFAULT_POLL_SEC)
+    parser.add_argument('--ws', action='store_true', help='Use WebSocket mode for real-time ticks')
+    args = parser.parse_args()
+
+    logger.info('=== UCL Live Monitor (Research Only — NOT a trading bot) ===')
+    logger.info(f'Mode: {"WebSocket (real-time)" if args.ws else f"REST poll every {args.interval}s"}')
+    if args.date:
+        logger.info(f'Date filter: {args.date}')
+    logger.info('Watching KXUCLGAME markets for live in-play price movement')
+    logger.info('')
+
+    if args.ws:
+        asyncio.run(run_ws_mode(args.date))
+    else:
+        run_rest_mode(args.date, args.interval)
 
 
 if __name__ == '__main__':
