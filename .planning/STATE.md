@@ -29,6 +29,7 @@ None — slippage model and settlement verification complete.
 
 ## Key Decisions
 
+- price_guard_min=1 in expiry_sniper_loop is intentional — NO-side bets have YES-equiv 5-9c (NO@91-95c), which would be blocked by min=87. LAW 3 enforcement is _MAX_SLIPPAGE_CENTS=3 pre-execution check (S81, main.py line 1555).
 - POST /v1/orders on polymarket.us uses protobuf body format (not JSON) — confirmed by probe responses with explicit "proto: syntax error" messages. polymarket.COM path (py-clob-client) remains unblocked.
 - Kalshi API status=settled (not 'finalized') for settled markets — confirmed correct filter
 - Candlestick end_period_ts in seconds (not ms), yes_bid.close/yes_ask.close in cents
@@ -62,6 +63,7 @@ None — slippage model and settlement verification complete.
 | 9 | Fix graduation_stats() is_paper param + sol_drift_v1 in _GRAD — live drift shows live bet counts | 2026-03-09 | 82c90c7, 2fab9e6 | .planning/quick/8-fix-graduation-stats-is-paper-param-to-s/ |
 | 10 | Session 48 Kalshi probe: KXBTCMAXW dormant confirmed weekday, KXCPI 74 open (major revision), fresh KXBTCMAXMON/KXBTCMINMON/KXBTCMAXY/KXBTCMINY data | 2026-03-11 | 9171436 | .planning/quick/9-research-and-document-kalshi-undocumente/ |
 | 11 | Improve CryptoDailyStrategy signal quality: per-asset _HOURLY_VOL (BTC=0.01, ETH=0.015, SOL=0.025), 5pm EDT ATM slot priority, direction_filter in crypto_daily_loop | 2026-03-11 | e71c498, 7a09d74 | .planning/quick/10-improve-cryptodailystrategy-signal-quali/ |
+| 12 | Iron Laws LAW-3 regression test (slippage guard) + danger_zone_guard.sh extended to 6 files with Iron Laws advisory | 2026-03-15 | ae3fb9c, 10b0a16 | .planning/quick/11-iron-laws-pattern-1-sniper-price-guard-f/ |
 
 ## Phase Plans Completed
 
@@ -71,5 +73,5 @@ None — slippage model and settlement verification complete.
 
 ## Last Session
 
-**Stopped at:** Quick task 11 — CryptoDailyStrategy signal quality improvements: per-asset vol, 5pm EDT slot priority, loop direction_filter guard. 1003/1003 tests.
-**Session timestamp:** 2026-03-11T16:41:00Z
+**Stopped at:** Quick task 12 (GSD #11) — Iron Laws LAW-3 regression test + danger_zone_guard.sh Iron Laws advisory. 1312/1312 tests.
+**Session timestamp:** 2026-03-15T22:43:00Z
