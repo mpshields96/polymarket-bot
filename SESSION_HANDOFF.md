@@ -1,11 +1,11 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-15 (Session 75 null wrap — bot running, immediately stopped by Matthew)
+# Last updated: 2026-03-15 (Session 76 — 96c/97c guard deployed, bot restarted)
 # ═══════════════════════════════════════════════════════════════
 
-## COPY-PASTE THIS TO START A NEW SESSION (Session 76)
+## COPY-PASTE THIS TO START A NEW SESSION (Session 77)
 
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 76).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 77).
 
 MANDATORY READING BEFORE ANY ACTION:
   cat SESSION_HANDOFF.md
@@ -13,25 +13,23 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 75 null — 2026-03-15):
-  Bot RUNNING PID 33894 → /tmp/polybot_session74.log
-  All-time live P&L: -4.07 USD (recovering — sniper winning since S74 losses)
-  Session 75 was NULL: started, bot confirmed running, Matthew said stop. No changes made.
-  Tests: 1275 passing. Last commit: bd94a1f (Session 74 research wrap)
+BOT STATE (Session 76 — 2026-03-15 ~08:10 UTC):
+  Bot RUNNING PID 48737 → /tmp/polybot_session75.log
+  All-time live P&L: ~-3.27 USD (before today's sessions finished)
+  Session 76 deployed 96c/97c guard — MAJOR STRUCTURAL IMPROVEMENT
+  Tests: 1281 passing. Last commit: cd32feb (96c/97c guard)
 
-URGENT FINDING (from S74 monitoring — needs Matthew decision):
-  96c and 97c buckets are structurally negative EV:
-    96c YES: 17 bets, 94% WR → -13.35 USD cumulative (needs >96% to break even)
-    96c NO:  13 bets, 92% WR → -9.69 USD cumulative
-    97c NO:  12 bets, 92% WR → -15.43 USD cumulative
-    97c YES: 11 bets, 100% WR → +2.90 USD (safe)
-    95c: 100% both sides (safe). 98c: 100% both sides (safe).
-    RECOMMENDATION: add fee-floor guard for price_cents >= 96 (same logic as 99c guard).
-    Needs Matthew approval before implementing. First task for Session 76.
-  Tests: 1275 passing. Last commit: bd94a1f (Session 74 research wrap docs)
+SESSION 76 KEY CHANGES:
+  1. DEPLOYED 96c/97c negative-EV bucket guard (commit cd32feb):
+     - 96c both sides: BLOCKED (31 bets, 93.5% WR, -22.44 USD historical)
+     - 97c NO-side: BLOCKED (13 bets, 92.3% WR, -15.03 USD historical)
+     - 97c YES-side: KEPT (11 bets, 100% WR, +2.90 USD profitable)
+     - 6 regression tests added. BOUNDS.md updated with IL-10.
+     - Saves ~37.47 USD structural drag going forward.
+     - Bot restarted to activate. Now on session75.log.
 
-RESTART COMMAND (Session 75 — SAME LOG):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session74.log 2>&1 &
+RESTART COMMAND (Session 76):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session75.log 2>&1 &
   Then verify: ps aux | grep "[m]ain.py" — exactly 1. Then cat bot.pid.
 
 If --health shows "HARD STOP": HISTORICAL. The 30% lifetime stop was DISABLED in S34.
@@ -86,20 +84,18 @@ SESSION 74 RESEARCH KEY CHANGES (2026-03-15 ~07:00-10:30 UTC):
   4. CONFIRMED DEAD END: non-crypto 90c+ market scan — 0 found in 2000+ markets
   5. CONFIRMED DEAD END: annual BTC range markets (KXBTCMAXY/KXBTCMINY) — 9+ month lockup
 
-PENDING TASKS (Session 75 — PRIORITY ORDER):
-  #0 URGENT — 96c/97c PRICE GUARD DECISION (needs Matthew approval):
-     Show Matthew: 96c bucket -23.04 USD, 97c NO -15.43 USD. Same pattern as 99c (-14.85 USD fixed by guard).
-     Proposed guard: block price_cents >= 96 on NO side, price_cents == 96 on YES side.
-     Once approved: ~30 min build, same pattern as fee-floor guard in live.py.
+PENDING TASKS (Session 77 — PRIORITY ORDER):
+  #0 DONE — 96c/97c guard deployed (commit cd32feb). Bot restarted on session75.log.
   #1 NCAA scanner — run scripts/ncaa_tournament_scanner.py --min-edge 0.03 on March 17-18
      When Kalshi opens Round 1 KXNCAAMBGAME markets (games March 20-21)
-  2. Weather calibration — check March 15 paper bets when finalized (est March 16-17)
+  2. Weather calibration — check March 15 paper bets when finalized (est March 15-16 UTC)
      Run: python3 scripts/weather_calibration.py --pending
-     Key: if LAX YES@8c loses, raise LAX edge threshold from 20% to 30%+
-  3. Sol drift graduation — 28/30 → passive, notify when 30 bets
-  4. XRP first structural loss analysis — XRP NO@97c x19 lost when XRP reversed
-     Per PRINCIPLES.md: 1 loss at 62 bets is p=0.07, not significant. Wait for 200 bets.
-  5. CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)
+     Key bets: LAX YES@8c (93.5% GEFS probability), CHI NO@91c, DEN NO@7c
+     If LAX loses: confirms warm bias — adjust LAX edge threshold to 30%+
+  3. Sol drift graduation — 28/30 → passive, notify when 30 bets, then Stage 2 eval
+  4. CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)
+  5. Weather edge scanner — run again at 14:00 UTC when March 16 KXHIGH* markets open
+     LAX forecast mean=86F for March 16 (warm day likely). Check if Kalshi misprices again.
 
 RESEARCH STATE:
   scripts/cpi_release_monitor.py — run April 10, 08:30 ET

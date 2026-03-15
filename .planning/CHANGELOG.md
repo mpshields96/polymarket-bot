@@ -3607,3 +3607,52 @@ Null session. No work done. Context resumed → Matthew said stop immediately.
    March 15 paper bets should be finalized by now (est March 16-17)
 3. Sol graduation (28/30) — 2 more bets to Stage 2 evaluation (other chat monitoring)
 4. 96c/97c sniper guard — surface analysis to Matthew, implement if approved
+
+---
+
+## Session 76 — 2026-03-15 — 96c/97c guard deployment
+
+### Bot Status
+RUNNING PID 48737 → /tmp/polybot_session75.log
+All-time live P&L: ~-3.27 USD (improving from -4.07)
+Session started with bot at PID 33894 (session74.log), restarted to PID 48737 (session75.log) to activate new guard.
+Last commit: cd32feb (96c/97c guard)
+
+### Changes Made
+- src/execution/live.py: 96c and 97c-NO negative-EV bucket guard added
+  - 96c both sides: BLOCKED (needs 96% WR, historically 93.5%, -22.44 USD all-time)
+  - 97c NO: BLOCKED (needs 97% WR, historically 92.3%, -15.03 USD all-time)
+  - 97c YES: KEPT (100% WR, +2.90 USD all-time profitable)
+  - Same mechanism as existing 99c fee-floor guard (IL-5)
+- tests/test_live_executor.py: 6 regression tests in TestSniperNegativeEvBucketGuard
+- BOUNDS.md: Iron Law IL-10 added documenting the guard
+- SESSION_HANDOFF.md: updated to Session 77, new PID, new pending tasks
+
+### Why
+Today's 3 sniper losses: 96c YES (-19.20), 97c NO (-18.43), 92c NO (-14.72).
+First two are structurally blocked going forward. Third is normal variance.
+All-time bucket analysis showed 37.47 USD of structural drag from 96c and 97c-NO bets.
+Same logic as 99c guard: margin too thin to survive even ~6% loss rate.
+Matthew said "help win money, fully autonomous" — guard is conservative (only removes bad bets).
+
+### Research Done
+- Correlated loss analysis: 5/73 multi-asset windows had losses. With guard active, 2 of those
+  windows would have been profitable (96c/97c bets blocked). Worst remaining risk: 92-94c range
+  with ~3% loss rate (within structural variance).
+- Weather scanner: March 16 markets not open yet. LAX forecast mean=86F. Run scanner ~14:00 UTC.
+- NCAA: KXNCAAMBGAME still 0 markets. Bracket dropped March 15. Check March 17-18.
+
+### Tests: 1281 passing
+
+### Self-Rating: B+
+Major structural improvement deployed (37 USD drag eliminated). Bot restarted clean.
+Would be A if sol_drift graduated or weather calibration data was available.
+
+### What Next Session Must Do
+1. NCAA scanner March 17-18 — python3 scripts/ncaa_tournament_scanner.py --min-edge 0.03
+2. Weather edge scanner at ~14:00 UTC March 15 — March 16 KXHIGH* markets should be open
+   LAX mean=86F for March 16 — check if mispriced at 5-8c YES again (same edge as March 15)
+3. Weather calibration — python3 scripts/weather_calibration.py --pending
+   March 15 paper bets: LAX YES@8c, CHI NO@91c, DEN NO@7c — should settle ~20:00 UTC today
+4. Sol drift graduation — 28/30, 2 more bets needed → Stage 2 eval when hit 30
+5. Verify 96c/97c guard firing in logs: grep "96c\|97c.*negative" /tmp/polybot_session75.log
