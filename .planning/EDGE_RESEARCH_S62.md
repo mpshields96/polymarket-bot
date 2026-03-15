@@ -1828,3 +1828,74 @@ Conclusion: Credentials are safe. No credential exposure risk.
   4. Weather calibration — check March 15 paper bets when finalized (est. March 16-17)
   5. Sol drift graduation — 29/30 → Stage 2 eval when 30th bet settles, Brier 0.184 outstanding
   6. CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)
+
+---
+
+## SESSION 78 RESEARCH FINDINGS (2026-03-15)
+
+**BET SIZE REDUCTION — COMPLETED**
+
+Matthew directive (explicit): "change the max bet size down if that's objectively wise"
+
+Decision analysis at 113 USD bankroll, 15% cap:
+- 1 loss at 90c = -16.95 USD = 15% drawdown per bet
+- Today: -43.74 USD total from pre-guard losses (5 losses, 2 at 98c NO = -37.24 USD)
+- Structural drag from blocked buckets was masking variance risk at current sizing
+
+Decision: LOWERED to 10% / 15 USD hard max (commit a3192d1)
+- At 113 USD: max bet = 11.29 USD (was 16.95 USD, -33% reduction)
+- At 150 USD: max bet = 14.99 USD  
+- At 200+ USD: capped at 15 USD
+
+3 kill_switch tests updated. All 1281 tests pass. BOUNDS.md IL-3 updated.
+
+**BUCKET GUARD STATUS — CONFIRMED COMPLETE**
+
+All blocked buckets verified in live.py (lines 125-152):
+- IL-5: 1c and 99c — BLOCKED (fee-negative, always)
+- IL-10: 96c both sides — BLOCKED (93.5% WR, -22.44 USD historical)
+- IL-10: 97c NO — BLOCKED (92.3% WR, -15.03 USD historical)
+- IL-11: 98c NO — BLOCKED (92.9% WR, -25.54 USD historical)
+- 97c YES: KEPT (100% WR, +2.90 USD)
+- 98c YES: KEPT (100% WR, +3.02 USD)
+
+Active profitable buckets: 90-95c both sides, 97c YES, 98c YES
+Historical performance of active buckets only: 205/210 settled (97.6% WR), +80.14 USD
+
+**NEW BOT VERIFICATION (PID 61970, started 13:42 UTC)**
+
+First bets from new bot (13:51 UTC):
+- YES@95c: 11.40 USD (10% of ~114 USD bankroll — within bounds)
+- YES@94c: 9.40 USD
+- YES@93c: 9.30 USD
+- YES@95c: 9.50 USD
+
+All bets in profitable buckets. No 96c/97c-NO/98c-NO bets since restart.
+Bet size reduction is ACTIVE and VERIFIED.
+
+**TODAY P&L ANALYSIS**
+
+-43.74 USD session total, but:
+- ALL 5 losses were pre-guard bets from bot instance before 09:25 UTC restart
+- 2 losses at 98c NO (-18.62 USD each) = guard was not yet deployed
+- Post-guard bot (PID 61970): 35+ wins, 1 valid loss (YES@94c — structural variance)
+- All-time P&L: -39.10 USD (updated from -25 USD estimate; new losses from old bot)
+- Forward EV with full guard stack in place: +0.39 USD per bet on active buckets
+
+**WEATHER SCANNER TIMING**
+
+GEFS forecasts 24-48 hours ahead. Scanner useless when open market date != GEFS forecast date.
+- At 13:30 UTC March 15: GEFS forecasting March 16, markets open for March 15 = mismatch
+- Bot placed valid paper bets at 02:59 UTC (early morning, GEFS date = market date)
+- Run scanner ONLY in 04:00-08:00 UTC window for correct signal
+
+**REVISED PRIORITY STACK (Session 78 end):**
+  1. Sol drift graduation — 29/30, 1 more bet needed. Stage 1 cap still at 5 USD.
+     When 30th settles: check Brier < 0.25 + limiting_factor==kelly → raise cap to 10 USD
+  2. NCAA scanner — run March 17-18 (scripts/ncaa_tournament_scanner.py --min-edge 0.03)
+     Focus on 1v16 seed matches opening at 90c+ on KXNCAAMBGAME series
+  3. Weather calibration — March 15 paper bets settle ~04:00 UTC March 16
+     Key bets: LAX YES@8c, CHI NO@91c, DEN NO@7c (DEN T49 NO@36c likely lost)
+  4. Monitor sniper at new sizes — verify 11.29 USD → 15 USD ceiling as bankroll grows
+  5. CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)
+  6. Correlated sniper risk — still unresolved (need Matthew decision on per-window cap)
