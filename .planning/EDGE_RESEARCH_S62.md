@@ -1979,3 +1979,84 @@ XRP: 55 bets, 53W/2L (96.4% WR), -3.19 USD, -0.06 USD/bet
   4. Monitor bet sizes at restored levels (first win: 18.43 USD at 123 USD bankroll)
   5. CPI speed-play — April 10 08:30 ET
   6. XRP monitoring — 96.4% WR active bucket needs 200+ bets before evaluation
+
+---
+
+## SESSION 80 RESEARCH FINDINGS (2026-03-15, continuation)
+
+**GUARD VALIDATION — CURRENT BOT CONFIRMED WORKING**
+
+Session 80 started with context compaction from S79. Bot PID 68296 verified alive.
+Session76.log (current active log) shows guard stack operating correctly:
+- 96c YES/NO: signals generated, execution BLOCKED (live.py IL-10 working)
+- 97c NO: signals blocked (IL-10)
+- 97c YES: ALLOWED — first bet placed at 10:10 AM local (15:10 UTC) = 18.43 USD WIN
+- 98c NO: BLOCKED (IL-11 working)
+- 98c YES: ALLOWED — placed throughout session
+
+All guard-violation losses in today's DB (06:31, 07:15, 13:30 UTC) are from PRE-GUARD
+bot instances that ran before the S78/S79 restarts. Current bot (PID 68296) has 0 guard
+violations since 15:07 UTC restart.
+
+**TODAY'S P&L RECONCILIATION (2026-03-15)**
+
+Today's total losses: -119 USD in raw losses, +56 USD in wins = -63 USD
+Guard-violation losses (old bots): -19.2 (96c YES), -18.43 (97c NO), -18.62 (98c NO) = -56.25 USD
+Valid active-bucket losses: -19.8 (90c YES), -19.74 (94c YES), -15.98 (94c YES), -7.41 (sol_drift)
+Active-bucket-only P&L: -6.68 USD (with 67 bets, 64W/3L = 96% WR)
+
+Key takeaway: If guards had been in ALL bot restarts from session start = -6.68 USD, not -63 USD.
+Going forward, no more guard violations. Active-bucket P&L should dominate.
+
+**SNIPER BUCKET ANALYSIS — ASYMMETRY FINDING (NOTE: LOW SAMPLE)**
+
+All-time price bucket breakdown reveals:
+YES@94c: 33 bets, 31W/2L (94%WR), -13.37 USD — AT BREAK-EVEN (94% needed)
+YES@93c: 18 bets, 16W/2L (89%WR), +3.36 USD — BELOW break-even (93% needed) but +P&L
+YES@90c: 4 bets, 3W/1L (75%WR), -16.74 USD — BELOW break-even (90% needed)
+
+NO side at all prices: 100%WR (with only 1 exception: 92c NO at 89%WR from 9 bets)
+
+Pattern: YES side loses occasionally at lower prices (90-94c); NO side nearly perfect.
+CONCLUSION: NOT statistically significant at current sample sizes (need 200+ per bucket).
+Do NOT add new YES-side guards based on this. Continue monitoring.
+Break-even WRs: 90c=90%, 93c=93%, 94c=94% — very thin margins at these prices.
+
+**CORRELATION RISK — LOW CONCERN**
+
+Multi-bet windows (2+ simultaneous bets same 15-min window):
+- 189 bets across multi-windows, +66.08 USD
+- Only 4 multi-loss events in history, worst = -18.75 USD
+- No new guards needed. Single large loss per event is within normal variance.
+
+**CPI MARKET STATUS**
+
+KXCPI-26MAR-T0.5: YES=90c, vol=33,066 — confirmed open (but NOT in default get_markets query!)
+Must query all statuses: await client.get_markets(series_ticker='KXCPI', limit=200) to see it.
+T0.4: YES=93c, T0.3: YES=98c also in active/near-active range.
+These are NOT sniper targets (not 15M crypto markets). CPI speed-play = April 10 event.
+No action needed now. Script scripts/cpi_release_monitor.py handles April 10.
+
+**ALL-TIME ACTIVE BUCKET P&L (updated S80)**
+
+Active buckets (excluding 96c, 97cNO, 98cNO, 99c, 1c):
+- 230 bets, 224W/6L (97.4%WR), +75.82 USD
+All-time total with blocked buckets: -43.42 USD
+Guards have prevented -66.8 USD in blocked-bucket losses.
+With guards now permanent: forward P&L should track active-bucket positive EV.
+
+**GUARD SAVINGS RATE (estimated)**
+
+From session76.log: ~20+ blocked 96c signals per hour (YES and NO sides)
+Per blocked 96c bet EV = -0.47 USD (93.5%WR at 18 USD bet)
+Savings: 20 × 0.47 = 9.4 USD/hour prevented in expected losses from 96c alone
+Actual savings: blocked bucket in S80 alone (today's violations) = -56.25 USD prevented.
+
+**UPDATED PRIORITY STACK (Session 80):**
+  1. Sol drift graduation: 29/30, Brier 0.184. When 30th settles:
+     - Remove calibration_max_usd=5.0 from main.py line 2952
+     - Restart bot. Kelly will govern at ~5 USD (Stage 2 cap 10 USD, Kelly ≈ 5 USD)
+  2. NCAA scanner: March 17-18 (KXNCAAMBGAME opens before Round 1 March 20-21)
+  3. Weather calibration: check ~04:00 UTC March 16 (pending bets from today settle)
+  4. CPI speed-play: April 10 08:30 ET (script ready)
+  5. XRP monitoring: 58 bets, 97%WR, -0.76 USD (small sample, no guard warranted)
