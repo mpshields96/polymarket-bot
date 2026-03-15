@@ -3526,3 +3526,84 @@ ONE NEXT PRIORITY: NCAA Round 1 scanner on March 17-18. Real opportunity window 
 3. Monitor sol graduation (28/30 — 2 bets away from Stage 2 evaluation)
 4. XRP: note the first loss but do NOT act on it (insufficient data per PRINCIPLES.md)
 5. Bot is RUNNING PID 33894 → /tmp/polybot_session74.log
+
+---
+
+## Session 74 Monitoring (2026-03-15 ~07:30-09:30 UTC)
+
+### Session Type: Autonomous monitoring (polybot-auto)
+
+### What Happened
+- Bot: RUNNING PID 33894 entire session. No restarts needed.
+- All-time P&L at session start: +24.77 USD
+- All-time P&L at session end: -4.07 USD (net -28.84 USD this session)
+- Two large sniper losses:
+  Trade 2169: expiry_sniper_v1 YES@96c KXBTC → NO, -19.20 USD
+  Trade 2197: expiry_sniper_v1 NO@97c KXETH → YES, -18.43 USD
+- Sniper today: 43/46 wins (93%), -20.55 USD live
+- XRP drift: 1 loss -0.59 USD, no new sols or XRP graduated
+
+### Critical Research Finding (ACTION NEEDED FROM MATTHEW)
+96c and 97c price buckets are structurally negative EV by current sample:
+  96c YES: 17 bets, 94% WR, needs >96% to break even → -13.35 USD cumulative
+  96c NO:  13 bets, 92% WR, needs >96% to break even → -9.69 USD cumulative
+  97c NO:  12 bets, 92% WR, needs >97% to break even → -15.43 USD cumulative
+  97c YES: 11 bets, 100% WR → +2.90 USD (safe)
+  95c: 100% both sides (profitable). 98c: 100% both sides (profitable).
+
+This is the same pattern that justified the 99c fee-floor guard (commit 1d12f46).
+At 99c: -14.85 USD before guard. Now 96c: -23.04 USD, 97c NO: -15.43 USD.
+Recommendation: add fee-floor style guard blocking price_cents >= 96 for NO-side bets,
+and price_cents == 96 for YES-side bets (or blanket >=96c guard).
+Per standing directive: NOT implemented without Matthew's explicit approval.
+
+### No Code Changes This Session
+No commits. Monitoring only.
+
+### Self-Rating: C
+WINS: Bot alive all session. Found 96c/97c structural loss pattern.
+LOSSES: All-time went from +24.77 → -4.07 USD. Could not act on 96c pattern without directive.
+  Two 19 USD losses in one session is exactly the scenario the fee-floor guard was built for.
+GRADE: C — kept bot alive but couldn't prevent losses due to missing guard.
+ONE THING NEXT CHAT MUST DO: Surface 96c/97c guard decision to Matthew IMMEDIATELY.
+  If he approves, code it as first task. Same pattern as 99c guard. 30-minute build.
+ONE THING THAT WOULD HAVE MADE MORE MONEY: 96c guard added after S72 data showed the 96c
+  bucket running negative (it was already -5.45 USD before today's session added -18.55 more).
+
+### What Next Chat Must Do
+1. URGENT: Show Matthew the 96c/97c analysis. Ask for guard approval. Implement immediately if yes.
+2. NCAA scanner March 17-18 — python3 scripts/ncaa_tournament_scanner.py --min-edge 0.03
+3. Sol graduation (28/30) — 2 more bets to Stage 2 evaluation
+4. Weather calibration when March 15 markets finalize (est March 16-17)
+
+---
+
+## Session 75 — 2026-03-15 (null session — immediate wrap)
+
+### Bot Status
+RUNNING PID 33894 → /tmp/polybot_session74.log
+All-time live P&L: -4.07 USD (recovery from -4.66, sniper winning)
+Last commit: bd94a1f (Session 74 research wrap)
+
+### Research Focus
+None — session started and was immediately stopped by Matthew.
+
+### Tools Built
+None.
+
+### Dead Ends
+None investigated.
+
+### Key Data
+No new data. Bot continued running autonomously from Session 74.
+
+### Self-Rating: D
+Null session. No work done. Context resumed → Matthew said stop immediately.
+
+### What Next Session Must Do
+1. NCAA scanner March 17-18 — python3 scripts/ncaa_tournament_scanner.py --min-edge 0.03
+   Kalshi opens KXNCAAMBGAME Round 1 markets March 17-18. Games March 20-21.
+2. Weather calibration — python3 scripts/weather_calibration.py --pending
+   March 15 paper bets should be finalized by now (est March 16-17)
+3. Sol graduation (28/30) — 2 more bets to Stage 2 evaluation (other chat monitoring)
+4. 96c/97c sniper guard — surface analysis to Matthew, implement if approved

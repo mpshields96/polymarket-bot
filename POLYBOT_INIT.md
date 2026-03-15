@@ -52,20 +52,20 @@
 ## CURRENT STATUS — (updated each session)
 ═══════════════════════════════════════════════════
 
-BUILD COMPLETE. 1198/1198 tests passing. verify.py advisory WARNs only — non-critical.
-Last commit: ac82301 (Session 73 research wrap docs)
+BUILD COMPLETE. 1275/1275 tests passing. verify.py advisory WARNs only — non-critical.
+Last commit: bd94a1f (Session 74 research wrap — security hardening + Iron Laws + verify-revert)
 
-## BOT STATE — Session 72 monitoring wrap (2026-03-15 05:17 UTC) — BOT RUNNING
+## BOT STATE — Session 74 monitoring wrap (2026-03-15 ~09:30 UTC) — BOT RUNNING
 
 Bot PID 33894 → /tmp/polybot_session74.log
-All-time live P&L: +21.69 USD | Bankroll: ~162+ USD (DB authoritative)
-Sniper: today (March 15) 26/27 (96.3% WR), +5.21 USD. HARD_MAX raised to 20 USD (S73).
+All-time live P&L: -4.07 USD (⚠️ down from +24.77 — two large 96c/97c sniper losses this session)
 sol_drift: 28/30 (2 from Stage 2) | xrp_drift: 20/30
+URGENT: 96c and 97c NO-side sniper bets running structurally negative EV. Matthew decision needed.
 
 Check bot: cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "RUNNING" || echo "STOPPED"
 Watch:  tail -f /tmp/polybot_session74.log | grep --line-buffered "LIVE BET\|Kill switch blocked\|cooling\|consecutive"
 
-Tests: 1198/1198 | Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime hard stop
+Tests: 1275/1275 | Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime hard stop
 Active protection: bankroll floor (20 USD) + consecutive cooling (8→2hr) + 20 USD/bet hard cap
 
 RESPONSE FORMAT RULES (BOTH MANDATORY — Matthew terminates chat for violations):
