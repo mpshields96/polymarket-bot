@@ -1,11 +1,11 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-15 (Session 79 research — MARCH 14 FORMULA RESTORED: 15%/20 USD + all guards active)
+# Last updated: 2026-03-15 (Session 80 monitoring — guards confirmed, P&L improving, sol=29/30)
 # ═══════════════════════════════════════════════════════════════
 
-## COPY-PASTE THIS TO START A NEW SESSION (Session 80)
+## COPY-PASTE THIS TO START A NEW SESSION (Session 81)
 
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 80).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 81).
 
 MANDATORY READING BEFORE ANY ACTION:
   cat SESSION_HANDOFF.md
@@ -13,12 +13,12 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 79 research — 2026-03-15 ~15:25 UTC):
-  Bot RUNNING PID 68296 → /tmp/polybot_session79.log
-  All-time live P&L: ~-29.48 USD (improving — post-guard bot winning steadily)
-  Tests: 1281 passing. Last commit: c33687a (docs: EDGE_RESEARCH S79)
+BOT STATE (Session 80 monitoring — 2026-03-15 ~16:25 UTC):
+  Bot RUNNING PID 68296 → /tmp/polybot_session76.log  ← CORRECT LOG (not session79.log)
+  All-time live P&L: ~-35.96 USD (improving steadily — +3 USD/hr post-guard)
+  Tests: 1281 passing. Last commit: 5038a05 (docs: EDGE_RESEARCH S80 findings appended)
   Config: MAX_TRADE_PCT=15%, HARD_MAX=20 USD, ALL guards active (96c, 97c NO, 98c NO, 99c+)
-  Bankroll: ~123 USD (verified — first bet at 18.43 USD = 15% of ~123 USD)
+  Bankroll: ~116.52 USD (all-time started at 150 USD, S79 confirmed 123 USD — losses since)
 
 SESSION 79 KEY CHANGES (2026-03-15 research chat):
   1. BET SIZE RESTORED (commit 9ff6e6d — research chat after March 14 analysis):
@@ -63,8 +63,8 @@ SESSION 76 OVERNIGHT KEY CHANGES:
   4. Security verified: .env NOT in git history, .gitignore working, credentials safe ✓
   5. Overnight monitor started at /tmp/polybot_night_monitor.log (5-min cycle checks)
 
-RESTART COMMAND (Session 79 — use session79.log):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session79.log 2>&1 &
+RESTART COMMAND (Session 81 — use session81.log):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session81.log 2>&1 &
   Then verify: ps aux | grep "[m]ain.py" — exactly 1. Then cat bot.pid.
 
 If --health shows "HARD STOP": HISTORICAL. The 30% lifetime stop was DISABLED in S34.
@@ -126,22 +126,44 @@ SESSION 74 RESEARCH KEY CHANGES (2026-03-15 ~07:00-10:30 UTC):
   4. CONFIRMED DEAD END: non-crypto 90c+ market scan — 0 found in 2000+ markets
   5. CONFIRMED DEAD END: annual BTC range markets (KXBTCMAXY/KXBTCMINY) — 9+ month lockup
 
-PENDING TASKS (Session 80 — PRIORITY ORDER):
+SESSION 80 KEY FINDINGS (2026-03-15 monitoring chat):
+  1. CORRECT LOG PATH: Bot writes to /tmp/polybot_session76.log (NOT session79.log)
+     SESSION_HANDOFF had wrong log path. Always check: ls -la /tmp/polybot_session*.log
+  2. GUARD VIOLATIONS EXPLAINED: Today's 3 losses at 96c/97c/98c (06:31, 07:15, 13:30 UTC)
+     were from PRE-GUARD bot instances. Current bot (since 15:07 UTC) has 0 guard violations.
+     IL-10, IL-11, IL-5 all confirmed working in live.py lines 121-155.
+  3. P&L TRAJECTORY: All-time improved from -38.97 → -35.96 USD in 1 hour of post-guard trading.
+     Post-guard active bucket wins are consistently small (+0.60 to +3.12 USD per win).
+     Single guard-bucket loss = -14 to -17 USD (wipes 16-20 wins). Guards are critical.
+  4. BANKROLL: ~116.52 USD (estimate based on S79 confirmed 123 USD - net losses since)
+  5. CPI MARKETS: KXCPI-26MAR-T0.5 YES=90c (vol=33,066), T0.4 YES=93c (vol=15,448)
+     Both in active sniper buckets. BUT these are monthly markets, not 15M — sniper doesn't fire on them.
+     CPI speed-play still April 10 only (scripts/cpi_release_monitor.py → KXFEDDECISION series).
+  6. 94c YES BUCKET WATCH: 33 bets all-time, 94%WR, -13.37 USD. Fee break-even is 94.37%.
+     NOT a guard candidate yet (need 200+ bets, p<0.05). Monitor — may become IL-12 at 100+ bets.
+  7. SOL DRIFT: 29/30, Brier=0.184, +6.07 USD. NO side: 82%WR on 17 bets (above break-even).
+     When 30th bet settles: remove calibration_max_usd=5.0 from main.py line 2952 → None.
+     NOTE: limiting_factor at current bankroll (116 USD) = pct_cap (5.8 USD), NOT kelly.
+     Graduation gate: just 30 bets + Brier<0.25 + positive P&L. Don't require kelly.
+
+PENDING TASKS (Session 81 — PRIORITY ORDER):
   #1 Sol drift graduation — 29/30, 1 more bet needed. Stage 1 cap at 5 USD.
-     When 30th bet settles: check Brier < 0.25 + limiting_factor==kelly → raise cap to 10 USD
+     When 30th bet settles: remove calibration_max_usd=5.0 → None in main.py, restart bot.
+     Brier=0.184 (excellent), P&L=+6.07 USD, NO direction filter active (82%WR).
+     Don't require limiting_factor==kelly — pct_cap governs at current bankroll size.
   #2 NCAA scanner — run scripts/ncaa_tournament_scanner.py --min-edge 0.03 on March 17-18
      Focus: 1v16 underpriced at 93-95c (massive structural edge if any), 2v15 at 90-94c
      Round 1 tip-offs March 20-21. 1 credit/call.
   #3 Weather calibration — check paper bets ~04:00 UTC March 16 when March 15 bets settle
      Run: python3 scripts/weather_calibration.py --pending
-     Key bets: LAX T79 YES@8c, CHI B64.5 NO@91c, DEN T49 NO@36c (likely LOST — Denver warm)
+     10 paper bets pending: LAX (5), CHI (4), DEN (1)
   #4 Weather edge scanner — run EARLY MORNING UTC (04:00-08:00 UTC) when GEFS date = open market date
      python3 scripts/weather_edge_scanner.py --min-edge 0.10
      TIMING: scanner only useful early morning when GEFS forecast = open market date
   #5 Monitor sniper at restored sizes (15% pct cap, 20 USD hard max — active since S79)
-     Expected: ~18 USD bets at 123 USD bankroll, growing proportionally
-     XRP needs watching — 96.4% WR active bucket, 200+ bets before considering guard
-  #6 CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)
+     Expected: ~14-18 USD bets at ~116 USD bankroll
+     94c YES bucket: watching — at 33 bets, fee break-even is 94.37%, currently just below
+  #6 CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py → KXFEDDECISION)
 
 RESEARCH STATE:
   scripts/cpi_release_monitor.py — run April 10, 08:30 ET
