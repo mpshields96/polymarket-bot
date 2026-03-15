@@ -112,6 +112,10 @@ MATTHEW'S STANDING DIRECTIVES:
   Bypass permissions mode: ACTIVE.
   Goal: +125 USD all-time profit. URGENT. Claude Max renewal depends on this.
   Budget: 30% of 5-hour token limit. Model: Opus 4.6.
+  MARCH PROMOTION (active thru 2026-03-27): Off-peak = outside 8AM-2PM ET.
+    During off-peak: 5-hour rolling limit DOUBLES. Auto-applied, no action needed.
+    Both chats benefit. Schedule heavy research/monitoring work during off-peak hours.
+    Peak hours (8AM-2PM ET / 5-11AM PT): standard limits apply, use budget carefully.
 
 RESEARCH FILES (for context if continuing R&D):
   .planning/EDGE_RESEARCH_S62.md — comprehensive findings (S72 additions at end, sections 38-42)

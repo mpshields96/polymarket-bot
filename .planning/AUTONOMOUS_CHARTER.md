@@ -102,6 +102,11 @@ When not monitoring, execute in this priority order:
 Matthew runs two parallel Claude Code chats simultaneously. Agent spawns cost
 ~100-150k tokens each. Framework overhead must stay ≤10-15% per chat.
 
+MARCH 2026 PROMOTION (thru 2026-03-27): Off-peak = outside 8AM-2PM ET.
+  During off-peak: 5-hour rolling limit DOUBLES. Auto-applied, no action needed.
+  Schedule heavy agent work and research sessions during off-peak for 2x budget.
+  Peak hours (8AM-2PM ET / 5-11AM PT): standard limits — keep overhead tight.
+
 DEFAULT for ~90% of work:
 ```
 gsd:quick + superpowers:TDD + superpowers:verification-before-completion

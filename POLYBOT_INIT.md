@@ -41,6 +41,13 @@
   If Matthew is away: append findings to /tmp/polybot_autonomous_monitor.md
   NEVER pause mid-task to ask for confirmation on: tests, file reads/edits, commits, diagnostics.
 
+  MARCH 2026 TOKEN PROMOTION (thru 2026-03-27 11:59 PM PT):
+    Off-peak hours = outside 8AM-2PM ET (before 8AM ET or after 2PM ET).
+    During off-peak: 5-hour rolling limit DOUBLES automatically. No action needed.
+    Both the monitoring chat and research chat (this one) benefit from doubled limits.
+    Heavy research sessions, agent spawns, and long loops = schedule during off-peak.
+    Peak hours (8AM-2PM ET / 5-11AM PT): standard limits — conserve budget.
+
 ═══════════════════════════════════════════════════
 ## CURRENT STATUS — (updated each session)
 ═══════════════════════════════════════════════════
