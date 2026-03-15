@@ -156,6 +156,31 @@ async def execute(
         )
         return None
 
+    # ── Per-asset structural loss guards (S81) ────────────────────────────
+    # XRP and SOL have higher intra-window volatility than BTC/ETH, causing
+    # specific price buckets to fall structurally below break-even WR.
+    # IL-10A: XRP YES@94c — 15 bets, 93.3% WR, need 94.9% break-even, -9.09 USD
+    if "KXXRP" in signal.ticker and price_cents == 94 and signal.side == "yes":
+        logger.info(
+            "[live] KXXRP YES@94c -- structurally negative EV "
+            "(93.3%% WR at 15 bets, needs 94.9%% to break even) -- skip",
+        )
+        return None
+    # IL-10B: XRP YES@97c — 6 bets, 83.3% WR, need 98.0% break-even, -18.04 USD
+    if "KXXRP" in signal.ticker and price_cents == 97 and signal.side == "yes":
+        logger.info(
+            "[live] KXXRP YES@97c -- structurally negative EV "
+            "(83.3%% WR at 6 bets, needs 98.0%% to break even, terrible R/R) -- skip",
+        )
+        return None
+    # IL-10C: SOL YES@94c — 12 bets, 91.7% WR, need 94.9% break-even, -7.28 USD
+    if "KXSOL" in signal.ticker and price_cents == 94 and signal.side == "yes":
+        logger.info(
+            "[live] KXSOL YES@94c -- structurally negative EV "
+            "(91.7%% WR at 12 bets, needs 94.9%% to break even) -- skip",
+        )
+        return None
+
     # ── Execution-time price guard ────────────────────────────────────────
     # Convert execution price to YES-equivalent for range + slippage checks.
     # Protects against HFT repricing in the asyncio gap after signal generation.
