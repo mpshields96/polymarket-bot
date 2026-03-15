@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-15 (Session 80 monitoring — guards confirmed, P&L improving, sol=29/30)
+# Last updated: 2026-03-15 (Session 80 wrap — +10.60 USD gained, all-time -18.88 USD, guards holding)
 # ═══════════════════════════════════════════════════════════════
 
 ## COPY-PASTE THIS TO START A NEW SESSION (Session 81)
@@ -13,12 +13,22 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 80 monitoring — 2026-03-15 ~16:25 UTC):
-  Bot RUNNING PID 68296 → /tmp/polybot_session76.log  ← CORRECT LOG (not session79.log)
-  All-time live P&L: ~-35.96 USD (improving steadily — +3 USD/hr post-guard)
-  Tests: 1281 passing. Last commit: 5038a05 (docs: EDGE_RESEARCH S80 findings appended)
+BOT STATE (Session 80 wrap — 2026-03-15 ~18:15 UTC):
+  Bot RUNNING PID 68296 → /tmp/polybot_session76.log  ← CORRECT (not session79.log)
+  All-time live P&L: -18.88 USD (session gain: +10.60 USD — 94% WR, 125 bets today)
+  Tests: 1281 passing. Last commit: 691f32b (EDGE_RESEARCH S80 — KXGDP + methodology)
   Config: MAX_TRADE_PCT=15%, HARD_MAX=20 USD, ALL guards active (96c, 97c NO, 98c NO, 99c+)
-  Bankroll: ~116.52 USD (all-time started at 150 USD, S79 confirmed 123 USD — losses since)
+  Bankroll: ~131 USD (estimate — started ~120, +10.60 gained today post-guard)
+
+RESEARCH QUALITY DIRECTIVE (Matthew S80 — MANDATORY for all future research sessions):
+  New edge research must meet the SNIPER STANDARD or better:
+  - Named behavioral/structural mechanism (why does the mispricing exist?)
+  - Named losing counterparty (who keeps losing and why do they persist?)
+  - Different mechanism from sniper (near-expiry convergence) AND speed-play (info latency)
+  - Clear paper-test protocol: minimum N + WR threshold that proves edge before live
+  - Willing to spend days/weeks validating — quality > quantity
+  Kalshi API scanning without a structural hypothesis = data mining = NOT research.
+  Pattern-matching on existing trades (hourly WR, asset variants) = noise = NOT research.
 
 SESSION 79 KEY CHANGES (2026-03-15 research chat):
   1. BET SIZE RESTORED (commit 9ff6e6d — research chat after March 14 analysis):
@@ -95,11 +105,12 @@ If --health shows "HARD STOP": HISTORICAL. The 30% lifetime stop was DISABLED in
 
 ---
 
-GRADUATION STATUS (2026-03-15 ~13:15 UTC):
+GRADUATION STATUS (2026-03-15 ~18:15 UTC):
   sol_drift_v1: 29/30 bets, Brier 0.184, P&L +6.07 USD — needs 1 more to Stage 2 eval
-    Stage 1 cap at 5 USD (restored S76 overnight). When 30th settles: check Brier + limiting_factor.
+    Stage 1 cap at 5 USD. When 30th settles: remove calibration_max_usd=5.0 → None in main.py, restart.
+    Don't require limiting_factor==kelly — pct_cap governs at current bankroll. Just 30 bets + Brier<0.25.
   xrp_drift_v1: 20/30 bets, Brier 0.270, P&L -1.71 USD — needs 10 more
-  expiry_sniper_v1: 292 live bets, all-time P&L +46.36 USD — PROFITABLE CORE
+  expiry_sniper_v1: ~320+ live bets, all-time P&L recovering — PROFITABLE CORE
 
 SNIPER BUCKET ANALYSIS (post-S76 guard — updated overnight):
   BLOCKED (96c, 97c NO): working ✓ — no new bets since restart

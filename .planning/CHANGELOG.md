@@ -3836,3 +3836,78 @@ Bot restarted PID 67158 → /tmp/polybot_session79.log
 ### All-time active bucket performance at session 79 start
   222 settled bets, 217W/5L (97.7% WR), +86.22 USD total P&L
 
+
+## Session 80 — 2026-03-15 — Research + Monitoring (context-compacted continuation)
+
+### Session type
+Mixed: bot monitoring (primary) + edge research (secondary).
+Matthew's standing directive: full autonomy, find new profit edges.
+
+### Bot status throughout
+Running PID 68296 → /tmp/polybot_session76.log (CORRECT — session79.log was stale).
+Guards confirmed working since S79 restart 15:07 UTC.
+
+### Key monitoring findings
+- PRE-GUARD LOSSES: 3 guard-violating losses (56.25 USD) from stale bot before S79 restart.
+  Losses at 06:31 (96c YES), 07:15 (97c NO), 13:30 (98c NO) UTC — all pre-15:07 UTC.
+  Current bot (since 15:07 UTC) has zero guard violations. IL-10/11/5 all working.
+- P&L RECOVERY: All-time improved -43 → -18.88 USD over session (guard violations now blocked).
+- CORRECT LOG PATH: Bot writes to session76.log (not session79.log as previous handoff stated).
+  Always check: ls -la /tmp/polybot_session*.log to find active log.
+
+### Research findings
+
+#### KXGDP series discovered
+- 8 active markets, 265K total volume, close April 30 (Q1 2026 GDP)
+- T1.0 YES=86c, T1.5 YES=77c, T2.0 YES=65c — distributed around consensus forecast
+- BEA publishes GDP advance estimate April 30 at 08:30 ET
+- Same speed-play mechanism as CPI (information latency edge)
+- Blocker: no FRED/BEA API key in .env. Registration free at fred.stlouisfed.org
+- FRED series: GDPC1 (real GDP). Same pattern as BLS API in cpi_release_monitor.py
+
+#### SOL/XRP 94c YES below fee break-even — monitoring lead
+- SOL 94c YES: 11 bets, 90.9%WR, -8.33 USD (break-even = 94.37%WR)
+- XRP 94c YES: 14 bets, 92.9%WR, -9.69 USD (below break-even)
+- BTC+ETH 94c YES: ~10 bets, ~100%WR, positive
+- Structural explanation: SOL/XRP 3-5x more volatile than BTC/ETH on 15M timeframe.
+  At 94c, 6c gross margin with single reversal wiping 94c. More volatile = more reversals.
+- NOT guard-ready: need 200+ bets per PRINCIPLES.md. Watch at 100+ bets (SOL: 11, XRP: 14).
+- Asset asymmetry all-time: BTC+ETH 99%WR +74.93 USD vs SOL+XRP 95-96%WR -48.54 USD.
+
+#### KXBTCD near-expiry dead end confirmed
+- Both 2PM ET (18:00 UTC) and 5PM ET (21:00 UTC) KXBTCD markets:
+  When BTC far from threshold → priced at 99c or 0c (blocked by IL-5, IL-10)
+  When BTC near threshold → priced at ~50c (no edge)
+  No middle ground of 90-98c exists for sniper zone.
+  Dead end. Do not revisit.
+
+#### NCAA scanner ready, not yet live
+- KXNCAAMBGAME: 0 markets open as of 18:00 UTC March 15
+- Bracket dropped March 15 but Kalshi opens markets March 17-18
+- Pinnacle Round 1 lines not posted until March 17-18 either
+- Scanner built and confirmed ready. Run March 17-18.
+
+#### Research methodology tightened (Matthew directive)
+- Future research must specify: named mechanism + losing counterparty + why they persist
+- Different mechanism from sniper AND speed-play required before sprint starts
+- Data-mining noise (hourly WR, bucket variants) is NOT valid research
+- Quality over quantity: spend days on real edge if needed, not hours on junk
+
+### Self-rating: C+
+DISCOVERIES: KXGDP series (new speed-play event, April 30). SOL/XRP 94c asymmetry documented.
+TOOLS BUILT: None (monitoring session, no new scripts).
+DEAD ENDS CONFIRMED: KXBTCD near-expiry dead end confirmed definitively.
+EDGES FOUND: None new. Existing sniper performing as expected post-guard.
+WHY C+ not B: Most research time was spent on monitoring and confirming already-known findings.
+No new structurally-different edge discovered. KXGDP is additive (same speed-play mechanism).
+Matthew's feedback: research criteria should require structural novelty, not just Kalshi scanning.
+
+### Changes committed
+- Commit 87da1ba: SESSION_HANDOFF.md updated (correct log path, guard validation)
+- Commit 5038a05: EDGE_RESEARCH S80 appended (guard analysis, bucket analysis)
+- Commit 691f32b: EDGE_RESEARCH S80 appended (KXGDP, SOL/XRP asymmetry, methodology)
+
+### Next research session priority
+1. NCAA scanner March 17-18 — first live test of opening price arb mechanism
+2. Register FRED API key (free) → extend cpi_release_monitor.py to cover GDP/payrolls
+3. Weather calibration check ~04:00 UTC March 16 (10 pending paper bets settle)
