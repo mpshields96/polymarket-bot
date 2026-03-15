@@ -65,32 +65,40 @@ IF no clear direction:
 ═══════════════════════════════════════════════════
 CURRENT STATE (auto-updated by wrap commands)
 ═══════════════════════════════════════════════════
-Last updated: Session 77 (2026-03-15)
-Bot: RUNNING PID 51612 → /tmp/polybot_session76.log
-All-time P&L: -6.08 USD (sniper +46.36, drift -52.44)
-Tests: 1281 passing, 3 skipped
-Last commit: 074bc33
+Last updated: Session 80 (2026-03-15) — RESEARCH SESSION
+Bot: RUNNING PID 68296 → /tmp/polybot_session76.log (NOT session79.log)
+All-time P&L: -18.88 USD | Session gain: +10.60 USD (125 bets, 94% WR)
+Bankroll: ~131 USD | Tests: 1281 passing
+Last commit: abfdb49 (S80 research wrap — research quality directive)
 
 Live strategies:
-  btc_drift: STAGE 1 (5 USD cap) — 54 live bets, Brier 0.247, -11.12 USD
-  eth_drift: STAGE 1 (5 USD cap) — 97 live bets, Brier 0.250, -25.02 USD
-  sol_drift: STAGE 1 (5 USD cap, restored S76) — 29/30 bets, Brier 0.184, +6.07 USD
+  btc_drift: STAGE 1 (5 USD cap) — direction_filter="no"
+  eth_drift: STAGE 1 (5 USD cap) — direction_filter="yes"
+  sol_drift: STAGE 1 (5 USD cap) — 29/30 bets, Brier 0.184, +6.07 USD — NEEDS 1 MORE BET
+    When 30th bet settles: remove calibration_max_usd=5.0 → None in main.py, restart
+    Don't require limiting_factor==kelly — pct_cap governs at current bankroll
   xrp_drift: MICRO — 20/30 bets, Brier 0.270, -1.71 USD
-  expiry_sniper: LIVE (20 USD cap) — 292 bets all-time, +46.36 USD PROFITABLE CORE
-    96c BLOCKED (IL-10, S76), 97c-NO BLOCKED (IL-10, S76), 99c BLOCKED (IL-5)
-    Post-guard restart: 35/35 wins, +22.95 USD in 5h — guard working perfectly
+  expiry_sniper: LIVE (20 USD cap, 15% pct cap) — ~320+ bets, PROFITABLE CORE
+    BLOCKED: 96c both sides (IL-10), 97c NO (IL-10), 98c NO (IL-11), 99c/1c (IL-5)
+    ACTIVE BUCKETS: 91c-95c both sides (100% WR), 97c YES (100% WR), 98c YES (100% WR)
 
 Direction filters (do not change):
   btc_drift="no" | eth_drift="yes" | sol_drift="no" | xrp_drift="yes"
 
-Research state (S77):
-  scripts/ncaa_tournament_scanner.py — run March 17-18, Round 1 markets March 20-21
-  scripts/weather_calibration.py — check paper bet outcomes (LAX, CHI, DEN)
-  scripts/cpi_release_monitor.py — run April 10, 08:30 ET
+RESEARCH QUALITY DIRECTIVE (Matthew S80 — MANDATORY):
+  New edge research must meet SNIPER STANDARD or better:
+  Named mechanism + Named counterparty + Different from sniper AND speed-play + Paper-test protocol
+  Kalshi API scanning without structural hypothesis = data mining = NOT research.
+
+Research state (S80):
+  scripts/ncaa_tournament_scanner.py — run March 17-18, 1 credit/call, Round 1 March 20-21
+  scripts/weather_calibration.py — check paper bets ~04:00 UTC March 16 (10 pending)
+  scripts/cpi_release_monitor.py — run April 10, 08:30 ET (BLS quota burned — do NOT run before then)
   Dead ends (cumulative): sports taker arb, BALLDONTLIE, FOMC model, NBA/NHL sniper,
     sniper maker mode, NCAA totals, KXMV parlay, NBA in-game sniper, BNB/BCH/DOGE 15M,
-    KXBTCD hourly non-5PM, FOMC March 2026, non-crypto 90c+ markets, annual BTC range
-  Next: GEFS test Monday, sol_drift Stage 2 graduation (2 bets away), sniper threshold analysis at 200+
+    KXBTCD hourly non-5PM, FOMC March 2026, non-crypto 90c+ markets, annual BTC range,
+    KXBTCD near-expiry (always 99c/0c or 50c — no 90-98c zone), hourly WR patterns (noise)
+  Next: NCAA scanner March 17-18, sol drift graduation (29/30), CPI April 10
 
 IMPORTANT — MARCH 1 HARD STOP IN --health: HISTORICAL, NOT BLOCKING.
   30% lifetime stop was DISABLED in S34. No kill_switch.lock file. Safe to restart.
