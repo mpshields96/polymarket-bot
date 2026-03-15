@@ -50,6 +50,17 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/matthewshields/Projects/polymarket-bot/.claude/hooks/verify_revert.sh"
+          }
+        ]
+      }
     ]
   }
 }
