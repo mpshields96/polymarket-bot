@@ -911,3 +911,79 @@ class TestPostOnlyMakerOrders:
         db.save_trade.assert_not_called()
         # Order was placed (post_only rejection happens server-side)
         kalshi.create_order.assert_called_once()
+
+
+# ── 99c fee-floor regression tests ─────────────────────────────────────────
+
+
+class TestSniperFeeFlorBlock:
+    """Regression: sniper NO@99c slipped through price guard (S72 incident).
+
+    Bug: NO@99c → YES-equiv = 100-99 = 1c → passes price_guard_max=99 check (1 <= 1 <= 99).
+    Fix: added raw price_cents >= 99 block before the YES-equiv guard converts away the info.
+
+    Live incident: trade 2111 KXXRP15M NO@99c placed at 22:44 UTC 2026-03-15.
+    Signal was 93c, orderbook drifted to 99c in the asyncio gap between signal and orderbook fetch.
+    """
+
+    async def test_no_at_99c_blocked_by_sniper_override(self, live_env, bypass_first_run):
+        """NO@99c is blocked even when sniper override price_guard_min=1/max=99 is used.
+
+        YES-equiv of NO@99 = 1c, which is within [1, 99]. Without the raw-price check
+        the order would be placed. Fee-floor: NO@99c gross profit = 1c per contract =
+        essentially zero net after fees on a loss scenario.
+        """
+        # Orderbook: no_ask = 99c (price drifted after signal at 93c)
+        ob = make_orderbook(yes_bid=1)  # yes_bid=1 → no_ask = 100-1 = 99
+        signal = make_signal(side="no", price_cents=93)  # signal was at 93c
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal, make_market(yes_price=1, no_price=99), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="expiry_sniper_v1",
+            price_guard_min=1, price_guard_max=99,
+        )
+
+        assert result is None
+        kalshi.create_order.assert_not_called()
+        db.save_trade.assert_not_called()
+
+    async def test_yes_at_99c_blocked_by_sniper_override(self, live_env, bypass_first_run):
+        """YES@99c is blocked even when sniper override price_guard_min=1/max=99 is used.
+
+        A 99c YES bet also has near-zero margin (wins 1c per contract on loss).
+        """
+        # Orderbook: yes_ask = 99c
+        ob = make_orderbook(no_bid=1)  # no_bid=1 → yes_ask = 100-1 = 99
+        signal = make_signal(side="yes", price_cents=93)  # signal was at 93c
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal, make_market(yes_price=99, no_price=1), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="expiry_sniper_v1",
+            price_guard_min=1, price_guard_max=99,
+        )
+
+        assert result is None
+        kalshi.create_order.assert_not_called()
+
+    async def test_no_at_98c_still_allowed(self, live_env, bypass_first_run):
+        """NO@98c is NOT blocked — only 99c is the fee-floor boundary.
+
+        Verifies the fix is targeted and doesn't over-block valid 98c bets.
+        """
+        ob = make_orderbook(yes_bid=2)  # yes_bid=2 → no_ask = 98c
+        signal = make_signal(side="no", price_cents=97)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal, make_market(yes_price=2, no_price=98), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="expiry_sniper_v1",
+            price_guard_min=1, price_guard_max=99,
+        )
+
+        assert result is not None
+        kalshi.create_order.assert_called_once()

@@ -118,6 +118,17 @@ async def execute(
         logger.warning("[live] Unreasonable limit price %d¢ — skip", price_cents)
         return None
 
+    # ── Fee-floor guard: block 99c/1c raw prices ──────────────────────────
+    # At 99c (either YES or NO side), gross margin = 1c/contract = near-zero net.
+    # S72 incident: NO@99c slips through YES-equiv guard because 100-99=1c ∈ [1,99].
+    # Explicitly block raw price at boundary to prevent execution at fee-floor prices.
+    if price_cents >= 99 or price_cents <= 1:
+        logger.info(
+            "[live] Execution price %d¢ at fee-floor boundary — skip (no net margin)",
+            price_cents,
+        )
+        return None
+
     # ── Execution-time price guard ────────────────────────────────────────
     # Convert execution price to YES-equivalent for range + slippage checks.
     # Protects against HFT repricing in the asyncio gap after signal generation.
