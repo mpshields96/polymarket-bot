@@ -3351,3 +3351,45 @@ Sniper analysis: clear action item (restart activates 99c guard).
 2. Check sol_drift graduation (28/30 — 2 more bets needed).
 3. Check NCAA markets March 17-18 (bracket drops March 15 evening).
 4. Weather paper data will accumulate automatically after restart.
+
+---
+
+## Session 72 Continuation (Research Chat 2) — 2026-03-15 ~03:00 UTC
+
+### What Changed
+
+1. docs: Off-peak double limits promotion (commit 3c59276):
+   SESSION_HANDOFF.md, POLYBOT_INIT.md, .planning/AUTONOMOUS_CHARTER.md updated.
+   Promotion active 2026-03-13 through 2026-03-27: off-peak (outside 8AM-2PM ET) = 2x limit.
+
+2. fix: Fee-floor guard in live.py (commit 1d12f46):
+   Bug: NO@99c slips through price guard — YES-equiv(NO@99c) = 1c ∈ [1,99] passes.
+   Live incident: trade 2111 KXXRP15M NO@99c at 22:44 UTC (signal 93c, orderbook drifted).
+   Fix: raw price_cents >= 99 || <= 1 block BEFORE YES-equiv conversion.
+   3 new regression tests (TestSniperFeeFlorBlock). 1198 tests total.
+
+3. Bot restarts (2 restarts today):
+   Restart 1 (22:00 UTC): activated 5-city weather loops — but fee-floor fix not yet in.
+   Restart 2 (22:54 UTC): activated fee-floor fix. Bot PID 32120 → session73.log.
+
+4. research: S72 cont findings (commit 1bf4791):
+   EDGE_RESEARCH_S62.md section 43 added.
+   Documented: no March 2026 FOMC market, no NBA/NHL edge, NCAA not open yet.
+   Dead ends updated: FOMC March 2026 gap, KXBTCD daily sniper (markets fair-priced).
+
+### Weather Paper Data Started (March 15)
+   LAX: 5 paper bets (YES@8c, ≥79F — GEFS 93.5%)
+   CHI: 5 paper bets (YES@26c, <60F — GEFS 96.8%)
+   DEN: 1 paper bet (NO@7c, ≥49F — GEFS 93.5%)
+   MIA: 3 paper bets
+   These settle March 15 end-of-day. First GEFS calibration data point.
+
+### Tests
+1198 passing (was 1195). +3 regression tests for fee-floor bug.
+
+### What Next Chat Must Do
+1. Check sol_drift graduation (28/30 — 2 more bets needed).
+2. Check NCAA markets March 17-18 (bracket drops March 15 evening ET).
+3. Check March 14 weather settlements after ~04:00 UTC for GEFS calibration.
+4. Weather paper data accumulating automatically (5 cities active).
+5. Bot is running PID 32120 → /tmp/polybot_session73.log.
