@@ -49,22 +49,30 @@ def _dollars_to_cents(
     """Convert a dollars-string field ("0.5900") to integer cents (59).
 
     Falls back to legacy integer cents fields for backward compat with tests.
+    Returns 0 for any value outside [0, 100] — NaN, Inf, negative, overflow.
+    SEC-1: bounds check added Session 74 to make downstream price guards explicit.
     """
     val = d.get(dollars_key)
     if val is not None:
         try:
-            return round(float(val) * 100)
-        except (ValueError, TypeError):
+            result = round(float(val) * 100)
+            if 0 <= result <= 100:
+                return result
+        except (ValueError, TypeError, OverflowError):
             pass
     # Legacy fallback: integer cents
     if fallback_key and fallback_key in d:
         try:
-            return int(d[fallback_key])
+            result = int(d[fallback_key])
+            if 0 <= result <= 100:
+                return result
         except (ValueError, TypeError):
             pass
     if fallback_key2 and fallback_key2 in d:
         try:
-            return int(d[fallback_key2])
+            result = int(d[fallback_key2])
+            if 0 <= result <= 100:
+                return result
         except (ValueError, TypeError):
             pass
     return 0
@@ -74,16 +82,23 @@ def _fp_to_int(d: Dict, fp_key: str, fallback_key: str = "") -> int:
     """Convert an _fp string field ("100.00") to integer (100).
 
     Falls back to legacy integer field for backward compat with tests.
+    Returns 0 for NaN, Inf, negative, or absurdly large values (> 1e9).
+    SEC-1: bounds check added Session 74 alongside _dollars_to_cents fix.
     """
+    _MAX_REASONABLE = 1_000_000_000  # 1 billion contracts is not a valid count
     val = d.get(fp_key)
     if val is not None:
         try:
-            return round(float(val))
-        except (ValueError, TypeError):
+            result = round(float(val))
+            if 0 <= result <= _MAX_REASONABLE:
+                return result
+        except (ValueError, TypeError, OverflowError):
             pass
     if fallback_key and fallback_key in d:
         try:
-            return int(d[fallback_key])
+            result = int(d[fallback_key])
+            if 0 <= result <= _MAX_REASONABLE:
+                return result
         except (ValueError, TypeError):
             pass
     return 0
@@ -633,8 +648,13 @@ class KalshiClient:
 class KalshiAPIError(Exception):
     def __init__(self, status: int, body: Any):
         self.status = status
-        self.body = body
-        super().__init__(f"Kalshi API {status}: {body}")
+        self.body = body  # preserved in full for programmatic inspection
+        # SEC-2: truncate body in the string representation so full API error
+        # responses (which may contain account/order details) don't flood logs.
+        body_str = str(body)
+        if len(body_str) > 300:
+            body_str = body_str[:300] + "...[truncated]"
+        super().__init__(f"Kalshi API {status}: {body_str}")
 
 
 # ── Factory ───────────────────────────────────────────────────────────

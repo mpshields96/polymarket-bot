@@ -56,4 +56,9 @@ Thumbs.db
 *.swp
 *.swo
 *~
-data/sdata_quota.json
+# ===================================================
+# DATA — scan results and raw API dumps (strategy intelligence)
+# SEC-3: added Session 74 — data/*.json not committed (reveals edge focus areas)
+# ===================================================
+data/*.json
+!data/.gitkeep
