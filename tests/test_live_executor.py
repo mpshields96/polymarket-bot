@@ -969,10 +969,11 @@ class TestSniperFeeFlorBlock:
         assert result is None
         kalshi.create_order.assert_not_called()
 
-    async def test_no_at_98c_still_allowed(self, live_env, bypass_first_run):
-        """NO@98c is NOT blocked — only 99c is the fee-floor boundary.
+    async def test_no_at_98c_blocked(self, live_env, bypass_first_run):
+        """NO@98c is blocked -- historically -25.54 USD at 92.9% WR (need >98%).
 
-        Verifies the fix is targeted and doesn't over-block valid 98c bets.
+        Pattern identical to 97c NO block (IL-10). Added S78 after 28-bet data.
+        98c YES is NOT blocked -- 20 bets, 100% WR, +3.02 USD (profitable).
         """
         ob = make_orderbook(yes_bid=2)  # yes_bid=2 → no_ask = 98c
         signal = make_signal(side="no", price_cents=97)
@@ -985,8 +986,9 @@ class TestSniperFeeFlorBlock:
             price_guard_min=1, price_guard_max=99,
         )
 
-        assert result is not None
-        kalshi.create_order.assert_called_once()
+        assert result is None
+        kalshi.create_order.assert_not_called()
+        db.save_trade.assert_not_called()
 
 
 # ── 96c/97c negative-EV bucket guard tests ──────────────────────────────────

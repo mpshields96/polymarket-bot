@@ -72,11 +72,12 @@ exceeding the hourly rate limit by 1.
 
 ### IL-3: HARD_MAX_TRADE_USD may only be raised by explicit Matthew directive
 
-**Rule:** `HARD_MAX_TRADE_USD = 20.00` in `kill_switch.py` (line 39). Strategy loops
+**Rule:** `HARD_MAX_TRADE_USD = 15.00` in `kill_switch.py` (line 39). Strategy loops
 must clamp: `trade_usd = min(size_result.recommended_usd, HARD_MAX_TRADE_USD)`.
 No strategy code may pass a `trade_usd` larger than this constant.
 To raise the cap: Matthew must explicitly direct it, document it in CHANGELOG.md,
 and it must go through verify_change.sh.
+(S78: lowered 20→15 USD per Matthew directive — reduce variance after high-loss day)
 
 **Why:** The 20 USD cap is the only mechanical backstop against Kelly over-sizing
 at Stage 2+. Bankroll floor ($20) + consecutive cooling + this cap = the full
@@ -230,4 +231,20 @@ Revisit when either bucket has 200+ bets at current bet size.
 
 ---
 
-*Last updated: Session 75 (2026-03-15). Add new laws here when new invariants are established.*
+### IL-11: 98c NO bets are blocked — structurally negative EV
+
+**Rule:** `live.py` (after IL-10 guard): if `price_cents == 98 and signal.side == "no"`, return None.
+98c YES is NOT blocked (20 bets, 100% WR, +3.02 USD historically, profitable).
+
+**Why:** At 98c NO, gross profit is 2c/contract. Break-even requires 98%+ WR.
+Live data (S78, 28 bets in this bucket):
+  98c NO: 28 bets, 92.9% WR, -25.54 USD cumulative
+Each loss = -18.62 USD, each win = +0.19 USD. 1 loss wipes 98 wins.
+Same pattern as 97c NO (IL-10). Blocked after 28 bets of confirming data.
+Revisit when bucket has 200+ bets at current bet size.
+
+**Test:** `tests/test_live_executor.py::TestFeeFloorBoundary::test_no_at_98c_blocked`
+
+---
+
+*Last updated: Session 78 (2026-03-15). Add new laws here when new invariants are established.*

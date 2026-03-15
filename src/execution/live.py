@@ -129,12 +129,14 @@ async def execute(
         )
         return None
 
-    # ── Negative-EV bucket guard: 96c and 97c-NO ─────────────────────────────
+    # ── Negative-EV bucket guard: 96c, 97c-NO, 98c-NO ───────────────────────
     # These buckets are structurally unprofitable based on live bet history:
     #   96c both sides: 31 bets, 93.5% WR, -22.44 USD (needs 96%+ to break even)
     #   97c NO-side:    13 bets, 92.3% WR, -15.03 USD (needs 97%+ to break even)
     #   97c YES-side:   11 bets, 100% WR,   +2.90 USD -- profitable, NOT blocked
-    # Validated S74/S75. Revisit at 200+ bets per price level per side.
+    #   98c NO-side:    28 bets, 92.9% WR, -25.54 USD (needs 98%+ to break even)
+    #   98c YES-side:   20 bets, 100% WR,   +3.02 USD -- profitable, NOT blocked
+    # Validated S74/S75/S78. Revisit at 200+ bets per price level per side.
     if price_cents == 96:
         logger.info(
             "[live] Execution price 96c -- both sides historically negative EV "
@@ -145,6 +147,12 @@ async def execute(
         logger.info(
             "[live] Execution price 97c NO-side -- historically negative EV "
             "(92.3%% WR at 13 bets, needs >=97%% to break even) -- skip",
+        )
+        return None
+    if price_cents == 98 and signal.side == "no":
+        logger.info(
+            "[live] Execution price 98c NO-side -- historically negative EV "
+            "(92.9%% WR at 28 bets, needs >=98%% to break even) -- skip",
         )
         return None
 
