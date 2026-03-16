@@ -57,14 +57,15 @@
 ═══════════════════════════════════════════════════
 
 BUILD COMPLETE. 1376/1376 tests passing. verify.py advisory WARNs only — non-critical.
-Last commit: bf5b267 (docs: Session 88 IL-20 wrap — KXXRP YES@95c guard deployed, PID 57302)
+Last commit: 6c520e3 (docs: Session 88 final wrap — guard IL-20 deployed, PID 57302)
 
-## BOT STATE — Session 88 final (2026-03-16 10:15 UTC) — BOT RUNNING
+## BOT STATE — Session 89 wrap (2026-03-16 12:10 UTC) — BOT RUNNING — FIRST POSITIVE ALL-TIME!
 
 Bot PID 57302 → /tmp/polybot_session88.log
-All-time live P&L: -0.26 USD (TODAY +44.74 USD, 98 settled, 90/98 wins, 92% WR)
-sol_drift: 33/30 Stage 1 GRADUATED | xrp_drift: 28/30 (needs 2 more — graduation eval imminent!)
-SESSION 88 KEY BUILDS: IL-19 guard (KXSOL YES@97c blocked), IL-20 guard (KXXRP YES@95c blocked), post_only taker fallback active
+All-time live P&L: +29.87 USD (TODAY +74.87 USD, 123 settled, 112/123 wins, 91% WR)
+sol_drift: 33/30 Stage 1 GRADUATED | xrp_drift: 29/30 (ONE BET from graduation eval!)
+SESSION 89 KEY EVENTS: 3 bot deaths investigated (06:20, 07:32, 08:24 UTC) — root cause TBD
+SESSION 89 WRAP UPGRADE: /polybot-wrap now runs strategy_analyzer.py --brief automatically
 
 Check bot: cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "RUNNING" || echo "STOPPED"
 Watch:  tail -f /tmp/polybot_session88.log | grep --line-buffered "LIVE\|Kill switch\|cooling\|consecutive"

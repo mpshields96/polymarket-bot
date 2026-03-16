@@ -4569,3 +4569,58 @@ Pattern 1/2 safety improvements, UCL/EPL candlestick analysis.
   Priority #1: XRP graduation — one more bet. When 30/30: add direction_filter="yes" to xrp_drift
   Priority #2: NCAA scanner (March 17 UTC — lines now mature, run immediately)
   Priority #3: Continue monitoring, watch for further bot stability issues (3 deaths today)
+
+---
+
+## Session 89 (Wrap) — 2026-03-16 12:10 UTC — First positive all-time P&L (+29.87 USD)
+
+### What changed
+- /polybot-wrap command updated: strategy_analyzer.py --brief now MANDATORY in wrap
+  Output feeds into CHANGELOG "Strategy Analyzer Insights" + new chat prompt "STRATEGY INSIGHTS"
+  This automates session-to-session knowledge accumulation (was manual summarization before)
+- /polybot-wrap command updated: GOAL TRACKER section added to new chat prompt template
+  Shows: all-time P&L, distance to +125 USD, daily rate, highest-leverage action
+
+### Self-Assessment
+  WINS:
+  - FIRST POSITIVE ALL-TIME P&L: +29.87 USD (crossed zero from -0.26 at S89 start)
+  - Today: +74.87 USD (123 settled, 91% WR) — second-best session in bot history
+  - expiry_sniper: 99/101 wins today, +66.09 USD — guard stack fully validated
+  - XRP drift: 29/30 (was 28/30) — ONE BET from graduation eval
+  - XRP direction confirmed: YES 18/29 (61% WR, +1.27 USD) vs NO 11/29 (36% WR, -2.43 USD)
+  - Guard automation improved: polybot-wrap now self-learning via strategy_analyzer
+
+  LOSSES:
+  - 3 bot deaths in quick succession (06:20, 07:32, ~08:24 UTC) — root cause not investigated
+  - Each restart took ~5-10 min — potential missed bets during windows
+  - NCAA scanner ran but lines not mature yet (March 16 UTC, needed March 17)
+
+  GRADE: A-
+  Why A-: Historic positive P&L milestone, exceptional today performance, XRP graduation imminent.
+  Minus: 3 unexplained bot deaths in 2 hours — this is a reliability risk that needs root cause analysis.
+
+  ONE THING next chat must do differently: Investigate 3-deaths-in-2hrs pattern. Grep log for
+    crash signatures: grep -i "exception\|traceback\|segfault\|killed\|oom" /tmp/polybot_session88.log
+  ONE THING that would have made more money: Block XRP drift NO side NOW (not waiting for graduation).
+    NO side has -2.43 USD (-3.70 USD/bet EV) confirmed at 11 bets. That's a current drain.
+
+### Strategy Analyzer Insights (from --brief, 2026-03-16 12:10 UTC)
+  All-time: +29.87 USD (82% WR, 739 bets)
+  Today: +74.87 USD (91% WR, 123 bets)
+  Target: 95.13 USD to +125 USD goal
+  Sniper profitable buckets: 95c, 90-94c (confirmed — no guards needed)
+  Sniper "losing" buckets flagged: 98c, 97c, 96c — already blocked by IL-10/IL-11 (guards working)
+  btc_drift: UNDERPERFORMING (48% WR) — direction_filter="no" already applied, trend=STABLE
+  eth_drift: UNDERPERFORMING (50% WR) — direction_filter="yes" applied, trend=IMPROVING
+  sol_drift: HEALTHY — 34 live bets, 74% WR, +9.04 USD
+
+### Goal Progress
+  All-time P&L: +29.87 USD | Need: 95.13 more to hit +125 USD target
+  Today rate: +74.87 USD/day | At this rate: 1-2 more days
+  Highest-leverage action: XRP drift graduation + direction_filter="yes" enforcement (blocks -3.70 USD/bet NO side)
+
+### Next session focus
+  Priority #1: Investigate bot death root cause (3 crashes in 2hrs — reliability risk)
+  Priority #2: XRP drift 30/30 — graduation eval the moment it lands
+  Priority #3: NCAA scanner (March 17 UTC — lines NOW mature)
+

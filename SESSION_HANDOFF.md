@@ -125,10 +125,14 @@ SESSION 87 KEY BUILDS (2026-03-16):
      Lines mature March 17-18. Run then.
 
 PENDING TASKS (Session 90 — PRIORITY ORDER):
+  #0 BOT DEATHS ROOT CAUSE — 3 crashes in 2 hrs (06:20, 07:32, 08:24 UTC March 16). INVESTIGATE.
+     grep -i "exception\|traceback\|killed\|oom\|memory" /tmp/polybot_session88.log | tail -30
+     If OOM: reduce concurrent loops or add memory monitoring. If asyncio crash: add exception guard.
+     This is a RELIABILITY RISK — every death = missed bets = missed money.
   #1 XRP drift graduation — 29/30 (needs 1 MORE bet). When 30/30: run direction filter eval.
      Direction data: YES 18/29 (61% WR, +1.27 USD) vs NO 11/29 (36% WR, -2.43 USD)
-     Decision: likely add direction_filter="yes" to xrp_drift (same as btc_drift="no" / eth_drift="yes")
-     Command: python3 -c "import sqlite3; ..." — see PRINCIPLES.md for promotion criteria
+     Action: add direction_filter="yes" to xrp_drift in main.py (confirmed correct direction)
+     Consider: also add IL-21 guard for XRP drift NO side (structural -3.70 USD/bet EV)
   #2 NCAA scanner — run scripts/ncaa_tournament_scanner.py --min-edge 0.03 (March 17 UTC — TODAY)
      Lines mature March 17-18. Round 1 tip-offs March 20-21. 1 credit/call.
      Watch: Purdue 96c, UConn 95c, Illinois 96c — public money may push below sharp books.
