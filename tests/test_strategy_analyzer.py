@@ -566,5 +566,133 @@ class TestGenerateReflection(unittest.TestCase):
         self.assertIn("benchmark", result)
 
 
+class TestGuardGapDetector(unittest.TestCase):
+    """Tests for detect_guard_gaps and _is_guarded functions."""
+
+    def _make_sniper_trade(self, ticker, price_cents, side, result, pnl_cents, days_ago=1):
+        ts = time.time() - days_ago * 24 * 3600
+        return {
+            "ticker": ticker,
+            "side": side,
+            "strategy": "expiry_sniper_v1",
+            "price_cents": price_cents,
+            "result": result,
+            "pnl_cents": pnl_cents,
+            "created_at": ts,
+        }
+
+    def test_is_guarded_global_96c(self):
+        """_is_guarded returns True for 96c both sides (IL-10 all-asset guard)."""
+        from scripts.strategy_analyzer import _is_guarded
+        self.assertTrue(_is_guarded(96, "yes", "KXBTC"))
+        self.assertTrue(_is_guarded(96, "no", "KXBTC"))
+
+    def test_is_guarded_per_asset_kxsol_97c(self):
+        """_is_guarded returns True for KXSOL YES@97c (IL-19) but not ETH YES@97c."""
+        from scripts.strategy_analyzer import _is_guarded
+        self.assertTrue(_is_guarded(97, "yes", "KXSOL"))
+        self.assertFalse(_is_guarded(97, "yes", "KXETH"))
+
+    def test_is_guarded_per_asset_kxxrp_95c(self):
+        """_is_guarded returns True for KXXRP YES@95c (IL-20) but not SOL YES@95c."""
+        from scripts.strategy_analyzer import _is_guarded
+        self.assertTrue(_is_guarded(95, "yes", "KXXRP"))
+        self.assertFalse(_is_guarded(95, "yes", "KXSOL"))
+
+    def test_detect_guard_gaps_finds_unguarded_negative_ev(self):
+        """detect_guard_gaps flags unguarded path with WR below break-even."""
+        from scripts.strategy_analyzer import detect_guard_gaps
+        # KXETH YES@93c: 6 losses, WR=0% — well below 93% break-even, not guarded
+        trades = [
+            self._make_sniper_trade("KXETH15M", 93, "yes", "no", -93_00, days_ago=i)
+            for i in range(1, 7)
+        ]
+        conn = _make_conn(trades)
+        gaps = detect_guard_gaps(conn, min_bets=5)
+        self.assertTrue(len(gaps) > 0)
+        gap = gaps[0]
+        self.assertEqual(gap["price_cents"], 93)
+        self.assertEqual(gap["side"], "yes")
+        self.assertIn("KXETH", gap["series"])
+        self.assertLess(gap["pnl_usd"], 0)
+
+    def test_detect_guard_gaps_skips_guarded_paths(self):
+        """detect_guard_gaps does NOT flag paths already in _KNOWN_GUARDS."""
+        from scripts.strategy_analyzer import detect_guard_gaps
+        # KXSOL YES@97c: all losses — but IL-19 guard exists, should be skipped
+        trades = [
+            self._make_sniper_trade("KXSOL15M", 97, "yes", "no", -97_00, days_ago=i)
+            for i in range(1, 10)
+        ]
+        conn = _make_conn(trades)
+        gaps = detect_guard_gaps(conn, min_bets=5)
+        guarded_series = [(g["series"], g["price_cents"], g["side"]) for g in gaps]
+        self.assertNotIn(("KXSOL", 97, "yes"), guarded_series)
+
+    def test_detect_guard_gaps_skips_profitable_paths(self):
+        """detect_guard_gaps does NOT flag paths with net positive P&L."""
+        from scripts.strategy_analyzer import detect_guard_gaps
+        # KXBTC YES@92c: 6 wins — profitable, no guard needed
+        trades = [
+            self._make_sniper_trade("KXBTC15M", 92, "yes", "yes", 8_00, days_ago=i)
+            for i in range(1, 7)
+        ]
+        conn = _make_conn(trades)
+        gaps = detect_guard_gaps(conn, min_bets=5)
+        guarded_series = [(g["series"], g["price_cents"], g["side"]) for g in gaps]
+        self.assertNotIn(("KXBTC", 92, "yes"), guarded_series)
+
+    def test_detect_guard_gaps_respects_30_day_window(self):
+        """detect_guard_gaps ignores trades older than 30 days."""
+        from scripts.strategy_analyzer import detect_guard_gaps
+        # KXETH NO@93c: 6 losses but all 40 days ago — should not be flagged
+        trades = [
+            self._make_sniper_trade("KXETH15M", 93, "no", "yes", -93_00, days_ago=40 + i)
+            for i in range(6)
+        ]
+        conn = _make_conn(trades)
+        gaps = detect_guard_gaps(conn, min_bets=5)
+        old_series = [(g["series"], g["price_cents"], g["side"]) for g in gaps]
+        self.assertNotIn(("KXETH", 93, "no"), old_series)
+
+    def test_reflection_shows_guard_gap_section(self):
+        """generate_reflection includes GUARD GAP STATUS section."""
+        from scripts.strategy_analyzer import generate_reflection
+        sniper = {"buckets": {}, "insights": [], "time_of_day": {"best_hours": [], "worst_hours": []}}
+        drift = {}
+        grad = {}
+        summary = {
+            "all_time": {"pnl_usd": 51.21, "bets": 500, "win_rate": 0.98},
+            "today": {"pnl_usd": 87.57, "bets": 119, "win_rate": 0.98},
+            "remaining_usd": 73.79,
+        }
+        benchmark = {"funding_gap_usd": 73.79, "funding_pct": 41.0, "strategies": {}}
+        text = generate_reflection(sniper, drift, grad, summary, benchmark, guard_gaps=[])
+        self.assertIn("GUARD GAP STATUS", text)
+        self.assertIn("Guard stack clean", text)
+
+    def test_reflection_flags_unguarded_gap(self):
+        """generate_reflection surfaces unguarded gap in TOP ACTIONS."""
+        from scripts.strategy_analyzer import generate_reflection
+        sniper = {"buckets": {}, "insights": [], "time_of_day": {"best_hours": [], "worst_hours": []}}
+        drift = {}
+        grad = {}
+        summary = {
+            "all_time": {"pnl_usd": 51.21, "bets": 500, "win_rate": 0.98},
+            "today": {"pnl_usd": 87.57, "bets": 119, "win_rate": 0.98},
+            "remaining_usd": 73.79,
+        }
+        benchmark = {"funding_gap_usd": 73.79, "funding_pct": 41.0, "strategies": {}}
+        fake_gap = [{
+            "price_cents": 93, "side": "yes", "series": "KXETH",
+            "bets": 7, "win_rate": 0.71, "break_even_wr": 0.93,
+            "pnl_usd": -15.0, "shortfall_pct": 22.0,
+        }]
+        text = generate_reflection(sniper, drift, grad, summary, benchmark, guard_gaps=fake_gap)
+        self.assertIn("UNGUARDED NEGATIVE-EV PATHS", text)
+        self.assertIn("ADD GUARD", text)
+        self.assertIn("KXETH", text)
+
+
 if __name__ == "__main__":
     unittest.main()

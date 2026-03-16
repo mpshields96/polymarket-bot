@@ -551,16 +551,25 @@ def generate_reflection(
         "## SNIPER ENGINE HEALTH",
         f"  Core 90-94c bucket: {core_bets} bets, {core_wr:.1%} WR, {core_pnl:+.2f} USD — {health}",
     ]
-    # Watch buckets — only show if NOT already guarded
+    # Watch buckets — distinguish guarded vs unguarded vs partial
     for bk, data in sniper.get("buckets", {}).items():
         if data["bets"] >= 10 and data["pnl_usd"] < 0:
-            # Check if this bucket is fully covered by guards
             try:
                 bk_price = int(bk.split("+")[0].split("-")[0])
             except (ValueError, AttributeError):
                 bk_price = None
-            if bk_price and _is_guarded(bk_price, "yes", "") and _is_guarded(bk_price, "no", ""):
+            yes_guarded = bk_price and _is_guarded(bk_price, "yes", "")
+            no_guarded = bk_price and _is_guarded(bk_price, "no", "")
+            if yes_guarded and no_guarded:
                 lines.append(f"  GUARDED (historical losses expected): {bk}c bucket — guards active in live.py")
+            elif yes_guarded or no_guarded:
+                which = "NO" if no_guarded else "YES"
+                open_side = "YES" if no_guarded else "NO"
+                lines.append(
+                    f"  PARTIAL GUARD: {bk}c bucket — {which} side guarded, "
+                    f"{open_side} side open ({data['bets']} bets, {data['win_rate']:.0%} WR, {data['pnl_usd']:+.2f} USD). "
+                    f"Check guard-gap section for live exposure."
+                )
             else:
                 lines.append(f"  WATCH: {bk}c bucket negative ({data['bets']} bets, {data['win_rate']:.0%} WR, {data['pnl_usd']:+.2f} USD)")
     lines.append("")
@@ -692,7 +701,7 @@ def run_analysis(save: bool = True, brief: bool = False, reflect: bool = False) 
         INSIGHTS_PATH.write_text(json.dumps(insights, indent=2))
 
     if reflect:
-        reflection_text = generate_reflection(sniper, drift, grad, summary, benchmark)
+        reflection_text = generate_reflection(sniper, drift, grad, summary, benchmark, guard_gaps)
         REFLECTION_PATH.write_text(reflection_text)
         print(reflection_text)
     elif brief:
