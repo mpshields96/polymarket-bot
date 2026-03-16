@@ -4199,3 +4199,52 @@ Pattern 1/2 safety improvements, UCL/EPL candlestick analysis.
   3. SOL YES 93c watch: check at 20+ Stage 1 bets before considering guard
   4. XRP drift graduation watch (23/30, needs 7 more)
   5. Weather calibration March 18-20 (more bets should settle by then)
+
+---
+
+## Session 86 — 2026-03-16 (Monitoring — bot restart, +11.49 USD day)
+
+### Session type
+  Monitoring-only session. No code changes. Bot restarted after unexpected death.
+  Autonomous loop ran throughout. Research chat had updated SESSION_HANDOFF to S85/86 wrap.
+
+### Bot events
+  - Bot died ~02:45 UTC (PID 9054 → dead). Unknown cause. No crash log found in session81.log.
+    Research chat had already restarted to PID 24138 before this chat acted.
+  - Research chat updates applied (SESSION_HANDOFF updated, 1325 tests, last commit ec960cf).
+  - Clean restart to PID 26391 → /tmp/polybot_session86.log. bot.pid confirmed 26391.
+  - All guards active. No kill switch events during session.
+
+### P&L
+  All-time live: -33.51 USD (was -43.19 at session start → +9.68 USD gained this session)
+  Today (local Mar 15/UTC Mar 16): +11.49 USD live, 100% WR, 13 settled
+    expiry_sniper: 12/12 wins, +11.12 USD
+    xrp_drift: 1/1 win, +0.37 USD
+
+### Graduation counts
+  sol_drift_v1: 30/30, Brier 0.191 — Stage 1 active (graduated S81)
+  xrp_drift_v1: 23/30, Brier 0.258 — needs 7 more
+  expiry_sniper_v1: 631 total live bets, +306.69 USD all-time
+
+### Monitoring loop fixes
+  Shell glob bug fixed: LOG=/tmp/polybot_session*.log doesn't expand in variable assignment.
+    Now uses hardcoded ACTUAL_LOG=/tmp/polybot_session81.log (session86.log going forward).
+  Timezone bug fixed: settled-today query now uses UTC midnight (datetime.datetime.utcnow()).
+    Prior version used time.mktime (local time) causing 0 settled-today before local midnight.
+
+### Self-rating: B
+  WINS: Caught bot death quickly (within 2 checks), restarted clean.
+    Sniper is performing excellently — 12/12 today. P&L recovered 9.68 USD.
+    Monitoring loop bugs identified and fixed for future sessions.
+  LOSSES: Bot died for unknown reason (didn't investigate root cause — no log evidence found).
+    First cycle had shell glob bug giving false "0 sniper entries" count. Wasted one cycle.
+  WHY B not A: Monitoring session — no code improvements, and bot died. The money was made
+    by the sniper running before this session started, not by actions taken here.
+  ONE THING next chat must do: Investigate why bot died. Check logs/errors/bot.log for crash cause.
+  ONE THING that would have made more money earlier: None this session — monitoring only.
+
+### Next session priorities
+  1. Investigate bot death: grep -i "error\|exception\|traceback" /Users/matthewshields/Projects/polymarket-bot/logs/errors/bot.log | tail -50
+  2. NCAA scanner March 17-18 (Round 1 markets open) — run at 09:00 ET each day
+  3. XRP drift graduation watch (23/30, needs 7 more)
+  4. Soccer monitoring: EPL BRE vs WOL March 30, UCL QF March 31/April 1

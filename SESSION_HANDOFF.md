@@ -1,11 +1,11 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-16 (Session 85 research wrap — cross-league soccer threshold, NCAA scanner bugs fixed)
+# Last updated: 2026-03-16 (Session 86 monitoring wrap — bot restarted, +11.49 USD today)
 # ═══════════════════════════════════════════════════════════════
 
-## COPY-PASTE THIS TO START A NEW SESSION (Session 86)
+## COPY-PASTE THIS TO START A NEW SESSION (Session 87)
 
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 86).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 87).
 
 MANDATORY READING BEFORE ANY ACTION:
   cat SESSION_HANDOFF.md
@@ -13,15 +13,14 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 85 wrap — 2026-03-16 UTC):
-  Bot RUNNING PID 24138 → /tmp/polybot_session85.log
-  All-time live P&L: -40.90 USD (today +4.10 USD live, 100% WR — 6 settled)
-  Tests: 1325 passing. Last commit: 0867a0a (fix: sniper max_slippage_cents=3)
+BOT STATE (Session 86 monitoring wrap — 2026-03-16 ~03:00 UTC):
+  Bot RUNNING PID 26391 → /tmp/polybot_session86.log
+  All-time live P&L: -33.51 USD (today +11.49 USD live, 100% WR, 13 settled)
+  Tests: 1325 passing. Last commit: ec960cf (Session 85 final wrap — no code changes S86)
   Config: MAX_TRADE_PCT=15%, HARD_MAX=20 USD, ALL guards active (IL-5/IL-10/IL-10A/B/C/IL-11)
-  NEW S85: max_slippage_cents=3 for expiry_sniper (blocks 7c orderbook divergence)
-  Bankroll: ~100 USD (estimate)
+  Sniper active: 12/12 wins today, +11.12 USD today
   XRP drift: 23/30 live bets (needs 7 more for graduation eval)
-  SOL drift: 30/30, Brier 0.191, READY FOR LIVE (already Stage 1)
+  SOL drift: 30/30 Stage 1 (full Kelly + 20 USD cap, already graduated S81)
 
 CRITICAL GUARD UPDATE (Session 81 — commit 9dbf889):
   NEW guards added in src/execution/live.py (per-asset structural losses):
@@ -47,8 +46,8 @@ SESSION 81 KEY CHANGES (2026-03-15 monitoring chat):
      7 regression tests in TestPerAssetStructuralLossGuards
   5. Pattern 2 verify-revert PostToolUse hook deployed (commit cd9702f)
 
-RESTART COMMAND (Session 86 — use session86.log):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session86.log 2>&1 &
+RESTART COMMAND (Session 87 — use session87.log):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session87.log 2>&1 &
   Then verify: ps aux | grep "[m]ain.py" — exactly 1. Then cat bot.pid.
 
 If --health shows "HARD STOP": HISTORICAL. The 30% lifetime stop was DISABLED in S34.
@@ -74,10 +73,10 @@ If --health shows "HARD STOP": HISTORICAL. The 30% lifetime stop was DISABLED in
 
 ---
 
-GRADUATION STATUS (2026-03-16 UTC — Session 85):
+GRADUATION STATUS (2026-03-16 UTC — Session 86):
   sol_drift_v1: 30/30 bets, Brier 0.191, P&L +1.23 USD — GRADUATED (calibration_max=None, full Kelly)
   xrp_drift_v1: 23/30 bets, Brier 0.258, P&L -1.26 USD — needs 7 more
-  expiry_sniper_v1: 75+ live bets, P&L +306 USD all-time — CORE ENGINE
+  expiry_sniper_v1: 631 live bets total, P&L +306 USD all-time — CORE ENGINE (12/12 wins today +11.12 USD)
 
 SNIPER BUCKET STATUS (full guard stack — do NOT change without Matthew approval):
   BLOCKED: 96c both sides (IL-10), 97c NO (IL-10), 98c NO (IL-11), 99c/1c (IL-5)
@@ -85,23 +84,27 @@ SNIPER BUCKET STATUS (full guard stack — do NOT change without Matthew approva
   PROFITABLE: 91c-95c BTC/ETH both sides, 97c YES all assets, 98c YES all assets
   BTC/ETH sniper: historically 98-99% WR — core engine, do not touch
 
+S85 KEY FIXES (commits f848adb + 0867a0a):
+  1. NCAA scanner: 2 bugs fixed (HTTP 401 + AttributeError). Now fully functional.
+  2. Sniper slippage guard: max_slippage_cents=3 added to execute(). Blocks orderbook
+     divergence of 3c+ from signal. Closed gap between main.py 3c guard and live.py 10c guard.
+  3. Guard audit: all 5+ bet negative-EV buckets confirmed guarded. SOL YES 93c watch at 20+ Stage 1 bets.
+  4. 6 new regression tests (1325 total).
+
 PENDING TASKS (Session 86 — PRIORITY ORDER):
   #1 NCAA scanner — run scripts/ncaa_tournament_scanner.py --min-edge 0.03 on March 17-18
-     BUGS FIXED in Session 85 (commit f848adb) — was broken since creation, now works:
-       Bug 1: fetch_odds_api_games args were swapped → HTTP 401 on every run
-       Bug 2: comparison.sharp_prob → AttributeError (now uses sharp_yes_prob/sharp_no_prob)
-     3 regression tests added (TestNCAATournamentScannerBugs, 1322 tests total)
-     Focus: 1v16 underpriced at 93-95c, 2v15 at 90-94c. Round 1 tip-offs March 20-21.
-  #2 Weather calibration — check paper bets when March 15-16 bets settle
-     Currently only 2/41 settled. Run: python3 scripts/weather_calibration.py --pending
-     Or direct DB query (script hangs on API): sqlite3 data/polybot.db "SELECT strategy, COUNT(*), SUM(CASE WHEN side=result THEN 1 ELSE 0 END) FROM trades WHERE strategy LIKE 'weather%' AND result IS NOT NULL GROUP BY strategy"
+     Current spread: 0.1-1.3% (not actionable yet). Widening expected closer to game time.
+     Watch: Purdue 96c, UConn 95c, Illinois 96c — public money may push below sharp books.
+     Round 1 tip-offs March 20-21. 1 credit/call.
+  #2 Weather calibration — check March 18-20 when more paper bets settle (2/41 as of March 16)
+     Direct DB query: sqlite3 data/polybot.db "SELECT strategy, COUNT(*), SUM(CASE WHEN side=result THEN 1 ELSE 0 END) FROM trades WHERE strategy LIKE 'weather%' AND result IS NOT NULL GROUP BY strategy"
   #3 Soccer in-play sniper live monitoring — FIRST LIVE OPPORTUNITY:
      EPL: BRE vs WOL (March 30), UCL QF 1st legs: March 31 (ARS, MCI, CFC, SPO) + April 1 (BAR, LFC, BMU, ATM)
-     Pre-game >= 0.60 threshold → 75% MID_GAME rate (6/8 games in Session 85 analysis)
-     Decision: deploy sniper if UCL favorite leads 2-0+ at 90c+ with 30+ min remaining
-  #4 XRP drift graduation watch — 23/30, needs 7 more bets
-     When 30/30: run direction filter eval (NO side vs YES side WR split)
-  #5 CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)
+     Pre-game >= 0.60 threshold → 75% MID_GAME rate. UCL/La Liga preferred leagues.
+     Monitor scripts/soccer_live_monitor.py from 30 min before kickoff.
+  #4 XRP drift graduation watch — 23/30, needs 7 more bets. When 30/30: run direction filter eval.
+  #5 SOL YES 93c bucket watch — check at 20+ Stage 1 bets (currently 13 total, mostly calibration era)
+  #6 CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)
   #6 KXGDP speed-play — April 30 (GDP release, KXGDP at 0c/0 volume as of March 16 — check April 23-24)
 
 SESSION 85 RESEARCH FINDINGS (2026-03-16):
