@@ -390,4 +390,23 @@ Loss pattern: KXSOL15M-26MAR160200-00 $19.40 loss triggered analysis.
 
 ---
 
-*Last updated: Session 88 (2026-03-16). IL-19 added: KXSOL YES@97c guard.*
+### IL-20: KXXRP YES@95c is structurally negative EV — block execution
+
+**Rule:** `src/execution/live.py execute()` must return `None` when `"KXXRP" in signal.ticker and price_cents == 95 and signal.side == "yes"`.
+
+SOL/BTC/ETH YES@95c remain profitable (100% WR) — only XRP is blocked.
+KXXRP YES@94c and YES@97c are separately blocked by IL-10A and IL-10B.
+
+**Stats at time of guard (S88 2026-03-16):** 10 bets, 90.0% WR, -14.27 USD.
+Break-even requires 95% WR. Current WR 90.0% is 5 points below.
+Loss pattern: KXXRP15M-26MAR160415-15 YES@95c (-19.95 USD) triggered analysis.
+Pattern: same XRP YES-side intra-window volatility as IL-10A/B.
+
+**Test:** `tests/test_live_executor.py::TestPerAssetStructuralLossGuards::test_xrp_yes_at_95c_blocked`
+`tests/test_live_executor.py::TestPerAssetStructuralLossGuards::test_xrp_yes_at_95c_blocked_il20`
+`tests/test_live_executor.py::TestPerAssetStructuralLossGuards::test_sol_yes_at_95c_not_blocked`
+`tests/test_live_executor.py::TestPerAssetStructuralLossGuards::test_btc_yes_at_95c_not_blocked`
+
+---
+
+*Last updated: Session 88 (2026-03-16). IL-19 added: KXSOL YES@97c. IL-20 added: KXXRP YES@95c.*
