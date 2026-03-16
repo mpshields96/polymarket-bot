@@ -29,6 +29,12 @@ from pathlib import Path
 
 DB_PATH = Path(__file__).parent.parent / "data" / "polybot.db"
 INSIGHTS_PATH = Path(__file__).parent.parent / "data" / "strategy_insights.json"
+REFLECTION_PATH = Path(__file__).parent.parent / "data" / "session_reflection.md"
+
+# Sniper quality benchmark thresholds
+SNIPER_QUALITY_WIN_RATE = 0.95   # crypto sniper hits 95-99% WR
+SNIPER_WATCH_WIN_RATE = 0.90     # worth monitoring
+FUNDING_TARGET_USD = 125.0
 
 # Minimum sample sizes before any insight is generated
 MIN_SNIPER_BUCKET = 30
@@ -327,16 +333,228 @@ def overall_summary(conn: sqlite3.Connection) -> dict:
 
 
 # ──────────────────────────────────────────────────────────
+# SNIPER QUALITY BENCHMARK
+# ──────────────────────────────────────────────────────────
+
+def sniper_quality_benchmark(sniper: dict, drift: dict, summary: dict) -> dict:
+    """
+    Rate each strategy against the crypto sniper benchmark.
+
+    Crypto sniper is the gold standard:
+      - Win rate: 91-99% WR (bucket-dependent)
+      - Mechanism: structural (near-expiry FLB, price certainty before close)
+      - Scale: 15+ bets/day, settled in 15 min, 20 USD/bet
+
+    Scoring tiers:
+      GOLD  — matches sniper quality (WR >= 95%, structural mechanism, validated 50+ bets)
+      WATCH — approaching sniper (WR >= 90%, structural hypothesis)
+      CALIBRATION — promising but insufficient data
+      BELOW — not approaching sniper quality
+    """
+    all_time_pnl = summary["all_time"]["pnl_usd"]
+    funding_gap = round(FUNDING_TARGET_USD - all_time_pnl, 2)
+
+    strategies = {}
+
+    # Crypto expiry sniper — reference benchmark
+    sniper_buckets = sniper.get("buckets", {})
+    core_bucket = sniper_buckets.get("90-94", {})
+    core_wr = core_bucket.get("win_rate", 0)
+    core_bets = core_bucket.get("bets", 0)
+    strategies["crypto_sniper"] = {
+        "tier": "GOLD",
+        "win_rate": core_wr,
+        "bets": core_bets,
+        "pnl_usd": sniper_buckets.get("90-94", {}).get("pnl_usd", 0),
+        "mechanism": "structural — near-expiry price certainty (FLB at 90c+)",
+        "daily_capacity_usd": 300,
+        "note": "REFERENCE BENCHMARK — do not modify guard stack without evidence",
+    }
+
+    # Drift strategies — score against benchmark
+    for strat, data in drift.items():
+        if data.get("status") == "NO_DATA" or data.get("bets", 0) == 0:
+            strategies[strat] = {"tier": "CALIBRATION", "bets": 0, "note": "no data"}
+            continue
+        wr = data.get("win_rate", 0)
+        bets = data.get("bets", 0)
+        pnl = data.get("pnl_usd", 0)
+        if wr >= SNIPER_QUALITY_WIN_RATE and bets >= 50:
+            tier = "GOLD"
+        elif wr >= SNIPER_WATCH_WIN_RATE and bets >= 20:
+            tier = "WATCH"
+        elif bets >= 20:
+            tier = "BELOW"
+        else:
+            tier = "CALIBRATION"
+        strategies[strat] = {
+            "tier": tier,
+            "win_rate": wr,
+            "bets": bets,
+            "pnl_usd": pnl,
+            "gap_to_sniper": round(SNIPER_QUALITY_WIN_RATE - wr, 4),
+        }
+
+    # Soccer sniper — known candidate (paper mode)
+    strategies["soccer_sniper_v1"] = {
+        "tier": "CALIBRATION",
+        "win_rate": None,
+        "bets": 0,  # paper calibration, live 0
+        "mechanism": "structural — FLB mid-game (market 10% reversal, true 3-5%)",
+        "note": "needs 3+ paper wins before live — UCL March 31/April 1",
+    }
+
+    return {
+        "funding_gap_usd": funding_gap,
+        "funding_pct": round(min(1.0, all_time_pnl / FUNDING_TARGET_USD) * 100, 1),
+        "strategies": strategies,
+        "gold_strategies": [k for k, v in strategies.items() if v["tier"] == "GOLD"],
+        "watch_strategies": [k for k, v in strategies.items() if v["tier"] == "WATCH"],
+    }
+
+
+# ──────────────────────────────────────────────────────────
+# SESSION REFLECTION GENERATOR
+# ──────────────────────────────────────────────────────────
+
+def generate_reflection(
+    sniper: dict,
+    drift: dict,
+    grad: dict,
+    summary: dict,
+    benchmark: dict,
+) -> str:
+    """
+    Generate a structured session-start reflection markdown document.
+
+    Replaces manual Claude summarization with data-driven pattern output.
+    Written to data/session_reflection.md — read at session start.
+    """
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    lines = [
+        f"# Session Reflection — auto-generated {now}",
+        "# Read this at session start. Do NOT edit manually — regenerated each session.",
+        "",
+    ]
+
+    # ── Funding status
+    at = summary["all_time"]
+    td = summary["today"]
+    gap = benchmark["funding_gap_usd"]
+    pct = benchmark["funding_pct"]
+    lines += [
+        "## FUNDING STATUS",
+        f"  All-time: {at['pnl_usd']:+.2f} USD of +{FUNDING_TARGET_USD:.0f} USD goal ({pct:.1f}% complete)",
+        f"  Today:    {td['pnl_usd']:+.2f} USD ({td['bets']} settled, {td['win_rate']:.0%} WR)",
+        f"  Remaining: {gap:.2f} USD to goal",
+        "",
+    ]
+
+    # ── Sniper engine health
+    core = sniper.get("buckets", {}).get("90-94", {})
+    core_wr = core.get("win_rate", 0)
+    core_bets = core.get("bets", 0)
+    core_pnl = core.get("pnl_usd", 0)
+    health = "HEALTHY" if core_wr >= 0.93 else ("WATCH" if core_wr >= 0.90 else "DEGRADED")
+    lines += [
+        "## SNIPER ENGINE HEALTH",
+        f"  Core 90-94c bucket: {core_bets} bets, {core_wr:.1%} WR, {core_pnl:+.2f} USD — {health}",
+    ]
+    # Watch buckets
+    for bk, data in sniper.get("buckets", {}).items():
+        if data["bets"] >= 10 and data["pnl_usd"] < 0:
+            lines.append(f"  WATCH: {bk}c bucket negative ({data['bets']} bets, {data['win_rate']:.0%} WR, {data['pnl_usd']:+.2f} USD)")
+    lines.append("")
+
+    # ── Direction filter status
+    lines.append("## DIRECTION FILTER STATUS")
+    for strat, data in drift.items():
+        if data.get("status") == "NO_DATA":
+            continue
+        direction = data.get("direction", {})
+        yes_d = direction.get("yes", {})
+        no_d = direction.get("no", {})
+        yes_wr = yes_d.get("win_rate", 0)
+        no_wr = no_d.get("win_rate", 0)
+        yes_bets = yes_d.get("bets", 0)
+        no_bets = no_d.get("bets", 0)
+        spread = abs(yes_wr - no_wr)
+        better = "yes" if yes_wr > no_wr else "no"
+        if yes_bets >= 10 and no_bets >= 10 and spread >= 0.10:
+            action = f"ADD filter='{better}'" if data["bets"] < 30 else f"filter='{better}' confirmed"
+            lines.append(
+                f"  {strat}: YES {yes_bets}b {yes_wr:.0%} | NO {no_bets}b {no_wr:.0%} "
+                f"| spread {spread:.0%} → {action}"
+            )
+        elif data.get("bets", 0) > 0:
+            lines.append(
+                f"  {strat}: {data['bets']} bets, {data['win_rate']:.0%} WR — "
+                f"({'insufficient direction data' if min(yes_bets, no_bets) < 10 else 'no significant spread'})"
+            )
+    lines.append("")
+
+    # ── Graduation alerts
+    lines.append("## GRADUATION STATUS")
+    for strat, data in grad.items():
+        bets = data["live_bets"]
+        if data["ready"]:
+            lines.append(f"  {strat}: {bets}/30 — GRADUATED (eval complete)")
+        elif bets >= 25:
+            lines.append(f"  {strat}: {bets}/30 — IMMINENT ({data['needs']} bet(s) to eval)")
+        else:
+            lines.append(f"  {strat}: {bets}/30")
+    lines.append("")
+
+    # ── Sniper quality benchmark
+    lines.append("## SNIPER QUALITY BENCHMARK")
+    lines.append(f"  Gold standard: crypto_sniper 95%+ WR structural mechanism")
+    bm_strats = benchmark.get("strategies", {})
+    for name, data in bm_strats.items():
+        tier = data.get("tier", "?")
+        wr = data.get("win_rate")
+        wr_str = f"{wr:.0%}" if wr is not None else "no data"
+        bets = data.get("bets", 0)
+        note = data.get("note", "")
+        lines.append(f"  [{tier}] {name}: {wr_str} WR, {bets} bets{f' — {note}' if note else ''}")
+    lines.append("")
+
+    # ── Top 3 actions
+    lines.append("## TOP ACTIONS FOR THIS SESSION")
+    actions = []
+    # Graduation imminent?
+    for strat, data in grad.items():
+        if 28 <= data["live_bets"] < 30:
+            actions.append(f"XRP graduation IMMINENT — {data['needs']} bet(s) left, add direction_filter at 30")
+        elif data["live_bets"] == 30 and not data["ready"]:
+            actions.append(f"{strat} at 30 bets — run direction filter eval NOW")
+    # Losing sniper buckets?
+    for bk, data in sniper.get("buckets", {}).items():
+        if data["bets"] >= 10 and data["pnl_usd"] < -5:
+            actions.append(f"Guard candidate: {bk}c bucket ({data['bets']} bets, {data['pnl_usd']:+.2f} USD)")
+    # Funding milestone?
+    if gap <= 20:
+        actions.append(f"MILESTONE: {gap:.2f} USD from +125 USD goal — monitor closely")
+    for i, action in enumerate(actions[:3], 1):
+        lines.append(f"  {i}. {action}")
+    if not actions:
+        lines.append("  No urgent actions — maintain monitoring cadence")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+# ──────────────────────────────────────────────────────────
 # MAIN
 # ──────────────────────────────────────────────────────────
 
-def run_analysis(save: bool = True, brief: bool = False) -> dict:
+def run_analysis(save: bool = True, brief: bool = False, reflect: bool = False) -> dict:
     conn = _load_db()
 
     sniper = analyze_sniper(conn)
     drift = analyze_drift(conn)
     grad = graduation_status(conn)
     summary = overall_summary(conn)
+    benchmark = sniper_quality_benchmark(sniper, drift, summary)
 
     conn.close()
 
@@ -346,13 +564,18 @@ def run_analysis(save: bool = True, brief: bool = False) -> dict:
         "sniper": sniper,
         "drift": drift,
         "graduation": grad,
+        "benchmark": benchmark,
         "top_recommendations": _generate_recommendations(sniper, drift, grad, summary),
     }
 
     if save:
         INSIGHTS_PATH.write_text(json.dumps(insights, indent=2))
 
-    if brief:
+    if reflect:
+        reflection_text = generate_reflection(sniper, drift, grad, summary, benchmark)
+        REFLECTION_PATH.write_text(reflection_text)
+        print(reflection_text)
+    elif brief:
         _print_brief(insights)
     else:
         _print_full(insights)
@@ -455,9 +678,14 @@ def main():
     parser = argparse.ArgumentParser(description="Strategy self-learning analyzer")
     parser.add_argument("--no-save", action="store_true", help="Print only, don't save to file")
     parser.add_argument("--brief", action="store_true", help="5-line summary for session startup")
+    parser.add_argument(
+        "--reflect",
+        action="store_true",
+        help="Generate session reflection document (data/session_reflection.md) — use at session start",
+    )
     args = parser.parse_args()
 
-    run_analysis(save=not args.no_save, brief=args.brief)
+    run_analysis(save=not args.no_save, brief=args.brief, reflect=args.reflect)
 
 
 if __name__ == "__main__":
