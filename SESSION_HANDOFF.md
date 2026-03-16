@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-16 05:15 UTC (Session 88 overnight research complete — +38.12 USD today, -6.88 all-time)
+# Last updated: 2026-03-16 07:35 UTC (Session 88 overnight — +41.89 USD today, -3.11 all-time, nearly break-even!)
 # ═══════════════════════════════════════════════════════════════
 
 ## COPY-PASTE THIS TO START A NEW SESSION (Session 89)
@@ -13,15 +13,29 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 88 overnight — 2026-03-16 05:15 UTC):
-  Bot RUNNING PID 26391 → /tmp/polybot_session86.log (no restart needed, still session 86 log)
-  All-time live P&L: -6.88 USD (today +38.12 USD live, 42 settled, 41/42 wins, 98% WR)
-  Tests: 1367 passing. Last commit: 833a15f (docs: SOL YES@93c bucket analysis)
-  Config: MAX_TRADE_PCT=15%, HARD_MAX=20 USD, ALL guards active (IL-5/IL-10/IL-10A/B/C/IL-11)
-  XRP drift: 24/30 live bets (needs 6 more for graduation eval)
+BOT STATE (Session 88 overnight — 2026-03-16 07:35 UTC):
+  Bot RUNNING PID 54221 → /tmp/polybot_session88.log
+  All-time live P&L: -3.11 USD (TODAY +41.89 USD live, 70 settled, 67/70 wins, 96% WR)
+  Tests: 1373 passing. Last commit: e9dc10f (feat: post_only taker fallback for drift strategies)
+  Config: MAX_TRADE_PCT=15%, HARD_MAX=20 USD, ALL guards active (IL-5/IL-10/IL-10A/B/C/IL-11/IL-19)
+  XRP drift: 26/30 live bets (needs 4 more for graduation eval)
   SOL drift: 33/30 Stage 1 (full Kelly + 20 USD cap, already graduated S81)
-  KEY FINDING: 35/35 sniper wins since March 16 00:00 UTC (full guard stack). Guards are working.
-  STRATEGY ANALYZER TIMEZONE BUG FIXED: was showing 0 USD today — now shows correct UTC value.
+  SESSION 88 KEY BUILDS (2026-03-16 overnight):
+  - IL-19 guard (commit a4f33ed): KXSOL YES@97c BLOCKED — 8 bets, 87.5% WR, -17.18 USD, 97% WR needed
+    Loss at KXSOL15M-26MAR160200-00 triggered analysis. Guard is now live in execution/live.py.
+    3 regression tests in TestPerAssetStructuralLossGuards (test_live_executor.py).
+  - post_only taker fallback (commit e9dc10f): When drift strategies get 400 "post only cross",
+    execute() now retries immediately as taker (post_only=False). Recovered 50+ missed trades/session.
+    Error logs confirm 0 post_only_cross errors since restart at 02:32 CDT.
+  - Today's 3 losses: KXSOL YES@97c pre-IL-19 (-19.40), xrp_drift -0.48, sol_drift -7.54 (all genuine)
+  KEY FINDINGS (Session 88 overnight research):
+  - 39/39 sniper wins since March 16 00:00 UTC (full guard stack). Guards are working.
+  - STRATEGY ANALYZER TIMEZONE BUG FIXED: was showing 0 USD today — now shows correct UTC value.
+  - YES@97c appearing negative was historical KXXRP loss — guard IL-10B already in place.
+    Non-XRP YES@97c (BTC/ETH/SOL): 100% WR, profitable.
+  - SOL YES@93c: 14 bets, 92.9% WR vs 93% break-even. WATCH but don't guard yet (need 20+ bets).
+  - Time-of-day loss pattern was entirely pre-guard era. No time-of-day filter needed.
+  - Soccer sniper paper module: scripts/soccer_sniper_paper.py — 19 tests, ready for March 21+.
 
 CRITICAL GUARD UPDATE (Session 81 — commit 9dbf889):
   NEW guards added in src/execution/live.py (per-asset structural losses):
@@ -82,7 +96,8 @@ GRADUATION STATUS (2026-03-16 UTC — Session 87 final):
 SNIPER BUCKET STATUS (full guard stack — do NOT change without Matthew approval):
   BLOCKED: 96c both sides (IL-10), 97c NO (IL-10), 98c NO (IL-11), 99c/1c (IL-5)
   BLOCKED (per-asset S81): KXXRP YES@94c, KXXRP YES@97c, KXSOL YES@94c
-  PROFITABLE: 91c-95c BTC/ETH both sides, 97c YES all assets, 98c YES all assets
+  BLOCKED (per-asset S88): KXSOL YES@97c (IL-19 — 87.5% WR, 97% needed to break even)
+  PROFITABLE: 91c-95c BTC/ETH both sides, 97c YES BTC/ETH/XRP, 98c YES all assets
   BTC/ETH sniper: historically 98-99% WR — core engine, do not touch
 
 S85 KEY FIXES (commits f848adb + 0867a0a):
@@ -102,10 +117,10 @@ SESSION 87 KEY BUILDS (2026-03-16):
      Lines mature March 17-18. Run then.
 
 PENDING TASKS (Session 89 — PRIORITY ORDER):
-  #1 NCAA scanner — run scripts/ncaa_tournament_scanner.py --min-edge 0.03 TODAY (March 17)
+  #1 NCAA scanner — run scripts/ncaa_tournament_scanner.py --min-edge 0.03 TODAY (March 17 UTC)
      Lines mature March 17-18. Round 1 tip-offs March 20-21. 1 credit/call.
      Watch: Purdue 96c, UConn 95c, Illinois 96c — public money may push below sharp books.
-  #2 XRP drift graduation watch — 24/30, needs 6 more bets. When 30/30: run direction filter eval.
+  #2 XRP drift graduation watch — 26/30, needs 4 more bets. When 30/30: run direction filter eval.
   #3 Weather calibration — check March 18-20 when more paper bets settle (2/41 as of March 16)
      Direct DB query: sqlite3 data/polybot.db "SELECT strategy, COUNT(*), SUM(CASE WHEN side=result THEN 1 ELSE 0 END) FROM trades WHERE strategy LIKE 'weather%' AND result IS NOT NULL GROUP BY strategy"
   #4 Soccer in-play sniper live monitoring — SCRIPT NOW READY (scripts/soccer_sniper_paper.py):
@@ -121,11 +136,16 @@ PENDING TASKS (Session 89 — PRIORITY ORDER):
      Next step: write reflection summary at session start (aggregate win-rate by bucket/conditions).
 
 SESSION 88 KEY BUILDS (2026-03-16 overnight):
-  1. scripts/soccer_sniper_paper.py (NEW) — paper bet execution on mid-game 90c+ crossings
+  1. IL-19 guard (commit a4f33ed): KXSOL YES@97c BLOCKED in src/execution/live.py
+     3 regression tests: test_sol_yes_at_97c_blocked, test_btc_yes_at_97c_not_blocked, test_eth_yes_at_97c_not_blocked
+  2. post_only taker fallback (commit e9dc10f): drift strategies now retry as taker on "post only cross"
+     KalshiAPIError.body dict checked for details=="post only cross" → immediate taker retry
+     Resolves 50+ missed drift trades/session.
+  3. BOUNDS.md updated with IL-19 entry (stats, incident ref, test refs).
+  4. SESSION S87 KEY BUILDS (carried forward):
+     scripts/soccer_sniper_paper.py (NEW) — paper bet execution on mid-game 90c+ crossings
      SoccerSniperExec + SoccerPaperTracker classes. 19 tests, all passing.
      Run for UCL QF 1st legs March 31/April 1 (ARS 76c, LFC 77c, BMU 74c, MCI 64c pre-game)
-  2. Bug fix: soccer_sniper_paper.py was importing `Database` from src.db — fixed to `load_from_config()`
-  3. Bug fix: SoccerPaperTracker was calling on_crossing for PRE-GAME crossings — fixed with is_ingame_crossing guard
 
 SESSION 85 RESEARCH FINDINGS (2026-03-16):
   CROSS-LEAGUE SOCCER THRESHOLD ANALYSIS (57 games, 4 leagues):

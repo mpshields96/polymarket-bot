@@ -4416,3 +4416,43 @@ Pattern 1/2 safety improvements, UCL/EPL candlestick analysis.
   4. Weather calibration settle check: March 18-20
   5. CPI speed-play: April 10 08:30 ET
   6. Rate limit discussion with Matthew: currently 15/hour, hitting cap in active hours. Consider 20/hour.
+
+---
+
+## Session 88 Monitoring Continuation — 2026-03-16 05:20-07:35 UTC
+
+### What changed
+- src/execution/live.py: IL-19 guard added (commit a4f33ed)
+  KXSOL YES@97c blocked — 8 bets, 87.5% WR, -17.18 USD loss, needs 97% WR to break even.
+  Loss at KXSOL15M-26MAR160200-00 ($19.40 cost) triggered analysis confirming structural loss.
+  BTC/ETH YES@97c remain unblocked (100% WR, profitable).
+- src/execution/live.py: post_only taker fallback (commit e9dc10f)
+  When drift strategies receive 400 "post only cross", execute() retries as taker (post_only=False).
+  KalshiAPIError.body dict checked: error.details=="post only cross" → immediate second attempt.
+  Resolves 50-60 missed drift trades/session that were silently rejecting.
+- tests/test_live_executor.py: 6 new tests (commits a4f33ed + e9dc10f)
+  TestPerAssetStructuralLossGuards: test_sol_yes_at_97c_blocked + btc/eth not blocked
+  TestPostOnlyTakerFallback: cross retries as taker, taker fail returns None, non-post_only not retried
+- BOUNDS.md: IL-19 entry added with stats, incident reference (KXSOL15M-26MAR160200-00), test refs
+- SESSION_HANDOFF.md: updated PID 54221, session88.log, 1373 tests, -3.11 all-time, IL-19 guard
+
+### Why
+- KXSOL YES@97c structural analysis: 8 bets, 87.5% WR vs 97% needed break-even = clear negative EV.
+  BTC/ETH YES@97c at 100% WR unaffected. SOL-specific volatility creates different bucket dynamics.
+- post_only taker fallback: drift strategies were placing limit orders at spread price causing immediate
+  rejection on post_only=True. 52 rejections in session86, 52 more in session88 before fix.
+  Taker fees (~1.4%) well-covered by drift edge (5-15%).
+
+### Performance (07:35 UTC snapshot)
+  All-time live P&L: -3.11 USD (was -6.88 at last entry — net +3.77 USD from overnight bets)
+  Today live: +41.89 USD (70 settled, 67/70 wins, 96% WR)
+  Sniper buckets confirmed: BTC/ETH 91-98c YES profitable. KXSOL YES@97c now blocked.
+  Bot: RUNNING PID 54221 → /tmp/polybot_session88.log
+
+### Self-rating: A
+  WINS: IL-19 guard prevents recurrence of -17.18 USD structural loss pattern.
+    post_only taker fallback unblocks 50+ drift trades/session.
+    All guard failures caught via analysis (not silent). Bot within $3.11 of all-time breakeven.
+  LESSONS: Check KalshiAPIError.body structure carefully — "details" field vs "message" field.
+    post_only rejection is not an error condition — it's a market state signal. Retry correctly.
+
