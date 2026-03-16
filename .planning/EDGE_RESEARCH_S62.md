@@ -3055,3 +3055,19 @@ POST-MARCH 16 00:00 UTC (full guard stack): 35/35 wins, ZERO losses, +34.30 USD.
 
 CONCLUSION: No time-of-day filtering needed. The guard stack eliminates the structural loss pattern.
 The edge is intact 24 hours per day. Do not add time-of-day filters.
+
+### KXSOL YES@93c Bucket Deep Dive (Session 88 overnight)
+Full detail: 14 bets (March 13+, all full-size era), 13/14 wins (92.9% WR), +6.63 USD.
+Single loss: 2026-03-13 03:23 UTC, -4.65 USD.
+Break-even WR at 93c = 93.0%. Actual 92.9% WR = statistically at break-even.
+
+Comparison: KXSOL YES@94c = 12 bets, 91.7% WR, -7.28 USD → BLOCKED (IL-10A).
+Pattern: 93c is 1% less risky than 94c, but still borderline.
+
+DECISION: Do NOT add guard yet. Need 20+ bets for statistical reliability.
+Check again at 20 bets (current 14 → need 6 more).
+If at 20 bets WR < 93% AND P&L negative: add guard for KXSOL YES@93c.
+If at 20 bets WR >= 93% AND P&L positive: no action, continue monitoring.
+
+NOTE: The IL-10A guard (KXSOL YES@94c) is correct and should NOT be removed.
+The 93c bucket is different and needs more data.
