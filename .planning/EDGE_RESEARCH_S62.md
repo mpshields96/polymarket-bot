@@ -3039,3 +3039,19 @@ src/db.py exports `DB` class and `load_from_config()` function, NOT `Database`. 
 ### Bot Status (S88)
 PID: 26391, running. Guards: IL-5/IL-10/IL-10A/B/C/IL-11 all active (confirmed 1367 tests passing).
 Active strategies: expiry_sniper (PRIMARY), sol_drift, xrp_drift (micro), eth_drift, btc_drift.
+
+### Time-of-Day Loss Pattern Analysis (Session 88 overnight)
+Investigated whether specific UTC hours (07, 13, 18, 22) had structural losses suggesting an edge.
+
+FINDING: ALL "losing hours" bets trace to pre-full-guard era bets at guarded price levels:
+- yes@86c (slippage from 90c signal — slippage guard now caps at 3c)
+- yes@97c KXXRP (blocked by IL-10A/B)
+- no@98c (blocked by IL-11)
+- yes@94c KXXRP (blocked by IL-10A)
+- no@97c (blocked by IL-10)
+- yes@99c (blocked by IL-5)
+
+POST-MARCH 16 00:00 UTC (full guard stack): 35/35 wins, ZERO losses, +34.30 USD.
+
+CONCLUSION: No time-of-day filtering needed. The guard stack eliminates the structural loss pattern.
+The edge is intact 24 hours per day. Do not add time-of-day filters.
