@@ -1,11 +1,11 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-16 (Session 87 final wrap — monitoring clean, +14.56 USD today, -30.44 all-time)
+# Last updated: 2026-03-16 (Session 88 overnight research — soccer sniper paper built, +34.41 USD today, -10.59 all-time)
 # ═══════════════════════════════════════════════════════════════
 
-## COPY-PASTE THIS TO START A NEW SESSION (Session 88)
+## COPY-PASTE THIS TO START A NEW SESSION (Session 89)
 
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 88).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 89).
 
 MANDATORY READING BEFORE ANY ACTION:
   cat SESSION_HANDOFF.md
@@ -13,12 +13,11 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 87 final wrap — 2026-03-16 ~03:40 UTC):
-  Bot RUNNING PID 26391 → /tmp/polybot_session86.log
-  All-time live P&L: -30.44 USD (today +14.56 USD live, 100% WR, 21 settled)
-  Tests: 1348 passing. Last commit: 5c45557 (Session 87 — strategy_analyzer + NCAA verify)
+BOT STATE (Session 88 overnight — 2026-03-16 UTC):
+  Bot RUNNING PID 26391 → /tmp/polybot_session88.log (may still be session86.log)
+  All-time live P&L: -10.59 USD (today +34.41 USD live, 33/33 sniper wins, 100% WR)
+  Tests: 1367 passing. Last commit: 74a74a9 (feat: soccer sniper paper execution module)
   Config: MAX_TRADE_PCT=15%, HARD_MAX=20 USD, ALL guards active (IL-5/IL-10/IL-10A/B/C/IL-11)
-  Sniper active: 18/18 wins today, +13.00 USD today (100% WR)
   XRP drift: 24/30 live bets (needs 6 more for graduation eval)
   SOL drift: 30/30 Stage 1 (full Kelly + 20 USD cap, already graduated S81)
 
@@ -100,23 +99,31 @@ SESSION 87 KEY BUILDS (2026-03-16):
   3. NCAA scanner verified: 64 KXNCAAMBGAME markets open, 0 edges above 3% today (March 16).
      Lines mature March 17-18. Run then.
 
-PENDING TASKS (Session 88 — PRIORITY ORDER):
+PENDING TASKS (Session 89 — PRIORITY ORDER):
   #1 NCAA scanner — run scripts/ncaa_tournament_scanner.py --min-edge 0.03 TODAY (March 17)
      Lines mature March 17-18. Round 1 tip-offs March 20-21. 1 credit/call.
      Watch: Purdue 96c, UConn 95c, Illinois 96c — public money may push below sharp books.
   #2 XRP drift graduation watch — 24/30, needs 6 more bets. When 30/30: run direction filter eval.
   #3 Weather calibration — check March 18-20 when more paper bets settle (2/41 as of March 16)
      Direct DB query: sqlite3 data/polybot.db "SELECT strategy, COUNT(*), SUM(CASE WHEN side=result THEN 1 ELSE 0 END) FROM trades WHERE strategy LIKE 'weather%' AND result IS NOT NULL GROUP BY strategy"
-  #4 Soccer in-play sniper live monitoring — FIRST LIVE OPPORTUNITY:
+  #4 Soccer in-play sniper live monitoring — SCRIPT NOW READY (scripts/soccer_sniper_paper.py):
      EPL: BRE vs WOL (March 30), UCL QF 1st legs: March 31 (ARS, MCI, CFC, SPO) + April 1 (BAR, LFC, BMU, ATM)
-     Pre-game >= 0.60 threshold → 75% MID_GAME rate. UCL/La Liga preferred leagues.
-     Monitor scripts/soccer_live_monitor.py from 30 min before kickoff.
+     La Liga/EPL resume March 21-22.
+     Run: python3 scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR31
+     Pre-game >= 0.60 threshold → paper bets placed automatically on 90c+ crossings during game.
   #5 SOL YES 93c bucket watch — check at 20+ Stage 1 bets (currently 13 total, mostly calibration era)
   #6 CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)
   #7 KXGDP speed-play — April 30 (GDP release, KXGDP at 0c/0 volume as of March 16 — check April 23-24)
   #8 Self-learning journal — implement scripts/strategy_analyzer.py pattern output → session start reflection
      Architecture designed in CCA SESSION_STATE.md Part 2. DB is already the journal.
      Next step: write reflection summary at session start (aggregate win-rate by bucket/conditions).
+
+SESSION 88 KEY BUILDS (2026-03-16 overnight):
+  1. scripts/soccer_sniper_paper.py (NEW) — paper bet execution on mid-game 90c+ crossings
+     SoccerSniperExec + SoccerPaperTracker classes. 19 tests, all passing.
+     Run for UCL QF 1st legs March 31/April 1 (ARS 76c, LFC 77c, BMU 74c, MCI 64c pre-game)
+  2. Bug fix: soccer_sniper_paper.py was importing `Database` from src.db — fixed to `load_from_config()`
+  3. Bug fix: SoccerPaperTracker was calling on_crossing for PRE-GAME crossings — fixed with is_ingame_crossing guard
 
 SESSION 85 RESEARCH FINDINGS (2026-03-16):
   CROSS-LEAGUE SOCCER THRESHOLD ANALYSIS (57 games, 4 leagues):

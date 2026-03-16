@@ -3006,3 +3006,36 @@ WHY 94-98% WR STILL LOSES: Fee math at 97c.
 4. CPI speed-play: April 10 08:30 ET
 5. strategy_analyzer --brief at every session start (now mandatory via POLYBOT_INIT Rule 1)
 6. eth_drift declining trend watch (49% WR, DECLINING — monitor but don't change parameters)
+
+---
+
+## Session 88 (2026-03-16 overnight) — Soccer Sniper Paper Module Built
+
+### Main Deliverable: soccer_sniper_paper.py
+Built and fully tested (19/19 tests passing). Implements:
+- SoccerSniperExec: paper bet placement with guards (PRE-GAME filter, fee-floor 99c/1c, pre-game price < 60c, one bet per market per session)
+- SoccerPaperTracker(PriceTracker): pre-game price tracking + first-crossing detection. Only fires on in-game crossings (PRE-GAME filtered at tracker level, not just exec level)
+- CLI entrypoint with --series (KXUCLGAME/KXEPLGAME/KXLALIGAGAME/KXSERIEAGAME), --date, --poll args
+
+Key architecture decision: PRE-GAME filter applied in BOTH SoccerPaperTracker (before calling on_crossing) AND SoccerSniperExec (inside on_crossing) for defense in depth.
+
+### Session P&L
+Today (2026-03-16 UTC): +34.41 USD live. 33/33 expiry_sniper wins (100% WR).
+All-time live P&L: -10.59 USD (was ~-30 USD at start of session — massive improvement).
+Note: SESSION_HANDOFF/POLYBOT_INIT may show a different all-time figure due to accounting method.
+
+### Dead End: Database import
+src/db.py exports `DB` class and `load_from_config()` function, NOT `Database`. Fixed in soccer_sniper_paper.py.
+
+### Priority Stack Update (after S88)
+1. NCAA scanner — run March 17-18 (TODAY). Existing script ready. Command: python3 scripts/ncaa_tournament_scanner.py --min-edge 0.03
+2. XRP drift graduation (24/30, needs 6 more live settled bets)
+3. Soccer in-play monitoring: EPL March 21-22, La Liga March 21-22, UCL QF March 31/April 1
+   Command: python3 scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR31
+4. Weather calibration: check settling bets with python3 scripts/weather_calibration.py --pending
+5. CPI speed-play: April 10 08:30 ET (script ready)
+6. KXGDP speed-play: April 30
+
+### Bot Status (S88)
+PID: 26391, running. Guards: IL-5/IL-10/IL-10A/B/C/IL-11 all active (confirmed 1367 tests passing).
+Active strategies: expiry_sniper (PRIMARY), sol_drift, xrp_drift (micro), eth_drift, btc_drift.
