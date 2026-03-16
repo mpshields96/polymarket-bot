@@ -4130,3 +4130,72 @@ Pattern 1/2 safety improvements, UCL/EPL candlestick analysis.
   2. Weather calibration ~04:00 UTC March 16
   3. Soccer monitoring: EPL BRE vs WOL March 30, UCL QF March 31/April 1
   4. XRP drift graduation watch (22/30)
+
+---
+
+## Session 85 — 2026-03-16 (Research + Critical Bug Fix)
+
+### Research focus
+  NCAA tournament scanner validation + cross-league soccer threshold analysis
+  + Sniper guard audit + critical slippage bug discovery and fix
+
+### NCAA tournament scanner — fixed and validated
+  Scanner had been BROKEN since creation (S75) — never successfully ran:
+    Bug 1: fetch_odds_api_games("basketball_ncaab", odds_key) → args swapped → HTTP 401 every run
+    Bug 2: comparison.sharp_prob → AttributeError (correct field: sharp_yes_prob/sharp_no_prob)
+  Now working: 64 Kalshi NCAAB markets found, 32 sharp book games matched (19 comparisons)
+  Current spreads: 0.1–1.3% (not yet 3%+ threshold). Prices expected to widen March 17-18.
+  Regression tests added (TestNCAATournamentScannerBugs, 3 tests). Commit f848adb.
+
+### Cross-league soccer threshold analysis — key calibration
+  57 games across 4 leagues (EPL, UCL, La Liga, Serie A):
+    Pre-game >= 0.60: 75% MID_GAME rate (6/8 games) — revised from prior "45c" estimate
+    UCL: 44% MID_GAME (4/9) | La Liga: 44% | EPL: 13% | Serie A: 20%
+  Key finding: 0.60 pre-game filter is the validated entry threshold for soccer sniper.
+  UCL + La Liga are best markets (higher liquidity and market quality).
+
+### CRITICAL BUG FIX: sniper slippage guard hole (S85)
+  Bug: SOL YES@83c loss on 2026-03-16 02:07 UTC (-18.26 USD). Mechanism:
+    1. Signal fired at 90c (WebSocket price)
+    2. main.py guard: _live_price >= 87 → passed
+    3. Orderbook ask showed 83c (makers pulled liquidity during volatile expiry)
+    4. live.py default slippage limit = 10c. |83-90| = 7c < 10 → executed
+    5. SOL dropped, resolved NO → -18.26 USD loss
+  Fix: added max_slippage_cents=3 parameter to execute() in live.py. Sniper passes 3.
+  Orderbook divergence of 3c+ from signal price now rejects execution.
+  Drift strategies unchanged (default 10c still applies).
+  3 regression tests added (TestSniperMaxSlippageCents). Commit 0867a0a.
+
+### Guard audit — comprehensive review of all sniper buckets
+  All negative-EV buckets with 5+ bets are guarded. No new guards needed.
+  Watch item: SOL YES 93c (13 bets, 92% WR vs 93% break-even, -0.7% margin).
+    P&L is +5.85 USD because losses came during calibration-era tiny bets.
+    At Stage 1 sizing going forward: expected loss -0.14 USD per bet. Revisit at 20+ Stage 1 bets.
+  Corrected break-even formula: BE_WR = price_cents/100 for ANY side (not side-dependent).
+
+### Tools built
+  max_slippage_cents param in src/execution/live.py (kwarg, default=None=10c)
+  main.py expiry_sniper_loop: passes max_slippage_cents=3 to execute()
+  TestSniperMaxSlippageCents: 3 regression tests
+  TestNCAATournamentScannerBugs: 3 regression tests (already in test_ncaab_monitor.py)
+
+### Self-rating: A-
+  DISCOVERIES: Found and fixed a live money bug (slippage guard hole) that was causing ~1-in-16
+    sniper bets to take full loss (-18 USD) when orderbook diverged from signal. This is a real fix
+    with quantifiable impact. NCAA scanner was completely broken since creation — now usable.
+    Cross-league threshold calibrated to 60c pre-game (from prior "45c" estimate).
+  TOOLS BUILT: max_slippage_cents param (critical), NCAA scanner functional, 6 regression tests
+  DEAD ENDS CONFIRMED: Non-crypto 90c+ market expansion confirmed closed (0/2000). SOL 93c YES
+    is borderline but not structural at current sample size.
+  EDGES FOUND: Sniper guard hole was costing money — fixing it preserves the +306 USD edge engine.
+  WHY A- not A: Bug fix session more than edge discovery. Soccer edge still unconfirmed in live action.
+  KEY FINDING: The sniper's main.py pre-guard and live.py execution-guard had different thresholds
+    (3c vs 10c), creating a 3-10c window where orderbook divergence could bypass both guards.
+    This explains some of the "unexplained" sniper losses. Fixed.
+
+### Next session priorities
+  1. NCAA scanner March 17-18 (Round 1 markets open) — run at 09:00 ET each day
+  2. Soccer monitoring: EPL BRE vs WOL March 30, UCL QF March 31/April 1 (ARS, LFC, MCI)
+  3. SOL YES 93c watch: check at 20+ Stage 1 bets before considering guard
+  4. XRP drift graduation watch (23/30, needs 7 more)
+  5. Weather calibration March 18-20 (more bets should settle by then)

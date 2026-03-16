@@ -2871,3 +2871,80 @@ SNIPER VALIDITY FOR QF 1ST LEGS:
     NBA in-game sniper (75x capital efficiency loss), KXMV parlay markets (zero volume),
     KXGDP (not liquid yet -- revisit April 23-24)
 
+
+### 50. SNIPER SLIPPAGE GUARD HOLE — FIXED S85
+
+  Bug discovered via bucket analysis on 2026-03-16:
+    SOL YES@83c loss at 02:07 UTC (-18.26 USD)
+    Signal fired at 90c. main.py guard: _live_price=90 >= 87 (signal-3) → passed.
+    Orderbook ask was 83c (7c below signal). live.py limit: 10c. 7c < 10c → executed.
+    SOL dropped, resolved NO → loss.
+
+  Root cause: two slippage guards with inconsistent thresholds:
+    main.py: _MAX_SLIPPAGE_CENTS=3 (checks WebSocket price vs signal)
+    live.py: _EXECUTION_MAX_SLIPPAGE_CENTS=10 (checks orderbook price vs signal)
+    Gap: if WebSocket shows 90c but orderbook shows 83c, main.py guard passes (90 >= 87)
+    but the actual execution is at 83c — 7c slippage passes live.py's 10c limit.
+
+  Fix: added max_slippage_cents=3 kwarg to execute(). Sniper passes max_slippage_cents=3.
+  This aligns the execution-time check with the pre-execution intent.
+  Drift strategies unchanged (still use 10c default — appropriate for 50-65c signals).
+  3 regression tests: TestSniperMaxSlippageCents. Commit 0867a0a.
+
+  Impact: prevents ~1/16 post-guard sniper bets from taking full loss due to orderbook drought.
+  Expected improvement: +18 USD per ~16-17 bets (the rate at which this occurred).
+
+### 51. SNIPER BUCKET AUDIT — FULL HISTORICAL ANALYSIS S85
+
+  Full audit of all sniper buckets with 5+ bets:
+  Correct break-even formula: BE_WR = price_cents/100 for ANY side (buyer's price / 1.00).
+
+  Guarded buckets (historical data confirms losses, now blocked):
+    XRP YES 94c: 15 bets, 93% WR, BE=94%, -9.09 USD [GUARDED S81]
+    SOL YES 94c: 12 bets, 92% WR, BE=94%, -7.28 USD [GUARDED S81]
+    XRP YES 97c:  6 bets, 83% WR, BE=97%, -18.04 USD [GUARDED S81]
+    XRP NO 98c:   5 bets, 80% WR, BE=98%, -18.07 USD [GUARDED S74 — 96c+ NO]
+    XRP NO 97c:   4 bets, 75% WR, BE=97%, -17.43 USD [GUARDED S74]
+
+  Watch items (sample too small for guard, but below break-even):
+    SOL YES 93c: 13 bets, 92% WR, BE=93%, -0.7% margin, +5.85 USD P&L
+      P&L positive because losses came during calibration-era tiny bets.
+      At Stage 1 sizing: expected -0.14 USD per bet going forward.
+      Re-evaluate at 20+ Stage 1 bets. If WR stays below 93%, add guard.
+    BTC YES 93c:  4 bets, 75% WR, BE=93%, -18% margin, -1.53 USD (small sample, variance)
+
+  All other 5+ bet buckets: either above break-even or already guarded.
+  Conclusion: guards are comprehensive. Slippage fix is the remaining structural improvement.
+
+### UPDATED PRIORITY STACK (Session 85)
+
+  1. NCAA scanner — re-run daily March 17-18
+     Command: python scripts/ncaa_tournament_scanner.py --min-edge 0.03
+     Current spread: 0.1-1.3% (widening expected closer to game time)
+     Watch: 1-seed favorites (Purdue 96c, UConn 95c, Illinois 96c) — public money may push
+     lower creating 3%+ edge vs Pinnacle sharp books
+
+  2. Soccer live monitoring — FIRST LIVE OPPORTUNITY:
+     EPL BRE vs WOL March 30 ~20:00 UTC (pre-game threshold: need 60c+ favorite)
+     UCL QF 1st legs: March 31 (ARS, MCI, CFC, SPO) + April 1 (BAR, LFC, BMU, ATM)
+     ARS/LFC/MCI all expected at 60c+ pre-game → 75% MID_GAME rate
+     Monitor scripts/soccer_live_monitor.py from 30 min before kickoff
+
+  3. SOL YES 93c watch — check at 20+ Stage 1 bets
+     Current: 13 bets total (most calibration-era). Need post-graduation data.
+     If WR stays at 92% across 20 Stage 1 bets: add guard (saves ~0.14 USD/bet).
+
+  4. Weather calibration — check March 18-20 (only 2/41 settled as of March 16)
+     Key question: LAX warm bias in GEFS forecasts? Need 20+ settled per city.
+
+  5. XRP drift graduation — 23/30 settled (7 more needed)
+     When 30/30: run YES/NO direction filter eval
+
+  6. CPI speed-play — April 10 08:30 ET
+  7. GDP speed-play — check KXGDP April 23-24
+
+  DEAD ENDS (cumulative, S85 additions in brackets):
+    [S85] Sniper guard audit: no new buckets need guarding beyond S74/S81 guards.
+    [S85] SOL NO 8c (3 bets, 67% WR): too small to guard, may be variance.
+    [S85] NCAA scanner spread at bracket announcement: 0.1-1.3% (not actionable yet).
+    All prior dead ends from S84 and before.
