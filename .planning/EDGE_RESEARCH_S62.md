@@ -3297,3 +3297,15 @@ Current pace: 3 YES bets/day → Stage 1 eval around March 20-21
 5. March 20-21: XRP drift Stage 1 graduation eval (30 YES-only bets)
 6. Next restart: Disable weather strategy (no edge at any price)
 7. CPI speed-play April 10 08:30 ET
+
+### eth_orderbook_imbalance — Session 92 Detailed Analysis
+
+Retrospective filter applied to all 97 settled paper bets:
+  YES 52-65c: 26/39 = 66.7% WR | +21.09 USD — PROFITABLE
+  YES 35-51c: 11/31 = 35.5% WR | -33.03 USD — correctly blocked by new filter
+  NO 35-44c: 6/13 = 46.2% WR | +1.39 USD — profitable (break-even ~40%)
+  Filtered total: 42/64 = 65.6% WR | p~0.006 (z=2.50)
+
+IMPORTANT: These 64 bets are IN-SAMPLE (used to derive filter). Not out-of-sample.
+Live activation gate: 20+ NEW paper bets (post-filter deploy = post-March 17) at 60%+ WR.
+Filter deployed commit a870a60. New paper bets will auto-apply filter. ETA ~7-10 days.
