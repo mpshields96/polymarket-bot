@@ -138,4 +138,4 @@ STANDING DIRECTIVES
 - Matthew is a doctor with a new baby — no time for back-and-forth
 - Two parallel chats may run — keep overhead under 15% per chat
 - Loading screen tip at end of every response (one recommendation)
-- Target: +125 USD all-time profit. Currently -34.53 USD. Need +159.53 more.
+- Target: +125 USD all-time profit. Currently +51.21 USD. Need 73.79 more.

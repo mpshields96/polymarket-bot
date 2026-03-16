@@ -3088,3 +3088,84 @@ XRP YES@97c is correctly blocked. The historical -18.04 USD won't recur.
 
 SESSION_HANDOFF "97c YES all assets profitable" is correct — means non-XRP assets.
 XRP specifically has additional guards (IL-10A/B) beyond the general price guards.
+
+---
+
+## SESSION 90 RESEARCH — 2026-03-16 (Diagnostics + Crash Fix)
+
+### 52. BOT DEATH ROOT CAUSE — IDENTIFIED AND FIXED (commit 2d1ffed)
+
+**Root cause**: asyncio.gather() at main.py line 3286 lacked return_exceptions=True.
+When ANY asyncio task raises an unhandled exception (not CancelledError), gather()
+cancels ALL other tasks and propagates the exception. The except clause only catches
+(KeyboardInterrupt, asyncio.CancelledError) — any other exception crashes the bot.
+
+**Evidence**: S89 had 3 crashes in 2 hours. Each task has try/except handlers, but if
+an exception occurs BEFORE the main while True loop (e.g., in initialization code
+or in code between the except and the await at loop end), it could propagate to gather.
+
+**Fix**: return_exceptions=True + CRITICAL log for each dying task + crash file at
+data/polybot_crash.log. Bot now survives individual task failures.
+
+**Tests**: 1388/1388 passing after fix.
+
+### 53. XRP DRIFT GRADUATION STATUS — CLARIFIED
+
+direction_filter="yes" was ALREADY in main.py since Session 54 (line 2993).
+SESSION_HANDOFF task "add direction_filter='yes'" was already done.
+
+Current XRP state (30/30 bets):
+  YES: 19 bets, 63.2% WR, +1.60 USD (with filter active)
+  NO: 11 bets, 36.4% WR, -2.43 USD (pre-filter historical)
+
+For Stage 1 eval: need 30 YES-only bets. Currently have 19 post-filter YES bets.
+Statistical significance: p(63.2%+ with 19 samples) ~ 0.18 → not significant at 5%.
+Keep calibration_max_usd=0.01 until 30 YES-only bets accumulated.
+
+### 54. WEATHER PAPER CALIBRATION — FAILING (do not pursue live bets)
+
+Paper WR (3-7 settled bets per city):
+  CHI: 57% WR, -12.67 USD (needs 80%+ to be profitable at 80c prices)
+  LAX: 50% WR, -17.08 USD
+  MIA: 25% WR, -18.40 USD
+  DEN: 33% WR, -12.00 USD
+
+Despite scanner showing 16-17% GEFS vs Kalshi edges, calibration is negative.
+HYPOTHESIS: Smart money already incorporates GEFS in Kalshi weather prices.
+The scanner's apparent edge may be mirage from model miscalibration.
+
+ACTION: Continue paper bets for calibration. Need 4+ more weeks of data.
+Do NOT live-trade weather based on scanner alone. Paper validation FIRST.
+
+**DEAD END CONFIRMED**: Live weather trading until paper WR exceeds 75% at 20+ bets.
+
+### 55. NCAA SCANNER — NOT YET MATURE (run March 17-18)
+
+Result: 96 NCAAB markets open, 0 edges above 3% threshold.
+Lines not mature as of March 16. Re-run March 17-18.
+Round 1 tip-offs: March 20-21. Credit cost: 1/run.
+
+### 56. SNIPER GUARD VALIDATION — ALL GUARDS CONFIRMED CORRECT
+
+97c YES breakdown (all-time):
+  BTC: 5 bets, 100% WR, +1.48 USD — profitable, keep open
+  ETH: 8 bets, 100% WR, +2.36 USD — profitable, keep open
+  SOL: 8 bets, 87.5% WR, -17.18 USD — GUARDED (IL-19)
+  XRP: 6 bets, 83.3% WR, -18.04 USD — GUARDED (IL-10B)
+
+Strategy_analyzer "guard candidate: 97c" is a FALSE ALARM — the losing sub-buckets
+are already guarded. The analyzer aggregates across assets without knowing guard status.
+Improvement needed: add asset awareness to analyzer so guarded buckets are marked.
+
+### Session 90 Priority Stack Update
+
+1. NCAA scanner — run March 17-18 (lines now mature or will be by then)
+2. XRP drift YES-only accumulation (19/30 post-filter, need 11 more)
+3. Weather calibration — check at 20+ bets (ongoing paper)
+4. Soccer in-play sniper — EPL March 30, UCL QF March 31/April 1
+5. CPI speed-play — April 10 08:30 ET
+6. Strategy_analyzer improvement — add guard-awareness for bucket analysis
+
+### Dead ends (new additions from S90)
+- Weather live trading: paper WR 25-57% vs 80%+ needed. Not viable until 75%+ at 20+ bets.
+- XRP graduation via direction analysis alone: need 30 YES-only bets (statistical requirement)
