@@ -14,10 +14,11 @@ MANDATORY READING BEFORE ANY ACTION:
   cat .planning/PRINCIPLES.md
 
 BOT STATE (Session 85 wrap — 2026-03-16 UTC):
-  Bot RUNNING PID 9054 → /tmp/polybot_session81.log
+  Bot RUNNING PID 24138 → /tmp/polybot_session85.log
   All-time live P&L: -40.90 USD (today +4.10 USD live, 100% WR — 6 settled)
-  Tests: 1322 passing. Last commit: 9e72bfe (Session 85 research doc)
+  Tests: 1325 passing. Last commit: 0867a0a (fix: sniper max_slippage_cents=3)
   Config: MAX_TRADE_PCT=15%, HARD_MAX=20 USD, ALL guards active (IL-5/IL-10/IL-10A/B/C/IL-11)
+  NEW S85: max_slippage_cents=3 for expiry_sniper (blocks 7c orderbook divergence)
   Bankroll: ~100 USD (estimate)
   XRP drift: 23/30 live bets (needs 7 more for graduation eval)
   SOL drift: 30/30, Brier 0.191, READY FOR LIVE (already Stage 1)
@@ -46,8 +47,8 @@ SESSION 81 KEY CHANGES (2026-03-15 monitoring chat):
      7 regression tests in TestPerAssetStructuralLossGuards
   5. Pattern 2 verify-revert PostToolUse hook deployed (commit cd9702f)
 
-RESTART COMMAND (Session 85 — use session85.log):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session85.log 2>&1 &
+RESTART COMMAND (Session 86 — use session86.log):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session86.log 2>&1 &
   Then verify: ps aux | grep "[m]ain.py" — exactly 1. Then cat bot.pid.
 
 If --health shows "HARD STOP": HISTORICAL. The 30% lifetime stop was DISABLED in S34.
