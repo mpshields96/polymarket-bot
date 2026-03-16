@@ -1,11 +1,11 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-16 11:56 UTC (Session 89 monitoring wrap — +74.87 USD today, +29.87 all-time!)
+# Last updated: 2026-03-16 22:25 UTC (Session 90 monitoring wrap — +51.21 USD all-time, Stage 2 bankroll!)
 # ═══════════════════════════════════════════════════════════════
 
-## COPY-PASTE THIS TO START A NEW SESSION (Session 90)
+## COPY-PASTE THIS TO START A NEW SESSION (Session 91)
 
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 90).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 91).
 
 MANDATORY READING BEFORE ANY ACTION:
   cat SESSION_HANDOFF.md
@@ -13,21 +13,30 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 89 monitoring — 2026-03-16 11:56 UTC):
-  Bot RUNNING PID 57302 → /tmp/polybot_session88.log
-  All-time live P&L: +29.87 USD (TODAY +74.87 USD live, 123 settled, 112/123 wins, 91% WR)
-  Tests: 1376 passing. Last commit: 6c520e3 (docs: Session 88 final wrap — guard IL-20 deployed)
+BOT STATE (Session 90 monitoring — 2026-03-16 22:25 UTC):
+  Bot RUNNING PID 31365 → /tmp/polybot_session90.log
+  All-time live P&L: +51.21 USD (TODAY +96.21 USD live, 143 settled, 92% WR)
+  Tests: 1388 passing. Last commit: 2d1ffed (fix: return_exceptions=True crash fix S90)
   Config: MAX_TRADE_PCT=15%, HARD_MAX=20 USD, ALL guards active (IL-5/IL-10/IL-10A/B/C/IL-11/IL-19/IL-20)
-  XRP drift: 29/30 live bets (needs 1 MORE for graduation eval — IMMINENT)
-  SOL drift: 33/30 Stage 1 (full Kelly + 20 USD cap, already graduated S81)
-  SESSION 89 KEY EVENTS (2026-03-16 monitoring — 05:22–11:56 UTC):
-  - Bot died 3 times (06:20, 07:32, ~08:24 UTC) — restarted each time, no missed bets confirmed
-  - KXSOL YES@97c loss (-19.40 USD) at 06:01 — pre-IL-19, now guarded
-  - KXXRP YES@95c loss (-19.95 USD) at 08:16 — triggered IL-20, now guarded
-  - NCAA scanner ran: 0 edges found (March 16 UTC, lines not mature — run March 17)
-  - XRP drift progressed 24/30 → 29/30 (one bet from graduation)
-  - XRP direction eval (29 bets): YES 18 bets 61% WR +1.27 USD | NO 11 bets 36% WR -2.43 USD
-    → direction_filter="yes" confirmed correct, consider blocking NO side at graduation
+  STAGE 2: bankroll 213.34 USD → sizing.py Stage 2 (100-250 USD) → drift bets cap at 10 USD/bet
+  XRP drift: 30/30 live bets — GRADUATION THRESHOLD MET (Brier 0.258 < 0.30)
+    direction_filter="yes" already active since S54. Keeping MICRO-live (calibration_max=0.01).
+    Reason: btc_drift and eth_drift BOTH demoted to micro-live in S60 (48%/49% WR). Conservative.
+  SOL drift: 34/30 Stage 1 (full Kelly + 20 USD cap, graduated S81)
+  SESSION 90 MONITORING KEY EVENTS (2026-03-16 21:17–22:25 UTC):
+  - Bot crashed at 17:22 UTC (PID 18772 → 31365) — Binance.US WebSocket 1011 keepalive timeout
+    All 4 feeds disconnected simultaneously. Auto-restarted successfully.
+  - XRP drift hit 30/30 — graduation analyzed. direction_filter="yes" confirmed working.
+    Keeping MICRO-live: btc_drift and eth_drift both demoted micro in S60 (main.py confirms).
+  - Guard validation: IL-19 (KXSOL YES@97c) CONFIRMED WORKING — no bets since 05:58 UTC.
+    YES@90c: 9 bets, 89% WR < 90.9% break-even. WATCH at 20+ bets.
+  - NCAA scanner: 0 edges March 16. Run again today (March 17 UTC — lines NOW mature).
+  - Strategy analyzer "losing buckets: 98/97/96c" = STALE (includes pre-guard data). Guards working.
+  SESSION 90 RESEARCH KEY BUILDS (2026-03-16 earlier):
+  - CRASH FIX: asyncio.gather() return_exceptions=True (commit 2d1ffed)
+  - WEATHER DEAD END CONFIRMED: paper 25-57% WR vs 80%+ needed. Do NOT pursue live weather.
+  - NCAA scanner: 0 edges (March 16, lines not mature). Re-run March 17-18.
+  - XRP direction_filter="yes" confirmed already in place — no code change needed.
   SESSION 88 KEY BUILDS (2026-03-16 overnight):
   - IL-19 guard (commit a4f33ed): KXSOL YES@97c BLOCKED — 8 bets, 87.5% WR, -17.18 USD, 97% WR needed
     Loss at KXSOL15M-26MAR160200-00 triggered analysis. Guard is now live in execution/live.py.
@@ -68,8 +77,8 @@ SESSION 81 KEY CHANGES (2026-03-15 monitoring chat):
      7 regression tests in TestPerAssetStructuralLossGuards
   5. Pattern 2 verify-revert PostToolUse hook deployed (commit cd9702f)
 
-RESTART COMMAND (Session 89 — use session89.log):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session89.log 2>&1 &
+RESTART COMMAND (Session 91 — use session91.log):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session91.log 2>&1 &
   Then verify: ps aux | grep "[m]ain.py" — exactly 1. Then cat bot.pid.
 
 If --health shows "HARD STOP": HISTORICAL. The 30% lifetime stop was DISABLED in S34.
@@ -95,10 +104,11 @@ If --health shows "HARD STOP": HISTORICAL. The 30% lifetime stop was DISABLED in
 
 ---
 
-GRADUATION STATUS (2026-03-16 UTC — Session 89 monitoring):
-  sol_drift_v1: 33/30 bets, Brier 0.191, P&L: stage1 active — GRADUATED (calibration_max=None, full Kelly)
-  xrp_drift_v1: 29/30 bets — 1 MORE BET TO GRADUATION. Direction: YES 61% WR +1.27 USD, NO 36% WR -2.43 USD
-  expiry_sniper_v1: 123+ live bets today, 99/101 (98% WR), +66.09 USD today — CORE ENGINE
+GRADUATION STATUS (2026-03-16 UTC — Session 90 research):
+  sol_drift_v1: 34/30 bets, Brier 0.191, +9.04 USD — GRADUATED Stage 1 (full Kelly, calibration_max=None)
+  xrp_drift_v1: 30/30 bets DONE — direction_filter="yes" ALREADY ACTIVE since S54
+    YES-only (post-filter): 19 bets, 63.2% WR. Need 30 YES-only bets for Stage 1 eval. Keep micro-live.
+  expiry_sniper_v1: 140+ live bets today, 91% WR, +92.22 USD today — CORE ENGINE
 
 SNIPER BUCKET STATUS (full guard stack — do NOT change without Matthew approval):
   BLOCKED: 96c both sides (IL-10), 97c NO (IL-10), 98c NO (IL-11), 99c/1c (IL-5)
@@ -124,31 +134,30 @@ SESSION 87 KEY BUILDS (2026-03-16):
   3. NCAA scanner verified: 64 KXNCAAMBGAME markets open, 0 edges above 3% today (March 16).
      Lines mature March 17-18. Run then.
 
-PENDING TASKS (Session 90 — PRIORITY ORDER):
-  #0 BOT DEATHS ROOT CAUSE — 3 crashes in 2 hrs (06:20, 07:32, 08:24 UTC March 16). INVESTIGATE.
-     grep -i "exception\|traceback\|killed\|oom\|memory" /tmp/polybot_session88.log | tail -30
-     If OOM: reduce concurrent loops or add memory monitoring. If asyncio crash: add exception guard.
-     This is a RELIABILITY RISK — every death = missed bets = missed money.
-  #1 XRP drift graduation — 29/30 (needs 1 MORE bet). When 30/30: run direction filter eval.
-     Direction data: YES 18/29 (61% WR, +1.27 USD) vs NO 11/29 (36% WR, -2.43 USD)
-     Action: add direction_filter="yes" to xrp_drift in main.py (confirmed correct direction)
-     Consider: also add IL-21 guard for XRP drift NO side (structural -3.70 USD/bet EV)
-  #2 NCAA scanner — run scripts/ncaa_tournament_scanner.py --min-edge 0.03 (March 17 UTC — TODAY)
-     Lines mature March 17-18. Round 1 tip-offs March 20-21. 1 credit/call.
+PENDING TASKS (Session 91 — PRIORITY ORDER):
+  #0 NCAA scanner — run scripts/ncaa_tournament_scanner.py --min-edge 0.03 (March 17 UTC = TODAY)
+     Lines now mature. Round 1 tip-offs March 20-21. 1 credit/call. SDATA: 339/500 (68%).
      Watch: Purdue 96c, UConn 95c, Illinois 96c — public money may push below sharp books.
-  #3 Weather calibration — check March 18-20 when more paper bets settle (2/41 as of March 16)
-     Direct DB query: sqlite3 data/polybot.db "SELECT strategy, COUNT(*), SUM(CASE WHEN side=result THEN 1 ELSE 0 END) FROM trades WHERE strategy LIKE 'weather%' AND result IS NOT NULL GROUP BY strategy"
-  #4 Soccer in-play sniper live monitoring — SCRIPT NOW READY (scripts/soccer_sniper_paper.py):
+  #1 YES@90c bucket watch — 9 bets, 89% WR < 90.9% break-even, -7.29 USD all-time.
+     Not actionable until 20+ bets. Just monitor. Guard at 20+ if WR stays below 90.9%.
+  #2 Investigate auto-restart mechanism — bot auto-restarted at 17:22 UTC (PID 18772 → 31365)
+     Something is running the restart command. Find what it is. Document in CLAUDE.md.
+     Check: crontab -l, launchctl list | grep poly, nohup jobs, /tmp/polybot_confirm.txt.
+  #3 XRP drift Stage 1 eval — currently at 30/30 with direction_filter="yes". Keeping MICRO.
+     When 30 YES-only bets accumulate (currently ~19 post-filter), re-evaluate Stage 1 promotion.
+     IMPORTANT: btc_drift and eth_drift were DEMOTED from Stage 1 in S60 (48%/49% WR).
+     Check main.py lines 2902 and 2933 for "S60: demoted" comments before any promotion.
+  #4 Strategy_analyzer improvement — add guard-awareness so guarded buckets show "GUARDED"
+     Current: shows 97c/98c/96c as "losing buckets (guards recommended)" even though guarded.
+     Simple fix: cross-reference bucket list against IRON LAWS in BOUNDS.md.
+  #5 Soccer in-play sniper — SCRIPT READY (scripts/soccer_sniper_paper.py):
      EPL: BRE vs WOL (March 30), UCL QF 1st legs: March 31 (ARS, MCI, CFC, SPO) + April 1 (BAR, LFC, BMU, ATM)
-     La Liga/EPL resume March 21-22.
-     Run: python3 scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR31
-     Pre-game >= 0.60 threshold → paper bets placed automatically on 90c+ crossings during game.
-  #5 SOL YES 93c bucket watch — check at 20+ Stage 1 bets (currently 13 total, mostly calibration era)
-  #6 CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)
-  #7 KXGDP speed-play — April 30 (GDP release, KXGDP at 0c/0 volume as of March 16 — check April 23-24)
-  #8 Self-learning journal — implement scripts/strategy_analyzer.py pattern output → session start reflection
-     Architecture designed in CCA SESSION_STATE.md Part 2. DB is already the journal.
-     Next step: write reflection summary at session start (aggregate win-rate by bucket/conditions).
+     La Liga/EPL resume March 21-22. Pre-game >= 0.60 threshold.
+  #6 SOL YES 93c bucket watch — check at 20+ Stage 1 bets (currently 14 total)
+  #7 CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)
+  #8 KXGDP speed-play — April 30 (GDP release, check April 23-24)
+  #9 Weather calibration — FAILING (CHI=57%, LAX=50%, MIA=25%, DEN=33% WR, needs 80%+)
+     Do NOT live-trade weather. Check at 20+ bets per city (end of April).
 
 SESSION 88 KEY BUILDS (2026-03-16 overnight):
   1. IL-19 guard (commit a4f33ed): KXSOL YES@97c BLOCKED in src/execution/live.py

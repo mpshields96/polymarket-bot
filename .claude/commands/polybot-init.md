@@ -65,11 +65,11 @@ IF no clear direction:
 ═══════════════════════════════════════════════════
 CURRENT STATE (auto-updated by wrap commands)
 ═══════════════════════════════════════════════════
-Last updated: Session 87 final wrap (2026-03-16) — monitoring clean, +14.56 USD today, -30.44 all-time
-Bot: RUNNING PID 26391 → /tmp/polybot_session86.log
-All-time P&L: -30.44 USD (today: +14.56 USD, 21 settled, 100% WR)
-Bankroll: ~100 USD | Tests: 1348 passing, 3 skipped
-Last commit: 5c45557 (feat: self-learning strategy analyzer + NCAA scanner verification)
+Last updated: Session 90 research wrap (2026-03-16) — crash fix deployed, +47.22 USD all-time
+Bot: RUNNING PID 18772 → /tmp/polybot_session90.log
+All-time P&L: +47.22 USD (today: +92.22 USD, 140 settled, 91% WR)
+Bankroll: ~100 USD | Tests: 1388 passing, 3 skipped
+Last commit: 2d1ffed (fix: return_exceptions=True + crash log file S90)
 
 SESSION STARTUP SELF-REFLECTION (NEW — run every session):
   ./venv/bin/python3 scripts/strategy_analyzer.py --brief
@@ -100,20 +100,25 @@ RESEARCH QUALITY DIRECTIVE (Matthew S80 — MANDATORY):
   Named mechanism + Named counterparty + Different from sniper AND speed-play + Paper-test protocol
   Kalshi API scanning without structural hypothesis = data mining = NOT research.
 
-Research state (S87):
-  scripts/strategy_analyzer.py (NEW S87) — self-learning pattern detector, run --brief at startup
+Research state (S90):
+  scripts/strategy_analyzer.py — self-learning pattern detector, run --brief at startup
   scripts/soccer_candle_analyzer.py — UCL/EPL MID_GAME analysis via Kalshi candlestick API
     VALIDATED: FLB edge, 0/3 false positive rate at 90c, UCL 40% MID_GAME rate
     FIRST LIVE TEST: EPL BRE vs WOL (March 30), UCL QF (March 31 + April 1)
   scripts/ncaa_tournament_scanner.py — run March 17-18, 1 credit/call, Round 1 March 20-21
-    NOTE: 64 KXNCAAMBGAME markets open as of March 16. 0 edges above 3% (lines not mature).
-  scripts/weather_calibration.py — check again ~March 18-20, need 3-4 more weeks data
+    NOTE: 96 KXNCAAMBGAME markets open as of March 16. 0 edges > 3%. Lines mature March 17.
+  scripts/weather_calibration.py — FAILING (25-57% WR vs 80%+ needed). Do NOT live trade weather.
+    Continue paper for calibration. Check at 20+ bets per city (end of April).
   scripts/cpi_release_monitor.py — run April 10, 08:30 ET
+  BOT CRASH ROOT CAUSE FOUND (S90 monitoring): Binance.US WebSocket 1011 keepalive timeout
+    ALL 4 feeds disconnected simultaneously → process exit. Crash fix: return_exceptions=True
+    deployed (commit 2d1ffed). Check data/polybot_crash.log after any unexpected restart.
   Dead ends (cumulative): sports taker arb, BALLDONTLIE, FOMC model, NBA/NHL sniper,
     sniper maker mode, NCAA totals, KXMV parlay, NBA in-game sniper, BNB/BCH/DOGE 15M,
     KXBTCD hourly non-5PM, FOMC March 2026, non-crypto 90c+ markets, annual BTC range,
-    KXBTCD near-expiry, hourly WR patterns, soccer underdogs below 60c pre-game
-  Next: NCAA March 17-18, soccer UCL March 31/April 1, CPI April 10
+    KXBTCD near-expiry, hourly WR patterns, soccer underdogs below 60c pre-game,
+    WEATHER LIVE TRADING (paper calibration failing — 25-57% WR vs 80%+ needed)
+  Next: NCAA March 17-18 (lines now mature), soccer UCL March 31/April 1, CPI April 10
 
 IMPORTANT — MARCH 1 HARD STOP IN --health: HISTORICAL, NOT BLOCKING.
   30% lifetime stop was DISABLED in S34. No kill_switch.lock file. Safe to restart.

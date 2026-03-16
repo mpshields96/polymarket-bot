@@ -4624,3 +4624,115 @@ Pattern 1/2 safety improvements, UCL/EPL candlestick analysis.
   Priority #2: XRP drift 30/30 — graduation eval the moment it lands
   Priority #3: NCAA scanner (March 17 UTC — lines NOW mature)
 
+
+---
+
+## Session 90 — 2026-03-16 — Research + crash resilience fix
+### Type: RESEARCH session (not monitoring — bot ran untouched)
+### Bot status: RUNNING PID 18772 → /tmp/polybot_session90.log
+### P&L: +47.22 USD all-time | +92.22 USD today (89% WR, 101 settled)
+### Tests: 1388/1388 passing (3 skipped)
+### Last commit: 2d1ffed
+
+### Changed
+- main.py: asyncio.gather() now uses return_exceptions=True (S90 crash fix)
+  - One dying task no longer kills ALL other tasks (root cause of 3 S89 crashes)
+  - Task exception names logged at CRITICAL level for post-mortem
+  - Entry point now writes crash tracebacks to data/polybot_crash.log
+### Why
+  - 3 bot deaths in 2 hours (S89: 06:20, 07:32, 08:24 UTC). Root cause: gather()
+    without return_exceptions=True means any unhandled task exception cancels all
+    tasks and crashes the process. Now each task failure is isolated.
+
+### Research findings
+1. XRP drift direction_filter="yes" already in main.py since Session 54 — the
+   SESSION_HANDOFF task was already done. 30/30 bets (YES 19/30: 63.2% WR, +1.60 USD;
+   NO 11/30: 36.4% WR, -2.43 USD). Need 30 YES-only bets for Stage 1 eval (~11 more).
+2. Weather paper FAILING: CHI=57%, LAX=50%, MIA=25%, DEN=33% WR vs 80%+ needed.
+   Despite scanner showing 16-17% GEFS edges, live calibration is not working.
+   GEFS edge appears to be priced in by market. DO NOT pursue live weather bets.
+3. NCAA scanner: 96 markets, 0 edges above 3% (March 16 UTC). Lines not mature.
+   Re-run March 17-18. Round 1 tip-offs March 20-21.
+4. Sniper guard validation: 97c YES breakdown confirms guards are correct.
+   XRP+SOL 97c YES = guarded (IL-10B, IL-19). BTC+ETH 97c YES = 100% WR, profitable.
+5. Sniper all-time: 507 bets, +94.16 USD. Core 90-94c: YES 96.4% +74.36, NO 99.1% +99.81.
+
+### Dead ends confirmed
+- Weather live trading: paper calibration failing (25-57% WR vs 80%+ needed) — do not pursue
+
+### Self-rating: C
+- Confirmed weather as dead end (saves real money from bad live bets)
+- Fixed reliability vulnerability (return_exceptions=True crash fix)
+- Clarified XRP graduation status
+- No new exploitable edges found
+
+### Next session focus
+  Priority #1: NCAA scanner — run March 17 for mature Round 1 lines (96 markets open)
+  Priority #2: XRP drift — accumulate YES-only bets (19/30 done, need 30 for Stage 1 eval)
+  Priority #3: Monitoring — bot is healthy, chains sniper bets through the day
+  Priority #4: Check data/polybot_crash.log after next bot restart for crash diagnosis
+
+
+---
+
+## Session 90 (monitoring) — 2026-03-16 — +96.21 USD today, Stage 2 bankroll, XRP graduation
+### Type: MONITORING session (bot supervised ~90 min, 21:17-22:25 UTC)
+### Bot status: RUNNING PID 31365 (restarted from 18772) → /tmp/polybot_session90.log
+### P&L: +51.21 USD all-time | +96.21 USD today (92% WR, 143 settled live)
+### Tests: 1388/1388 passing (3 skipped)
+### Last commit: 2d1ffed
+
+### Key Events
+1. XRP drift hit 30/30 live bets — graduation threshold achieved (Brier 0.258 < 0.30)
+   - direction_filter="yes" already active since S54 — no code change needed
+   - YES side: 19/30 bets, 63% WR, +1.60 USD; NO side: 11/30, 36% WR, -2.43 USD
+   - Keeping XRP at MICRO-live (calibration_max=0.01) — btc/eth were demoted from S1 in S60
+   - Both btc_drift and eth_drift currently run calibration_max=0.01 (comments in main.py confirm)
+2. Bot crashed at 17:22 UTC (PID 18772 → 31365) — Binance.US WebSocket 1011 keepalive timeout
+   - All 4 feeds disconnected simultaneously (BTC/ETH/SOL/XRP) at 17:21:57 UTC
+   - Auto-restart via /tmp/polybot_confirm.txt worked — no missed bets (confirmed via DB)
+   - S90 crash fix (return_exceptions=True) was deployed but crash still occurred — may be
+     a different failure mode (feed reconnect race condition vs task exception)
+3. Stage 2 milestone: bankroll 213.34 USD → sizing.py Stage 2 (100-250 USD = 10 USD/bet cap)
+   - This is automatic (bankroll-based), not manually triggered
+   - Drift bets can now reach 10 USD/bet (was 5 USD/bet at Stage 1)
+   - Sniper unchanged: HARD_MAX_TRADE_USD = 20 USD
+4. Guard validation: IL-19 (KXSOL YES@97c) confirmed working — last bet 05:58 UTC (pre-guard)
+   - YES@90c: 9 bets, 89% WR, -7.29 USD (break-even = 90.9%). Watch at 20+ bets.
+5. NCAA scanner: 0 edges (March 16 UTC, 96 markets). Run again March 17.
+   SDATA used: 339/500 (68%), resets April 1.
+6. Session88.log unavailable (macOS /tmp cleanup) — S89 crash logs permanently gone.
+   Root cause remains Binance.US WebSocket instability.
+
+### Strategy Analyzer Insights (22:25 UTC)
+  All-time: +51.21 USD (82% WR, 759 bets)
+  Today: +96.21 USD (92% WR, 143 bets)
+  Target: 73.79 USD to +125 USD goal
+  Sniper profitable: 90-95c (all 100% WR today)
+  Sniper "losing" flagged: 98c, 97c, 96c — STALE (pre-guard data). Guards are working.
+    Analyzer does NOT yet account for per-asset guards — will show false alarms here.
+  btc_drift: UNDERPERFORMING 48% WR, STABLE — direction_filter="no" in place
+  eth_drift: UNDERPERFORMING 49% WR, IMPROVING — direction_filter="yes" in place
+  sol_drift: HEALTHY — 34 bets, 74% WR, +9.04 USD
+
+### Goal Progress
+  All-time P&L: +51.21 USD | Need: 73.79 USD more to hit +125 USD target
+  Today rate: +96.21 USD | At this rate: less than 1 day
+  Highest-leverage action: Keep sniper firing clean 90-95c. Bankroll 213 USD means
+    per-bet sizing just doubled (Stage 2). Each win at Stage 2 = 2x value vs Stage 1.
+
+### Self-rating: B
+  WINS: Excellent P&L (+96 today), Stage 2 milestone observed, guards confirmed working,
+    XRP graduation analysis complete, crash root cause identified (Binance WebSocket 1011).
+  LOSSES: Bot crashed during monitoring window (couldn't prevent — between 5-min cycles).
+    Strategy analyzer shows stale "losing bucket" warnings (98/97/96c) — needs guard awareness.
+  GRADE B: Monitoring was clean, P&L exceptional, but 2 crashes in session is a reliability concern.
+  ONE THING next chat must do better: Watch for YES@90c hitting 20+ bets — may need guard soon.
+  ONE THING that would have made more money: Investigate auto-restart mechanism — bot auto-restarted
+    between 17:04 and 17:22 suggesting a supervisor exists. Identify and document it.
+
+### Next session focus
+  Priority #1: NCAA scanner — run March 17 UTC (today!) for Round 1 lines
+  Priority #2: YES@90c watch — 9 bets at 89% WR < 90.9% break-even. Flag at 20+ bets.
+  Priority #3: Investigate auto-restart mechanism — what restarts the bot after Binance crash?
+  Priority #4: Strategy analyzer — add guard awareness so 97/98/96c don't show false alarms

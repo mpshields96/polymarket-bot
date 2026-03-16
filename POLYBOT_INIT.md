@@ -59,21 +59,22 @@
 ## CURRENT STATUS — (updated each session)
 ═══════════════════════════════════════════════════
 
-BUILD COMPLETE. 1376/1376 tests passing. verify.py advisory WARNs only — non-critical.
-Last commit: 6c520e3 (docs: Session 88 final wrap — guard IL-20 deployed, PID 57302)
+BUILD COMPLETE. 1388/1388 tests passing (3 skipped). verify.py advisory WARNs only — non-critical.
+Last commit: 2d1ffed (fix: return_exceptions=True crash fix S90)
 
-## BOT STATE — Session 89 wrap (2026-03-16 12:10 UTC) — BOT RUNNING — FIRST POSITIVE ALL-TIME!
+## BOT STATE — Session 90 research wrap (2026-03-16 21:45 UTC) — BOT RUNNING
 
-Bot PID 57302 → /tmp/polybot_session88.log
-All-time live P&L: +29.87 USD (TODAY +74.87 USD, 123 settled, 112/123 wins, 91% WR)
-sol_drift: 33/30 Stage 1 GRADUATED | xrp_drift: 29/30 (ONE BET from graduation eval!)
-SESSION 89 KEY EVENTS: 3 bot deaths investigated (06:20, 07:32, 08:24 UTC) — root cause TBD
-SESSION 89 WRAP UPGRADE: /polybot-wrap now runs strategy_analyzer.py --brief automatically
+Bot PID 18772 → /tmp/polybot_session90.log
+All-time live P&L: +47.22 USD (TODAY +92.22 USD, 140 settled, 91% WR)
+sol_drift: 34/30 Stage 1 GRADUATED | xrp_drift: 30/30 direction_filter="yes" active since S54
+SESSION 90 KEY: crash fix deployed (return_exceptions=True) | weather confirmed DEAD END
+Weather: paper bets FAILING (25-57% WR vs 80%+ needed) — do NOT live trade weather
+NCAA scanner: 0 edges March 16 — run March 17-18 for mature lines
 
 Check bot: cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "RUNNING" || echo "STOPPED"
-Watch:  tail -f /tmp/polybot_session88.log | grep --line-buffered "LIVE\|Kill switch\|cooling\|consecutive"
+Watch:  tail -f /tmp/polybot_session90.log | grep --line-buffered "LIVE\|Kill switch\|cooling\|consecutive"
 
-Tests: 1376/1376 | Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime hard stop
+Tests: 1388/1388 | Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime hard stop
 Active protection: bankroll floor (20 USD) + consecutive cooling (8→2hr) + 20 USD/bet hard cap
 Guards (IL-5/IL-10/IL-10A/B/C/IL-11/IL-19/IL-20): 96c both, 97c NO, 98c NO, 99c all BLOCKED
 Per-asset: KXXRP YES@94c, KXXRP YES@95c, KXXRP YES@97c, KXSOL YES@94c, KXSOL YES@97c BLOCKED
