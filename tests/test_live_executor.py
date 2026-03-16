@@ -1378,6 +1378,93 @@ class TestPerAssetStructuralLossGuards:
         kalshi.create_order.assert_called_once()
 
 
+# ── post_only taker fallback (S88) ───────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+class TestPostOnlyTakerFallback:
+    """Regression: drift strategies generate 50+ post_only rejections/session.
+
+    When post_only=True and Kalshi returns 400 "post only cross", the market
+    moved and our limit price would fill as taker. Signal is still valid.
+    execute() should retry immediately as taker (post_only=False).
+
+    S88 2026-03-16: drift loops missed ~50 profitable trades/session from
+    post_only rejections with no fallback.
+    """
+
+    async def test_post_only_cross_retries_as_taker(self, live_env, bypass_first_run):
+        """post_only=True fails with 'post only cross' → retries as taker, order placed."""
+        ob = make_orderbook(no_bid=45)
+        signal = make_signal(side="yes", price_cents=50)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        post_only_error = KalshiAPIError(
+            400, {"error": {"code": "invalid_order", "message": "invalid order",
+                            "details": "post only cross"}}
+        )
+        # First call raises post_only_cross; second call (taker) succeeds
+        kalshi.create_order.side_effect = [post_only_error, kalshi.create_order.return_value]
+
+        result = await execute(
+            signal, make_market(), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="btc_drift_v1",
+            post_only=True,
+        )
+
+        assert result is not None
+        assert kalshi.create_order.call_count == 2
+        # Second call must NOT have post_only=True
+        second_call_kwargs = kalshi.create_order.call_args_list[1][1]
+        assert second_call_kwargs.get("post_only") is False or second_call_kwargs.get("post_only") is None
+
+    async def test_post_only_cross_taker_retry_fails_returns_none(
+        self, live_env, bypass_first_run
+    ):
+        """If taker retry also fails, returns None — no silent errors."""
+        ob = make_orderbook(no_bid=45)
+        signal = make_signal(side="yes", price_cents=50)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        post_only_error = KalshiAPIError(
+            400, {"error": {"code": "invalid_order", "message": "invalid order",
+                            "details": "post only cross"}}
+        )
+        taker_error = KalshiAPIError(400, {"error": {"code": "insufficient_funds"}})
+        kalshi.create_order.side_effect = [post_only_error, taker_error]
+
+        result = await execute(
+            signal, make_market(), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="btc_drift_v1",
+            post_only=True,
+        )
+
+        assert result is None
+        assert kalshi.create_order.call_count == 2
+        db.save_trade.assert_not_called()
+
+    async def test_non_post_only_error_not_retried(self, live_env, bypass_first_run):
+        """Non-post_only errors do NOT trigger retry — only 'post only cross' does."""
+        ob = make_orderbook(no_bid=45)
+        signal = make_signal(side="yes", price_cents=50)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        other_error = KalshiAPIError(400, {"error": {"code": "insufficient_funds"}})
+        kalshi.create_order.side_effect = other_error
+
+        result = await execute(
+            signal, make_market(), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="btc_drift_v1",
+            post_only=True,
+        )
+
+        assert result is None
+        assert kalshi.create_order.call_count == 1  # no retry
+
+
 # ── Sniper per-call max_slippage_cents guard (S85) ───────────────────────────
 
 

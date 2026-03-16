@@ -243,8 +243,42 @@ async def execute(
             expiration_ts=expiration_ts,
         )
     except KalshiAPIError as e:
-        logger.error("[live] Order placement failed: %s", e)
-        return None
+        # ── post_only taker fallback ──────────────────────────────────────
+        # If post_only=True and Kalshi rejects with "post only cross", the limit
+        # price crossed the spread (market moved). The signal is still valid.
+        # Retry immediately as taker (post_only=False) to capture the edge.
+        # Taker fees (~1.4%) are covered by drift edge (typically 5-15%).
+        # S88 2026-03-16: drift strategies generated 50+ missed trades/session
+        # from this pattern without fallback.
+        _is_post_only_cross = (
+            post_only
+            and isinstance(e.body, dict)
+            and e.body.get("error", {}).get("details") == "post only cross"
+        )
+        if _is_post_only_cross:
+            logger.info(
+                "[live] post_only rejected (spread crossed) — retrying as taker for %s",
+                signal.ticker,
+            )
+            try:
+                order = await kalshi.create_order(
+                    ticker=signal.ticker,
+                    side=signal.side,
+                    action="buy",
+                    count=count,
+                    order_type="limit",
+                    yes_price=price_cents if signal.side == "yes" else None,
+                    no_price=price_cents if signal.side == "no" else None,
+                    client_order_id=str(uuid.uuid4()),
+                    post_only=False,
+                    expiration_ts=expiration_ts,
+                )
+            except Exception as e2:
+                logger.error("[live] Taker retry failed: %s", e2)
+                return None
+        else:
+            logger.error("[live] Order placement failed: %s", e)
+            return None
     except Exception as e:
         logger.error("[live] Unexpected error placing order: %s", e, exc_info=True)
         return None
