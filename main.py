@@ -3283,7 +3283,7 @@ async def main():
         _loop.add_signal_handler(_sig, lambda n=_sname: _on_signal(n))
 
     try:
-        await asyncio.gather(
+        results = await asyncio.gather(
             btc_monitor_task,
             trade_task, eth_lag_task, drift_task, eth_drift_task, sol_drift_task,
             xrp_drift_task, btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task,
@@ -3291,7 +3291,19 @@ async def main():
             btc_daily_task, eth_daily_task, sol_daily_task, copy_task,
             sports_futures_task,
             expiry_sniper_task,
+            return_exceptions=True,  # S90: prevent one task's exception from killing all others
         )
+        # Log any tasks that died with unexpected exceptions (not CancelledError)
+        _task_names = [
+            "btc_monitor", "trade", "eth_lag", "drift", "eth_drift", "sol_drift",
+            "xrp_drift", "btc_imbalance", "eth_imbalance", "weather", "fomc",
+            "unemployment", "sol_lag", "settle",
+            "btc_daily", "eth_daily", "sol_daily", "copy_trade",
+            "sports_futures", "expiry_sniper",
+        ]
+        for _tname, _result in zip(_task_names, results):
+            if isinstance(_result, Exception) and not isinstance(_result, asyncio.CancelledError):
+                logger.critical("[main] Task '%s' died unexpectedly: %s", _tname, _result, exc_info=_result)
     except (KeyboardInterrupt, asyncio.CancelledError):
         pass  # Normal shutdown — SIGTERM or Ctrl+C; finally block handles cleanup
     finally:
@@ -3343,4 +3355,15 @@ if __name__ == "__main__":
     (PROJECT_ROOT / "logs" / "errors").mkdir(parents=True, exist_ok=True)
     (PROJECT_ROOT / "logs" / "trades").mkdir(parents=True, exist_ok=True)
     (PROJECT_ROOT / "data").mkdir(parents=True, exist_ok=True)
-    asyncio.run(main())
+    # S90: wrap asyncio.run in try/except to ensure crash traceback is always logged
+    # Previously: uncaught exceptions printed to stderr only (lost if nohup redirects stderr)
+    _crash_log = PROJECT_ROOT / "data" / "polybot_crash.log"
+    try:
+        asyncio.run(main())
+    except Exception as _crash_exc:
+        import traceback as _tb
+        _ts = __import__("datetime").datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        with open(_crash_log, "a") as _f:
+            _f.write(f"\n=== CRASH {_ts} ===\n")
+            _tb.print_exc(file=_f)
+        raise  # re-raise so the exit code is non-zero
