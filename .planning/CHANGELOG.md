@@ -4782,3 +4782,45 @@ Pattern 1/2 safety improvements, UCL/EPL candlestick analysis.
   Bot: RUNNING PID 31365 (stable 5+ hours)
   Active window: 19:00 UTC (KXBTC15M-26MAR161900-00)
   Next NCAA scan: 00:01 UTC March 17
+
+## Session 91 — 2026-03-16 22:55–00:00 UTC — Orderbook price filter + research
+
+### Changed
+- src/strategies/orderbook_imbalance.py — added asymmetric price filter params
+  - min_yes_price_cents=52 (default), max_no_price_cents=44 (default)
+  - Only take YES signals when YES price >= 52c, NO signals when NO price <= 44c
+  - Config-overridable via config.yaml strategy.orderbook_imbalance section
+  - load_from_config() updated to read new params
+- tests/test_orderbook_imbalance.py — 7 new tests (TestAsymmetricPriceFilter)
+  - _default_strategy() explicitly sets unfiltered params (backward compat)
+  - test_yes_below_min_yes_price_blocked, test_yes_at_min_yes_price_allowed
+  - test_no_above_max_no_price_blocked, test_no_at_max_no_price_allowed
+  - test_default_min_yes_price_is_52, test_default_max_no_price_is_44
+  - test_old_default_strategy_helper_unfiltered
+  1404 tests total (up from 1388).
+- SESSION_HANDOFF.md — updated to Session 92, S91 builds list, pending tasks
+- .planning/EDGE_RESEARCH_S62.md — Session 91 research findings appended
+
+### Why
+- 162 paper bets showed clear bimodal pattern:
+  YES@52-65c: 63% WR (profitable). YES@35-51c: 40% WR (negative EV, noise).
+  NO@35-44c: 50% WR (profitable at these prices). p=0.011 for filtered subset.
+- Structural argument: YES orderbook imbalance at >=52c = price + book double confirmation.
+  At <=51c: market prices NO as favorite, YES book depth may be market-maker liquidity.
+- Both strategies paper-only — no live risk, no restart needed.
+
+### Research findings
+- Weather strategy confirmed dead end: 20 settled bets, 45% WR, -60 USD paper.
+  Bets placed at extreme prices (YES@4c, NO@91c) without 35-65c price guard.
+  Disable in next restart (wastes API quota).
+- eth_drift direction filter working correctly since March 12 (0 NO bets post-filter).
+- XRP drift: 30 total bets (19 YES-only). Need 11 more YES-only for Stage 1 eval.
+- All-time P&L: +60.28 USD. Need +64.72 to hit +125 target.
+  Today: +105.28 USD (92% WR). On track to hit target March 17.
+- UCL March 17 markets confirmed live: ARS@76c, MCI@66c, SPO@63c all eligible.
+  Start soccer sniper at 17:30 UTC tomorrow.
+
+### Commits
+- bb91dfc: docs: Session 90 research wrap — guard-aware analyzer, UCL date correction
+- a870a60: feat: asymmetric price filter for orderbook imbalance (S90 data-driven)
+- 895ac33: docs: Session 91 wrap — orderbook filter, weather dead end, UCL prep
