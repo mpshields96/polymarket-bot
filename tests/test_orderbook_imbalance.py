@@ -77,6 +77,8 @@ def _default_strategy() -> OrderbookImbalanceStrategy:
         min_edge_pct=0.05,
         min_minutes_remaining=3.0,
         signal_scaling=1.0,
+        min_yes_price_cents=35,  # unfiltered for backward-compat tests
+        max_no_price_cents=65,   # unfiltered for backward-compat tests
     )
 
 
@@ -125,6 +127,7 @@ class TestTimeGate:
         s = OrderbookImbalanceStrategy(
             min_imbalance_ratio=0.65, min_total_depth=50,
             min_edge_pct=0.01, min_minutes_remaining=3.0,
+            min_yes_price_cents=35,  # unfiltered to isolate time gate
         )
         market = _make_market(minutes_remaining=3.1, yes_price=40)
         ob = _make_orderbook(yes_qty=900, no_qty=100)  # 90% imbalance
@@ -184,6 +187,7 @@ class TestImbalanceGate:
         s = OrderbookImbalanceStrategy(
             min_imbalance_ratio=0.65, min_total_depth=50,
             min_edge_pct=0.01, min_minutes_remaining=3.0,
+            min_yes_price_cents=35,  # unfiltered to isolate imbalance gate
         )
         market = _make_market(yes_price=40)  # underpriced relative to 80% probability
         ob = _make_orderbook(yes_qty=800, no_qty=200)
@@ -196,6 +200,7 @@ class TestImbalanceGate:
         s = OrderbookImbalanceStrategy(
             min_imbalance_ratio=0.65, min_total_depth=50,
             min_edge_pct=0.01, min_minutes_remaining=3.0,
+            max_no_price_cents=65,  # unfiltered to isolate imbalance gate
         )
         market = _make_market(no_price=40)  # NO underpriced
         ob = _make_orderbook(yes_qty=200, no_qty=800)
@@ -213,6 +218,7 @@ class TestSignalFields:
         s = OrderbookImbalanceStrategy(
             min_imbalance_ratio=0.65, min_total_depth=50,
             min_edge_pct=0.01, min_minutes_remaining=3.0,
+            min_yes_price_cents=35,  # unfiltered to isolate signal field tests
         )
         market = _make_market(yes_price=40, minutes_remaining=10.0)
         ob = _make_orderbook(yes_qty=800, no_qty=200)
@@ -279,6 +285,93 @@ class TestPriceRangeGuard:
         # We just verify it doesn't raise and the guard itself isn't the blocker at this boundary
         # (outcome depends on edge calc — no assertion on result here)
         s.generate_signal(market, ob, _make_btc_feed())  # must not raise
+
+
+class TestAsymmetricPriceFilter:
+    """Asymmetric price filter: YES only at >=52c, NO only at <=44c.
+
+    Based on 162 paper bets (combined BTC+ETH):
+      YES@52-65c: 63% WR (profitable)
+      YES@35-51c: 40% WR (noise, negative EV)
+      NO@35-44c: 50% WR (profitable: break-even is 35-44%)
+      NO@45-65c: not enough data, excluded
+    """
+
+    def test_yes_below_min_yes_price_blocked(self):
+        """YES signal at 51c blocked when min_yes_price_cents=52."""
+        s = OrderbookImbalanceStrategy(
+            min_imbalance_ratio=0.65,
+            min_total_depth=50,
+            min_edge_pct=0.0,  # disable edge gate to isolate price gate
+            min_yes_price_cents=52,
+            max_no_price_cents=44,
+        )
+        market = _make_market(yes_price=51, no_price=49)
+        ob = _make_orderbook(yes_qty=900, no_qty=100)
+        assert s.generate_signal(market, ob, _make_btc_feed()) is None
+
+    def test_yes_at_min_yes_price_allowed(self):
+        """YES signal at 52c is allowed when min_yes_price_cents=52."""
+        s = OrderbookImbalanceStrategy(
+            min_imbalance_ratio=0.65,
+            min_total_depth=50,
+            min_edge_pct=0.0,
+            min_yes_price_cents=52,
+            max_no_price_cents=44,
+        )
+        market = _make_market(yes_price=52, no_price=48)
+        ob = _make_orderbook(yes_qty=900, no_qty=100)
+        result = s.generate_signal(market, ob, _make_btc_feed())
+        assert result is not None
+        assert result.side == "yes"
+        assert result.price_cents == 52
+
+    def test_no_above_max_no_price_blocked(self):
+        """NO signal at 45c blocked when max_no_price_cents=44."""
+        s = OrderbookImbalanceStrategy(
+            min_imbalance_ratio=0.65,
+            min_total_depth=50,
+            min_edge_pct=0.0,
+            min_yes_price_cents=52,
+            max_no_price_cents=44,
+        )
+        # NO price = 45c means YES = 55c; heavy NO orderbook → buy NO at 45c
+        market = _make_market(yes_price=55, no_price=45)
+        ob = _make_orderbook(yes_qty=100, no_qty=900)
+        assert s.generate_signal(market, ob, _make_btc_feed()) is None
+
+    def test_no_at_max_no_price_allowed(self):
+        """NO signal at 44c allowed when max_no_price_cents=44."""
+        s = OrderbookImbalanceStrategy(
+            min_imbalance_ratio=0.65,
+            min_total_depth=50,
+            min_edge_pct=0.0,
+            min_yes_price_cents=52,
+            max_no_price_cents=44,
+        )
+        # NO price = 44c means YES = 56c; heavy NO orderbook → buy NO at 44c
+        market = _make_market(yes_price=56, no_price=44)
+        ob = _make_orderbook(yes_qty=100, no_qty=900)
+        result = s.generate_signal(market, ob, _make_btc_feed())
+        assert result is not None
+        assert result.side == "no"
+        assert result.price_cents == 44
+
+    def test_default_min_yes_price_is_52(self):
+        """Default strategy uses min_yes_price_cents=52 (filtered, not 35)."""
+        s = OrderbookImbalanceStrategy()
+        assert s._min_yes_price_cents == 52
+
+    def test_default_max_no_price_is_44(self):
+        """Default strategy uses max_no_price_cents=44 (filtered, not 65)."""
+        s = OrderbookImbalanceStrategy()
+        assert s._max_no_price_cents == 44
+
+    def test_old_default_strategy_helper_unfiltered(self):
+        """_default_strategy() uses min_yes=35 / max_no=65 — keeps old tests valid."""
+        s = _default_strategy()
+        assert s._min_yes_price_cents == 35
+        assert s._max_no_price_cents == 65
 
 
 class TestNearMissLog:

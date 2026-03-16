@@ -51,8 +51,16 @@ _DEFAULT_DEPTH_TOP_N = 10            # Consider top N price levels only
 _DEFAULT_MIN_EDGE_PCT = 0.05         # 5% edge required after fees
 _DEFAULT_MIN_MINUTES_REMAINING = 3.0
 _DEFAULT_SIGNAL_SCALING = 1.0        # Scale imbalance→prob mapping (1.0 = linear)
-_MIN_SIGNAL_PRICE_CENTS = 35         # Only bet near-even-odds (35–65¢) — same as btc_lag
+_MIN_SIGNAL_PRICE_CENTS = 35         # Outer guard: block extreme prices
 _MAX_SIGNAL_PRICE_CENTS = 65
+# Asymmetric inner filter (S90 — from 162 paper bets):
+#   YES@52-65c: 63% WR (break-even ~52%) → profitable
+#   YES@35-51c: 40% WR → negative EV, noise
+#   NO@35-44c:  50% WR (break-even 35-44%) → profitable
+#   NO@45-65c:  excluded (insufficient data, suspicious)
+# p-value for filtered subset: 0.011 (one-sided binomial test)
+_DEFAULT_MIN_YES_PRICE_CENTS = 52    # Only take YES signals when price ≥ 52c
+_DEFAULT_MAX_NO_PRICE_CENTS = 44     # Only take NO signals when NO price ≤ 44c
 
 
 def _kalshi_fee_pct(price_cents: int) -> float:
@@ -87,6 +95,8 @@ class OrderbookImbalanceStrategy(BaseStrategy):
         min_minutes_remaining: float = _DEFAULT_MIN_MINUTES_REMAINING,
         signal_scaling: float = _DEFAULT_SIGNAL_SCALING,
         name_override: Optional[str] = None,
+        min_yes_price_cents: int = _DEFAULT_MIN_YES_PRICE_CENTS,
+        max_no_price_cents: int = _DEFAULT_MAX_NO_PRICE_CENTS,
     ):
         self._min_imbalance_ratio = min_imbalance_ratio
         self._min_total_depth = min_total_depth
@@ -95,6 +105,8 @@ class OrderbookImbalanceStrategy(BaseStrategy):
         self._min_minutes_remaining = min_minutes_remaining
         self._signal_scaling = signal_scaling
         self._name_override = name_override
+        self._min_yes_price_cents = min_yes_price_cents
+        self._max_no_price_cents = max_no_price_cents
 
     @property
     def name(self) -> str:
@@ -186,6 +198,22 @@ class OrderbookImbalanceStrategy(BaseStrategy):
                          _MIN_SIGNAL_PRICE_CENTS, _MAX_SIGNAL_PRICE_CENTS, market.ticker)
             return None
 
+        # ── 4b. Asymmetric price filter (S90 data-driven) ─────────────
+        # YES@52+c: 63% WR. YES@35-51c: 40% WR (noise). p=0.011 for filtered subset.
+        if side == "yes" and price_cents < self._min_yes_price_cents:
+            logger.debug(
+                "[%s] YES price %d¢ below min_yes_price %d¢ — skip %s",
+                self.name, price_cents, self._min_yes_price_cents, market.ticker,
+            )
+            return None
+        # NO@35-44c: 50% WR (profitable). NO@45+c: excluded.
+        if side == "no" and price_cents > self._max_no_price_cents:
+            logger.debug(
+                "[%s] NO price %d¢ above max_no_price %d¢ — skip %s",
+                self.name, price_cents, self._max_no_price_cents, market.ticker,
+            )
+            return None
+
         # ── 5. Compute edge ────────────────────────────────────────────
         fee = _kalshi_fee_pct(price_cents)
         if side == "yes":
@@ -265,6 +293,8 @@ def load_from_config(name_override: Optional[str] = None) -> OrderbookImbalanceS
         min_minutes_remaining=s.get("min_minutes_remaining", _DEFAULT_MIN_MINUTES_REMAINING),
         signal_scaling=s.get("signal_scaling", _DEFAULT_SIGNAL_SCALING),
         name_override=name_override,
+        min_yes_price_cents=s.get("min_yes_price_cents", _DEFAULT_MIN_YES_PRICE_CENTS),
+        max_no_price_cents=s.get("max_no_price_cents", _DEFAULT_MAX_NO_PRICE_CENTS),
     )
 
 
