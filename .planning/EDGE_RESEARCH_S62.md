@@ -3234,3 +3234,66 @@ If 2-3 paper wins March 17-18: calibration dataset for live activation considera
 4. Strategy_analyzer guard-aware DONE (commit dfc04c6)
 5. CPI speed-play April 10 08:30 ET
 6. KXGDP check April 23-24 (before April 30 release)
+
+---
+
+## Session 91 Research Additions (2026-03-16)
+
+### All-time P&L Target Progress
+- All-time live P&L at end of S90: +53.98 USD
+- S91 progress: +60.28 USD at 23:17 UTC (need +64.72 more to +125 target)
+- Sniper pace: ~70 USD/day. Target likely hit March 17.
+
+### Orderbook Imbalance Asymmetric Price Filter (IMPLEMENTED — commit a870a60)
+
+162 paper bets (combined BTC + ETH):
+  YES@52-65c: 51 bets, 63% WR, +27 USD — profitable
+  YES@35-51c: 58 bets, 40% WR, -57 USD — negative EV, noise
+  NO@35-44c: 26 bets, 50% WR, +260 USD — profitable (break-even 35-44%)
+  Filtered subset (YES>=52c, NO<=44c): 102 bets, 62% WR, p=0.011
+
+Structural argument: YES orderbook imbalance at >=52c = double confirmation.
+At <=51c: market prices NO as more likely + YES book depth may be MM liquidity, not signal.
+
+IMPLEMENTED: min_yes_price_cents=52, max_no_price_cents=44 as new defaults.
+Config-overridable. 7 new tests (TestAsymmetricPriceFilter). 1404 total.
+NO BOT RESTART NEEDED: both strategies are paper-only.
+
+### Weather Strategy — DEAD END (20 paper bets, 45% WR, -60 USD)
+
+Weather bets are at extreme prices (YES@4c, NO@91c) — no 35-65c price guard.
+Even with the guard, the GEFS vs Kalshi calibration has no demonstrable edge.
+All 4 cities: chi 57%, den 33%, lax 50%, mia 25% WR.
+RECOMMENDATION: Disable weather in next session restart.
+Dead ends updated: weather NO at 99c already listed; add ALL weather market betting.
+
+### eth_drift Direction Filter Confirmed Working
+NO bets all from March 10-11 (pre-filter). YES-only since March 12.
+Current YES-only: 64 bets, 48% WR, -6.88 USD (marginal but micro-live).
+Not enough data to act — wait for 30 more YES-only bets.
+
+### eth_orderbook_imbalance LIVE Test (March 10-11) vs Paper
+Live: 15 bets, 33% WR, -18.20 USD — FAILED (now paper-only)
+Paper post-live: 97 bets, 55.7% WR, +238.91 USD
+Key insight: live test bet YES at 38-64c range (40% of which are now filtered).
+With new asymmetric filter, live test would have placed ~40% fewer bets at better prices.
+Reconsider live activation after 30+ filtered paper bets accumulate at 62%+ WR.
+
+### XRP Drift Graduation Status
+Total: 30 bets (19 YES + 11 NO pre-filter)
+YES-only (post direction-filter): 19 bets, 63% WR, +1.60 USD
+NEED: 11 more YES-only bets (~4 days at ~3/day)
+Graduation threshold: 30 YES-only bets with Brier < 0.30
+Current pace: 3 YES bets/day → Stage 1 eval around March 20-21
+
+### Session 91 Priority Stack
+
+1. DONE: Orderbook asymmetric filter (commit a870a60)
+2. URGENT TOMORROW: Soccer sniper UCL March 17 (17:30 UTC, 19:45 UTC)
+   Start: python3 scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR17
+3. TOMORROW: NCAA scanner re-run (Round 1 March 20-21)
+   Run: python3 scripts/ncaa_tournament_scanner.py --min-edge 0.03
+4. March 18: UCL March 18 games (same command, --date 26MAR18)
+5. March 20-21: XRP drift Stage 1 graduation eval (30 YES-only bets)
+6. Next restart: Disable weather strategy (no edge at any price)
+7. CPI speed-play April 10 08:30 ET
