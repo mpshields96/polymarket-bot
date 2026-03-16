@@ -93,7 +93,7 @@ async def scan_ncaab(min_edge: float, min_price_cents: int) -> list[dict]:
             return []
 
         # Get sharp book odds
-        raw_games = await fetch_odds_api_games("basketball_ncaab", odds_key)
+        raw_games, _credits_used = await fetch_odds_api_games(odds_key, "basketball_ncaab")
         odds_lookup = parse_odds_games(raw_games)
         logger.info(f"Odds API NCAAB games: {len(raw_games)}")
 
@@ -115,7 +115,11 @@ async def scan_ncaab(min_edge: float, min_price_cents: int) -> list[dict]:
 
             # Edge = sharp_book_prob - kalshi_price
             # Positive = Kalshi underprices the favorite
-            sharp_prob = comparison.sharp_prob  # type: ignore
+            # Use YES side if yes_price is the favorite, else NO side
+            if market.yes_price >= market.no_price:
+                sharp_prob = comparison.sharp_yes_prob
+            else:
+                sharp_prob = comparison.sharp_no_prob
             kalshi_price = fav_price / 100.0
             edge = sharp_prob - kalshi_price
 

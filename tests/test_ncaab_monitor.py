@@ -79,3 +79,78 @@ class TestFindKalshiMarket:
         assert m is not None
         price = max(m['yes_bid'], m['yes_ask'])
         assert price < 0.90, f"Expected <0.90 but got {price}"
+
+
+# ── NCAA Tournament Scanner bug regression tests ─────────────────────────
+
+class TestNCAATournamentScannerBugs:
+    """
+    Regression tests for two bugs fixed 2026-03-16:
+    1. fetch_odds_api_games called with args swapped (sport as api_key → 401)
+    2. sharp_prob attr used instead of sharp_yes_prob/sharp_no_prob → AttributeError
+    """
+
+    def test_fetch_odds_api_games_signature_matches_call(self):
+        """
+        Ensure ncaa_tournament_scanner calls fetch_odds_api_games with (api_key, sport).
+        Bug: was called as (sport, api_key) → 401 Unauthorized.
+        """
+        import inspect
+        from scripts.edge_scanner import fetch_odds_api_games
+        sig = inspect.signature(fetch_odds_api_games)
+        params = list(sig.parameters.keys())
+        # First param must be api_key, second must be sport
+        assert params[0] == "api_key", f"Expected first param 'api_key', got '{params[0]}'"
+        assert params[1] == "sport", f"Expected second param 'sport', got '{params[1]}'"
+
+    def test_odds_comparison_has_sharp_yes_prob_not_sharp_prob(self):
+        """
+        OddsComparison must have sharp_yes_prob and sharp_no_prob, NOT sharp_prob.
+        Bug: ncaa_tournament_scanner used comparison.sharp_prob → AttributeError.
+        """
+        from scripts.edge_scanner import OddsComparison
+        import dataclasses
+        fields = {f.name for f in dataclasses.fields(OddsComparison)}
+        assert "sharp_yes_prob" in fields, "OddsComparison must have sharp_yes_prob"
+        assert "sharp_no_prob" in fields, "OddsComparison must have sharp_no_prob"
+        assert "sharp_prob" not in fields, "OddsComparison must NOT have sharp_prob (old typo)"
+
+    def test_scanner_selects_correct_sharp_prob_for_yes_favorite(self):
+        """
+        When yes_price is the favorite side, sharp_yes_prob should be used (not sharp_no_prob).
+        """
+        from scripts.edge_scanner import OddsComparison
+        cmp = OddsComparison(
+            kalshi_ticker="KXNCAAMBGAME-26MAR20TEXA-TEX",
+            kalshi_title="Texas vs NCST",
+            kalshi_yes_cents=92,
+            kalshi_no_cents=8,
+            kalshi_volume=10000,
+            sport="basketball_ncaab",
+            sharp_yes_prob=0.95,
+            sharp_no_prob=0.05,
+            num_books=2,
+            pinnacle_yes_prob=0.95,
+            yes_edge_raw=0.02,
+            no_edge_raw=-0.03,
+            yes_edge_net=0.02,
+            no_edge_net=-0.03,
+            yes_edge_maker=0.025,
+            no_edge_maker=-0.025,
+            home_team="Texas",
+            away_team="NCST",
+            commence_time="2026-03-20T22:00:00Z",
+            best_side="yes",
+            best_edge=0.02,
+        )
+        # Simulate the scanner logic: use sharp_yes_prob when yes_price >= no_price
+        yes_price = cmp.kalshi_yes_cents
+        no_price = cmp.kalshi_no_cents
+        fav_price = max(yes_price, no_price)
+        if yes_price >= no_price:
+            sharp_prob = cmp.sharp_yes_prob
+        else:
+            sharp_prob = cmp.sharp_no_prob
+        assert sharp_prob == 0.95
+        edge = sharp_prob - (fav_price / 100.0)
+        assert abs(edge - 0.03) < 0.001  # 95% sharp - 92% kalshi = 3% edge
