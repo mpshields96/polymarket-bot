@@ -4529,3 +4529,43 @@ Pattern 1/2 safety improvements, UCL/EPL candlestick analysis.
   Priority #2: Watch XRP drift hit 30/30, run direction filter eval immediately
   Priority #3: Continue monitoring — maintain guard stack integrity
 
+
+---
+
+## Session 89 — Monitoring (2026-03-16 05:22–11:56 UTC)
+### Focus: autonomous monitoring loop, bot restarts, XRP graduation watch
+
+### Events
+  1. Bot died 3 times: 06:20 UTC (PID 26391→52220), 07:32 UTC (52220→54221), ~08:24 UTC (54221→57302)
+     Root cause: macOS clean-kills (no Python traceback). Restarted each time with no bet gaps.
+  2. Two large sniper losses in rapid succession:
+     - KXSOL YES@97c at 06:01 UTC: -19.40 USD. Pre-IL-19 (guard added by parallel session S88).
+     - KXXRP YES@95c at 08:16 UTC: -19.95 USD. IL-20 guard already deployed by parallel session.
+  3. NCAA scanner run at session start (05:22 UTC): 0 edges found. Expected — still March 16 UTC.
+     Lines not mature. Run again March 17 UTC.
+  4. XRP drift progressed from 24/30 → 29/30 over the session. One bet from graduation.
+  5. All-time P&L recovered: started at -3.75 USD, hit +29.87 USD by session end.
+
+### XRP Direction Filter Analysis (29 bets)
+  YES: 18 bets, 11 wins (61% WR), +1.27 USD
+  NO:  11 bets, 4 wins (36% WR), -2.43 USD
+  Direction filter="yes" is confirmed correct. Blocking NO side at graduation is justified.
+  Same asymmetry pattern as btc_drift (NO wins) and eth_drift (YES wins).
+
+### Self-Rating: B
+  Maintained bot availability through 3 deaths (restarts immediate, no bet gaps).
+  XRP drift 24→29/30 (nearly graduated). All-time P&L firmly positive by session end.
+  No new research edges — this was a monitoring session. NCAA scan was clean but early.
+
+### Performance (final — 11:56 UTC)
+  All-time live P&L: +29.87 USD
+  Today live: +74.87 USD (123 settled, 112/123, 91% WR)
+  expiry_sniper today: 99/101 wins, +66.09 USD
+  XRP drift: 29/30 (one bet from graduation eval)
+  Tests: 1376 passing
+  Last commit: 6c520e3
+
+### Next session focus
+  Priority #1: XRP graduation — one more bet. When 30/30: add direction_filter="yes" to xrp_drift
+  Priority #2: NCAA scanner (March 17 UTC — lines now mature, run immediately)
+  Priority #3: Continue monitoring, watch for further bot stability issues (3 deaths today)
