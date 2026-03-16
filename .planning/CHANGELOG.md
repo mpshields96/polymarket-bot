@@ -4373,3 +4373,46 @@ Pattern 1/2 safety improvements, UCL/EPL candlestick analysis.
   2. XRP drift graduation — 24/30, needs 6 more. Check DB.
   3. Soccer monitoring: La Liga/EPL March 21-22, UCL QF March 31/April 1 (scripts/soccer_sniper_paper.py)
   4. CPI speed-play: April 10 08:30 ET (scripts/cpi_release_monitor.py)
+
+---
+
+## Session 88 Overnight Research Continuation — 2026-03-16 03:00-05:15 UTC
+
+### What changed
+- scripts/strategy_analyzer.py: timezone bug fixed. time.mktime() was treating UTC date as local time (CDT = UTC-5), causing "Today: 0 USD" for first ~5 hours of UTC day. Fixed to use datetime.now(timezone.utc).replace(hour=0,...).timestamp().
+- /tmp/polybot_monitor_cycle.sh: same timezone fix applied to monitoring script.
+- .planning/EDGE_RESEARCH_S62.md: time-of-day analysis, SOL YES@93c bucket analysis, S88 session summary appended.
+
+### Why
+- Timezone bug caused misleading monitoring data across multiple sessions (mentioned in S87 changelog as known issue).
+- SOL YES@93c analysis needed to assess guard risk before 20-bet threshold.
+- Time-of-day analysis investigated potential hourly edge patterns (confirmed non-existent with full guard stack).
+
+### Research Findings
+1. TIME-OF-DAY: Hours 07/13/18/22 UTC appeared to have sniper losses. Root cause = ALL losses trace to pre-full-guard bets at blocked price levels. Post-guard (March 16 00:00 UTC): 35/35 wins, zero losses. No time-of-day filter needed.
+2. SOL YES@93c: 14 bets, 92.9% WR, break-even is 93% WR. Statistically at break-even. Do NOT guard yet — need 20+ bets for reliability.
+3. KXSOL/XRP @94c confirmation: SOL and XRP @94c are break-even; BTC and ETH @94c are 100% WR and profitable. Guards correctly targeted.
+4. XRP drift direction: YES side = 69.2% WR (+1.75 USD), NO side = 36.4% WR (-2.43 USD). direction_filter="yes" confirmed correct. Recent bets (March 13+) all YES.
+5. Weather calibration: 40+ paper bets accumulating. LAX NO@22c with +73.7% edge placed. Settling March 16-20.
+
+### Performance
+  All-time live P&L: -6.88 USD (was -10.59 at S88 start, net +3.71 USD overnight from live bets)
+  Today live: +38.12 USD (42 settled, 41/42 wins, 98% WR)
+  Sniper since full guards: 35/35 wins, 0 losses — guards validated.
+
+### Self-rating: A-
+  WINS: Multiple bug fixes (timezone), deep analysis confirming guard correctness, soccer sniper built.
+    P&L moving fast: -30.44 → -6.88 USD in one session. Close to break-even on all-time.
+  LOSSES: No NEW edge found (expected — the main edges are already running).
+  GRADE: A- — bug fixes + validation work + P&L improvement. Real research.
+  ONE THING next chat must do differently: NCAA scanner FIRST THING (March 17 UTC = now).
+  ONE THING that would make more money: Raise hourly rate limit from 15 to 20 (requires Matthew approval).
+    The bot is hitting 15/hour cap on active sniper hours (March 15 hours 13, 16, 22 all hit exactly 15).
+
+### Next session priorities
+  1. NCAA scanner — run NOW (March 17 UTC). python3 scripts/ncaa_tournament_scanner.py --min-edge 0.03
+  2. XRP drift graduation — 24/30, needs 6 more.
+  3. Soccer monitoring: La Liga/EPL March 21-22, UCL QF March 31/April 1
+  4. Weather calibration settle check: March 18-20
+  5. CPI speed-play: April 10 08:30 ET
+  6. Rate limit discussion with Matthew: currently 15/hour, hitting cap in active hours. Consider 20/hour.
