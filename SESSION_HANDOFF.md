@@ -138,8 +138,9 @@ PENDING TASKS (Session 91 — PRIORITY ORDER):
   #0 NCAA scanner — run scripts/ncaa_tournament_scanner.py --min-edge 0.03 (March 17 UTC = TODAY)
      Lines now mature. Round 1 tip-offs March 20-21. 1 credit/call. SDATA: 339/500 (68%).
      Watch: Purdue 96c, UConn 95c, Illinois 96c — public money may push below sharp books.
-  #1 YES@90c bucket watch — 9 bets, 89% WR < 90.9% break-even, -7.29 USD all-time.
-     Not actionable until 20+ bets. Just monitor. Guard at 20+ if WR stays below 90.9%.
+  #1 YES@90c resolved — KXXRP YES@90c single loss (-19.8 USD, 1 bet) skewed the aggregate.
+     BTC/ETH/SOL YES@90c: all 100% WR, profitable. Not a guard candidate.
+     Re-check KXXRP YES@90c at 5+ bets. Currently 1 bet, noise only.
   #2 Investigate auto-restart mechanism — bot auto-restarted at 17:22 UTC (PID 18772 → 31365)
      Something is running the restart command. Find what it is. Document in CLAUDE.md.
      Check: crontab -l, launchctl list | grep poly, nohup jobs, /tmp/polybot_confirm.txt.
@@ -147,11 +148,29 @@ PENDING TASKS (Session 91 — PRIORITY ORDER):
      When 30 YES-only bets accumulate (currently ~19 post-filter), re-evaluate Stage 1 promotion.
      IMPORTANT: btc_drift and eth_drift were DEMOTED from Stage 1 in S60 (48%/49% WR).
      Check main.py lines 2902 and 2933 for "S60: demoted" comments before any promotion.
-  #4 Strategy_analyzer improvement — add guard-awareness so guarded buckets show "GUARDED"
-     Current: shows 97c/98c/96c as "losing buckets (guards recommended)" even though guarded.
-     Simple fix: cross-reference bucket list against IRON LAWS in BOUNDS.md.
+  #4 Strategy_analyzer improvement — DONE in S90 research (commit dfc04c6)
+     Fixed: added _KNOWN_GUARDS, _is_guarded(), detect_guard_gaps(). Now shows GUARDED/PARTIAL GUARD
+     vs unguarded paths. Guard stack clean = no false "Guard candidate" alarms. 9 new tests.
   #5 Soccer in-play sniper — SCRIPT READY (scripts/soccer_sniper_paper.py):
-     EPL: BRE vs WOL (March 30), UCL QF 1st legs: March 31 (ARS, MCI, CFC, SPO) + April 1 (BAR, LFC, BMU, ATM)
+     *** URGENT: UCL R16 2ND LEGS ARE TOMORROW (March 17) AND MARCH 18 ***
+     SESSION_HANDOFF WAS WRONG: dates are NOT March 31/April 1.
+
+     MARCH 17 (TOMORROW — start script before kickoff!):
+       17:30 UTC start: python3 scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR17
+         Game 1: Bodo/Glimt vs Sporting CP — 17:45 UTC — SPO eligible (64c pre-game)
+         Game 2: Arsenal vs Leverkusen — 20:00 UTC — ARS eligible (77c pre-game)
+         Game 3: Real Madrid vs Man City at Etihad — 20:00 UTC — MCI eligible (67c pre-game)
+         (Chelsea 46c and PSG 33c do NOT qualify — below 60c threshold)
+
+     MARCH 18 (day after tomorrow):
+       17:30 UTC start: python3 scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR18
+         Game 1: Newcastle vs Barcelona at Camp Nou — 17:45 UTC — BAR eligible (62c pre-game)
+         Game 2: Atalanta vs Bayern Munich at Allianz — 20:00 UTC — BMU eligible (72c pre-game)
+         Game 3: Galatasaray vs Liverpool at Anfield — 20:00 UTC — LFC eligible (76c pre-game)
+         (Atletico 39c, Tottenham 36c do NOT qualify)
+
+     Expected: ~40% of 6 eligible teams cross 90c mid-game = 2-3 paper bets placed
+     Need 3+ paper wins before live activation. UCL QF March 31/April 1 = 2nd legs.
      La Liga/EPL resume March 21-22. Pre-game >= 0.60 threshold.
   #6 SOL YES 93c bucket watch — check at 20+ Stage 1 bets (currently 14 total)
   #7 CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)

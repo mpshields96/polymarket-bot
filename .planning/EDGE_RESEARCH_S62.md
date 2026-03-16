@@ -3169,3 +3169,68 @@ Improvement needed: add asset awareness to analyzer so guarded buckets are marke
 ### Dead ends (new additions from S90)
 - Weather live trading: paper WR 25-57% vs 80%+ needed. Not viable until 75%+ at 20+ bets.
 - XRP graduation via direction analysis alone: need 30 YES-only bets (statistical requirement)
+
+
+## SESSION 90 (RESEARCH) ADDITIONS — 2026-03-16 22:41 UTC
+
+### Guard-Aware Strategy Analyzer (BUILT + TESTED, commit dfc04c6)
+
+Problem: strategy_analyzer was generating false "Guard candidate" alarms for already-guarded
+buckets (97c, 98c, 96c). Caused confusion at every session start.
+
+Solution: added _KNOWN_GUARDS list + _is_guarded() helper + detect_guard_gaps() function.
+- detect_guard_gaps() queries last 30 days, finds price/side/series combos with:
+  (a) WR below break-even, (b) negative P&L, (c) NOT already in _KNOWN_GUARDS
+- Reflection output: GUARDED / PARTIAL GUARD / WATCH correctly categorized
+- Session reflection now shows "Guard stack clean" when no new gaps found
+- TOP ACTIONS now surfaces only real unguarded negative-EV paths
+- 9 new tests (44 total in test_strategy_analyzer.py)
+
+Guard stack as of S90: 49/49 wins (100%) since 08:24 UTC when IL-20 deployed. All clean.
+
+### YES@90c Bucket Analysis
+
+All-time YES@90c: 10 bets, 90% WR, -5.31 USD. Looks alarming but:
+- KXBTC YES@90c: 4 bets, 100% WR, +5.67 USD (profitable)
+- KXETH YES@90c: 3 bets, 100% WR, +4.86 USD (profitable)
+- KXSOL YES@90c: 2 bets, 100% WR, +3.96 USD (profitable)
+- KXXRP YES@90c: 1 bet, 0% WR, -19.8 USD (single loss, noise)
+CONCLUSION: Not a guard candidate. Single KXXRP loss skewed aggregate. Watch at 5+ bets.
+
+### CRITICAL: UCL R16 2nd Legs TOMORROW (Session 90 live probe)
+
+SESSION_HANDOFF WAS WRONG: UCL QF 1st legs are NOT March 31/April 1.
+Actual schedule (confirmed via Kalshi live markets + ESPN API):
+
+March 17, 2026:
+  17:45 UTC: Bodo/Glimt vs Sporting CP — SPO pre-game 64c (ELIGIBLE >= 60c)
+  20:00 UTC: Bayer Leverkusen vs Arsenal — ARS pre-game 77c (ELIGIBLE)
+  20:00 UTC: Real Madrid vs Man City at Etihad — MCI pre-game 67c (ELIGIBLE)
+  20:00 UTC: PSG vs Chelsea — CFC 46c (not eligible)
+
+March 18, 2026:
+  17:45 UTC: Newcastle vs Barcelona at Camp Nou — BAR pre-game 62c (ELIGIBLE)
+  20:00 UTC: Atalanta vs Bayern Munich at Allianz — BMU pre-game 72c (ELIGIBLE)
+  20:00 UTC: Galatasaray vs Liverpool at Anfield — LFC pre-game 76c (ELIGIBLE)
+  20:00 UTC: Atletico Madrid vs Tottenham — TOT 36c, ATM 39c (not eligible)
+
+Soccer sniper monitoring commands:
+  March 17: python3 scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR17
+  March 18: python3 scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR18
+  Start ~15 min before kickoff. Script polls Kalshi + ESPN every 30s.
+  Paper bets: 5.0 USD flat per crossing. Gate: 3+ paper wins before live.
+
+UCL QF 2ND LEGS (the original March 31/April 1 dates):
+  March 31 = QF 2nd legs (return legs at home teams). Same teams, different results context.
+
+Expected outcome: ~40% of 6 eligible teams cross 90c mid-game = 2-3 paper bets placed.
+If 2-3 paper wins March 17-18: calibration dataset for live activation consideration.
+
+### Session 90 Priority Stack Update
+
+1. URGENT: Soccer sniper March 17 (tomorrow) — start script at 17:30 UTC and 19:45 UTC
+2. NCAA scanner — run March 17-18 (Round 1 March 20-21)
+3. XRP drift YES-only (19/30 → ~4 days to Stage 1 eval)
+4. Strategy_analyzer guard-aware DONE (commit dfc04c6)
+5. CPI speed-play April 10 08:30 ET
+6. KXGDP check April 23-24 (before April 30 release)
