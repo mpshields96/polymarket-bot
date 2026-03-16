@@ -41,6 +41,35 @@ MIN_SNIPER_BUCKET = 30
 MIN_DRIFT_STRATEGY = 20
 MIN_DIRECTION = 20
 
+# ── Known active guards (mirrors live.py) ────────────────────────────────────
+# Format: (price_cents, side, ticker_prefix)  OR  (price_cents, side, None) for all-asset guards
+# Update this whenever a guard is added/removed in live.py.
+# Purpose: prevent strategy_analyzer from flagging already-guarded paths as "Guard candidates".
+_KNOWN_GUARDS: list[tuple] = [
+    # Global price guards (all assets)
+    (96, "yes", None),   # IL-10: 96c both sides
+    (96, "no", None),    # IL-10: 96c both sides
+    (97, "no", None),    # IL-10: 97c NO
+    (98, "no", None),    # IL-11: 98c NO
+    (99, "yes", None),   # IL-5: 99c/1c
+    (99, "no", None),    # IL-5: 99c/1c
+    # Per-asset guards
+    (94, "yes", "KXXRP"),  # IL-10A: XRP YES@94c
+    (95, "yes", "KXXRP"),  # IL-20: XRP YES@95c
+    (97, "yes", "KXXRP"),  # IL-10B: XRP YES@97c
+    (94, "yes", "KXSOL"),  # IL-10C: SOL YES@94c
+    (97, "yes", "KXSOL"),  # IL-19: SOL YES@97c
+]
+
+
+def _is_guarded(price_cents: int, side: str, ticker_prefix: str = "") -> bool:
+    """Return True if this price/side/ticker combination is already guarded in live.py."""
+    for gp, gs, gt in _KNOWN_GUARDS:
+        if gp == price_cents and gs == side:
+            if gt is None or (ticker_prefix and gt in ticker_prefix):
+                return True
+    return False
+
 
 def _load_db() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
@@ -141,6 +170,67 @@ def analyze_sniper(conn: sqlite3.Connection) -> dict:
             "worst_hours": worst_hours,
         },
     }
+
+
+def detect_guard_gaps(conn: sqlite3.Connection, min_bets: int = 5) -> list[dict]:
+    """
+    Find unguarded price/side/ticker combos with negative EV (WR below break-even price).
+
+    Only surfaces paths NOT already in _KNOWN_GUARDS.
+    Uses last 30 days of data to focus on current market conditions.
+    Returns list of guard gap candidates with stats.
+    """
+    thirty_days_ago = time.time() - 30 * 24 * 3600
+    rows = conn.execute("""
+        SELECT
+            price_cents,
+            side,
+            substr(ticker, 1, 5) as series,
+            COUNT(*) as bets,
+            SUM(CASE WHEN side=result THEN 1 ELSE 0 END) as wins,
+            ROUND(SUM(pnl_cents) / 100.0, 2) as pnl_usd
+        FROM trades
+        WHERE strategy='expiry_sniper_v1'
+          AND is_paper=0
+          AND result IS NOT NULL
+          AND created_at > ?
+        GROUP BY price_cents, side, series
+        HAVING bets >= ?
+        ORDER BY pnl_usd ASC
+    """, (thirty_days_ago, min_bets)).fetchall()
+
+    gaps = []
+    for r in rows:
+        price = r["price_cents"]
+        side = r["side"]
+        series = r["series"]
+        bets = r["bets"]
+        wins = r["wins"]
+        pnl = r["pnl_usd"]
+        wr = wins / bets if bets else 0.0
+
+        # WR needed to break even at this price (YES-equivalent)
+        yes_equiv = price if side == "yes" else (100 - price)
+        be_wr = yes_equiv / 100.0
+
+        # Skip if already guarded
+        if _is_guarded(price, side, series):
+            continue
+
+        # Only flag if below break-even WR and net negative P&L
+        if wr < be_wr and pnl < 0:
+            gaps.append({
+                "price_cents": price,
+                "side": side,
+                "series": series,
+                "bets": bets,
+                "win_rate": round(wr, 4),
+                "break_even_wr": round(be_wr, 4),
+                "pnl_usd": pnl,
+                "shortfall_pct": round((be_wr - wr) * 100, 1),
+            })
+
+    return gaps
 
 
 # ──────────────────────────────────────────────────────────
@@ -423,6 +513,7 @@ def generate_reflection(
     grad: dict,
     summary: dict,
     benchmark: dict,
+    guard_gaps: list | None = None,
 ) -> str:
     """
     Generate a structured session-start reflection markdown document.
@@ -460,10 +551,18 @@ def generate_reflection(
         "## SNIPER ENGINE HEALTH",
         f"  Core 90-94c bucket: {core_bets} bets, {core_wr:.1%} WR, {core_pnl:+.2f} USD — {health}",
     ]
-    # Watch buckets
+    # Watch buckets — only show if NOT already guarded
     for bk, data in sniper.get("buckets", {}).items():
         if data["bets"] >= 10 and data["pnl_usd"] < 0:
-            lines.append(f"  WATCH: {bk}c bucket negative ({data['bets']} bets, {data['win_rate']:.0%} WR, {data['pnl_usd']:+.2f} USD)")
+            # Check if this bucket is fully covered by guards
+            try:
+                bk_price = int(bk.split("+")[0].split("-")[0])
+            except (ValueError, AttributeError):
+                bk_price = None
+            if bk_price and _is_guarded(bk_price, "yes", "") and _is_guarded(bk_price, "no", ""):
+                lines.append(f"  GUARDED (historical losses expected): {bk}c bucket — guards active in live.py")
+            else:
+                lines.append(f"  WATCH: {bk}c bucket negative ({data['bets']} bets, {data['win_rate']:.0%} WR, {data['pnl_usd']:+.2f} USD)")
     lines.append("")
 
     # ── Direction filter status
@@ -518,19 +617,38 @@ def generate_reflection(
         lines.append(f"  [{tier}] {name}: {wr_str} WR, {bets} bets{f' — {note}' if note else ''}")
     lines.append("")
 
+    # ── Guard gap section — surfaces unguarded negative-EV paths
+    if guard_gaps:
+        lines.append("## UNGUARDED NEGATIVE-EV PATHS (ACTION REQUIRED)")
+        for gap_item in guard_gaps[:5]:
+            lines.append(
+                f"  *** {gap_item['series']} {gap_item['side'].upper()}@{gap_item['price_cents']}c: "
+                f"{gap_item['bets']} bets, {gap_item['win_rate']:.0%} WR "
+                f"(need {gap_item['break_even_wr']:.0%}), {gap_item['pnl_usd']:+.2f} USD — "
+                f"{gap_item['shortfall_pct']:.1f}pp below break-even — ADD GUARD"
+            )
+        lines.append("")
+    else:
+        lines.append("## GUARD GAP STATUS")
+        lines.append("  No unguarded negative-EV paths found (last 30 days, 5+ bets). Guard stack clean.")
+        lines.append("")
+
     # ── Top 3 actions
     lines.append("## TOP ACTIONS FOR THIS SESSION")
     actions = []
+    # Unguarded negative-EV paths are top priority
+    if guard_gaps:
+        for gap_item in guard_gaps[:2]:
+            actions.append(
+                f"ADD GUARD: {gap_item['series']} {gap_item['side'].upper()}@{gap_item['price_cents']}c "
+                f"({gap_item['bets']} bets, {gap_item['win_rate']:.0%} WR, {gap_item['pnl_usd']:+.2f} USD)"
+            )
     # Graduation imminent?
     for strat, data in grad.items():
         if 28 <= data["live_bets"] < 30:
             actions.append(f"XRP graduation IMMINENT — {data['needs']} bet(s) left, add direction_filter at 30")
         elif data["live_bets"] == 30 and not data["ready"]:
             actions.append(f"{strat} at 30 bets — run direction filter eval NOW")
-    # Losing sniper buckets?
-    for bk, data in sniper.get("buckets", {}).items():
-        if data["bets"] >= 10 and data["pnl_usd"] < -5:
-            actions.append(f"Guard candidate: {bk}c bucket ({data['bets']} bets, {data['pnl_usd']:+.2f} USD)")
     # Funding milestone?
     if gap <= 20:
         actions.append(f"MILESTONE: {gap:.2f} USD from +125 USD goal — monitor closely")
@@ -555,6 +673,7 @@ def run_analysis(save: bool = True, brief: bool = False, reflect: bool = False) 
     grad = graduation_status(conn)
     summary = overall_summary(conn)
     benchmark = sniper_quality_benchmark(sniper, drift, summary)
+    guard_gaps = detect_guard_gaps(conn)  # unguarded negative-EV paths only
 
     conn.close()
 
@@ -565,7 +684,8 @@ def run_analysis(save: bool = True, brief: bool = False, reflect: bool = False) 
         "drift": drift,
         "graduation": grad,
         "benchmark": benchmark,
-        "top_recommendations": _generate_recommendations(sniper, drift, grad, summary),
+        "guard_gaps": guard_gaps,
+        "top_recommendations": _generate_recommendations(sniper, drift, grad, summary, guard_gaps),
     }
 
     if save:
@@ -583,22 +703,31 @@ def run_analysis(save: bool = True, brief: bool = False, reflect: bool = False) 
     return insights
 
 
-def _generate_recommendations(sniper, drift, grad, summary) -> list[str]:
+def _generate_recommendations(sniper, drift, grad, summary, guard_gaps=None) -> list[str]:
     recs = []
 
-    # Sniper bucket summary
+    # Sniper bucket summary — only flag buckets with ACTIVE (unguarded) losses
     profitable = [
         b for b, v in sniper.get("buckets", {}).items()
         if v["pnl_usd"] > 0 and v["bets"] >= MIN_SNIPER_BUCKET
     ]
-    losing = [
+    # Buckets with negative PnL from historical data (pre-guard era)
+    losing_all = [
         b for b, v in sniper.get("buckets", {}).items()
         if v["pnl_usd"] < 0 and v["bets"] >= MIN_SNIPER_BUCKET
     ]
+    # Only flag as "needs guard" if detect_guard_gaps found unguarded negative-EV paths
+    # within that bucket's price range
+    guard_gap_prices = {str(g["price_cents"]) for g in (guard_gaps or [])}
+    losing_needs_guard = [b for b in losing_all if b in guard_gap_prices]
+    losing_already_guarded = [b for b in losing_all if b not in losing_needs_guard]
+
     if profitable:
         recs.append(f"SNIPER: Profitable buckets: {', '.join(profitable)}c")
-    if losing:
-        recs.append(f"SNIPER: Losing buckets (guards recommended): {', '.join(losing)}c")
+    if losing_already_guarded:
+        recs.append(f"SNIPER: Guarded buckets (historical losses blocked): {', '.join(losing_already_guarded)}c")
+    if losing_needs_guard:
+        recs.append(f"SNIPER: Losing buckets (guards recommended): {', '.join(losing_needs_guard)}c")
 
     # Drift strategies
     for strat, data in drift.items():
@@ -646,7 +775,16 @@ def _print_full(insights: dict):
 
     print("\nSNIPER BUCKETS (expiry_sniper_v1)")
     for bucket, data in sorted(insights["sniper"]["buckets"].items(), reverse=True):
-        status = "PROFITABLE" if data["pnl_usd"] > 0 else "LOSING  "
+        bk_price = int(bucket) if bucket.isdigit() else 0
+        is_fully_guarded = (
+            _is_guarded(bk_price, "yes", "") and _is_guarded(bk_price, "no", "")
+        ) if bk_price else False
+        if data["pnl_usd"] > 0:
+            status = "PROFITABLE"
+        elif is_fully_guarded:
+            status = "GUARDED  "
+        else:
+            status = "LOSING   "
         flag = "*" if data["bets"] >= MIN_SNIPER_BUCKET else " "
         print(f"  {flag}{bucket}c: {data['bets']:3d} bets | {data['win_rate']:.0%} WR | {data['pnl_usd']:+7.2f} USD  [{status}]")
     print("  (* = enough data for insight)")
