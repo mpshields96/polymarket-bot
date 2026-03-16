@@ -2746,3 +2746,128 @@ SNIPER VALIDITY FOR QF 1ST LEGS:
   QF teams are elite, more likely to have dominant wins than regular season
   Expected MID_GAME rate: ~40% (UCL base rate) for teams at 60c+ pre-game
 
+
+---
+
+## SESSION 85 RESEARCH -- 2026-03-16 (Cross-League Threshold Analysis + NCAA Scanner Fix)
+
+### 46. SOCCER SNIPER -- CROSS-LEAGUE ANALYSIS (57 games, all 4 leagues)
+
+  Ran soccer_candle_analyzer.py on all 4 leagues:
+    KXUCLGAME:    16 games  -> 7/16 = 44% MID_GAME
+    KXLALIGAGAME: 16 games  -> 7/16 = 44% MID_GAME
+    KXEPLGAME:    15 games  -> 2/15 = 13% MID_GAME
+    KXSERIEAGAME: 10 games  -> 2/10 = 20% MID_GAME
+    TOTAL:        57 games  -> 18/57 = 31.6% MID_GAME
+
+  Pre-game price threshold analysis (all 57 games):
+
+    Pre-game >= 0.30: 17/33 = 52% MID_GAME  |  < 0.30: 1/24 = 4%
+    Pre-game >= 0.40: 13/22 = 59% MID_GAME  |  < 0.40: 5/35 = 14%
+    Pre-game >= 0.45: 10/16 = 62% MID_GAME  |  < 0.45: 8/41 = 20%
+    Pre-game >= 0.50:  9/13 = 69% MID_GAME  |  < 0.50: 9/44 = 20%
+    Pre-game >= 0.55:  8/12 = 67% MID_GAME  |  < 0.55: 10/45 = 22%
+    Pre-game >= 0.60:  6/8  = 75% MID_GAME  |  < 0.60: 12/49 = 24%
+    Pre-game >= 0.70:  3/3  = 100% MID_GAME |  < 0.70: 15/54 = 28%
+
+  KEY FINDING: Pre-game >= 0.60 threshold gives 75% MID_GAME rate (6/8 games).
+  Pre-game >= 0.70 -> 100% (3/3 games, small sample but consistent).
+  Pre-game < 0.30 -> only 4% (1/24 games).
+
+  This REFINES the Session 83 "45c threshold" finding:
+    Old estimate: 45c divides high/low MID_GAME probability
+    New estimate: 60c is cleaner (75% vs 24% below threshold)
+    La Liga + UCL dominate the high-rate (44%) vs EPL/Serie A (13-20%)
+
+  UCL QF application (games starting March 31):
+    Arsenal (expected ~72-76c at home vs Leverkusen): TIER 1
+    Liverpool (expected ~73-77c at Anfield vs Galatasaray): TIER 1
+    Bayern Munich (expected ~70-74c vs Atalanta): TIER 1
+    Barcelona (expected ~61-65c vs Newcastle): TIER 2 (above 0.60 threshold)
+    Man City (expected ~60-64c vs Real Madrid): TIER 2
+    All 5 above 60c teams -> expected 75% MID_GAME rate = ~3.75 mid-game windows
+    At 15 USD bet, 90c entry -> ~1.65 USD/win = ~6 USD expected from UCL QF R1
+
+  ALL-LEAGUES SUMMARY (avg hold time when MID_GAME):
+    UCL:     77 min avg hold
+    La Liga: 68 min avg hold
+    EPL:     66 min avg hold
+    Serie A: 44 min avg hold
+    Combined: 68 min avg hold across all MID_GAME cases
+
+  NEVER CROSSED 90%: 0 games across all 57 (every winner eventually crosses 90c)
+  False positive rate (teams that cross 90c mid-game but LOSE) remains 0/3 from S84.
+  Self-protecting property: at 90c, true reversal rate ~3-5% << market-implied ~10%.
+
+### 47. NCAA TOURNAMENT SCANNER -- TWO BUGS FIXED (commit f848adb)
+
+  Bug 1: fetch_odds_api_games() called with args swapped
+    Was: (sport, api_key) i.e. ("basketball_ncaab", odds_key)
+    Result: 401 Unauthorized on every run -- "basketball_ncaab" passed as API key
+    Fix: changed to (odds_key, "basketball_ncaab") with explicit tuple unpacking
+
+  Bug 2: comparison.sharp_prob attribute does not exist on OddsComparison
+    OddsComparison has sharp_yes_prob and sharp_no_prob (side-specific)
+    Fix: select based on which side is favorite (yes_price >= no_price -> sharp_yes_prob)
+
+  3 regression tests added to tests/test_ncaab_monitor.py (1322 tests passing total):
+    - test_fetch_odds_api_games_signature_matches_call
+    - test_odds_comparison_has_sharp_yes_prob_not_sharp_prob
+    - test_scanner_selects_correct_sharp_prob_for_yes_favorite
+
+  Scanner status after fix:
+    Kalshi: 64 KXNCAAMBGAME markets open, ALL at 0c (unpriced as of March 16 02:05 UTC)
+    Pinnacle: 32 NCAAB games with lines already available (used 2 credits: 297-299)
+    Result: no opportunities found (Kalshi markets not priced yet)
+    Next run: March 17-18 when Kalshi prices Round 1 matchups
+
+### 48. WEATHER CALIBRATION -- MINIMAL SETTLED DATA
+
+  41 weather paper bets in DB as of March 16 02:00 UTC:
+    2 settled (both CHI markets from March 15):
+      CHI NO@86c: WIN +1.04 USD
+      CHI NO@24c: LOSS -7.20 USD
+    39 open (Kalshi settlement delays 1-3 days)
+
+  Too few to draw calibration conclusions. Need 20+ per city.
+  Key question still open: does LAX have 5F warm bias in GEFS forecasts?
+  Re-check March 18-20 when more bets settle.
+
+### 49. GDP SPEED-PLAY STATUS
+
+  KXGDP markets: 8 open (T1.0 through T4.5), all 0c/0 volume (44 days to April 30).
+  BEA releases GDP advance estimate on April 30 at 08:30 ET.
+  FRED API: no key needed (free CSV endpoint already in src/data/fred.py).
+  Same mechanism as CPI speed-play. NOT building yet -- markets not liquid.
+  Check KXGDP pricing 1 week before April 30 (April 23-24).
+
+### UPDATED PRIORITY STACK (Session 85)
+
+  1. NCAA scanner -- re-run when Kalshi prices markets (likely March 17-18)
+     Command: python scripts/ncaa_tournament_scanner.py --min-edge 0.03
+     Focus: 1v16 at 90c+ (if underpriced), 2v15 at 90-94c (historical 94% WR)
+
+  2. Soccer live monitoring -- EPL BRE vs WOL March 30, UCL QF March 31 + April 1
+     Command: python scripts/soccer_live_monitor.py --series KXUCLGAME --date 26MAR31
+     UCL QF TIER 1 targets: Arsenal, Liverpool, Bayern Munich (all expected 70c+)
+     Run monitor ~30 min before kickoff, log CSV for post-analysis.
+
+  3. Weather calibration -- check March 18-20 when more bets settle
+     Currently 2/41 settled. Need 20+ per city.
+
+  4. XRP drift graduation -- 23/30 settled bets (7 more needed)
+     When 30/30: run direction filter eval (NO vs YES WR split)
+
+  5. CPI speed-play -- April 10 08:30 ET (scripts/cpi_release_monitor.py ready)
+
+  6. GDP speed-play -- check KXGDP pricing April 23-24 (1 week before release)
+
+  DEAD ENDS (cumulative):
+    PGA golf sniper, non-crypto 90c+ markets, Kalshi copy trading, FOMC cross-market arb,
+    sniper maker mode, NBA/NHL at current scale, tennis/NCAAB sniper at current scale,
+    weather NO at 99c, KXBTCD near-expiry sniper, FOMC chain arb, sports taker arb,
+    BALLDONTLIE API, NCAA totals/spreads, KXBTCD daily sniper, FOMC March 2026 (no market),
+    annual BTC markets (9+ month lockup), non-crypto 90c+ market expansion (2000+ scanned, 0 found),
+    NBA in-game sniper (75x capital efficiency loss), KXMV parlay markets (zero volume),
+    KXGDP (not liquid yet -- revisit April 23-24)
+
