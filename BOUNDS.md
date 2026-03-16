@@ -371,4 +371,23 @@ graduation counters for both strategies became unreliable.
 
 ---
 
-*Last updated: Session 81 (2026-03-15). IL-12 through IL-18 added with regression tests in tests/test_iron_laws.py.*
+---
+
+### IL-19: KXSOL YES@97c is structurally negative EV — block execution
+
+**Rule:** `src/execution/live.py execute()` must return `None` when `"KXSOL" in signal.ticker and price_cents == 97 and signal.side == "yes"`.
+
+BTC/ETH YES@97c remain profitable (100% WR) — only SOL is blocked.
+KXXRP YES@97c is separately blocked by IL-10B.
+
+**Stats at time of guard (S88 2026-03-16):** 8 bets, 87.5% WR, -17.18 USD.
+Break-even requires 97% WR. Current WR 87.5% is 9.5 points below.
+Loss pattern: KXSOL15M-26MAR160200-00 $19.40 loss triggered analysis.
+
+**Test:** `tests/test_live_executor.py::TestPerAssetStructuralLossGuards::test_sol_yes_at_97c_blocked`
+`tests/test_live_executor.py::TestPerAssetStructuralLossGuards::test_btc_yes_at_97c_not_blocked`
+`tests/test_live_executor.py::TestPerAssetStructuralLossGuards::test_eth_yes_at_97c_not_blocked`
+
+---
+
+*Last updated: Session 88 (2026-03-16). IL-19 added: KXSOL YES@97c guard.*

@@ -1172,12 +1172,14 @@ class TestPerAssetStructuralLossGuards:
     """Regression: XRP and SOL specific price buckets are structurally below break-even.
 
     XRP/SOL have higher intra-window volatility than BTC/ETH. Specific buckets
-    confirmed negative EV via S81 data analysis:
-      KXXRP YES@94c: 15 bets, 93.3% WR, need 94.9%, -9.09 USD
-      KXXRP YES@97c:  6 bets, 83.3% WR, need 98.0%, -18.04 USD (terrible R/R)
-      KXSOL YES@94c: 12 bets, 91.7% WR, need 94.9%, -7.28 USD
+    confirmed negative EV via live data:
+      KXXRP YES@94c:  15 bets, 93.3% WR, need 94.9%, -9.09 USD  (S81)
+      KXXRP YES@97c:   6 bets, 83.3% WR, need 98.0%, -18.04 USD (S81, terrible R/R)
+      KXSOL YES@94c:  12 bets, 91.7% WR, need 94.9%, -7.28 USD  (S81)
+      KXSOL YES@97c:   8 bets, 87.5% WR, need 97.0%, -17.18 USD (S88)
+      BTC/ETH YES@97c: 100% WR — profitable, NOT blocked
 
-    Guards added S81. Revisit at 200+ bets per bucket.
+    Guards added S81 (IL-10A/B/C) and S88 (IL-19). Revisit at 200+ bets per bucket.
     """
 
     async def test_xrp_yes_at_94c_blocked(self, live_env, bypass_first_run):
@@ -1312,6 +1314,68 @@ class TestPerAssetStructuralLossGuards:
             price_guard_max=99,
         )
         assert result is not None
+
+    async def test_sol_yes_at_97c_blocked(self, live_env, bypass_first_run):
+        """KXSOL YES@97c is blocked -- IL-19: 87.5% WR at 8 bets, need 97% break-even, -17.18 USD.
+
+        S88 2026-03-16: loss at KXSOL15M-26MAR160200-00 triggered analysis.
+        BTC/ETH YES@97c remain profitable (100% WR) -- SOL only blocked.
+        """
+        ob = make_orderbook(no_bid=3)  # no_bid=3 -> yes_ask = 97c
+        signal = make_signal(side="yes", price_cents=93, ticker="KXSOL15M-26MAR160200-00")
+        result = await execute(
+            signal,
+            make_market(yes_price=97, no_price=3),
+            ob,
+            5.0,
+            make_kalshi_mock(),
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is None
+
+    async def test_btc_yes_at_97c_not_blocked(self, live_env, bypass_first_run):
+        """KXBTC YES@97c is NOT blocked -- 100% WR, profitable. Only SOL is blocked at 97c."""
+        ob = make_orderbook(no_bid=3)  # yes_ask = 97c
+        signal = make_signal(side="yes", price_cents=93, ticker="KXBTC15M-26MAR160200-00")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=97, no_price=3),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
+    async def test_eth_yes_at_97c_not_blocked(self, live_env, bypass_first_run):
+        """KXETH YES@97c is NOT blocked -- 100% WR, profitable. Only SOL is blocked at 97c."""
+        ob = make_orderbook(no_bid=3)  # yes_ask = 97c
+        signal = make_signal(side="yes", price_cents=93, ticker="KXETH15M-26MAR160200-00")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=97, no_price=3),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
 
 
 # ── Sniper per-call max_slippage_cents guard (S85) ───────────────────────────

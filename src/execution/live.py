@@ -181,6 +181,15 @@ async def execute(
             "(91.7%% WR at 12 bets, needs 94.9%% to break even) -- skip",
         )
         return None
+    # IL-19: SOL YES@97c — 8 bets, 87.5% WR, need 97.0% break-even, -17.18 USD
+    # BTC/ETH YES@97c remain profitable (100% WR). SOL only.
+    # Confirmed S88 2026-03-16: loss at KXSOL15M-26MAR160200-00 triggered analysis.
+    if "KXSOL" in signal.ticker and price_cents == 97 and signal.side == "yes":
+        logger.info(
+            "[live] KXSOL YES@97c -- structurally negative EV "
+            "(87.5%% WR at 8 bets, needs 97.0%% to break even) -- skip",
+        )
+        return None
 
     # ── Execution-time price guard ────────────────────────────────────────
     # Convert execution price to YES-equivalent for range + slippage checks.
