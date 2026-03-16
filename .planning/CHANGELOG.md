@@ -4490,3 +4490,42 @@ Pattern 1/2 safety improvements, UCL/EPL candlestick analysis.
   that bucket). When adding new guards, search for any "not_blocked" tests for the
   same ticker/price before committing.
 
+
+---
+
+## Session 88 (Wrap) — 2026-03-16 10:15 UTC — Full recovery to near-breakeven
+
+### Self-Assessment
+  WINS:
+  - IL-20 guard (KXXRP YES@95c) deployed mid-session — stops all future structural losses from that bucket
+  - Recovered all-time P&L from -13.28 USD (post-loss trough) back to -0.26 USD by session end
+  - XRP drift advanced to 28/30 (2 bets from graduation eval)
+  - 8+ monitoring cycles chained autonomously overnight — bot never unattended
+  - Zero bet failures post-restart: guard stack fully validated (IL-5/IL-10/IL-10A/B/C/IL-11/IL-19/IL-20)
+
+  LOSSES:
+  - Two KXXRP YES@95c losses (-19.95 USD total): one before IL-20 analysis started, one during restart window
+  - Second loss avoidable if IL-20 had been deployed 1 cycle earlier (~10 USD preventable)
+  - Lost live bet opportunities during ~10min restart window
+
+  GRADE: B+
+  Why B+: Guard deployed successfully and P&L recovered to near-breakeven — but the guard should have
+  fired sooner. The data was visible earlier (90% WR = structural, not variance). Next chat: act faster
+  when per-asset WR deviates >3pp from break-even with 8+ bets.
+
+  ONE THING next chat must do differently: Run NCAA scanner at session start — March 17 UTC, lines NOW mature.
+  ONE THING that would have made more money: Deploy IL-20 one cycle earlier (saved ~10 USD from trade 3002).
+
+### Performance (final — 10:15 UTC)
+  All-time live P&L: -0.26 USD (recovered from -13.28 trough)
+  Today live: +44.74 USD (98 settled, 90/98, 92% WR)
+  expiry_sniper today: 80/82 wins, +41.43 USD (primary engine performing)
+  XRP drift: 28/30 (needs 2 more bets for direction filter eval)
+  Tests: 1376 passing
+  Last commit: bf5b267
+
+### Next session focus
+  Priority #1: NCAA scanner (lines mature March 17-18, run immediately)
+  Priority #2: Watch XRP drift hit 30/30, run direction filter eval immediately
+  Priority #3: Continue monitoring — maintain guard stack integrity
+

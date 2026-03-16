@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-16 07:35 UTC (Session 88 overnight — +41.89 USD today, -3.11 all-time, nearly break-even!)
+# Last updated: 2026-03-16 10:15 UTC (Session 88 final wrap — +44.74 USD today, -0.26 all-time, essentially breakeven!)
 # ═══════════════════════════════════════════════════════════════
 
 ## COPY-PASTE THIS TO START A NEW SESSION (Session 89)
@@ -13,12 +13,12 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 88 — 2026-03-16 08:20 UTC):
+BOT STATE (Session 88 final — 2026-03-16 10:15 UTC):
   Bot RUNNING PID 57302 → /tmp/polybot_session88.log
-  All-time live P&L: -13.28 USD (TODAY +31.72 USD live, 79 settled, 75/79 wins, 95% WR)
-  Tests: 1376 passing. Last commit: 8613d10 (docs: add IL-20 to BOUNDS.md)
+  All-time live P&L: -0.26 USD (TODAY +44.74 USD live, 98 settled, 90/98 wins, 92% WR)
+  Tests: 1376 passing. Last commit: bf5b267 (docs: Session 88 IL-20 wrap — KXXRP YES@95c guard deployed)
   Config: MAX_TRADE_PCT=15%, HARD_MAX=20 USD, ALL guards active (IL-5/IL-10/IL-10A/B/C/IL-11/IL-19/IL-20)
-  XRP drift: 27/30 live bets (needs 3 more for graduation eval)
+  XRP drift: 28/30 live bets (needs 2 more for graduation eval)
   SOL drift: 33/30 Stage 1 (full Kelly + 20 USD cap, already graduated S81)
   SESSION 88 KEY BUILDS (2026-03-16 overnight):
   - IL-19 guard (commit a4f33ed): KXSOL YES@97c BLOCKED — 8 bets, 87.5% WR, -17.18 USD, 97% WR needed
@@ -61,8 +61,8 @@ SESSION 81 KEY CHANGES (2026-03-15 monitoring chat):
      7 regression tests in TestPerAssetStructuralLossGuards
   5. Pattern 2 verify-revert PostToolUse hook deployed (commit cd9702f)
 
-RESTART COMMAND (Session 88 — use session88.log):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session88.log 2>&1 &
+RESTART COMMAND (Session 89 — use session89.log):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session89.log 2>&1 &
   Then verify: ps aux | grep "[m]ain.py" — exactly 1. Then cat bot.pid.
 
 If --health shows "HARD STOP": HISTORICAL. The 30% lifetime stop was DISABLED in S34.
@@ -88,10 +88,10 @@ If --health shows "HARD STOP": HISTORICAL. The 30% lifetime stop was DISABLED in
 
 ---
 
-GRADUATION STATUS (2026-03-16 UTC — Session 87 final):
-  sol_drift_v1: 30/30 bets, Brier 0.191, P&L +1.23 USD — GRADUATED (calibration_max=None, full Kelly)
-  xrp_drift_v1: 24/30 bets, Brier 0.253, P&L -0.68 USD — needs 6 more
-  expiry_sniper_v1: ~650+ live bets total, P&L +306 USD all-time — CORE ENGINE (18/18 wins today +13.00 USD)
+GRADUATION STATUS (2026-03-16 UTC — Session 88 final):
+  sol_drift_v1: 33/30 bets, Brier 0.191, P&L: stage1 active — GRADUATED (calibration_max=None, full Kelly)
+  xrp_drift_v1: 28/30 bets, Brier 0.266, P&L -1.74 USD — needs 2 more for direction filter eval
+  expiry_sniper_v1: 75/30+ live bets, P&L +306 USD all-time — CORE ENGINE (80/82 wins today +41.43 USD)
 
 SNIPER BUCKET STATUS (full guard stack — do NOT change without Matthew approval):
   BLOCKED: 96c both sides (IL-10), 97c NO (IL-10), 98c NO (IL-11), 99c/1c (IL-5)
@@ -121,7 +121,8 @@ PENDING TASKS (Session 89 — PRIORITY ORDER):
   #1 NCAA scanner — run scripts/ncaa_tournament_scanner.py --min-edge 0.03 TODAY (March 17 UTC)
      Lines mature March 17-18. Round 1 tip-offs March 20-21. 1 credit/call.
      Watch: Purdue 96c, UConn 95c, Illinois 96c — public money may push below sharp books.
-  #2 XRP drift graduation watch — 26/30, needs 4 more bets. When 30/30: run direction filter eval.
+  #2 XRP drift graduation watch — 28/30 (needs 2 more bets!). When 30/30: run direction filter eval.
+     Direction eval target: YES-only 17 bets, 58.8% WR, +0.69 USD — marginally profitable.
   #3 Weather calibration — check March 18-20 when more paper bets settle (2/41 as of March 16)
      Direct DB query: sqlite3 data/polybot.db "SELECT strategy, COUNT(*), SUM(CASE WHEN side=result THEN 1 ELSE 0 END) FROM trades WHERE strategy LIKE 'weather%' AND result IS NOT NULL GROUP BY strategy"
   #4 Soccer in-play sniper live monitoring — SCRIPT NOW READY (scripts/soccer_sniper_paper.py):

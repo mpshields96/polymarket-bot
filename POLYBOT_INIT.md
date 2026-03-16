@@ -56,23 +56,23 @@
 ## CURRENT STATUS — (updated each session)
 ═══════════════════════════════════════════════════
 
-BUILD COMPLETE. 1373/1373 tests passing. verify.py advisory WARNs only — non-critical.
-Last commit: d79c0f5 (docs: Session 88 monitoring wrap — IL-19 + post_only taker fallback documented)
+BUILD COMPLETE. 1376/1376 tests passing. verify.py advisory WARNs only — non-critical.
+Last commit: bf5b267 (docs: Session 88 IL-20 wrap — KXXRP YES@95c guard deployed, PID 57302)
 
-## BOT STATE — Session 88 monitoring (2026-03-16 07:45 UTC) — BOT RUNNING
+## BOT STATE — Session 88 final (2026-03-16 10:15 UTC) — BOT RUNNING
 
-Bot PID 54221 → /tmp/polybot_session88.log
-All-time live P&L: -3.11 USD (TODAY +41.89 USD, 70 settled, 67/70 wins, 96% WR)
-sol_drift: 33/30 Stage 1 GRADUATED | xrp_drift: 26/30 (needs 4 more)
-SESSION 88 KEY BUILDS: IL-19 guard (KXSOL YES@97c blocked), post_only taker fallback active
+Bot PID 57302 → /tmp/polybot_session88.log
+All-time live P&L: -0.26 USD (TODAY +44.74 USD, 98 settled, 90/98 wins, 92% WR)
+sol_drift: 33/30 Stage 1 GRADUATED | xrp_drift: 28/30 (needs 2 more — graduation eval imminent!)
+SESSION 88 KEY BUILDS: IL-19 guard (KXSOL YES@97c blocked), IL-20 guard (KXXRP YES@95c blocked), post_only taker fallback active
 
 Check bot: cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "RUNNING" || echo "STOPPED"
 Watch:  tail -f /tmp/polybot_session88.log | grep --line-buffered "LIVE\|Kill switch\|cooling\|consecutive"
 
-Tests: 1373/1373 | Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime hard stop
+Tests: 1376/1376 | Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime hard stop
 Active protection: bankroll floor (20 USD) + consecutive cooling (8→2hr) + 20 USD/bet hard cap
-Guards (IL-5/IL-10/IL-10A/B/C/IL-11/IL-19): 96c both, 97c NO, 98c NO, 99c all BLOCKED
-Per-asset: KXXRP YES@94c, KXXRP YES@97c, KXSOL YES@94c, KXSOL YES@97c BLOCKED
+Guards (IL-5/IL-10/IL-10A/B/C/IL-11/IL-19/IL-20): 96c both, 97c NO, 98c NO, 99c all BLOCKED
+Per-asset: KXXRP YES@94c, KXXRP YES@95c, KXXRP YES@97c, KXSOL YES@94c, KXSOL YES@97c BLOCKED
 
 RESPONSE FORMAT RULES (BOTH MANDATORY — Matthew terminates chat for violations):
   RULE 1: NEVER markdown table syntax (| --- |) — wrong font in Claude Code UI.
