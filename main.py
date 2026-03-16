@@ -1603,6 +1603,7 @@ async def expiry_sniper_loop(
                                 strategy_name=strategy.name,
                                 price_guard_min=1,
                                 price_guard_max=99,
+                                max_slippage_cents=3,  # S85: sniper-specific tight guard
                             )
                             if result:
                                 kill_switch.record_trade()

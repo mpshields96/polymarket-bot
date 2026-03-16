@@ -1312,4 +1312,99 @@ class TestPerAssetStructuralLossGuards:
             price_guard_max=99,
         )
         assert result is not None
+
+
+# ── Sniper per-call max_slippage_cents guard (S85) ───────────────────────────
+
+
+@pytest.mark.asyncio
+class TestSniperMaxSlippageCents:
+    """Regression: SOL YES@83c loss on 2026-03-15 23:07 UTC.
+
+    Signal fired at 90c. main.py slippage guard checked _live_price (90c >= 87c, passed).
+    Orderbook showed 83c ask. live.py slippage guard: |83-90|=7c < 10c default → passed.
+    Result: order placed at 83c, SOL dropped, -18.26 USD loss.
+
+    Fix: execute() now accepts max_slippage_cents kwarg. Sniper passes 3.
+    When orderbook diverges 3c+ from signal, execution is rejected.
+    """
+
+    async def test_sniper_rejects_7c_slippage_when_max_is_3(
+        self, live_env, bypass_first_run
+    ):
+        """SOL YES signal@90c, orderbook ask=83c → 7c slip > 3c max → rejected."""
+        ob = make_orderbook(no_bid=17)  # yes_ask = 100-17 = 83c
+        signal = make_signal(side="yes", price_cents=90, ticker="KXSOL15M-26MAR151915-15")
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal,
+            make_market(yes_price=83),
+            ob,
+            18.0,
+            kalshi,
+            db,
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+            max_slippage_cents=3,
+        )
+
+        assert result is None
+        kalshi.create_order.assert_not_called()
+        db.save_trade.assert_not_called()
+
+    async def test_sniper_allows_2c_slippage_when_max_is_3(
+        self, live_env, bypass_first_run
+    ):
+        """SOL YES signal@90c, orderbook ask=88c → 2c slip < 3c max → proceeds."""
+        ob = make_orderbook(no_bid=12)  # yes_ask = 100-12 = 88c
+        signal = make_signal(side="yes", price_cents=90, ticker="KXSOL15M-26MAR151915-15")
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal,
+            make_market(yes_price=88),
+            ob,
+            18.0,
+            kalshi,
+            db,
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+            max_slippage_cents=3,
+        )
+
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
+    async def test_default_slippage_still_10c_for_drift(
+        self, live_env, bypass_first_run
+    ):
+        """Drift strategies: no max_slippage_cents → default 10c guard applies.
+
+        signal@55c, exec@64c → 9c slip < 10c default → proceeds (was blocked at 3c).
+        """
+        ob = make_orderbook(no_bid=36)  # yes_ask = 100-36 = 64c
+        signal = make_signal(side="yes", price_cents=55)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal,
+            make_market(yes_price=64),
+            ob,
+            5.0,
+            kalshi,
+            db,
+            live_confirmed=True,
+            strategy_name="btc_drift_v1",
+        )
+
+        assert result is not None
+        kalshi.create_order.assert_called_once()
         kalshi.create_order.assert_called_once()

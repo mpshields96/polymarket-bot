@@ -59,6 +59,7 @@ async def execute(
     price_guard_max: int = _EXECUTION_MAX_PRICE_CENTS,
     post_only: bool = False,
     expiration_ts: Optional[int] = None,
+    max_slippage_cents: Optional[int] = None,
 ) -> Optional[dict]:
     """
     Place a real order on Kalshi.
@@ -197,10 +198,11 @@ async def execute(
         return None
 
     slippage_cents = abs(execution_yes_price - signal_yes_price)
-    if slippage_cents > _EXECUTION_MAX_SLIPPAGE_CENTS:
+    _slip_limit = max_slippage_cents if max_slippage_cents is not None else _EXECUTION_MAX_SLIPPAGE_CENTS
+    if slippage_cents > _slip_limit:
         logger.warning(
             "[live] Slippage %d¢ exceeds max %d¢ — rejecting (signal=%d¢, exec=%d¢, ticker=%s)",
-            slippage_cents, _EXECUTION_MAX_SLIPPAGE_CENTS,
+            slippage_cents, _slip_limit,
             signal_yes_price, execution_yes_price, signal.ticker,
         )
         return None
