@@ -4333,3 +4333,43 @@ Pattern 1/2 safety improvements, UCL/EPL candlestick analysis.
   2. XRP drift graduation — 24/30, needs 6 more. Run direction filter eval at 30.
   3. Soccer monitoring: EPL March 30, UCL QF March 31/April 1
   4. CPI speed-play: April 10 08:30 ET
+
+---
+
+## Session 88 — 2026-03-16 overnight (Research)
+
+### What changed
+- scripts/soccer_sniper_paper.py (NEW): SoccerSniperExec + SoccerPaperTracker classes for paper bet placement on mid-game 90c+ crossings. Guards: PRE-GAME filter (both at tracker and exec level), fee-floor 99c/1c, pre-game price < 60c, one bet per market per session. CLI entrypoint with --series/--date/--poll args.
+- tests/test_soccer_sniper_paper.py (NEW): 19 tests, all passing (1367 total, 3 skipped).
+- SESSION_HANDOFF.md updated: S88 state, P&L, pending tasks.
+- .planning/EDGE_RESEARCH_S62.md updated: Session 88 findings appended.
+- Bug found/fixed: soccer_sniper_paper.py imported `Database` from src.db — class is `DB`, function is `load_from_config()`.
+- Bug found/fixed: SoccerPaperTracker was calling on_crossing for PRE-GAME crossings — added `is_ingame_crossing` guard at tracker level. Defense in depth: PRE-GAME filtered before calling exec AND inside exec.
+
+### Why
+- Soccer sniper paper module needed before March 21-22 (EPL/La Liga resume) and March 31/April 1 (UCL QF).
+- La Liga 46c+ pre-game teams: 86% MID_GAME rate. UCL: 40% MID_GAME. Academic FLB basis validated.
+- TDD approach: 19 tests written, implementation built to pass all of them.
+
+### Performance
+  All-time live P&L: -10.59 USD (was -30.44 at start of S88, net +19.85 USD this session from live bets)
+  Today live: +34.41 USD (33/33 expiry_sniper wins, 100% WR)
+  Bot running: PID 26391, all guards clean, hourly rate limits functioning normally
+
+### Self-rating: B+
+  WINS: Soccer sniper paper module built and fully tested. Today P&L exceptional (+34.41 USD, 100% WR).
+    All-time P&L improved dramatically: -30.44 → -10.59 USD. Bot clean, no guard violations.
+  LOSSES: No new signal edges found (NCAA scanner must wait until March 17). Weather calibration
+    still only 2/42 settled. No progress on XRP graduation (waiting for bets to come in).
+  GRADE: B+ — built the soccer sniper module cleanly with TDD. Bot is making real money.
+  ONE THING next chat must do differently: Run NCAA scanner FIRST thing (today is March 17 UTC starting
+    ~05:00+ UTC). Don't wait — 1 credit/call, lines should be more mature.
+  ONE THING that would have made more money if done earlier: Rate limit optimization study. The bot
+    is hitting 15/hour cap on sniper with profitable 98c YES signals being blocked. Worth analyzing
+    if raising the cap from 15 to 20 would be safe (but requires Matthew approval before changing).
+
+### Next session priorities
+  1. NCAA scanner — run TODAY first thing (March 17 UTC now). python3 scripts/ncaa_tournament_scanner.py --min-edge 0.03
+  2. XRP drift graduation — 24/30, needs 6 more. Check DB.
+  3. Soccer monitoring: La Liga/EPL March 21-22, UCL QF March 31/April 1 (scripts/soccer_sniper_paper.py)
+  4. CPI speed-play: April 10 08:30 ET (scripts/cpi_release_monitor.py)
