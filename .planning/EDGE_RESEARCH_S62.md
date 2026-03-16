@@ -3309,3 +3309,17 @@ Retrospective filter applied to all 97 settled paper bets:
 IMPORTANT: These 64 bets are IN-SAMPLE (used to derive filter). Not out-of-sample.
 Live activation gate: 20+ NEW paper bets (post-filter deploy = post-March 17) at 60%+ WR.
 Filter deployed commit a870a60. New paper bets will auto-apply filter. ETA ~7-10 days.
+
+### BTC orderbook_imbalance_v1 (Session 92 analysis)
+
+BTC orderbook paper (66 settled bets):
+  Overall: 34/66 = 51.5% WR | +3.38 USD
+  Filtered (YES>=52c, NO<=44c): 22/39 = 56.4% WR | +17.60 USD
+  Break-even at YES@52c: ~53.7% (fees included). 56.4% > 53.7% → positive EV but slim margin.
+
+vs ETH orderbook_imbalance_v1 filtered: 42/64 = 65.6% WR — much stronger.
+
+Interpretation: BTC markets are more HFT-dominated → orderbook signal weaker for BTC.
+ETH orderbook signal is the stronger one (65.6% vs 56.4% WR, same filter).
+RECOMMENDATION: Both remain paper-only. ETH is the priority for live activation.
+After 20+ OOS ETH paper bets at 60%+ WR, consider ETH live and keep BTC paper only.
