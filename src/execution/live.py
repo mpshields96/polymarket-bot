@@ -167,6 +167,16 @@ async def execute(
             "(93.3%% WR at 15 bets, needs 94.9%% to break even) -- skip",
         )
         return None
+    # IL-20: XRP YES@95c — 10 bets, 90.0% WR, need 95.0% break-even, -14.27 USD
+    # SOL/BTC/ETH YES@95c remain profitable (100% WR). XRP only.
+    # Confirmed S88 2026-03-16: loss at KXXRP15M-26MAR160415-15 triggered analysis.
+    if "KXXRP" in signal.ticker and price_cents == 95 and signal.side == "yes":
+        logger.info(
+            "[live] KXXRP YES@95c -- structurally negative EV "
+            "(90.0%% WR at 10 bets, needs 95.0%% to break even) -- skip",
+        )
+        return None
+
     # IL-10B: XRP YES@97c — 6 bets, 83.3% WR, need 98.0% break-even, -18.04 USD
     if "KXXRP" in signal.ticker and price_cents == 97 and signal.side == "yes":
         logger.info(
