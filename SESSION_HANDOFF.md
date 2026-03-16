@@ -1,11 +1,11 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-16 (Session 86 monitoring wrap — bot restarted, +11.49 USD today)
+# Last updated: 2026-03-16 (Session 87 research wrap — self-learning analyzer built, +11.85 USD today)
 # ═══════════════════════════════════════════════════════════════
 
-## COPY-PASTE THIS TO START A NEW SESSION (Session 87)
+## COPY-PASTE THIS TO START A NEW SESSION (Session 88)
 
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 87).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 88).
 
 MANDATORY READING BEFORE ANY ACTION:
   cat SESSION_HANDOFF.md
@@ -13,10 +13,10 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 86 monitoring wrap — 2026-03-16 ~03:00 UTC):
+BOT STATE (Session 87 research wrap — 2026-03-16 ~03:30 UTC):
   Bot RUNNING PID 26391 → /tmp/polybot_session86.log
-  All-time live P&L: -33.51 USD (today +11.49 USD live, 100% WR, 13 settled)
-  Tests: 1325 passing. Last commit: ec960cf (Session 85 final wrap — no code changes S86)
+  All-time live P&L: ~-33.15 USD (today +11.85 USD live, 100% WR, 15 settled)
+  Tests: 1348 passing. Last commit: see below (Session 87 research — strategy_analyzer + NCAA verify)
   Config: MAX_TRADE_PCT=15%, HARD_MAX=20 USD, ALL guards active (IL-5/IL-10/IL-10A/B/C/IL-11)
   Sniper active: 12/12 wins today, +11.12 USD today
   XRP drift: 23/30 live bets (needs 7 more for graduation eval)
@@ -91,7 +91,16 @@ S85 KEY FIXES (commits f848adb + 0867a0a):
   3. Guard audit: all 5+ bet negative-EV buckets confirmed guarded. SOL YES 93c watch at 20+ Stage 1 bets.
   4. 6 new regression tests (1325 total).
 
-PENDING TASKS (Session 86 — PRIORITY ORDER):
+SESSION 87 KEY BUILDS (2026-03-16):
+  1. scripts/strategy_analyzer.py (NEW) — self-learning pattern detector
+     Run at session start: ./venv/bin/python3 scripts/strategy_analyzer.py --brief
+     Surfaces: profitable/losing sniper buckets, direction filter validation, graduation status.
+     Saves to data/strategy_insights.json. 23 tests.
+  2. POLYBOT_INIT.md updated: Rule 1 step 6 = run strategy_analyzer --brief at startup.
+  3. NCAA scanner verified: 64 KXNCAAMBGAME markets open, 0 edges above 3% today (March 16).
+     Lines mature March 17-18. Run then.
+
+PENDING TASKS (Session 88 — PRIORITY ORDER):
   #1 NCAA scanner — run scripts/ncaa_tournament_scanner.py --min-edge 0.03 on March 17-18
      Current spread: 0.1-1.3% (not actionable yet). Widening expected closer to game time.
      Watch: Purdue 96c, UConn 95c, Illinois 96c — public money may push below sharp books.

@@ -12,6 +12,10 @@
   3. .planning/KALSHI_MARKETS.md — FULL market map — ALL categories, what's built, what's not
   4. .planning/SKILLS_REFERENCE.md — ALL available GSD/sc:/superpowers commands + token costs
   5. .planning/PRINCIPLES.md     — before ANY strategy/risk parameter change
+  6. Run self-learning reflection:
+       ./venv/bin/python3 scripts/strategy_analyzer.py --brief
+     (surfaces data-backed insights from every prior session — profitable buckets, direction filters,
+      graduation status, and remaining profit target. Results saved to data/strategy_insights.json)
 
 ### RULE 2: INVESTIGATE KALSHI MARKET TYPES EVERY SESSION
   KALSHI HAS FAR MORE MARKET TYPES THAN THE 15-MIN DIRECTION MARKETS WE TRADE.

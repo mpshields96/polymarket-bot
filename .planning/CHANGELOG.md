@@ -4248,3 +4248,48 @@ Pattern 1/2 safety improvements, UCL/EPL candlestick analysis.
   2. NCAA scanner March 17-18 (Round 1 markets open) — run at 09:00 ET each day
   3. XRP drift graduation watch (23/30, needs 7 more)
   4. Soccer monitoring: EPL BRE vs WOL March 30, UCL QF March 31/April 1
+
+---
+
+## Session 87 — 2026-03-16 — Self-learning pattern detector + NCAA scanner verification
+
+### Changed
+- scripts/strategy_analyzer.py (NEW) — Self-learning pattern detector (YoYo architecture adapted)
+  Queries live DB, detects profitable/losing sniper buckets, direction filter validation,
+  drift strategy trends, graduation status, and remaining profit target.
+  --brief mode for session startup (5-line summary). --no-save for dry runs.
+  Saves actionable insights to data/strategy_insights.json.
+- tests/test_strategy_analyzer.py (NEW) — 23 tests, all passing. 1348 total (was 1325).
+  Covers: sniper bucket analysis, drift direction detection, graduation gate, safety minimum
+  samples (N<30 no insight), overall P&L summary, recommendation generation.
+- POLYBOT_INIT.md — Added Rule 1 step 6: run `strategy_analyzer.py --brief` at session start
+  to trigger self-learning reflection before starting work.
+
+### Why
+- Matthew requested adoption of YoYo self-evolving agent architecture (from CCA Session 12)
+- Journal + strategy feedback loop: DB is the journal, analyzer is the pattern detector
+- Key insight from this session: 90-94c sniper = +92.41 USD, 95c = +33.52 USD, both PROFITABLE
+  96c = -22.44 USD, 97c = -28.17 USD, 98c = -9.49 USD — all LOSING despite 94-98% WR
+  Guards at 96c+ correctly placed. This validates all S81 guard decisions.
+- btc_drift direction filter "no" confirmed: YES 30% WR (-30 USD), NO 60% WR (+19 USD)
+
+### NCAA Scanner
+- Verified scanner runs clean: 64 KXNCAAMBGAME markets open as of March 16 UTC
+- 0 edges above 3% threshold today. Lines mature March 17-18. Run again then.
+- Round 1 tip-offs: March 20-21. Scanner costs 1 credit/run.
+
+### Tests
+  1348 passing, 3 skipped (was 1325)
+
+### Self-rating: B+
+  WINS: Self-learning architecture implemented with full test coverage. NCAA scanner verified.
+    Key bucket analysis confirms guards are correctly placed.
+  LOSSES: No new profitable edge discovered this session (existing findings re-confirmed).
+  ONE THING next chat must do: Run strategy_analyzer.py --brief at session start (now wired in).
+  ONE THING that would have made more money: Investigate why bot died S86 (still unresolved).
+
+### Next session priorities
+  1. NCAA scanner — run March 17-18 (lines mature closer to Round 1 March 20-21)
+  2. XRP drift graduation (23/30, needs 7 more — check daily)
+  3. Soccer monitoring: EPL BRE vs WOL March 30, UCL QF March 31/April 1
+  4. CPI speed-play: April 10 08:30 ET
