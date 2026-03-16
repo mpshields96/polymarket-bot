@@ -4736,3 +4736,49 @@ Pattern 1/2 safety improvements, UCL/EPL candlestick analysis.
   Priority #2: YES@90c watch — 9 bets at 89% WR < 90.9% break-even. Flag at 20+ bets.
   Priority #3: Investigate auto-restart mechanism — what restarts the bot after Binance crash?
   Priority #4: Strategy analyzer — add guard awareness so 97/98/96c don't show false alarms
+
+---
+
+## Session 90 continuation — 2026-03-16 22:47 UTC — autonomous work block
+### Type: AUTONOMOUS (Matthew away 2+ hours)
+
+### Work done this block
+1. Guard audit (22:30 UTC): ALL guards confirmed working. Zero post-deployment bypass bets.
+   - IL-10A (KXXRP YES@94c): 0 bets after 2026-03-15 22:57 UTC
+   - IL-10B (KXXRP YES@97c): 0 bets after 2026-03-15 22:57 UTC
+   - IL-10C (KXSOL YES@94c): 0 bets after 2026-03-15 22:57 UTC
+   - IL-19 (KXSOL YES@97c): 0 bets after 2026-03-16 06:18 UTC
+   - IL-20 (KXXRP YES@95c): 0 bets after 2026-03-16 08:23 UTC
+   - IL-10 (96c both, 97c NO): last bets March 15. Zero since.
+   - IL-11 (98c NO): last bets March 15. Zero since.
+   Root cause of "guards failing" confusion: strategy_analyzer showing pre-guard losses
+   as "guards recommended." FIXED in commit 6557d09.
+
+2. strategy_analyzer fix (commit 6557d09):
+   - --brief now shows "Guarded buckets (historical losses blocked): 96, 97, 98c"
+   - Was showing: "Losing buckets (guards recommended): 96, 97, 98c" — FALSE ALARM
+   - Fix: uses detect_guard_gaps() (which skips guarded paths) to classify buckets
+   - Full output shows GUARDED/PROFITABLE/LOSING correctly per bucket
+   - 1388/1388 tests passing
+
+3. 18:45 UTC window (22:30-22:45 UTC): 4 bets, 4/4 WINS
+   - ETH drift @59c: +0.39 USD (calibration)
+   - SOL sniper @90c: +1.98 USD (guard audit noted YES@90c at 88.9% avg WR — SOL@90c itself 100%)
+   - XRP sniper @98c: +0.20 USD (100% WR historically — correctly unguarded)
+   - BTC sniper @98c: +0.20 USD
+   All-time after: +53.98 USD
+
+4. NCAA scanner run twice: 0 edges both times (still March 16 UTC). Queued for 00:01 UTC.
+
+5. XRP drift graduation confirmed: 30/30, Brier 0.258, direction_filter="yes" in place since S54.
+   Kept at MICRO-live per conservative policy (btc/eth were demoted from Stage 1 at S60).
+
+6. SOL YES@90c: 0 historical bets on SOL specifically (all 8 YES@90c wins are BTC/ETH/SOL combined).
+   The one XRP YES@90c loss (-19.80 USD) was XRP-specific. SOL@90c is safe to bet.
+
+### Current state (22:47 UTC)
+  All-time: +53.98 USD | Need: 71.02 more to +125 goal
+  Today: +64.57 USD (108 settled, 97 wins, 89.8% WR)
+  Bot: RUNNING PID 31365 (stable 5+ hours)
+  Active window: 19:00 UTC (KXBTC15M-26MAR161900-00)
+  Next NCAA scan: 00:01 UTC March 17
