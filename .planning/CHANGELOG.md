@@ -4293,3 +4293,43 @@ Pattern 1/2 safety improvements, UCL/EPL candlestick analysis.
   2. XRP drift graduation (23/30, needs 7 more — check daily)
   3. Soccer monitoring: EPL BRE vs WOL March 30, UCL QF March 31/April 1
   4. CPI speed-play: April 10 08:30 ET
+
+---
+
+## Session 87 (monitoring wrap) — 2026-03-16 — Monitoring cycle + self-learning architecture adoption
+
+### Changed
+- SESSION_HANDOFF.md — updated P&L, XRP graduation count, pending tasks, restart command → S88
+- .claude/commands/polybot-init.md — CURRENT STATE updated with final S87 numbers
+- No code changes this phase (monitoring-only session)
+
+### Why
+- Monitoring loop confirmed bot healthy for 20 min: 4/4 checks ALIVE, PID 26391 stable
+- P&L improved during monitoring: -33.15 → -30.44 USD all-time (+2.71 USD settled during cycle)
+- XRP advanced to 24/30 (was 23 at session start)
+- Read and adopted self-learning architecture from CCA SESSION_STATE.md Part 2 (YoYo pattern)
+  DB is already the journal. strategy_analyzer.py (built S87 research) is the pattern detector.
+  Full reflection loop needs one more step: session-start summary report.
+
+### Performance
+  All-time live P&L: -30.44 USD (was -33.51 at start of S87, net +3.07 USD this session total)
+  Today live: +14.56 USD (21 settled, 100% WR)
+  Sniper: 18/18 today, +13.00 USD
+  XRP drift: 24/30 (needs 6 more)
+
+### Self-rating: B
+  WINS: Bot ran clean all session. +14.56 USD today, 100% WR. Monitoring loop worked.
+    XRP advanced 23→24. Self-learning architecture read and understood.
+  LOSSES: Monitoring script has UTC/local timezone mismatch — showed "0 USD today" during all
+    4 checks despite +14.56 actual. Misleading. Low priority but worth fixing.
+  GRADE: B — monitoring-only session, no new code, bot healthy and making money.
+  ONE THING next chat must do differently: Fix monitor script timezone — use settled_at > midnight UTC
+    explicitly, not local date string. Current query computes date from local TZ.
+  ONE THING that would have made more money if done earlier: Nothing — sniper is firing clean.
+    The NCAA scanner is the next alpha opportunity (run March 17).
+
+### Next session priorities
+  1. NCAA scanner — run TODAY (March 17), lines mature for Round 1 (March 20-21)
+  2. XRP drift graduation — 24/30, needs 6 more. Run direction filter eval at 30.
+  3. Soccer monitoring: EPL March 30, UCL QF March 31/April 1
+  4. CPI speed-play: April 10 08:30 ET

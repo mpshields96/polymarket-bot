@@ -65,9 +65,9 @@ IF no clear direction:
 ═══════════════════════════════════════════════════
 CURRENT STATE (auto-updated by wrap commands)
 ═══════════════════════════════════════════════════
-Last updated: Session 87 (2026-03-16) — RESEARCH SESSION — self-learning analyzer built, NCAA verified
+Last updated: Session 87 final wrap (2026-03-16) — monitoring clean, +14.56 USD today, -30.44 all-time
 Bot: RUNNING PID 26391 → /tmp/polybot_session86.log
-All-time P&L: -33.15 USD (today: +11.85 USD, 15 settled, 100% WR)
+All-time P&L: -30.44 USD (today: +14.56 USD, 21 settled, 100% WR)
 Bankroll: ~100 USD | Tests: 1348 passing, 3 skipped
 Last commit: 5c45557 (feat: self-learning strategy analyzer + NCAA scanner verification)
 
@@ -80,8 +80,8 @@ Live strategies:
   btc_drift: STAGE 1 — direction_filter="no", 49% WR (-10.76 USD), trend=IMPROVING
   eth_drift: STAGE 1 — direction_filter="yes", 49% WR (-24.41 USD), trend=DECLINING — watch
   sol_drift: GRADUATED — 30/30 bets, Brier 0.191, +1.23 USD — full Kelly active (calibration_max=None)
-  xrp_drift: MICRO — 23/30 bets, Brier 0.258, -0.68 USD — needs 7 more
-  expiry_sniper: LIVE (20 USD cap, 15% pct cap) — PRIMARY ENGINE (+11.85 USD today, 100% WR)
+  xrp_drift: MICRO — 24/30 bets, Brier 0.253, -0.68 USD — needs 6 more
+  expiry_sniper: LIVE (20 USD cap, 15% pct cap) — PRIMARY ENGINE (+14.56 USD today, 100% WR)
     PROFITABLE RANGE: 90-94c (+92.41 USD all-time), 95c (+33.52 USD all-time)
     BLOCKED: 96c both (IL-10), 97c NO (IL-10), 98c NO (IL-11), 99c/1c (IL-5)
     BLOCKED per-asset (S81): KXXRP YES@94c, KXXRP YES@97c, KXSOL YES@94c
