@@ -4456,3 +4456,37 @@ Pattern 1/2 safety improvements, UCL/EPL candlestick analysis.
   LESSONS: Check KalshiAPIError.body structure carefully — "details" field vs "message" field.
     post_only rejection is not an error condition — it's a market state signal. Retry correctly.
 
+
+---
+
+## Session 88 guard addition — IL-20 (2026-03-16 08:20 UTC)
+
+### What changed
+- src/execution/live.py: IL-20 guard added (commit 38f9f70)
+  KXXRP YES@95c blocked — 10 bets, 90.0% WR, -14.27 USD, needs 95% WR to break even.
+  Loss at KXXRP15M-26MAR160415-15 (-19.95 USD) twice triggered analysis.
+  SOL/BTC/ETH YES@95c remain 100% WR and unblocked — XRP only.
+- tests/test_live_executor.py: 3 new tests + 1 updated (commit 38f9f70)
+  test_xrp_yes_at_95c_blocked, test_xrp_yes_at_95c_blocked_il20 (new IL-20 specific)
+  test_sol_yes_at_95c_not_blocked, test_btc_yes_at_95c_not_blocked
+  Updated test_xrp_yes_at_95c_not_blocked → test_xrp_yes_at_95c_blocked_il20 (stale pre-IL-20 test)
+- BOUNDS.md: IL-20 entry added (commit 8613d10)
+- Bot restarted: PID 57302, IL-20 now active
+
+### Why
+- KXXRP YES@95c data: 10 bets, 90% WR, needs 95% to break even. -5 percentage point gap.
+- Same XRP YES-side intra-window volatility pattern as IL-10A (YES@94c) and IL-10B (YES@97c).
+- Two consecutive losses at KXXRP YES@95c before guard was added: -19.95 × 2 = -39.90 USD cost.
+
+### Performance (08:20 UTC snapshot)
+  All-time live P&L: -13.28 USD (was +1.72 before the two XRP YES@95c losses)
+  Today live: +31.72 USD (79 settled, 75/79, 95% WR)
+  XRP drift: 27/30 (3 from graduation eval)
+  Bot: RUNNING PID 57302 → /tmp/polybot_session88.log
+
+### Lesson
+  After adding IL-20, discovered a pre-existing test (test_xrp_yes_at_95c_not_blocked)
+  that asserted XRP@95c should NOT be blocked (written during IL-19 session to protect
+  that bucket). When adding new guards, search for any "not_blocked" tests for the
+  same ticker/price before committing.
+

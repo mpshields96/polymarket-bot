@@ -13,12 +13,12 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 88 overnight — 2026-03-16 07:35 UTC):
-  Bot RUNNING PID 54221 → /tmp/polybot_session88.log
-  All-time live P&L: -3.11 USD (TODAY +41.89 USD live, 70 settled, 67/70 wins, 96% WR)
-  Tests: 1373 passing. Last commit: e9dc10f (feat: post_only taker fallback for drift strategies)
-  Config: MAX_TRADE_PCT=15%, HARD_MAX=20 USD, ALL guards active (IL-5/IL-10/IL-10A/B/C/IL-11/IL-19)
-  XRP drift: 26/30 live bets (needs 4 more for graduation eval)
+BOT STATE (Session 88 — 2026-03-16 08:20 UTC):
+  Bot RUNNING PID 57302 → /tmp/polybot_session88.log
+  All-time live P&L: -13.28 USD (TODAY +31.72 USD live, 79 settled, 75/79 wins, 95% WR)
+  Tests: 1376 passing. Last commit: 8613d10 (docs: add IL-20 to BOUNDS.md)
+  Config: MAX_TRADE_PCT=15%, HARD_MAX=20 USD, ALL guards active (IL-5/IL-10/IL-10A/B/C/IL-11/IL-19/IL-20)
+  XRP drift: 27/30 live bets (needs 3 more for graduation eval)
   SOL drift: 33/30 Stage 1 (full Kelly + 20 USD cap, already graduated S81)
   SESSION 88 KEY BUILDS (2026-03-16 overnight):
   - IL-19 guard (commit a4f33ed): KXSOL YES@97c BLOCKED — 8 bets, 87.5% WR, -17.18 USD, 97% WR needed
@@ -97,7 +97,8 @@ SNIPER BUCKET STATUS (full guard stack — do NOT change without Matthew approva
   BLOCKED: 96c both sides (IL-10), 97c NO (IL-10), 98c NO (IL-11), 99c/1c (IL-5)
   BLOCKED (per-asset S81): KXXRP YES@94c, KXXRP YES@97c, KXSOL YES@94c
   BLOCKED (per-asset S88): KXSOL YES@97c (IL-19 — 87.5% WR, 97% needed to break even)
-  PROFITABLE: 91c-95c BTC/ETH both sides, 97c YES BTC/ETH/XRP, 98c YES all assets
+  BLOCKED (per-asset S88): KXXRP YES@95c (IL-20 — 90% WR, 95% needed to break even)
+  PROFITABLE: 91c-95c BTC/ETH/SOL, 97c YES BTC/ETH, 98c YES all assets
   BTC/ETH sniper: historically 98-99% WR — core engine, do not touch
 
 S85 KEY FIXES (commits f848adb + 0867a0a):
