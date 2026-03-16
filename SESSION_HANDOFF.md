@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-16 (Session 88 overnight research — soccer sniper paper built, +34.41 USD today, -10.59 all-time)
+# Last updated: 2026-03-16 05:15 UTC (Session 88 overnight research complete — +38.12 USD today, -6.88 all-time)
 # ═══════════════════════════════════════════════════════════════
 
 ## COPY-PASTE THIS TO START A NEW SESSION (Session 89)
@@ -13,13 +13,15 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 88 overnight — 2026-03-16 UTC):
-  Bot RUNNING PID 26391 → /tmp/polybot_session88.log (may still be session86.log)
-  All-time live P&L: -10.59 USD (today +34.41 USD live, 33/33 sniper wins, 100% WR)
-  Tests: 1367 passing. Last commit: 74a74a9 (feat: soccer sniper paper execution module)
+BOT STATE (Session 88 overnight — 2026-03-16 05:15 UTC):
+  Bot RUNNING PID 26391 → /tmp/polybot_session86.log (no restart needed, still session 86 log)
+  All-time live P&L: -6.88 USD (today +38.12 USD live, 42 settled, 41/42 wins, 98% WR)
+  Tests: 1367 passing. Last commit: 833a15f (docs: SOL YES@93c bucket analysis)
   Config: MAX_TRADE_PCT=15%, HARD_MAX=20 USD, ALL guards active (IL-5/IL-10/IL-10A/B/C/IL-11)
   XRP drift: 24/30 live bets (needs 6 more for graduation eval)
-  SOL drift: 30/30 Stage 1 (full Kelly + 20 USD cap, already graduated S81)
+  SOL drift: 33/30 Stage 1 (full Kelly + 20 USD cap, already graduated S81)
+  KEY FINDING: 35/35 sniper wins since March 16 00:00 UTC (full guard stack). Guards are working.
+  STRATEGY ANALYZER TIMEZONE BUG FIXED: was showing 0 USD today — now shows correct UTC value.
 
 CRITICAL GUARD UPDATE (Session 81 — commit 9dbf889):
   NEW guards added in src/execution/live.py (per-asset structural losses):
