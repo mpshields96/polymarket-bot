@@ -202,11 +202,15 @@ PENDING TASKS (Session 93 — PRIORITY ORDER):
      Expected: ~40% of 6 eligible teams cross 90c mid-game = 2-3 paper bets placed
      Need 3+ paper wins before live activation. UCL QF March 31/April 1 = 2nd legs.
      La Liga/EPL resume March 21-22. Pre-game >= 0.60 threshold.
-  #6 SOL YES 93c bucket watch — check at 20+ Stage 1 bets (currently 14 total)
-  #7 CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)
-  #8 KXGDP speed-play — April 30 (GDP release, check April 23-24)
-  #9 Weather calibration — FAILING (CHI=57%, LAX=50%, MIA=25%, DEN=33% WR, needs 80%+)
-     Do NOT live-trade weather. Check at 20+ bets per city (end of April).
+  #6 btc_drift NO PROMOTION CANDIDATE — Matthew's decision needed:
+     36 NO-only live bets, 58.3% WR, Brier 0.236 (< 0.25 threshold), +18.66 USD
+     MEETS Stage 1 criteria. Currently micro-live (S60 demotion). Upgrade to Stage 1?
+     Command: In main.py find btc_drift trading_loop call, set calibration_max_usd=None
+     Risk: bet size goes from 0.40 USD to up to 5 USD. Read PRINCIPLES.md first.
+     eth_drift YES: 74 bets, 51.4% WR, Brier 0.252 (just above 0.25) — NOT ready yet.
+  #7 SOL YES 93c bucket watch — check at 20+ Stage 1 bets (currently 14 total)
+  #8 CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)
+  #9 KXGDP speed-play — April 30 (GDP release, check April 23-24)
 
 SESSION 92 KEY FINDINGS (2026-03-17 00:00 UTC):
   1. eth_orderbook_imbalance retrospective filter analysis:
