@@ -1,11 +1,11 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-15 (Session 84 research wrap — soccer sniper edge, 0% FP rate validated)
+# Last updated: 2026-03-16 (Session 85 research wrap — cross-league soccer threshold, NCAA scanner bugs fixed)
 # ═══════════════════════════════════════════════════════════════
 
-## COPY-PASTE THIS TO START A NEW SESSION (Session 85)
+## COPY-PASTE THIS TO START A NEW SESSION (Session 86)
 
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 85).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 86).
 
 MANDATORY READING BEFORE ANY ACTION:
   cat SESSION_HANDOFF.md
@@ -13,12 +13,14 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 81 wrap — 2026-03-15 ~23:10 UTC):
+BOT STATE (Session 85 wrap — 2026-03-16 UTC):
   Bot RUNNING PID 9054 → /tmp/polybot_session81.log
-  All-time live P&L: -32.82 USD (session loss: -13.94 USD — variance + pre-guard losses)
-  Tests: 1319 passing. Last commit: 9dbf889 (per-asset structural guards S81)
+  All-time live P&L: -40.90 USD (today +4.10 USD live, 100% WR — 6 settled)
+  Tests: 1322 passing. Last commit: 9e72bfe (Session 85 research doc)
   Config: MAX_TRADE_PCT=15%, HARD_MAX=20 USD, ALL guards active (IL-5/IL-10/IL-10A/B/C/IL-11)
-  Bankroll: ~100 USD (estimate — started ~131, losses today)
+  Bankroll: ~100 USD (estimate)
+  XRP drift: 23/30 live bets (needs 7 more for graduation eval)
+  SOL drift: 30/30, Brier 0.191, READY FOR LIVE (already Stage 1)
 
 CRITICAL GUARD UPDATE (Session 81 — commit 9dbf889):
   NEW guards added in src/execution/live.py (per-asset structural losses):
@@ -71,9 +73,9 @@ If --health shows "HARD STOP": HISTORICAL. The 30% lifetime stop was DISABLED in
 
 ---
 
-GRADUATION STATUS (2026-03-15 ~23:00 UTC):
+GRADUATION STATUS (2026-03-16 UTC — Session 85):
   sol_drift_v1: 30/30 bets, Brier 0.191, P&L +1.23 USD — GRADUATED (calibration_max=None, full Kelly)
-  xrp_drift_v1: 22/30 bets, Brier 0.265, P&L -1.63 USD — needs 8 more
+  xrp_drift_v1: 23/30 bets, Brier 0.258, P&L -1.26 USD — needs 7 more
   expiry_sniper_v1: 75+ live bets, P&L +306 USD all-time — CORE ENGINE
 
 SNIPER BUCKET STATUS (full guard stack — do NOT change without Matthew approval):
@@ -82,21 +84,37 @@ SNIPER BUCKET STATUS (full guard stack — do NOT change without Matthew approva
   PROFITABLE: 91c-95c BTC/ETH both sides, 97c YES all assets, 98c YES all assets
   BTC/ETH sniper: historically 98-99% WR — core engine, do not touch
 
-PENDING TASKS (Session 85 — PRIORITY ORDER):
+PENDING TASKS (Session 86 — PRIORITY ORDER):
   #1 NCAA scanner — run scripts/ncaa_tournament_scanner.py --min-edge 0.03 on March 17-18
-     Focus: 1v16 underpriced at 93-95c (structural edge if any), 2v15 at 90-94c
-     Round 1 tip-offs March 20-21. 1 credit/call.
-  #2 Weather calibration — check paper bets ~04:00 UTC March 16 when March 15 bets settle
-     Run: python3 scripts/weather_calibration.py --pending
+     BUGS FIXED in Session 85 (commit f848adb) — was broken since creation, now works:
+       Bug 1: fetch_odds_api_games args were swapped → HTTP 401 on every run
+       Bug 2: comparison.sharp_prob → AttributeError (now uses sharp_yes_prob/sharp_no_prob)
+     3 regression tests added (TestNCAATournamentScannerBugs, 1322 tests total)
+     Focus: 1v16 underpriced at 93-95c, 2v15 at 90-94c. Round 1 tip-offs March 20-21.
+  #2 Weather calibration — check paper bets when March 15-16 bets settle
+     Currently only 2/41 settled. Run: python3 scripts/weather_calibration.py --pending
+     Or direct DB query (script hangs on API): sqlite3 data/polybot.db "SELECT strategy, COUNT(*), SUM(CASE WHEN side=result THEN 1 ELSE 0 END) FROM trades WHERE strategy LIKE 'weather%' AND result IS NOT NULL GROUP BY strategy"
   #3 Soccer in-play sniper live monitoring — FIRST LIVE OPPORTUNITY:
      EPL: BRE vs WOL (March 30), UCL QF 1st legs: March 31 (ARS, MCI, CFC, SPO) + April 1 (BAR, LFC, BMU, ATM)
-     Monitor scripts/soccer_candle_analyzer.py for mid-game 90c+ windows
-     Track Kalshi soccer market tickers for game-winner markets
+     Pre-game >= 0.60 threshold → 75% MID_GAME rate (6/8 games in Session 85 analysis)
      Decision: deploy sniper if UCL favorite leads 2-0+ at 90c+ with 30+ min remaining
-  #4 XRP drift graduation watch — 22/30, needs 8 more bets
+  #4 XRP drift graduation watch — 23/30, needs 7 more bets
      When 30/30: run direction filter eval (NO side vs YES side WR split)
-  #5 CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py → KXFEDDECISION)
-  #6 KXGDP speed-play — April 30 (GDP release)
+  #5 CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)
+  #6 KXGDP speed-play — April 30 (GDP release, KXGDP at 0c/0 volume as of March 16 — check April 23-24)
+
+SESSION 85 RESEARCH FINDINGS (2026-03-16):
+  CROSS-LEAGUE SOCCER THRESHOLD ANALYSIS (57 games, 4 leagues):
+  - Pre-game >= 0.60 → 75% MID_GAME rate (6/8 games). Revised from "45c" estimate in S83-84.
+  - UCL: 44% MID_GAME (4/9), La Liga: 44% (4/9), EPL: 13% (2/15), Serie A: 20% (1/5) + mixed 17% (2/12)
+  - FLB mechanism: market prices 10% reversal prob at 90c, actual rate 3-5% (confirmed across leagues)
+  - Key filter: UCL and La Liga best for soccer sniper (higher market quality + pre-game >= 0.60)
+  NCAA SCANNER BUG FIXES (commit f848adb):
+  - Bug 1: args swapped in fetch_odds_api_games call → HTTP 401 on every run since creation
+  - Bug 2: comparison.sharp_prob AttributeError → fixed to use sharp_yes_prob/sharp_no_prob per side
+  - 3 regression tests added. Scanner now works. Run March 17-18.
+  WEATHER CALIBRATION: only 2/41 paper bets settled as of March 16. Need 3-4 more weeks data.
+  KXGDP: market at 0c, 0 volume — not liquid. Check April 23-24 (1 week before April 30 BEA release).
 
 SESSION 84 RESEARCH FINDINGS (2026-03-15):
   SOCCER IN-PLAY SNIPER — EDGE VALIDATED (structural mechanism confirmed):
@@ -120,6 +138,6 @@ RESEARCH STATE:
     BNB/BCH/DOGE 15M (dormant series), KXBTCD hourly non-5PM slots (0 volume),
     FOMC March 2026 (no Kalshi market), non-crypto 90c+ markets (0/2000 scanned),
     annual BTC range markets KXBTCMAXY/KXBTCMINY (9+ month lockup, drift zone)
-  Open leads: Soccer in-play sniper (UCL March 31/April 1 — first live test), NCAA Round 1 (March 17-18),
-    weather calibration (4+ weeks needed), XRP drift graduation (22/30),
-    CPI speed-play (April 10), KXGDP speed-play (April 30)
+  Open leads: Soccer in-play sniper (UCL March 31/April 1 — first live test, 60c+ pre-game filter),
+    NCAA Round 1 (March 17-18 — scanner now fixed), weather calibration (4+ weeks needed),
+    XRP drift graduation (23/30), CPI speed-play (April 10), KXGDP speed-play (April 30)
