@@ -2948,3 +2948,61 @@ SNIPER VALIDITY FOR QF 1ST LEGS:
     [S85] SOL NO 8c (3 bets, 67% WR): too small to guard, may be variance.
     [S85] NCAA scanner spread at bracket announcement: 0.1-1.3% (not actionable yet).
     All prior dead ends from S84 and before.
+
+---
+
+## 16. SESSION 87 — SELF-LEARNING ANALYZER + NCAA SCANNER VERIFICATION (2026-03-16)
+
+### Tool Built: scripts/strategy_analyzer.py
+Self-learning pattern detector adapted from YoYo self-evolving agent architecture.
+Queries polybot.db directly — no separate journal file needed (DB IS the journal).
+Generates actionable insights on:
+  - Per-bucket sniper profitability (with N >= 30 safety gate)
+  - Drift direction filter validation (N >= 20 safety gate)
+  - Graduation status for all strategies
+  - Remaining profit target to +125 USD all-time goal
+  - Time-of-day analysis for sniper
+
+Usage:
+  ./venv/bin/python3 scripts/strategy_analyzer.py --brief   # 5-line startup summary
+  ./venv/bin/python3 scripts/strategy_analyzer.py           # full analysis + save insights
+  data/strategy_insights.json                               # persisted output
+
+23 tests. All passing. Wired into POLYBOT_INIT.md Rule 1 step 6.
+
+### NCAA Scanner Verification (March 16)
+Run: ./venv/bin/python3 scripts/ncaa_tournament_scanner.py --min-edge 0.03
+Result: 64 KXNCAAMBGAME open markets. 0 edges above 3% threshold today.
+Lines not yet mature (March 16 UTC). Re-run March 17-18.
+Round 1 tip-offs: March 20-21. Credit cost: 1/run.
+
+### Sniper Bucket Analysis (empirical — 406 live settled bets as of S87)
+Raw data from DB:
+
+  90-94c: 191 bets, 97% WR, +92.41 USD   PROFITABLE (core engine)
+  95c:     59 bets, 100% WR, +33.52 USD  PROFITABLE
+  96c:     31 bets,  94% WR, -22.44 USD  LOSING — GUARD ACTIVE (IL-10)
+  97c:     36 bets,  94% WR, -28.17 USD  LOSING — GUARD ACTIVE (IL-10)
+  98c:     59 bets,  98% WR,  -9.49 USD  LOSING — GUARD ACTIVE (IL-11)
+  99c+:    22 bets,  95% WR, -14.85 USD  LOSING — GUARD ACTIVE (IL-5)
+  <90c:     8 bets,  75% WR, -27.66 USD  LOSING — slippage guard catches these
+
+Total profitable sniper range: 90-95c = +125.93 USD all-time
+Total losing range: 96c+ = -74.95 USD all-time (guards prevent these going forward)
+
+WHY 94-98% WR STILL LOSES: Fee math at 97c.
+  Win: +3c. Lose: -97c. Break-even WR = 97.0%. Actual WR = 94% = losing.
+  Fee is small at 90c+ but payout is also small. Margin for error vanishes above 95c.
+  The guards are correct. Do NOT remove them based on "high win rate looks good."
+
+### btc_drift Direction Analysis (55 live settled bets)
+  YES side: 20 bets, 30% WR, -30.07 USD — direction_filter="no" correctly applied
+  NO side:  35 bets, 60% WR, +19.31 USD — profitable, validated
+
+### Priority Stack Update (after S87)
+1. NCAA scanner — run March 17-18 (TOMORROW). Existing script ready.
+2. XRP drift graduation (23/30, needs 7 more)
+3. Soccer in-play: EPL BRE vs WOL March 30, UCL QF March 31/April 1
+4. CPI speed-play: April 10 08:30 ET
+5. strategy_analyzer --brief at every session start (now mandatory via POLYBOT_INIT Rule 1)
+6. eth_drift declining trend watch (49% WR, DECLINING — monitor but don't change parameters)

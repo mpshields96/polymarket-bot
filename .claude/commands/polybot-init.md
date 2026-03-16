@@ -65,18 +65,24 @@ IF no clear direction:
 ═══════════════════════════════════════════════════
 CURRENT STATE (auto-updated by wrap commands)
 ═══════════════════════════════════════════════════
-Last updated: Session 84 (2026-03-15) — RESEARCH SESSION — soccer FLB validated, Pattern 2 hook deployed
-Bot: RUNNING PID 9054 → /tmp/polybot_session81.log
-All-time P&L: -32.82 USD (today: -4.55 USD, 132 settled, 90% WR)
-Bankroll: ~125 USD | Tests: 1319 passing, 3 skipped
-Last commit: 9dbf889 (feat: block XRP YES@94c/97c and SOL YES@94c)
+Last updated: Session 87 (2026-03-16) — RESEARCH SESSION — self-learning analyzer built, NCAA verified
+Bot: RUNNING PID 26391 → /tmp/polybot_session86.log
+All-time P&L: -33.15 USD (today: +11.85 USD, 15 settled, 100% WR)
+Bankroll: ~100 USD | Tests: 1348 passing, 3 skipped
+Last commit: 5c45557 (feat: self-learning strategy analyzer + NCAA scanner verification)
+
+SESSION STARTUP SELF-REFLECTION (NEW — run every session):
+  ./venv/bin/python3 scripts/strategy_analyzer.py --brief
+  Surfaces: profitable sniper buckets, drift direction validation, graduation status, target gap.
+  Output saved to data/strategy_insights.json.
 
 Live strategies:
-  btc_drift: STAGE 1 — direction_filter="no", low activity
-  eth_drift: STAGE 1 — direction_filter="yes", low activity
+  btc_drift: STAGE 1 — direction_filter="no", 49% WR (-10.76 USD), trend=IMPROVING
+  eth_drift: STAGE 1 — direction_filter="yes", 49% WR (-24.41 USD), trend=DECLINING — watch
   sol_drift: GRADUATED — 30/30 bets, Brier 0.191, +1.23 USD — full Kelly active (calibration_max=None)
-  xrp_drift: MICRO — 22/30 bets, Brier 0.265, -1.63 USD — needs 8 more
-  expiry_sniper: LIVE (20 USD cap, 15% pct cap) — PRIMARY ENGINE
+  xrp_drift: MICRO — 23/30 bets, Brier 0.258, -0.68 USD — needs 7 more
+  expiry_sniper: LIVE (20 USD cap, 15% pct cap) — PRIMARY ENGINE (+11.85 USD today, 100% WR)
+    PROFITABLE RANGE: 90-94c (+92.41 USD all-time), 95c (+33.52 USD all-time)
     BLOCKED: 96c both (IL-10), 97c NO (IL-10), 98c NO (IL-11), 99c/1c (IL-5)
     BLOCKED per-asset (S81): KXXRP YES@94c, KXXRP YES@97c, KXSOL YES@94c
     ACTIVE BUCKETS: 91c-95c BTC/ETH both sides, 97c YES all assets, 98c YES all assets
@@ -94,19 +100,20 @@ RESEARCH QUALITY DIRECTIVE (Matthew S80 — MANDATORY):
   Named mechanism + Named counterparty + Different from sniper AND speed-play + Paper-test protocol
   Kalshi API scanning without structural hypothesis = data mining = NOT research.
 
-Research state (S84):
+Research state (S87):
+  scripts/strategy_analyzer.py (NEW S87) — self-learning pattern detector, run --brief at startup
   scripts/soccer_candle_analyzer.py — UCL/EPL MID_GAME analysis via Kalshi candlestick API
     VALIDATED: FLB edge, 0/3 false positive rate at 90c, UCL 40% MID_GAME rate
     FIRST LIVE TEST: EPL BRE vs WOL (March 30), UCL QF (March 31 + April 1)
-    NOTE: ALL soccer postponed due to international break — do not monitor until March 30
   scripts/ncaa_tournament_scanner.py — run March 17-18, 1 credit/call, Round 1 March 20-21
-  scripts/weather_calibration.py — check paper bets ~04:00 UTC March 16 (bets pending settlement)
+    NOTE: 64 KXNCAAMBGAME markets open as of March 16. 0 edges above 3% (lines not mature).
+  scripts/weather_calibration.py — check again ~March 18-20, need 3-4 more weeks data
   scripts/cpi_release_monitor.py — run April 10, 08:30 ET
   Dead ends (cumulative): sports taker arb, BALLDONTLIE, FOMC model, NBA/NHL sniper,
     sniper maker mode, NCAA totals, KXMV parlay, NBA in-game sniper, BNB/BCH/DOGE 15M,
     KXBTCD hourly non-5PM, FOMC March 2026, non-crypto 90c+ markets, annual BTC range,
     KXBTCD near-expiry, hourly WR patterns, soccer underdogs below 60c pre-game
-  Next: NCAA March 17-18, weather calibration March 16, soccer UCL March 31/April 1
+  Next: NCAA March 17-18, soccer UCL March 31/April 1, CPI April 10
 
 IMPORTANT — MARCH 1 HARD STOP IN --health: HISTORICAL, NOT BLOCKING.
   30% lifetime stop was DISABLED in S34. No kill_switch.lock file. Safe to restart.
