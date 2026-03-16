@@ -297,9 +297,10 @@ def overall_summary(conn: sqlite3.Connection) -> dict:
         WHERE is_paper=0 AND result IS NOT NULL
     """).fetchone()
 
-    today_ts = time.mktime(time.strptime(
-        datetime.now(timezone.utc).strftime("%Y-%m-%d"), "%Y-%m-%d"
-    ))
+    # Use midnight UTC explicitly (time.mktime() interprets as local time → wrong TZ offset)
+    today_ts = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    ).timestamp()
     today = conn.execute("""
         SELECT
             COUNT(*) as bets,
