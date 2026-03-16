@@ -3071,3 +3071,20 @@ If at 20 bets WR >= 93% AND P&L positive: no action, continue monitoring.
 
 NOTE: The IL-10A guard (KXSOL YES@94c) is correct and should NOT be removed.
 The 93c bucket is different and needs more data.
+
+### YES@97c Deep Dive (Session 88 overnight)
+Noticed YES@97c showing -12.76 USD overall. Investigated:
+
+Root cause: ALL losses trace to KXXRP YES@97c (6 bets, 83.3% WR, -18.04 USD):
+- Last KXXRP YES@97c bet: 2026-03-15 22:03 UTC (BEFORE bot restart at 02:52 UTC March 16)
+- Current bot (PID 26391, started 02:52 UTC March 16): ZERO KXXRP YES@97c bets since restart
+- Guard IL-10B (KXXRP YES@97c: BLOCKED) is working correctly
+
+Non-XRP assets at YES@97c (BTC/ETH/SOL): 100% WR, +5.28 USD combined — PROFITABLE as expected.
+Break-even at 97c = 97% WR. Non-XRP assets exceed that with 100% WR.
+
+CONCLUSION: No new guards needed. YES@97c situation is clean for BTC/ETH/SOL.
+XRP YES@97c is correctly blocked. The historical -18.04 USD won't recur.
+
+SESSION_HANDOFF "97c YES all assets profitable" is correct — means non-XRP assets.
+XRP specifically has additional guards (IL-10A/B) beyond the general price guards.
