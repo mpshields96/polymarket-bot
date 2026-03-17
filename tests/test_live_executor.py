@@ -2523,3 +2523,221 @@ class TestSniperPerWindowCap:
             price_guard_max=99,
         )
         db.count_sniper_bets_in_window.assert_called_once_with("26MAR170415-15")
+
+
+class TestAutoGuardLoading:
+    """Tests for auto-discovered guard loading from data/auto_guards.json."""
+
+    async def test_auto_guard_blocks_matching_bucket(
+        self, live_env, bypass_first_run, tmp_path, monkeypatch
+    ):
+        """Auto guard fires when ticker_contains + price + side all match."""
+        import src.execution.live as live_mod
+
+        guard_data = {
+            "version": 1,
+            "guards": [
+                {
+                    "ticker_contains": "KXSOL",
+                    "price_cents": 93,
+                    "side": "yes",
+                    "n_bets": 5,
+                    "win_rate": 0.80,
+                    "break_even_wr": 0.93,
+                    "total_loss_usd": -12.50,
+                    "discovered_date": "2026-03-18 00:00 UTC",
+                }
+            ],
+        }
+        guard_file = tmp_path / "auto_guards.json"
+        guard_file.write_text(__import__("json").dumps(guard_data))
+        monkeypatch.setattr(live_mod, "_AUTO_GUARDS", live_mod._load_auto_guards.__func__(guard_file) if hasattr(live_mod._load_auto_guards, "__func__") else [guard_data["guards"][0]])
+        # Direct patch is cleaner
+        monkeypatch.setattr(live_mod, "_AUTO_GUARDS", guard_data["guards"])
+
+        ob = make_orderbook(yes_bid=93)
+        signal = make_signal(side="yes", price_cents=93, ticker="KXSOL15M-26MAR181800-00")
+        result = await execute(
+            signal,
+            make_market(yes_price=93, no_price=7),
+            ob,
+            10.0,
+            make_kalshi_mock(),
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is None
+
+    async def test_auto_guard_does_not_block_wrong_side(
+        self, live_env, bypass_first_run, monkeypatch
+    ):
+        """Auto guard for YES does not block NO at same price."""
+        import src.execution.live as live_mod
+
+        monkeypatch.setattr(live_mod, "_AUTO_GUARDS", [
+            {
+                "ticker_contains": "KXSOL",
+                "price_cents": 93,
+                "side": "yes",  # guard is YES-only
+                "n_bets": 5,
+                "win_rate": 0.80,
+                "break_even_wr": 0.93,
+                "total_loss_usd": -12.50,
+                "discovered_date": "2026-03-18 00:00 UTC",
+            }
+        ])
+
+        ob = make_orderbook(no_bid=93)
+        signal = make_signal(side="no", price_cents=93, ticker="KXSOL15M-26MAR181800-00")
+        result = await execute(
+            signal,
+            make_market(yes_price=7, no_price=93),
+            ob,
+            10.0,
+            make_kalshi_mock(),
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        # Should pass through auto guard (may be blocked by other guards, but not auto)
+        # Here no other guards apply to KXSOL NO@93c — order should be placed
+        assert result is not None
+
+    async def test_auto_guard_does_not_block_wrong_ticker(
+        self, live_env, bypass_first_run, monkeypatch
+    ):
+        """Auto guard for KXSOL does not block KXBTC at same price/side."""
+        import src.execution.live as live_mod
+
+        monkeypatch.setattr(live_mod, "_AUTO_GUARDS", [
+            {
+                "ticker_contains": "KXSOL",
+                "price_cents": 93,
+                "side": "yes",
+                "n_bets": 5,
+                "win_rate": 0.80,
+                "break_even_wr": 0.93,
+                "total_loss_usd": -12.50,
+                "discovered_date": "2026-03-18 00:00 UTC",
+            }
+        ])
+
+        ob = make_orderbook(yes_bid=93)
+        signal = make_signal(side="yes", price_cents=93, ticker="KXBTC15M-26MAR181800-00")
+        result = await execute(
+            signal,
+            make_market(yes_price=93, no_price=7),
+            ob,
+            10.0,
+            make_kalshi_mock(),
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is not None
+
+    async def test_auto_guard_does_not_apply_to_drift(
+        self, live_env, bypass_first_run, monkeypatch
+    ):
+        """Auto guards only fire for expiry_sniper_v1, not drift strategies."""
+        import src.execution.live as live_mod
+
+        monkeypatch.setattr(live_mod, "_AUTO_GUARDS", [
+            {
+                "ticker_contains": "KXBTC",
+                "price_cents": 55,
+                "side": "yes",
+                "n_bets": 5,
+                "win_rate": 0.40,
+                "break_even_wr": 0.55,
+                "total_loss_usd": -20.0,
+                "discovered_date": "2026-03-18 00:00 UTC",
+            }
+        ])
+
+        ob = make_orderbook(yes_bid=55)
+        signal = make_signal(side="yes", price_cents=55, ticker="KXBTC15M-26MAR181800-00")
+        result = await execute(
+            signal,
+            make_market(yes_price=55, no_price=45),
+            ob,
+            10.0,
+            make_kalshi_mock(),
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="btc_drift_v1",  # drift, not sniper
+            price_guard_min=35,
+            price_guard_max=65,
+        )
+        # Drift strategy — auto guard must NOT fire
+        assert result is not None
+
+    async def test_global_auto_guard_blocks_any_ticker(
+        self, live_env, bypass_first_run, monkeypatch
+    ):
+        """Auto guard with ticker_contains=None fires for any asset."""
+        import src.execution.live as live_mod
+
+        monkeypatch.setattr(live_mod, "_AUTO_GUARDS", [
+            {
+                "ticker_contains": None,
+                "price_cents": 92,
+                "side": "no",
+                "n_bets": 8,
+                "win_rate": 0.75,
+                "break_even_wr": 0.92,
+                "total_loss_usd": -18.0,
+                "discovered_date": "2026-03-18 00:00 UTC",
+            }
+        ])
+
+        for ticker_prefix in ["KXBTC", "KXETH", "KXSOL", "KXXRP"]:
+            ob = make_orderbook(no_bid=92)
+            signal = make_signal(
+                side="no", price_cents=92,
+                ticker=f"{ticker_prefix}15M-26MAR181800-00"
+            )
+            result = await execute(
+                signal,
+                make_market(yes_price=8, no_price=92),
+                ob,
+                10.0,
+                make_kalshi_mock(),
+                make_db_mock(),
+                live_confirmed=True,
+                strategy_name="expiry_sniper_v1",
+                price_guard_min=1,
+                price_guard_max=99,
+            )
+            assert result is None, f"Global auto guard should block {ticker_prefix} NO@92c"
+
+    async def test_empty_auto_guards_no_effect(
+        self, live_env, bypass_first_run, monkeypatch
+    ):
+        """Empty auto_guards list does not block any bets."""
+        import src.execution.live as live_mod
+
+        monkeypatch.setattr(live_mod, "_AUTO_GUARDS", [])
+
+        ob = make_orderbook(yes_bid=91)
+        signal = make_signal(side="yes", price_cents=91, ticker="KXBTC15M-26MAR181800-00")
+        result = await execute(
+            signal,
+            make_market(yes_price=91, no_price=9),
+            ob,
+            10.0,
+            make_kalshi_mock(),
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is not None

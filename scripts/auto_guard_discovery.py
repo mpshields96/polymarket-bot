@@ -142,37 +142,9 @@ def discover_guards(db_path: Path = DB_PATH) -> list[dict]:
     """
     conn = sqlite3.connect(str(db_path))
 
-    rows = conn.execute("""
-        SELECT ticker, side, price_cents,
-               COUNT(*) as n_bets,
-               SUM(CASE WHEN side = result THEN 1 ELSE 0 END) as wins,
-               SUM(pnl_cents) as total_pnl_cents
-        FROM trades
-        WHERE strategy = 'expiry_sniper_v1'
-          AND is_paper = 0
-          AND result IS NOT NULL
-        GROUP BY ticker_prefix, side, price_cents
-    """).fetchall()
-
-    # Fallback: group by computed prefix since ticker_prefix column may not exist
-    if not rows:
-        rows = conn.execute("""
-            SELECT ticker, side, price_cents,
-                   COUNT(*) as n_bets,
-                   SUM(CASE WHEN side = result THEN 1 ELSE 0 END) as wins,
-                   SUM(pnl_cents) as total_pnl_cents
-            FROM trades
-            WHERE strategy = 'expiry_sniper_v1'
-              AND is_paper = 0
-              AND result IS NOT NULL
-            GROUP BY side, price_cents
-        """).fetchall()
-        # Flatten: these rows have full ticker, need to group by prefix manually
-        conn.close()
-        return _discover_guards_manual(db_path)
-
+    # ticker_prefix column does not exist in DB — always use manual grouping
     conn.close()
-    return _process_rows(rows)
+    return _discover_guards_manual(db_path)
 
 
 def _discover_guards_manual(db_path: Path) -> list[dict]:
