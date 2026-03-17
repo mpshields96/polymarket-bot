@@ -445,4 +445,21 @@ Pattern: NO@91c=100% WR, NO@92c=67% WR, NO@93c+=100% WR. Same per-asset volatili
 
 ---
 
-*Last updated: Session 94 (2026-03-17). IL-22 added: KXSOL NO@92c.*
+### IL-23: KXXRP YES@98c is structurally negative EV — block execution
+
+**Rule:** `src/execution/live.py execute()` must return `None` when `"KXXRP" in signal.ticker and price_cents == 98 and signal.side == "yes"`.
+
+BTC/ETH/SOL YES@98c remain unaffected — all 100% WR (13/13, 16/16, 12/12). XRP-specific volatility notch.
+
+**Stats at time of guard (S94 2026-03-17):** 11 bets, 90.9% WR, -17.89 USD net.
+Break-even requires 98.0% WR. Extreme asymmetric payout: wins ~0.20 USD each, losses ~19.60 USD each.
+Triggered by trade #3224 KXXRP YES@98c -> NO at 02:31 UTC, -19.60 USD.
+Same per-asset pattern as KXXRP YES@94c (IL-10A), YES@95c (IL-20), YES@97c (IL-10B).
+
+**Test:** `tests/test_live_executor.py::TestPerAssetStructuralLossGuards::test_xrp_yes_at_98c_blocked`
+`tests/test_live_executor.py::TestPerAssetStructuralLossGuards::test_btc_yes_at_98c_not_blocked_by_il23`
+`tests/test_live_executor.py::TestPerAssetStructuralLossGuards::test_eth_yes_at_98c_not_blocked_by_il23`
+
+---
+
+*Last updated: Session 94 (2026-03-17). IL-23 added: KXXRP YES@98c. All XRP YES@90c+ high-price buckets now guarded.*
