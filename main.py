@@ -2965,6 +2965,7 @@ async def main():
             calibration_max_usd=None,  # S81: graduated Stage 2 — 30 settled bets, Brier 0.184, +6.07 USD. Kelly + HARD_MAX governs.
             btc_move_condition=_btc_move_condition,
             direction_filter="no",  # S51: NO wins 11/11 (100%), YES only 63.6% — filter YES bets
+            maker_mode=True,  # S98: post_only=True, 30s expiration. Same as btc/eth drift. Saves ~75% on fees.
         ),
         name="sol_drift_loop",
     )
@@ -2991,6 +2992,7 @@ async def main():
             calibration_max_usd=_DRIFT_CALIBRATION_CAP_USD,
             btc_move_condition=_btc_move_condition,
             direction_filter="yes",  # YES 83% (5/6) vs NO 36% (4/11) — applied Session 54
+            maker_mode=True,  # S98: post_only=True, 30s expiration. Same as btc/eth drift. Saves ~75% on fees.
         ),
         name="xrp_drift_loop",
     )
