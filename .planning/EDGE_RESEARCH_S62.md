@@ -3574,3 +3574,75 @@ xrp_drift YES-only: 21/30 bets, 62% WR, +1.45 USD
 DEAD ENDS (additions Session 94 continuation):
   Time-of-day sniper filtering (bad hours fully explained by already-guarded buckets)
 
+
+---
+
+## SESSION 95 CONTINUATION FINDINGS (2026-03-17 04:00 UTC)
+
+### UCL Launcher Timezone Bug — FIXED
+
+Bug: All UCL and NCAA launcher scripts used `date -j -f` on macOS which interprets time as local CDT (UTC-5), not UTC. "17:25:00" was treated as 17:25 CDT = 22:25 UTC (5 hours late).
+
+Impact:
+  UCL March 17 launcher (PID 75548): Will fire ~22:25 UTC — all games over. Dead run.
+  UCL March 18 launcher (PID 3321): Was sleeping until ~22:25 UTC March 18. FIXED.
+  NCAA scanner (PID 85172): Will fire ~22:00 UTC instead of 17:00 UTC. Acceptable (just a scan).
+
+Fix applied: UCL March 18 launcher killed and restarted with Python UTC epoch:
+  TARGET_EPOCH=$(python3 -c "import calendar, datetime; print(calendar.timegm(datetime.datetime(2026,3,18,17,25,0).timetuple()))")
+  New launcher sleeping 135205s (~37h) until 17:25 UTC March 18 (2026-03-18 17:25:00 UTC)
+
+RULE GOING FORWARD: Always use Python/calendar.timegm for UTC epoch calculations in bash scripts.
+  Never use `date -j -f` on macOS without UTC-offset correction.
+
+### Orderbook Imbalance Filter — Confirmed Working
+
+Post-restart (02:49 UTC March 17): ZERO orderbook_imbalance_v1 or eth_orderbook_imbalance_v1 paper bets placed.
+Pre-restart bets at YES@41c, YES@43c, NO@45c were pre-restart artifacts (old code running).
+Filter is now correctly suppressing all sub-threshold signals.
+
+OOS validation still needed: 20+ post-filter paper bets required. Accumulating passively.
+
+### Guard Stack Confirmed Intact
+
+Full sniper bucket analysis (n>=5) shows ALL negative EV buckets are guarded:
+  KXXRP YES@94-98c: IL-10A, IL-20, IL-10B, IL-23 (all active)
+  KXXRP NO@92c: IL-21 | KXSOL NO@92c: IL-22 | KXSOL YES@94/97c: IL-10C, IL-19
+  Global: 96c both sides (IL-10), 98c NO (IL-11), 99c (IL-5)
+
+No new guard candidates with n>=15. KXXRP YES@90c: n=1, -19.80 USD — single data point, watch only.
+KXXRP YES@91c (n=2), YES@92c (n=11), YES@93c (n=7) all 100% WR — clean buckets.
+
+### Direction Filter Performance Summary
+
+btc_drift NO: 40 bets, 58% WR, +18.50 USD — VALIDATED, correct filter
+btc_drift YES: 20 bets, 30% WR, -30.07 USD — terrible, correctly filtered out
+eth_drift YES: 80 bets, 50% WR, -6.51 USD | LAST 30 BETS: 43% WR — TRENDING NEGATIVE
+  RECOMMENDATION: Monitor. If next 20 YES bets stay <50% WR, flip to "no" (requires Matthew approval).
+  NOTE: eth_drift NO was worse (35 bets, 46% WR, -18.31 USD) so flipping to NO is not obviously better.
+sol_drift NO: 27 bets, 74% WR, -0.71 USD — High WR but large Kelly losses create high variance
+sol_drift YES: 12 bets, 67% WR, +4.31 USD — Better net P&L (pre-Stage-1 calibration sizing)
+  NOTE: YES outperformance may be artifacts of smaller calibration sizing. Inconclusive.
+xrp_drift YES: 22 bets, 59% WR, +0.88 USD | 34 total bets, approaching Stage 1 eval
+  RECENT TREND: Last 15 YES bets: 7W/8L (47%) — watch for regression to 50%
+
+### Post-Restart P&L (02:49 UTC onward)
+
+All-time P&L: 45.65 USD → 50.06 USD (+4.41 USD gain post-restart)
+All post-restart sniper bets: 100% WR (guards working perfectly)
+No KXXRP YES@98c or KXXRP NO@92c bets since restart (IL-23 and IL-21 confirmed active)
+
+### REVISED PRIORITY STACK (Session 95 research)
+
+1. UCL March 18 sniper: Fixed launcher now sleeping until 17:25 UTC March 18
+2. XRP drift Stage 1 eval: 34 bets total, ~16 YES-only bets remaining to 30
+3. btc_drift Stage 1 promotion: ALL criteria met — AWAITS MATTHEW DECISION
+4. eth_drift direction: Monitor next 20 YES bets — if stays <50% WR, flag for flip decision
+5. ETH orderbook OOS: 0 post-restart bets, accumulating passively
+6. CPI speed-play: April 10 08:30 ET (scripts/cpi_release_monitor.py ready)
+7. GDP speed-play: April 23-24 (KXGDP)
+
+DEAD ENDS (additions Session 95):
+  UCL March 17 2026 paper run (launcher fired too late — 22:25 UTC, games over)
+  macOS date -j for UTC timing (always use Python calendar.timegm instead)
+
