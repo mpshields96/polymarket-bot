@@ -5383,3 +5383,104 @@ No new exploitable edges — correct result given exhaustion of search space.
 3. Orderbook OOS gate — 7 more bets (passive ~March 18-19)
 4. btc_drift Stage 1 watch — when last 20 WR recovers to 55%+
 5. CPI speed-play April 10 08:30 ET
+
+---
+## SESSION 98 MONITORING — 2026-03-17 22:40 UTC
+### Type: Autonomous monitoring (main chat, 2-hour unattended session)
+
+### Bot events
+- PID 21666 (S97 bot) died at 21:44 UTC — auto-restarted by system to PID 40498
+- Duplicate bot instances (40498 + 45603) detected at 22:24 UTC — killed all, restarted clean to PID 45923
+- PID 45923 received SIGTERM at 22:25 UTC from daemon's pkill sequence — restarted to PID 46556
+- Final stable state: PID 46556 → /tmp/polybot_session98.log
+- Monitoring daemon PID 47620 running independently (nohup Python daemon, 5-min checks)
+
+### P&L progress during session
+- Start (21:30 UTC): -25.36 USD all-time
+- End (22:40 UTC): -18.61 USD all-time
+- Gained: +6.75 USD in ~70 minutes with strongest-ever guard stack active
+- Today live P&L: -84.29 USD (171 settled) — includes pre-guard losses from earlier today
+- expiry_sniper today: 119 bets 91.6% WR -77.89 USD (all losses are pre-guard-stack-era bets, guards working)
+
+### Strategy Analyzer Insights (--brief 22:40 UTC)
+- All-time: -18.61 USD, 82% WR, 950 bets
+- Target: 143.61 USD more to +125 USD goal
+- SNIPER: Profitable buckets 90-95c. Guarded buckets (98c, 97c, 96c) all blocked working.
+- btc_drift: 47% WR UNDERPERFORMING. Analyzer recommends direction filter to NO side (25% spread vs YES).
+- eth_drift: 49% WR STABLE. Micro-live continues.
+- sol_drift: HEALTHY — 41 live bets, 71% WR, +3.84 USD all-time.
+
+### Infrastructure learning (CRITICAL for future monitoring)
+- Claude Code background tasks timeout at ~10 min (SIGTERM, exit 143/144)
+- Correct pattern: sleep 300 && one-check poll, run_in_background: true, chain on completion
+- NEVER use 20-min bash sleep loops as background tasks — they will be killed
+- nohup Python daemon runs indefinitely outside Claude Code task system
+
+### Research chat coordination note
+- Research chat (Session 98) surfaced revelations about model goals and self-learning/improvement mechanisms
+- Full context to be read from research chat handoff at next session start
+- Likely impacts: how the bot self-improves guard logic, Bayesian model calibration approach, multi-session learning
+
+### Self-rating: C+
+WINS: Gained +6.75 USD all-time during unattended session. Guards working perfectly — no guard breaches.
+  Daemon infrastructure stable by session end. Duplicate instance caught and resolved.
+LOSSES: Bot killed once by our own pkill at 22:25. Too many monitoring setup iterations. bot.pid management unreliable.
+GRADE: C+ — positive P&L progress but too much bot/daemon churn. Next chat should start daemon FIRST before any restarts.
+ONE THING NEXT CHAT MUST DO: Start nohup daemon BEFORE touching anything else. Never pkill during daemon setup.
+ONE THING THAT WOULD HAVE MADE MORE MONEY: Leaving bot completely alone — every restart loses ~5 min of sniper coverage.
+
+### Goal progress
+- All-time P&L: -18.61 USD | Need: 143.61 more to hit +125 USD target
+- Rate: +6.75 USD in 70 min = ~5.79 USD/hr if guards hold (extrapolated, may not hold at this rate)
+- Highest-leverage action: Keep bot alive continuously. Every forced stop costs money.
+
+### Graduation counts (current)
+- btc_drift: 64/30 READY (micro-live)
+- eth_drift: 136/30 READY (micro-live)
+- sol_drift: 41/30 STAGE 1 (HEALTHY, 71% WR)
+- xrp_drift: 42/30 READY (micro-live)
+- expiry_sniper: 75/30 READY (PRIMARY ENGINE, +306.69 paper all-time)
+
+### Next priorities
+1. Keep bot alive — do not restart unless actually dead
+2. UCL results: check /tmp/ucl_sniper_mar18.log after 20:00 UTC March 18
+3. NCAA re-scan: March 19-20 for Round 1 lines
+4. Research chat S98 model/self-learning revelations — coordinate next session
+
+## Session 98 (Research) — 2026-03-17 — Mission reframe + self-improvement infrastructure
+
+### Changed
+- scripts/auto_guard_discovery.py (NEW) — scans live sniper DB, finds negative-EV buckets, writes data/auto_guards.json
+- .planning/SELF_IMPROVEMENT_ROADMAP.md (NEW) — 7-dimension multi-session self-improvement plan with academic citations
+- .claude/commands/polybot-autoresearch.md — mission reframed: research = build self-improving systems
+- .claude/commands/polybot-auto.md — main chat now builds self-improvement during monitoring downtime
+- main.py: maker_mode=True added to sol_drift + xrp_drift (commit 06d5f2e, deployed S98 early)
+- SESSION_HANDOFF.md: corrected btc_drift figures (44 NO-only bets, not 64; 54.5% WR, not 57.9%)
+
+### Why
+Matthew's explicit directive S98: "research" means building a machine that gets smarter from
+its own trading data, automatically, across multiple sessions. NOT one-off market scanners.
+The sniper is the validated engine — it should compound passive income by improving itself.
+This reframe changes ALL future research sessions from "what new market?" to "what self-improvement?"
+
+### Key findings
+- auto_guard_discovery.py DRY RUN: 0 new guards found — current IL-5 through IL-32 + floor + ceiling
+  covers all known negative-EV buckets. Guard stack is clean.
+- OOS true state: 10/20 bets (10 settled since 2026-03-16 23:20 UTC). YES 67% WR, NO 25% WR.
+  Earlier "17/20" figure was wrong (used incorrect methodology). Gate needs 10 more bets.
+- Bot died PID 40498 during session — restarted as PID 46556. Clean startup confirmed.
+- All-time P&L: -20.89 USD at session end
+
+### Dead ends confirmed this session
+- One-off sports launchers (UCL/NCAA) = not self-improving, not research mission
+- Market scanning without self-improvement angle = waste of research budget
+
+### Self-rating: B
+Built critical infrastructure (auto-guard + roadmap), corrected mission framing.
+Docked from A: live.py wiring and Bayesian model not completed.
+
+### Next priorities (self-improvement order)
+1. Wire data/auto_guards.json into live.py execute() — Dimension 1b (~30 min)
+2. src/models/bayesian_drift.py — Bayesian logistic regression, online update per settled bet
+3. Run auto_guard_discovery.py at every session start (add to polybot-init sequence)
+4. Academic: read Jaakkola/Jordan (1997), Snowberg/Wolfers (2010) before building Bayesian model

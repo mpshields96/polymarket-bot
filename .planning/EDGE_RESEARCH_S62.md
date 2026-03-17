@@ -4272,3 +4272,71 @@ DECISION: Continue micro-live until 100+ post-demotion YES-only bets.
 KXSOL NO@95c: 14W/1L = 93.3% WR. Break-even for 95c NO = 95%. Slightly below.
   One loss in 15 bets = within expected variance. No guard per anti-bloat principle.
   Monitor: flag if 2+ more losses in next 20 bets.
+
+---
+## SESSION 98 WRAP (continuation) — 2026-03-17 22:45 UTC
+
+### MISSION REFRAME — S98 Matthew directive (permanent)
+
+Research = build self-improving systems. NOT one-off market scanners.
+The bot should compound passive income by getting smarter from its own data,
+automatically, without requiring Claude each session.
+
+Self-improvement is NOT one tool or strategy — it is the entire mission:
+  - Auto-guard discovery: bot finds negative-EV buckets, adds guards nightly
+  - Bayesian drift model: sigmoid updates from every settled live bet
+  - Kelly self-calibration: posterior uncertainty drives fractional Kelly
+  - Auto-promotion: strategy promotes itself when gate criteria met
+  - Guard retirement: guards retire when bucket recovers post-guard
+  - Academic grounding: FLB dynamics, Bayesian logistic regression, Kelly extensions
+  - Correlation learning: loss clustering detection across same-window bets
+
+Every live bet is training data. Every session should leave the bot measurably smarter.
+
+### TOOLS BUILT THIS SESSION
+
+scripts/auto_guard_discovery.py (commit 391d06a):
+  - Scans live sniper DB, groups by (asset_prefix, price_cents, side)
+  - Fee-adjusted break-even: BE_WR = P / (P + (100-P) * (1 - 0.07*P/100))
+  - Flags buckets: WR < BE_WR AND loss > 5 USD AND n >= 3 AND not already guarded
+  - Writes to data/auto_guards.json (loaded by live.py at next restart — PENDING wiring)
+  - DRY RUN RESULT: 0 new guards found — current IL stack covers all negative-EV buckets
+  - Runs in <1s against full DB. Run at every session start.
+
+.planning/SELF_IMPROVEMENT_ROADMAP.md (commit 391d06a):
+  - 7-dimension multi-session self-improvement plan
+  - Academic citations: Thaler/Ziemba (1988), Snowberg/Wolfers (2010), Jaakkola/Jordan (1997)
+  - Bayesian drift model spec: Gaussian prior over (intercept, slope), online update per settled bet
+  - Kelly extension spec: posterior variance maps to fractional Kelly coefficient
+  - Guard retirement criteria: 50+ post-guard wins in bucket
+
+### SESSION 98 RESEARCH SELF-RATING: B
+
+DISCOVERIES:
+1. Mission framing error corrected: research means "build self-improving systems" not "scan markets"
+2. auto_guard_discovery.py confirms guard stack is complete (0 new negative-EV buckets found)
+3. OOS gate true state: 10/20 bets (NOT 17/20 — earlier sessions used wrong timestamp/methodology)
+   YES side 67% WR (+40.37 USD), NO side 25% WR (-4.56 USD)
+4. Bot died mid-session (PID 40498) — restarted clean as PID 46556
+
+DEAD ENDS CONFIRMED:
+- One-off sports launchers: value is one-time, not self-improving, not research mission
+- Market scanning without self-improvement angle: confirmed waste of research budget
+
+GRADE: B — Built critical self-improvement infrastructure and corrected mission framing.
+Docked from A because live.py wiring (Dim 1b) and Bayesian model (Dim 2) not completed.
+
+ONE SESSION-CHANGING FINDING: Guard stack is currently complete. The next compounding
+lever is not more guards — it is the Bayesian drift model making the 35-65c strategy
+actually improve from live data, automatically.
+
+NEXT SESSION TOP PRIORITY:
+1. Wire data/auto_guards.json into live.py execute() — ~30 min, immediate compounding value
+2. Start src/models/bayesian_drift.py — research Jaakkola/Jordan variational Bayes first
+3. Read SELF_IMPROVEMENT_ROADMAP.md Dim 2 spec before building
+
+### BOT STATUS AT WRAP
+  PID 46556 ALIVE (restarted during session)
+  All-time P&L: -20.89 USD
+  OOS: 10/20 bets (YES 67% WR, NO 25% WR)
+  Last commit: 391d06a

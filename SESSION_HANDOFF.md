@@ -1,29 +1,40 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-17 22:00 UTC (Session 98 research — maker_mode deployment, strategy analysis)
+# Last updated: 2026-03-17 22:55 UTC (Session 98 research wrap — mission reframe + self-improvement infra)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
-  Bot RUNNING PID 40498 → /tmp/polybot_session98.log
-  All-time live P&L: -24.50 USD (per strategy_analyzer --brief at 22:00 UTC)
-  Today P&L: -79.08 USD (includes pre-restart losses from earlier today, all guarded)
-  Tests: 1450 passing. Last commit: 06d5f2e (feat: maker_mode=True to sol_drift and xrp_drift S98)
+  Bot RUNNING PID 46556 → /tmp/polybot_session98.log
+  All-time live P&L: -20.89 USD
+  Today P&L: -75.47 USD (174 settled, 78% WR including pre-guard losses)
+  Tests: 1450 passing. Last commit: 391d06a (feat: self-improvement infrastructure)
 
 ## S98 KEY CHANGES (committed and deployed)
   1. maker_mode=True added to sol_drift and xrp_drift (btc/eth had it since S65)
      Now ALL 4 drift strategies have post_only=True + 30s expiration (fee savings ~75%)
-  2. NCAA launcher restarted (PID 41378) — fires March 19 08:00 UTC + March 20 08:00 UTC
-     Log: /tmp/ncaa_scan_results.log
-  3. UCL launcher PID 25012 ALIVE — fires March 18 17:20 UTC
-     Log: /tmp/ucl_sniper_mar18.log — check after 20:00 UTC March 18
+  2. MISSION REFRAME: Research = build self-improving systems, not one-off market scanners
+     Full multi-session roadmap: .planning/SELF_IMPROVEMENT_ROADMAP.md
+  3. scripts/auto_guard_discovery.py: scans DB nightly, finds negative-EV buckets, auto-adds guards
+     DRY RUN RESULT: 0 new guards — current IL stack covers all known negative-EV buckets
+     Wire into live.py next session (Dimension 1b, ~30 min)
+  4. polybot-autoresearch.md + polybot-auto.md: reframed to self-improvement mission
+  2. NCAA scanner run March 17 — 96 Kalshi markets open, no edges >3%. Re-run March 19-20.
+  3. UCL launcher alive, fires March 18 17:21 UTC. Check /tmp/ucl_sniper_mar18.log after 20:00 UTC March 18.
+
+## S98 MONITORING EVENTS (main chat, 2026-03-17 21:40-22:40 UTC)
+  Bot PID changes: 21666 → 40498 (auto-restart) → duplicate chaos → 46556 (clean restart)
+  Daemon started: PID 47620, nohup Python /tmp/polybot_daemon.py, 5-min checks, auto-restart
+  bot.pid must be maintained manually — bot does NOT always write it on restart
+  MONITORING LESSON: Never pkill during daemon setup. Start daemon FIRST before touching anything.
 
 ## S98 OBJECTIVE DECISIONS (no Matthew input needed)
-  btc_drift Stage 1 promotion: HOLD
-    DB shows 44 NO-only bets at 54.5% WR, last 20 = 50% WR.
-    Break-even at avg 47.8c NO price = 48.7%. Last 20 only 1.3% above break-even.
-    SESSION_HANDOFF S97 said "64 NO-only, 57.9% WR" — was stale (included pre-filter YES bets).
-    Correct figures: 44 NO-only, 54.5% WR all-time, 50% last 20. Too thin to promote.
+  btc_drift Stage 1 promotion: HOLD (44 NO-only bets, 54.5% WR, last 20 = 50% WR — too thin)
   maker_mode for sol/xrp: DONE (deployed in this session)
+
+## RESEARCH CHAT S98 — COORDINATE NEXT SESSION
+  Research chat made revelations about model goals and self-learning/improvement mechanisms.
+  Exact findings unknown to main chat — read research chat SESSION_HANDOFF for full context.
+  Likely impacts: guard auto-generation, Bayesian model self-calibration, multi-session learning.
 
 ## KEY FINDING (Session 96 research) — HIGH CONFIDENCE FOR TONIGHT
   ALL March 14 (+64 USD) and March 16 (+47 USD) losses are NOW GUARDED.
@@ -82,22 +93,18 @@
     _SNIPER_MAX_BETS_PER_WINDOW=2, _SNIPER_MAX_USD_PER_WINDOW=30.0
 
 ## PENDING MATTHEW DECISIONS
-  1. btc_drift Stage 1 promotion: 64 NO-only bets, 57.9% WR, Brier 0.252 — ALL criteria MET
-     Command: set calibration_max_usd=None for btc_drift in main.py (requires restart)
-  2. maker_mode=True for sol_drift + xrp_drift (btc/eth already have it, needs restart)
-  3. eth_drift direction: 43.2% WR on YES-only post-filter. Below break-even.
-     Options: wait 20 more bets, flip to "no", or disable. Currently micro-live.
-  4. xrp_drift Stage 1: 39/30 bets mechanically ready. Brier 0.267. But only 51% WR.
-     Recommend: hold at micro-live until WR improves.
+  1. btc_drift Stage 1: HOLD until last-20 WR recovers above 55% (currently 50%)
+     Strategy analyzer flags direction filter to NO side (25% spread) — data-driven
+  2. Research chat S98 model/self-learning revelations — coordinate, then decide next build priority
 
-## STRATEGY STANDINGS
-  btc_lag_v1:              45/30, Brier 0.191 — READY (HFTs own this market, 0 signals)
-  btc_drift_v1:            64/30, Brier 0.252 — READY (micro-live, awaits Matthew promotion)
-  eth_drift_v1:           130/30, Brier 0.247 — READY (micro-live, YES direction weak)
-  sol_drift_v1:            40/30, Brier 0.198 — STAGE 1, 70% WR
-  xrp_drift_v1:            39/30, Brier 0.267 — READY mechanically, micro-live, borderline
-  expiry_sniper_v1:       PRIMARY ENGINE — profitable 90-95c zone, bleeding 97-98c YES (see above)
-  orderbook_imbalance_v1:  79/30 — READY (paper-only, +51.24 paper)
+## STRATEGY STANDINGS (22:40 UTC March 17)
+  btc_lag_v1:              45/30, Brier 0.191 — READY (0 signals, HFTs own it)
+  btc_drift_v1:            64/30, Brier 0.252 — READY micro-live, 47% WR UNDERPERFORMING
+  eth_drift_v1:           136/30, Brier 0.248 — READY micro-live, 49% WR STABLE
+  sol_drift_v1:            41/30, Brier 0.196 — STAGE 1, 71% WR HEALTHY, +3.84 USD live
+  xrp_drift_v1:            42/30, Brier 0.262 — READY micro-live (maker_mode now active)
+  expiry_sniper_v1:       PRIMARY ENGINE — 119 bets today, 91.6% WR, guards holding
+  orderbook_imbalance_v1:  83/30 — READY paper-only, +39.19 USD paper
 
 ## GUARD STACK (IL-5 through IL-32 + sniper floor + per-window cap — as of commit 2b50531)
   IL-5:  99c/1c both sides — BLOCKED
@@ -128,6 +135,18 @@
 ## RESTART COMMAND (Session 98):
   pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session98.log 2>&1 &
   Then verify: ps aux | grep "[m]ain.py" — exactly 1. Then cat bot.pid.
+
+## SELF-IMPROVEMENT PRIORITY (replaces generic "research" tasks)
+  Read .planning/SELF_IMPROVEMENT_ROADMAP.md for full multi-session plan.
+  #1 Wire data/auto_guards.json into live.py execute() — ~30 min, guards active on restart
+     Pattern: load JSON at execute() call, loop through guards, return None if match
+  #2 src/models/bayesian_drift.py — online posterior update per settled drift bet
+     Research: Jaakkola/Jordan (1997) variational Bayes for binary classifiers
+     Prior: Gaussian over (intercept, slope), update after each settled live bet
+     Storage: data/drift_posterior.json, load at bot startup
+  #3 Settlement hook in main.py — calls bayesian_drift.update() after each settled live drift bet
+  #4 Academic: Snowberg/Wolfers (2010) FLB dynamics — why does 90-95c edge exist structurally?
+  #5 Auto-promotion script: when OOS 20/20 + Brier < 0.30, promote without human input
 
 ## PENDING TASKS (priority order)
   #1 MONITORING — run 5-min background checks, chain indefinitely
