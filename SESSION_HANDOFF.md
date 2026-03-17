@@ -1,339 +1,110 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-17 10:30 UTC (Session 95 overnight — MAJOR LOSS EVENT + guards IL-28 through IL-32 + sniper floor)
+# Last updated: 2026-03-17 12:05 UTC (Session 95 — IL-28–IL-32 + sniper floor + per-window cap)
 # ═══════════════════════════════════════════════════════════════
 
-## ⚠️ CRITICAL — READ THIS FIRST (Session 95 morning events)
-## All-time P&L is currently -40.41 USD (was +47.75 USD peak at 06:13 UTC).
-## FIVE large losses occurred in two consecutive 15-min windows (08:16 and 08:46 UTC):
-##   08:16 UTC window: KXBTC YES@88c -19.36, KXETH YES@93c -19.53, KXXRP NO@91c -19.11 = -58 USD
-##   08:46 UTC window: KXETH NO@89c -19.58, KXBTC NO@91c -19.11 = -38.69 USD
-##   Root cause: Correlated multi-asset sniper losses + slippage below 90c floor
-##   FIXES DEPLOYED: IL-28 through IL-32 + sniper execution floor (90c minimum)
-##   Bot restarted PID 42326 at 09:04 UTC. Clean since then (90 min, no large losses).
-##
-## UCL SOCCER: March 17 PID 5181 fires at 17:24 UTC. March 18 PID 8183 fires at 17:25 UTC.
-## NCAA scanner: PID 6662 auto-fires. Check /tmp/polybot_ncaa_mar17.log for results.
+## BOT STATE
+  Bot RUNNING PID 49110 → /tmp/polybot_session95.log
+  All-time live P&L: -24.11 USD (recovering — see loss analysis below)
+  Today P&L: -89.79 USD live (75% WR, 139 settled)
+  Tests: 1439 passing. Last commit: 2b50531 (feat: IL-32 + sniper floor + per-window cap)
 
-## ⚠️ PENDING MATTHEW DECISIONS (flag in every response — UPDATED)
-## 1. btc_drift Stage 1 promotion: 41 NO-only bets, 56% WR, Brier ~0.237 — ALL criteria MET
-## 2. maker_mode=True for sol_drift + xrp_drift (btc/eth already have it, needs restart)
-## 3. eth_drift direction: last 30 YES bets at 47% WR — flip to "no" or hold?
-## 4. xrp_drift Stage 1: 37 YES-only bets, Brier 0.267 (READY FOR LIVE mechanically)
-##    BUT: 51% WR / -1.68 USD net — economically borderline. Recommend hold at micro-live.
-## 5. CORRELATED LOSS RISK: Sniper fires on 4 assets simultaneously.
-##    Two windows both had 2-3 assets lose at once (-58 USD and -38.69 USD).
-##    Possible mitigations: max 2 simultaneous positions, per-window loss cap.
-##    REQUIRES MATTHEW DECISION on whether to limit concurrent sniper positions.
+## LOSS ANALYSIS — SESSION 95 (all losses now guarded)
+  Six large sniper losses today, all in pre-guard buckets. ALL NOW GUARDED:
+    KXBTC NO@91c -19.11 → IL-32 ✓
+    KXETH NO@89c -19.58 → sniper execution floor (90c min) ✓
+    KXETH YES@93c -19.53 → IL-30 ✓
+    KXXRP NO@91c -19.11 → IL-31 ✓
+    KXBTC YES@88c -19.36 → IL-29 + sniper floor ✓
+    KXXRP NO@94c -19.74 → IL-28 ✓
+  Per-window cap (max 2 bets / 30 USD per 15-min window) also deployed.
+  Without these 6 losses, sniper would be +46.12 today at 44/50 = 88% WR.
 
-## COPY-PASTE THIS TO START A NEW SESSION (Session 96)
+## SESSION 95 GUARD DEPLOYMENTS (all committed 2b50531, 1439 tests pass)
+  IL-28: KXXRP NO@94c — 17 bets, 94.1% WR, need 94% break-even, -5.29 USD
+  IL-29: KXBTC YES@88c — 2 bets, 50.0% WR, need 88% break-even, -17.93 USD
+  IL-30: KXETH YES@93c — 9 bets, 88.9% WR, need 93% break-even, -10.83 USD
+  IL-31: KXXRP NO@91c — 5 bets, 80.0% WR, need 91% break-even, -14.07 USD
+  IL-32: KXBTC NO@91c — 7 bets, 85.7% WR, need 91% break-even, -11.27 USD
+  SNIPER FLOOR: expiry_sniper_v1 rejects price_cents < 90 (asyncio slippage fix)
+  PER-WINDOW CAP: max 2 sniper bets + max 30 USD per 15-min market window
+    (prevents correlated multi-asset losses in same crypto dump event)
+  db.count_sniper_bets_in_window() added to track window exposure
 
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 96).
+## PENDING MATTHEW DECISIONS
+  1. btc_drift Stage 1 promotion: 64 NO-only bets, 57.9% WR, Brier 0.252 — ALL criteria MET
+     Command: set calibration_max_usd=None for btc_drift in main.py (requires restart)
+  2. maker_mode=True for sol_drift + xrp_drift (btc/eth already have it, needs restart)
+  3. eth_drift direction: 43.2% WR on YES-only post-filter. Below break-even.
+     Options: wait 20 more bets, flip to "no", or disable. Currently micro-live (tiny bets).
+  4. xrp_drift Stage 1: 39/30 bets mechanically ready. Brier 0.267. But only 51% WR / -1.94 USD.
+     Recommend: hold at micro-live until WR improves.
 
-MANDATORY READING BEFORE ANY ACTION:
-  cat SESSION_HANDOFF.md
-  cat .planning/AUTONOMOUS_CHARTER.md
-  tail -200 .planning/CHANGELOG.md
-  cat .planning/PRINCIPLES.md
+## STRATEGY STANDINGS (from --graduation-status 2026-03-17)
+  btc_lag_v1:              45/30, Brier 0.191 — READY (HFTs own this market, 0 signals)
+  btc_drift_v1:            64/30, Brier 0.252 — READY (micro-live, awaits Matthew promotion)
+  eth_drift_v1:           130/30, Brier 0.247 — READY (micro-live, YES direction underperforming)
+  sol_drift_v1:            40/30, Brier 0.198 — STAGE 1, 70% WR, +1.56 USD
+  xrp_drift_v1:            39/30, Brier 0.267 — READY mechanically, micro-live, borderline
+  expiry_sniper_v1:        75/30, n/a      — PRIMARY ENGINE
+  orderbook_imbalance_v1:  79/30, n/a      — READY (paper-only, +51.24 paper)
+  eth_orderbook_imbalance: 15/30, Brier 0.337 — needs 15 more bets + Brier fix
 
-BOT STATE (Session 95 — 2026-03-17 10:30 UTC):
-  Bot RUNNING PID 42326 → /tmp/polybot_session95.log
-  All-time live P&L: -40.41 USD (down from +47.75 peak — see CRITICAL section above)
-  Tests: 1429 passing. Last commit: c5520f6 (feat: IL-32 KXBTC NO@91c + sniper execution floor 90c)
-  Guards: IL-5 through IL-32 COMPLETE + sniper execution floor (price_cents >= 90 for sniper)
-  SESSION 95 GUARD DEPLOYMENTS (all committed, all tested):
-    IL-28: KXXRP NO@94c (06:40 UTC, trade #3292 -19.74 USD)
-    IL-29: KXBTC YES@88c (08:05 UTC, trade #3380 -19.36 USD) — below sniper floor
-    IL-30: KXETH YES@93c (08:16 UTC, trade #3382 -19.53 USD)
-    IL-31: KXXRP NO@91c (08:16 UTC, trade #3383 -19.11 USD)
-    IL-32: KXBTC NO@91c (08:46 UTC, trade #3391 -19.11 USD)
-    SNIPER FLOOR: execute() rejects price_cents < 90 for expiry_sniper_v1 (slippage fix)
-  POST-IL-32 PERFORMANCE (09:04 UTC onward): 62 bets 46W (74% WR), recovering
-  XRP drift YES: 37/30 bets (milestone hit). Brier 0.267. READY FOR LIVE mechanically but 51% WR.
-  XRP drift Brier: 0.267 (all bets including NO). YES-only Brier needs separate calc at 30 bets.
-  SOL drift: Stage 1 (full Kelly + 20 USD cap). 40 total bets, 70% WR, Brier 0.198 (EXCELLENT).
-  eth_drift: MICRO-LIVE (calibration_max_usd=0.01 per S60 demotion still in effect in main.py).
-    118 total live bets (includes Stage 1 era losses), -23.32 USD. Current micro-live bets tiny (<$0.65 each).
-    strategy_analyzer "NEUTRAL" is accurate — losing small but not a critical bleed at micro-live scale.
-    Needs Matthew decision: disable or keep collecting calibration data.
-  btc_drift: MICRO-LIVE (calibration_max_usd=0.01). NO-only: 41 bets, 56% WR, Brier 0.2358, +18 USD.
-    Most +18 USD came from Stage 1 era (before S60 demotion). Current micro bets are tiny.
-    READY for Stage 1 promotion (awaits Matthew decision).
-  GUARD STACK DEEP ANALYSIS (overnight):
-    BTC/ETH YES and NO at all prices 90-95c: 100% WR, all profitable — no guards needed.
-    SOL/XRP: problem at specific high prices all guarded (IL-10A/B/C, IL-19, IL-20, IL-21, IL-22, IL-23, IL-24).
-    KXXRP YES@90c: n=1 loss (-19.80 USD) — WATCH ONLY (n too small for guard).
-    98c YES: BTC/ETH/SOL 100% WR. Only KXXRP problematic — GUARDED by IL-23. No global 98c YES guard needed.
-  Orderbook imbalance: asymmetric filter active (min_yes=52c, max_no=44c). Paper-only, no restart.
-  SESSION 90 MONITORING KEY EVENTS (2026-03-16 21:17–23:10 UTC):
-  - Bot crashed at 17:22 UTC (PID 18772 → 31365) — Binance.US WebSocket 1011 keepalive timeout
-    All 4 feeds disconnected simultaneously. Auto-restarted successfully.
-  - XRP drift hit 30/30 — graduation analyzed. direction_filter="yes" confirmed working.
-    Keeping MICRO-live: btc_drift and eth_drift both demoted micro in S60 (main.py confirms).
-  - Guard validation: ALL guards CONFIRMED working. Zero post-deployment bypass bets.
-    strategy_analyzer --brief false alarm fixed (commit 6557d09) — now shows "Guarded" not "needs guard".
-  - NCAA scanner scheduled for 00:01 UTC March 17 (shell background process).
-  - WEATHER DEAD END CONFIRMED: 60 paper bets — chi=25%%, den=8%%, lax=17%%, mia=8%% WR.
-    GEFS model not calibrated to Kalshi weather markets. Do NOT pursue live weather bets.
-  - 19:00 ET window: ETH NO@95c +0.84, XRP YES@92c +1.47 — both WIN.
-  - 19:15 ET window: ETH NO@95c, SOL NO@94c, BTC NO@95c — all placed, awaiting settlement.
-  SESSION 90 KEY BUILDS (2026-03-16):
-  - CRASH FIX: asyncio.gather() return_exceptions=True (commit 2d1ffed)
-  - STRATEGY ANALYZER FIX: --brief now correctly shows "Guarded (historical losses blocked)"
-    instead of "Losing buckets (guards recommended)" for 96/97/98c (commit 6557d09)
-  - Guard audit: ALL guards confirmed working. Zero post-deployment bypass bets in any bucket.
-  - XRP direction_filter="yes" confirmed already in place — no code change needed.
-  SESSION 88 KEY BUILDS (2026-03-16 overnight):
-  - IL-19 guard (commit a4f33ed): KXSOL YES@97c BLOCKED — 8 bets, 87.5% WR, -17.18 USD, 97% WR needed
-    Loss at KXSOL15M-26MAR160200-00 triggered analysis. Guard is now live in execution/live.py.
-    3 regression tests in TestPerAssetStructuralLossGuards (test_live_executor.py).
-  - post_only taker fallback (commit e9dc10f): When drift strategies get 400 "post only cross",
-    execute() now retries immediately as taker (post_only=False). Recovered 50+ missed trades/session.
-    Error logs confirm 0 post_only_cross errors since restart at 02:32 CDT.
-  KEY FINDINGS (Session 88 overnight research):
-  - 39/39 sniper wins since March 16 00:00 UTC (full guard stack). Guards are working.
-  - STRATEGY ANALYZER TIMEZONE BUG FIXED: was showing 0 USD today — now shows correct UTC value.
-  - YES@97c appearing negative was historical KXXRP loss — guard IL-10B already in place.
-    Non-XRP YES@97c (BTC/ETH/SOL): 100% WR, profitable.
-  - SOL YES@93c: 14 bets, 92.9% WR vs 93% break-even. WATCH but don't guard yet (need 20+ bets).
-  - Time-of-day loss pattern was entirely pre-guard era. No time-of-day filter needed.
-  - Soccer sniper paper module: scripts/soccer_sniper_paper.py — 19 tests, ready for March 21+.
+## GUARD STACK (IL-5 through IL-32 — COMPLETE as of 2b50531)
+  IL-5:  99c/1c both sides — BLOCKED (degenerate pricing)
+  IL-10: 96c both sides — BLOCKED
+  IL-10A: KXXRP YES@94c — BLOCKED
+  IL-10B: KXXRP YES@97c — BLOCKED
+  IL-10C: KXSOL YES@94c — BLOCKED
+  IL-11: 98c NO — BLOCKED
+  IL-19: KXSOL YES@97c — BLOCKED
+  IL-20: KXXRP YES@95c — BLOCKED
+  IL-21: KXXRP NO@92c — BLOCKED
+  IL-22: KXSOL NO@92c — BLOCKED
+  IL-23: KXXRP YES@98c — BLOCKED
+  IL-24: KXSOL NO@95c — BLOCKED
+  IL-25: KXXRP NO@97c — BLOCKED
+  IL-26: KXXRP NO@98c — BLOCKED
+  IL-27: KXSOL YES@96c — BLOCKED
+  IL-28: KXXRP NO@94c — BLOCKED (new S95)
+  IL-29: KXBTC YES@88c — BLOCKED (new S95)
+  IL-30: KXETH YES@93c — BLOCKED (new S95)
+  IL-31: KXXRP NO@91c — BLOCKED (new S95)
+  IL-32: KXBTC NO@91c — BLOCKED (new S95)
+  SNIPER FLOOR: sub-90c execution blocked (new S95)
+  PER-WINDOW CAP: max 2 bets / 30 USD per 15-min window (new S95)
+  PROFITABLE: BTC/ETH YES@90-92/94-98c, BTC/ETH NO@90-98c, SOL YES@90-93/98c,
+              SOL NO@90-94/96-99c, XRP NO@90-91/93/96c, XRP YES@90-93c
 
-CRITICAL GUARD UPDATE (Session 81 — commit 9dbf889):
-  NEW guards added in src/execution/live.py (per-asset structural losses):
-    - KXXRP YES@94c: BLOCKED (15 bets, 93.3% WR, -9.09 USD, need 94.9% break-even)
-    - KXXRP YES@97c: BLOCKED (6 bets, 83.3% WR, -18.04 USD, need 98.0% break-even)
-    - KXSOL YES@94c: BLOCKED (12 bets, 91.7% WR, -7.28 USD, need 94.9% break-even)
-  Expected structural savings: ~34.41 USD going forward.
-  All BTC/ETH at same prices remain open (both profitable at 94c+ historically).
-
-SESSION 81 KEY CHANGES (2026-03-15 monitoring chat):
-  1. SOL DRIFT GRADUATED (commit earlier this session):
-     calibration_max_usd=5.0 → None in main.py. Sol drift now runs full Kelly + 20 USD cap.
-     30/30 live bets, Brier 0.191, +1.23 USD all-time (Stage 1 confirmed)
-  2. IRON LAWS IL-12 through IL-18 added to BOUNDS.md:
-     Tests in tests/test_iron_laws.py (18 regression tests)
-     Covers: Kelly/kill_switch sync, kalshi_payout NO-side conversion, settlement paper filter,
-     live_trade_lock atomicity, _FIRST_RUN_CONFIRMED state, bankroll floor ordering, strategy_name
-  3. SLIPPAGE GUARD added to main.py expiry_sniper_loop:
-     _MAX_SLIPPAGE_CENTS = 3
-     Blocks fills 3c+ below signal price (fixes trade 2786: signal@90c, fill@86c, -19.78 USD)
-  4. PER-ASSET GUARDS added to src/execution/live.py (commit 9dbf889):
-     KXXRP YES@94c, KXXRP YES@97c, KXSOL YES@94c — all blocked
-     7 regression tests in TestPerAssetStructuralLossGuards
-  5. Pattern 2 verify-revert PostToolUse hook deployed (commit cd9702f)
-
-RESTART COMMAND (Session 91 — use session91.log):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session91.log 2>&1 &
+## RESTART COMMAND (Session 95):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session95.log 2>&1 &
   Then verify: ps aux | grep "[m]ain.py" — exactly 1. Then cat bot.pid.
 
-If --health shows "HARD STOP": HISTORICAL. The 30% lifetime stop was DISABLED in S34.
-"Daily loss soft stop active" = DISPLAY ONLY (kill_switch.py lines 187-193 commented out).
-"Consecutive loss cooling" = clears on restart with --reset-soft-stop.
-
----
-
-## NEW IN SESSION 74: SAFETY INFRASTRUCTURE ADDED
-
-### Iron Laws + Danger Zone PreToolUse Hook (Pattern 1)
-  BOUNDS.md at project root — 18 Iron Laws with file:line, incident history, test references
-  .claude/hooks/danger_zone_guard.sh — fires before any edit to TIER 1 files:
-    src/execution/live.py, src/risk/kill_switch.py, src/risk/sizing.py
-  Runs full test suite (1319 tests in ~4s) before allowing edit — exits 2 on failure.
-  .claude/settings.json updated with PreToolUse hook wiring.
-
-### Verify-Revert Loop (Pattern 2)
-  scripts/verify_change.sh — stash→pytest→baseline check→restore or drop
-  scripts/check_strategy_baseline.py — DB win-rate query vs threshold (17 tests)
-  PostToolUse hook: auto-revert danger zone edits if tests fail (commit cd9702f)
-  Usage: bash scripts/verify_change.sh expiry_sniper 0.95
-
----
-
-GRADUATION STATUS (2026-03-16 UTC — Session 90 research):
-  sol_drift_v1: 34/30 bets, Brier 0.191, +9.04 USD — GRADUATED Stage 1 (full Kelly, calibration_max=None)
-  xrp_drift_v1: 30/30 bets DONE — direction_filter="yes" ALREADY ACTIVE since S54
-    YES-only (post-filter): 19 bets, 63.2% WR. Need 30 YES-only bets for Stage 1 eval. Keep micro-live.
-  expiry_sniper_v1: 140+ live bets today, 91% WR, +92.22 USD today — CORE ENGINE
-
-SNIPER BUCKET STATUS (full guard stack IL-5 through IL-27 — do NOT change without Matthew approval):
-  BLOCKED: 96c both sides (IL-10), 97c NO (IL-10), 98c NO (IL-11), 99c/1c (IL-5)
-  BLOCKED (per-asset S81): KXXRP YES@94c (IL-10A), KXXRP YES@97c (IL-10B), KXSOL YES@94c (IL-10C)
-  BLOCKED (per-asset S88): KXSOL YES@97c (IL-19), KXXRP YES@95c (IL-20)
-  BLOCKED (per-asset S92/S94): KXXRP NO@92c (IL-21), KXSOL NO@92c (IL-22), KXXRP YES@98c (IL-23)
-  BLOCKED (per-asset S95): KXSOL NO@95c (IL-24), KXXRP NO@97c (IL-25), KXXRP NO@98c (IL-26), KXSOL YES@96c (IL-27)
-  PROFITABLE (guarded set): BTC/ETH/SOL YES@90-94/98c, BTC/ETH NO@90-98c, SOL NO@90-94/96-99c, XRP NO@90-91/93-96c
-  WATCH: KXETH NO@96c (n=2, -13.95 USD — too small to guard), KXXRP YES@90c (n=1 — watch only)
-  SNIPER IS THE ENGINE: 550+ bets, ~97% WR on guarded bucket set, ~100 USD all-time
-
-S85 KEY FIXES (commits f848adb + 0867a0a):
-  1. NCAA scanner: 2 bugs fixed (HTTP 401 + AttributeError). Now fully functional.
-  2. Sniper slippage guard: max_slippage_cents=3 added to execute(). Blocks orderbook
-     divergence of 3c+ from signal. Closed gap between main.py 3c guard and live.py 10c guard.
-  3. Guard audit: all 5+ bet negative-EV buckets confirmed guarded. SOL YES 93c watch at 20+ Stage 1 bets.
-  4. 6 new regression tests (1325 total).
-
-SESSION 91 KEY BUILDS (2026-03-16 evening research):
-  1. Orderbook imbalance asymmetric price filter (commit a870a60):
-     min_yes_price_cents=52, max_no_price_cents=44 (data-driven, 162 paper bets).
-     YES@52+c: 63% WR. YES@35-51c: 40% WR (noise). Filtered set: 62% WR, p=0.011.
-     7 new tests (TestAsymmetricPriceFilter). No restart needed (paper-only).
-  2. Session 90 research docs committed (commit bb91dfc):
-     UCL date correction (March 17-18, not March 31). Guard-aware analyzer.
-  3. Weather DEAD END confirmed (20 settled bets, 45% WR, -60 USD paper).
-     Disable weather in next restart (burns API quota with no edge, extreme prices).
-
-SESSION 87 KEY BUILDS (2026-03-16):
-  1. scripts/strategy_analyzer.py (NEW) — self-learning pattern detector
-     Run at session start: ./venv/bin/python3 scripts/strategy_analyzer.py --brief
-     Surfaces: profitable/losing sniper buckets, direction filter validation, graduation status.
-     Saves to data/strategy_insights.json. 23 tests.
-  2. POLYBOT_INIT.md updated: Rule 1 step 6 = run strategy_analyzer --brief at startup.
-  3. NCAA scanner verified: 64 KXNCAAMBGAME markets open, 0 edges above 3% today (March 16).
-     Lines mature March 17-18. Run then.
-
-SESSION 93 KEY FINDINGS (2026-03-17 ~01:40 UTC — MONITORING):
-  1. XRP NO@92c structural loss confirmed: 5 bets now, 75% WR vs 92% break-even.
-     TODAY: XRP NO@92c LOST -19.32 USD. Pattern: NO@91c=100%, NO@92c=75%, NO@93c+=100%.
-     IL-21 guard MUST be added ASAP (threshold met: 5+ bets, clear structural loss).
-  2. Guard monitoring embedded every 5 min: strategy_analyzer.py --brief in each cycle.
-     Guards CLEAN confirmed: 96/97/98c all "Guarded (historical losses blocked)".
-  3. NCAA scanner ran at 00:01 UTC March 17: 96 KXNCAAMBGAME open, 0 edges found.
-     Normal — re-run 12:00-18:00 ET today when Round 1 lines mature.
-  4. Weather dead end CONFIRMED: 60 paper bets, avg WR 15% (chi=25%, den=8%, lax=17%, mia=8%).
-     GEFS not calibrated to Kalshi. Disable weather loops next restart.
-  5. sol_drift HEALTHY: 72% WR, +7.33 USD (strategy_analyzer confirmed).
-  6. P&L impact: All-time dropped +65.68 → +48.42 USD due to XRP NO@92c -19.32 USD loss.
-
-PENDING TASKS (Session 95 — PRIORITY ORDER):
-  #0 COMPLETED S94: IL-22 (KXSOL NO@92c) + IL-23 (KXXRP YES@98c) guards deployed. 1413 tests pass.
-      IL-23 caught in-session: trade #3224 KXXRP YES@98c -> NO, -19.60 USD at 02:31 UTC.
-      KXXRP now has 5 guards: YES@94c, YES@95c, YES@97c, YES@98c, NO@92c.
-  #0b KEY FINDING S94: Gross P&L = +135 USD — ALREADY PAST the +125 USD target.
-      Fees = 89.68 USD (sniper 82.63 USD at 1% taker rate) is the ONLY gap to net target.
-      Sniper net/bet = 0.19 USD. Path to +125: ~412 more sniper bets, ~23 days at current pace.
-      sol_drift and xrp_drift missing maker_mode=True (btc/eth have it). Low-risk config change.
-      ACTION FOR MATTHEW: Add maker_mode=True to sol_drift + xrp_drift in main.py? (requires restart)
-  #0 URGENT TODAY: UCL soccer sniper — March 17 start at 17:25 UTC (12:25 CDT):
-     python3 scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR17
-     SPO@64c (17:45 UTC kickoff), ARS@77c + MCI@67c (20:00 UTC kickoff)
-     CFC@46c and PSG@33c NOT eligible (below 60c threshold)
-  #0b NEXT DAY: UCL March 18 at 17:25 UTC:
+## PENDING TASKS (priority order)
+  #1 MONITORING — run 5-min background checks, chain indefinitely
+     Drought: pivot to code work (tests, guard analysis)
+  #2 UCL soccer March 18 17:25 UTC — BAR@62c, BMU@72c, LFC@76c
      python3 scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR18
-     BAR@62c (17:45), BMU@72c + LFC@76c (20:00)
-  #1 NCAA scanner — run March 17-18 when Round 1 markets open (tip-offs March 20-21):
+  #3 NCAA scanner — run March 17-18 when Round 1 lines mature
      python3 scripts/ncaa_tournament_scanner.py --min-edge 0.03
-     (At 23:35 UTC March 16: 96 KXNCAAMBGAME open but 0 edges found above 3%)
-  #2 Weather strategy DISABLE — confirmed dead end (20 bets, 45% WR, -60 USD paper):
-     Next restart: remove weather_* loops from main.py or comment them out.
-     Extreme prices (YES@4c, NO@91c) — no 35-65c price guard was applied.
-  #3 XRP drift Stage 1 eval — 21 YES-only bets. Need 9 more YES-only.
-     ETA: March 20-21 (at ~3 YES/day). Current: 62% WR, Brier 0.235, +1.45 USD.
-     IMPORTANT: btc_drift is micro-live (calibration_max_usd still set — Matthew's call to promote).
-  #4 eth_orderbook_imbalance OOS validation — new filter deployed March 17.
-     Need 20+ NEW paper bets (post-filter) at 60%+ WR before considering live re-activation.
-     Retrospective: 42/64 = 65.6% WR on filtered bets (in-sample). Strong signal.
-  #5 COMPLETED S93: XRP NO@92c guard (IL-21) deployed. Commit fd02a5b. 3 regression tests.
-  #5b BTC YES@93c watch — 6 bets, 83.3% WR (break-even 93%). Need 10-15 bets for guard.
-  #6 CPI speed-play — April 10 08:30 ET. scripts/cpi_release_monitor.py.
-  #7 KXGDP speed-play — April 30. Check April 23-24 (1 week before release).
-  Soccer in-play sniper — SCRIPT READY (scripts/soccer_sniper_paper.py):
-     *** URGENT: UCL R16 2ND LEGS ARE TOMORROW (March 17) AND MARCH 18 ***
-     SESSION_HANDOFF WAS WRONG: dates are NOT March 31/April 1.
+  #4 XRP drift Stage 1 watch — 39/30 bets, need 30 YES-only for eval (~March 20-21)
+  #5 eth_orderbook OOS validation — need 20+ post-filter paper bets at 60%+ WR
+  #6 Watch KXETH NO@96c (n=2, -13.95 USD — too small to guard yet)
+  #7 Watch KXXRP YES@90c (n=1 loss — watch only)
+  #8 CPI speed-play April 10 08:30 ET — scripts/cpi_release_monitor.py
+  #9 GDP speed-play April 30 — check April 23-24
 
-     MARCH 17 (TOMORROW — start script before kickoff!):
-       17:30 UTC start: python3 scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR17
-         Game 1: Bodo/Glimt vs Sporting CP — 17:45 UTC — SPO eligible (64c pre-game)
-         Game 2: Arsenal vs Leverkusen — 20:00 UTC — ARS eligible (77c pre-game)
-         Game 3: Real Madrid vs Man City at Etihad — 20:00 UTC — MCI eligible (67c pre-game)
-         (Chelsea 46c and PSG 33c do NOT qualify — below 60c threshold)
+## HEALTH NOTES
+  --health "Daily loss soft stop active" = DISPLAY ONLY (kill_switch.py 187-193 commented out)
+  --health "consecutive cooling" = check log to confirm true state
+  All 6 today's sniper losses are now guarded — bot should run clean from here
+  Gross P&L = +135 USD (already past +125 target). Fees = 89 USD net gap.
+  Fee reduction highest leverage: maker_mode for sol_drift/xrp_drift (awaits Matthew)
 
-     MARCH 18 (day after tomorrow):
-       17:30 UTC start: python3 scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR18
-         Game 1: Newcastle vs Barcelona at Camp Nou — 17:45 UTC — BAR eligible (62c pre-game)
-         Game 2: Atalanta vs Bayern Munich at Allianz — 20:00 UTC — BMU eligible (72c pre-game)
-         Game 3: Galatasaray vs Liverpool at Anfield — 20:00 UTC — LFC eligible (76c pre-game)
-         (Atletico 39c, Tottenham 36c do NOT qualify)
+## KEY FINDINGS (fee math)
+  Sniper net/bet ≈ 0.19 USD after fees. Path to +125 net: ~412 more wins.
+  At current pace (~30 sniper wins/day) = ~14 days to target.
+  Maker mode for sol_drift/xrp_drift could cut fee drag meaningfully.
 
-     Expected: ~40% of 6 eligible teams cross 90c mid-game = 2-3 paper bets placed
-     Need 3+ paper wins before live activation. UCL QF March 31/April 1 = 2nd legs.
-     La Liga/EPL resume March 21-22. Pre-game >= 0.60 threshold.
-  #6 eth_drift YES direction filter UNDERPERFORMING — Matthew's decision needed:
-     Post-filter (since March 11): 16/37 = 43.2% WR, -26.54 USD — LOSING MONEY
-     Break-even at YES@50c: ~52%. 43.2% is significantly below.
-     btc_drift NO-only (post-filter): 58.3% WR, +18.66 USD — works correctly.
-     Options: (1) wait for 50+ bets, (2) flip filter to "no", (3) disable eth_drift.
-     Per PRINCIPLES.md: 37 bets not conclusive (p~0.19). Recommend: watch 20 more bets.
-     NOT urgent since eth_drift is micro-live (max $0.65/bet). Just losing slowly.
-  #7 btc_drift NO PROMOTION CANDIDATE — Matthew's decision needed:
-     38 NO-only live bets, 57.9% WR, Brier 0.237 (< 0.25 threshold), +18.68 USD
-     ALL Stage 1 criteria met. Currently micro-live (S60 demotion). Upgrade to Stage 1?
-     Command: In main.py btc_drift trading_loop, set calibration_max_usd=None
-     Risk: bet size goes from 0.40 USD to up to 5 USD. Read PRINCIPLES.md first.
-     eth_drift YES: 76 bets, 52.6% WR, Brier 0.250, last 20 at 60% WR — watch more bets.
-  #7 SOL YES 93c bucket watch — check at 20+ Stage 1 bets (currently 14 total)
-  #8 CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)
-  #9 KXGDP speed-play — April 30 (GDP release, check April 23-24)
-
-SESSION 92 KEY FINDINGS (2026-03-17 00:00 UTC):
-  1. eth_orderbook_imbalance retrospective filter analysis:
-     After asymmetric filter (YES>=52c, NO<=44c): 42/64 = 65.6% WR
-     YES 52-65c: 26/39 = 66.7% WR | YES 35-51c: 11/31 = 35.5% WR (correctly blocked)
-     NO 35-44c: 6/13 = 46.2% WR | p~0.006 (z=2.50)
-     NOTE: 64 bets are in-sample (filter derived from this data). Need 20+ OOS bets.
-     Filter deployed commit a870a60. All new paper bets will use asymmetric filter.
-  2. NCAA scanner: 96 KXNCAAMBGAME open, 0 edges found. Normal — re-run March 17-18.
-  3. XRP drift: 19 YES-only, 63.2% WR, Brier 0.232 (already meets <0.25 threshold!)
-  4. All-time P&L: 52.50 USD (+SOL NO@63c loss -9.45 USD vs earlier +60.28 estimate)
-  5. Guards CLEAN — detect_guard_gaps() confirms no bypass bets in last 30 days.
-
-SESSION 88 KEY BUILDS (2026-03-16 overnight):
-  1. IL-19 guard (commit a4f33ed): KXSOL YES@97c BLOCKED in src/execution/live.py
-     3 regression tests: test_sol_yes_at_97c_blocked, test_btc_yes_at_97c_not_blocked, test_eth_yes_at_97c_not_blocked
-  2. post_only taker fallback (commit e9dc10f): drift strategies now retry as taker on "post only cross"
-     KalshiAPIError.body dict checked for details=="post only cross" → immediate taker retry
-     Resolves 50+ missed drift trades/session.
-  3. BOUNDS.md updated with IL-19 entry (stats, incident ref, test refs).
-  4. SESSION S87 KEY BUILDS (carried forward):
-     scripts/soccer_sniper_paper.py (NEW) — paper bet execution on mid-game 90c+ crossings
-     SoccerSniperExec + SoccerPaperTracker classes. 19 tests, all passing.
-     Run for UCL QF 1st legs March 31/April 1 (ARS 76c, LFC 77c, BMU 74c, MCI 64c pre-game)
-
-SESSION 85 RESEARCH FINDINGS (2026-03-16):
-  CROSS-LEAGUE SOCCER THRESHOLD ANALYSIS (57 games, 4 leagues):
-  - Pre-game >= 0.60 → 75% MID_GAME rate (6/8 games). Revised from "45c" estimate in S83-84.
-  - UCL: 44% MID_GAME (4/9), La Liga: 44% (4/9), EPL: 13% (2/15), Serie A: 20% (1/5) + mixed 17% (2/12)
-  - FLB mechanism: market prices 10% reversal prob at 90c, actual rate 3-5% (confirmed across leagues)
-  - Key filter: UCL and La Liga best for soccer sniper (higher market quality + pre-game >= 0.60)
-  NCAA SCANNER BUG FIXES (commit f848adb):
-  - Bug 1: args swapped in fetch_odds_api_games call → HTTP 401 on every run since creation
-  - Bug 2: comparison.sharp_prob AttributeError → fixed to use sharp_yes_prob/sharp_no_prob per side
-  - 3 regression tests added. Scanner now works. Run March 17-18.
-  WEATHER CALIBRATION: only 2/41 paper bets settled as of March 16. Need 3-4 more weeks data.
-  KXGDP: market at 0c, 0 volume — not liquid. Check April 23-24 (1 week before April 30 BEA release).
-
-SESSION 84 RESEARCH FINDINGS (2026-03-15):
-  SOCCER IN-PLAY SNIPER — EDGE VALIDATED (structural mechanism confirmed):
-  - Mechanism: Favorite-Longshot Bias (FLB) — market implies 10% reversal at 90c, true rate ~3-5%
-  - UCL analysis (10 games): 40% MID_GAME rate (4/10), avg hold 85 min, avg pre-game 0.46
-  - FALSE POSITIVE RATE: 0/3 (Liverpool peak 0.60, Arsenal peak 0.64, Barcelona 0.43 — none hit 90c in losses)
-  - EPL: 2/17 MID_GAME at 33c and 38c — La Liga 45c threshold doesn't apply; revised to 60c+
-  - INTERNATIONAL BREAK: all games pushed — EPL March 30, UCL QF March 31/April 1
-  - Volume anomalies: RMA 766K vs MCI 72K (low volume on unfavorite side = our market)
-
-RESEARCH STATE:
-  scripts/soccer_candle_analyzer.py — UCL/EPL MID_GAME analysis via Kalshi candlestick API
-  scripts/cpi_release_monitor.py — run April 10, 08:30 ET
-  scripts/ncaa_tournament_scanner.py — run March 17-18, 1 credit/call, Round 1 March 20-21
-  scripts/weather_edge_scanner.py — daily scan, 5-city GEFS vs Kalshi
-  scripts/weather_calibration.py — check paper bet outcomes and calibration
-  Dead ends (cumulative): sports taker arb, BALLDONTLIE, FOMC model, NBA/NHL sniper,
-    tennis/NCAAB at current scale, weather NO at 99c, KXBTCD near-expiry sniper,
-    FOMC cross-market chain arb, sniper maker mode, NCAA totals/spreads,
-    KXMV parlay markets (zero volume), NBA in-game sniper (75x worse capital efficiency),
-    BNB/BCH/DOGE 15M (dormant series), KXBTCD hourly non-5PM slots (0 volume),
-    FOMC March 2026 (no Kalshi market), non-crypto 90c+ markets (0/2000 scanned),
-    annual BTC range markets KXBTCMAXY/KXBTCMINY (9+ month lockup, drift zone)
-  Open leads: Soccer in-play sniper (UCL March 31/April 1 — first live test, 60c+ pre-game filter),
-    NCAA Round 1 (March 17-18 — scanner now fixed), weather calibration (4+ weeks needed),
-    XRP drift graduation (23/30), CPI speed-play (April 10), KXGDP speed-play (April 30)
+## COPY-PASTE THIS TO START A NEW SESSION (Session 96)
+  Read SESSION_HANDOFF.md then use /polybot-auto

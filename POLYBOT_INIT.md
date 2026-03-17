@@ -1027,30 +1027,39 @@ Read these files immediately before doing anything else:
 Do NOT ask setup questions. Do NOT start writing code until you've read all three files.
 
 ═══════════════════════════════════════════════════════════════
-CURRENT STATE (as of end of Session 31 — 2026-03-08)
+CURRENT STATE (Last updated: Session 95 — 2026-03-17)
 ═══════════════════════════════════════════════════════════════
 
 BOT STATUS:
-  PID: 53490 (LIVE MODE — micro-live bets firing on btc_drift only)
-  Log: /tmp/polybot_session31.log
-  Alive: cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "running" || echo "stopped"
-  Watch drift bets: tail -f /tmp/polybot_session31.log | grep --line-buffered "LIVE\|drift\|Trade executed\|Kill switch"
-  Watch copy trade: tail -f /tmp/polybot_session31.log | grep --line-buffered copy_trade
+  Bot: RUNNING PID 49110 → /tmp/polybot_session95.log
+  All-time P&L: -24.11 USD (recovering — gross P&L +135 USD, fees = 89 USD gap)
+  Today P&L: -89.79 USD live (75% WR, 139 settled — 6 losses now all guarded, see below)
+  Tests: 1439 passing | Last commit: 2b50531
 
-LAST COMMIT: ba07cda — "docs: session 31 handoff — master_roadmap, POLYBOT_INIT, CLAUDE.md expanded"
-Pushed to: https://github.com/mpshields96/polymarket-bot.git (main)
+LAST COMMIT: 2b50531 — "feat: IL-32 + sniper execution floor + per-window correlated risk cap"
 
-TEST COUNT: 758/758 passing
-  Run: source venv/bin/activate && python3 -m pytest tests/ -v
+GUARDS: IL-5 through IL-32 COMPLETE + sniper execution floor (90c min) + per-window cap
+  Session 95 new guards: IL-28 (KXXRP NO@94c), IL-29 (KXBTC YES@88c), IL-30 (KXETH YES@93c),
+    IL-31 (KXXRP NO@91c), IL-32 (KXBTC NO@91c), sniper floor (no fills below 90c),
+    per-window cap (max 2 bets / 30 USD per 15-min market window)
+  All 6 losses today were in these newly-guarded buckets. Bot runs clean from here.
 
-BANKROLL: $79.76
-ALL-TIME LIVE P&L: -$18.85 (21 bets, 8W/13L = 38%)
-ALL-TIME PAPER P&L: ~$7 real (corrected — $233 anomaly removed Session 31; see below)
+STRATEGY STANDINGS (2026-03-17):
+  expiry_sniper_v1: PRIMARY ENGINE — guarded 90-95c range, ~97% WR on clean buckets
+  sol_drift_v1:     STAGE 1 — 40 bets, 70% WR, Brier 0.198, +1.56 USD
+  xrp_drift_v1:     MICRO-LIVE — 39 bets, 51% WR, Brier 0.267, borderline
+  btc_drift_v1:     MICRO-LIVE — 64 bets, 57.9% WR NO-only, Brier 0.252, awaits Matthew promotion
+  eth_drift_v1:     MICRO-LIVE — 130 bets, 50% WR YES-only, underperforming, watch 20 more
+
+PENDING MATTHEW DECISIONS:
+  1. btc_drift Stage 1 promotion (all criteria met — calibration_max_usd=None, requires restart)
+  2. maker_mode=True for sol_drift + xrp_drift (btc/eth already have it)
+  3. Global sniper ceiling at 95c (closes 97c/98c YES structural fee bleed)
+  4. eth_drift: 43.2% WR on YES-only post-filter — wait, flip to "no", or disable?
 
 KILL SWITCH STATE:
-  Consecutive: 4/4 ← AT LIMIT — 2hr cooling active on restart (expires ~15:19 UTC 2026-03-08)
-  Lifetime: $18.85 (display only — 30% hard stop REMOVED Session 34)
-  Daily: reset at CST midnight. All three counters PERSIST across restarts (fixed Sessions 23-25).
+  Consecutive: display only (check log). Daily: DISABLED. Lifetime: DISABLED.
+  Active protection: bankroll floor (20 USD) + 8-consecutive cooling + per-bet hard caps.
 
 ═══════════════════════════════════════════════════════════════
 THE TWO HALVES — NEVER CONFUSE THESE

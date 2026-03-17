@@ -5098,3 +5098,124 @@ Rate (recent non-loss days): ~3-5 USD/day sniper
 Highest-leverage action: Let the bot run — guards are now clean. Consistent sniper wins
   will close the gap. Next milestone: fix strategy_analyzer.py per-asset guard awareness.
 
+
+## Session 95 Research Wrap — 2026-03-17 ~11:30 UTC
+
+### Context
+Resumed mid-session after context compaction. Prior work (guards IL-28 through IL-32, sniper floor,
+per-window cap constants) was already committed in commits c5520f6, c0fef8e, 2b50531. This segment:
+wired per-window cap enforcement into execute(), added 7-test class, committed.
+
+### Changed
+- tests/test_live_executor.py: +162 lines — TestSniperPerWindowCap (7 tests):
+  first/second bet allowed, third blocked (count cap), USD at/above limit blocked,
+  drift bypass confirmed, window string extraction verified. Commit 79246e2.
+- src/execution/live.py: per-window enforcement ALREADY live (commit 2b50531):
+  Lines 140-157 — checks db.count_sniper_bets_in_window() before placing any sniper bet.
+  _SNIPER_MAX_BETS_PER_WINDOW=2, _SNIPER_MAX_USD_PER_WINDOW=30.0. Guards correlated events.
+- Sniper execution floor ALREADY live (commit 2b50531):
+  Lines 370-380 — rejects sniper execution price < 90c. Fixes asyncio gap slippage.
+
+### Why
+S95 morning: -96.70 USD in two consecutive 15-min windows.
+Root cause 1 (correlated): BTC+ETH+XRP sniper fired simultaneously in same macro dump.
+Root cause 2 (slippage): asyncio gap caused fills at 88-89c where FLB edge is gone.
+Both are structural/mathematical, not emotional. Guards are calibration, not trauma.
+
+### Key data finding this session (fee structure analysis)
+Sniper all-time by price level (live settled):
+  90-95c range: all profitable despite some losing buckets (specific asset+side guarded)
+  96c: -22.44 USD (guarded IL-10)
+  97c YES (BTC+ETH still unguarded): 93% WR, -30.18 USD CUMULATIVE (98% WR needed to profit)
+  97c NO: guarded IL-10
+  98c YES (BTC+ETH+SOL still unguarded): 98% WR, -9.06 USD (99.2%+ WR needed to profit)
+  98c NO: guarded IL-11
+  99c: guarded IL-5
+
+FEE MATH PROOF: At price P cents, break-even WR = P / (P + (100-P)) = P/100 = P%.
+With Kalshi taker fee ~1% of notional: actual break-even = P / (P + (100-P) - 0.01*P).
+  At 97c: break-even = 97 / (3 - 0.97) = 97 / 99.03 = 97.97% → need 98%+ WR
+  At 98c: break-even = 98 / (2 - 0.98) = 98 / 99.02 = 98.99% → need 99%+ WR
+CONCLUSION: Sniper profitable ceiling is structurally 95c. 97-98c YES for BTC/ETH/SOL
+are still firing and losing. A global sniper ceiling at 95c would close this gap.
+PENDING MATTHEW DECISION: add _SNIPER_EXECUTION_CEILING_CENTS = 95 to execute().
+
+### Self-rating: B-
+  Wins: per-window cap + floor = objective math, not trauma coding. 7 new tests. 
+  Wins: fee structure analysis is a real finding — unguarded 97c+98c YES still bleeding.
+  Gaps: this was reactive (responded to losses) not proactive (found new edges).
+  Gaps: did not complete the research session's proactive research stack.
+
+### Tests: 1446 passing (3 skipped)
+### Next research session priority:
+  Add global sniper ceiling at 95c (execution ceiling, same pattern as floor).
+  This closes the structural fee bleed at 97-98c YES without per-asset whack-a-mole.
+
+---
+
+## Session 95 Main Wrap — 2026-03-17 ~12:05 UTC
+
+### Context
+Matthew invoked /polybot-auto overnight then woke up to -82 USD today P&L from 9 large sniper losses.
+Session focus: diagnose, guard all loss buckets mathematically, prevent recurrence.
+
+### Changed
+- src/execution/live.py: IL-28, IL-29, IL-30, IL-31, IL-32 added
+  IL-28: KXXRP NO@94c — 17 bets, 94.1% WR, need 94% break-even, -5.29 USD
+  IL-29: KXBTC YES@88c — 2 bets, 50.0% WR, need 88% break-even, -17.93 USD
+  IL-30: KXETH YES@93c — 9 bets, 88.9% WR, need 93% break-even, -10.83 USD
+  IL-31: KXXRP NO@91c — 5 bets, 80.0% WR, need 91% break-even, -14.07 USD
+  IL-32: KXBTC NO@91c — 7 bets, 85.7% WR, need 91% break-even, -11.27 USD
+  Sniper execution floor: rejects price_cents < 90 for expiry_sniper_v1
+  Per-window correlated risk cap: max 2 bets + max 30 USD per 15-min market window
+  Constants: _SNIPER_MAX_BETS_PER_WINDOW=2, _SNIPER_MAX_USD_PER_WINDOW=30.0
+- src/db.py: count_sniper_bets_in_window(window) added
+  Returns (count, total_cost_usd) for all live sniper bets in a given 15-min window
+- tests/test_live_executor.py: TestSniperPerWindowCorrelatedRiskGuard (5 tests)
+  + IL-32 test, sniper floor test, make_db_mock updated for window params
+  1439 tests passing (+16 this session). Commit: 2b50531
+
+### Why
+All 6 large losses today traced to specific structural loss buckets:
+  KXBTC NO@91c, KXETH NO@89c (below floor), KXETH YES@93c,
+  KXXRP NO@91c, KXBTC YES@88c (below floor), KXXRP NO@94c
+Each had negative expected value at the observed win rate vs break-even required.
+This is objective math: if WR < break-even, each bet loses in expectation. Guard it.
+Per-window cap prevents correlated crypto-dump events from firing 3-4 simultaneous bets
+in the same 15-min window — all lose together when market dumps across all assets.
+
+### Strategy Analyzer Insights
+  All-time: -24.11 USD (82% WR, 918 bets)
+  Today: -78.69 USD (78% WR, 143 bets)
+  SNIPER: Profitable buckets: 95, 90-94c
+  SNIPER: Guarded buckets (historical losses blocked): 98, 97, 96c
+  btc_drift_v1: UNDERPERFORMING — 47% WR below 50c break-even. Direction: filter to 'no'.
+  eth_drift_v1: NEUTRAL — 130 live bets, 50% WR, -23.00 USD
+  sol_drift_v1: HEALTHY — 40 live bets, 70% WR, +1.56 USD
+
+### Goal Progress
+  All-time P&L: -24.11 USD | Need: 149.11 more to hit +125 USD target
+  Gross P&L: +135 USD (fees = 89 USD, only gap to net target)
+  Rate: ~30 sniper wins/day at 0.19 USD net/bet = ~5.70 USD/day net
+  Est. days at current rate: ~26 days (if no new unguarded losses)
+  Highest-leverage action: maker_mode for sol_drift/xrp_drift cuts fees meaningfully (awaits Matthew)
+  Second highest: global sniper ceiling at 95c (closes 97c/98c YES structural bleed)
+
+### Self-rating: C+
+  WINS: All 6 loss buckets now guarded. Correlated risk cap deployed. 1439 tests.
+  WINS: Guards are pure EV math — exactly what the PRINCIPLES.md demands.
+  LOSSES: All 9 overnight losses were structural — should have been caught by running
+    systematic bucket analysis proactively rather than reactively after damage.
+  LOSSES: Lost ~82 USD today before guards were deployed.
+  GRADE: C+ — correct analytical response, but reactive not proactive. Damage done first.
+  ONE THING differently: run strategy_analyzer bucket scan after every 5 new bets in any bucket,
+    not just at session wraps. Catches structural negatives before they compound.
+  ONE THING earlier: add global sniper ceiling (95c) earlier — the fee math was always there.
+
+### Next session priority
+  1. Monitor clean run with all new guards deployed
+  2. Add global sniper ceiling at 95c (pending Matthew decision — would block 97/98c YES which
+     are structurally borderline even for profitable assets after fees)
+  3. UCL soccer March 18 17:25 UTC launcher
+  4. NCAA scanner run when Round 1 lines mature
+
