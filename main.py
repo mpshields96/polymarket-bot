@@ -2762,6 +2762,21 @@ async def main():
     logger.info("Strategy loaded: %s (STAGE 1 SOL drift — Kelly + $5 cap, promoted S48 per Matthew)", sol_drift_strategy.name)
     xrp_drift_strategy = xrp_drift_load()
     logger.info("Strategy loaded: %s (micro-live XRP drift, 1 contract/bet)", xrp_drift_strategy.name)
+
+    # ── Inject Bayesian posterior into all 4 drift strategies (Dim 4) ─────
+    # Each strategy holds a reference to the shared model loaded at startup.
+    # When model.should_override_static() (30+ live obs), generate_signal() uses
+    # model.predict(drift_pct) instead of the static sigmoid. Both paths still
+    # apply the time-blending adjustment toward 0.5 early in the window.
+    for _drift_strat in [drift_strategy, eth_drift_strategy, sol_drift_strategy, xrp_drift_strategy]:
+        _drift_strat._drift_model = _drift_model
+    logger.info(
+        "[startup] Bayesian model injected into 4 drift strategies "
+        "(n=%d obs, override_active=%s)",
+        _drift_model.n_observations,
+        _drift_model.should_override_static(),
+    )
+
     btc_imbalance_strategy = load_btc_imbalance_from_config()
     logger.info("Strategy loaded: %s (paper-only BTC orderbook imbalance)", btc_imbalance_strategy.name)
     eth_imbalance_strategy = load_eth_imbalance_from_config()
