@@ -1737,6 +1737,92 @@ class TestPerAssetStructuralLossGuards:
         assert result is not None
         kalshi.create_order.assert_called_once()
 
+    async def test_eth_yes_at_93c_blocked_il30(self, live_env, bypass_first_run):
+        """IL-30: KXETH YES@93c blocked -- 9 bets, 88.9% WR, needs 93% break-even, -10.83 USD.
+
+        Trigger: trade #3382 2026-03-17 08:16 UTC -19.53 USD (same window as IL-31).
+        """
+        ob = make_orderbook(yes_bid=93)
+        signal = make_signal(side="yes", price_cents=93, ticker="KXETH15M-26MAR170415-15")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=93, no_price=7),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is None
+        kalshi.create_order.assert_not_called()
+
+    async def test_btc_yes_at_93c_not_blocked_by_il30(self, live_env, bypass_first_run):
+        """KXBTC YES@93c is NOT blocked -- IL-30 targets KXETH only. BTC YES@93c is profitable."""
+        ob = make_orderbook(yes_bid=93)
+        signal = make_signal(side="yes", price_cents=93, ticker="KXBTC15M-26MAR170415-15")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=93, no_price=7),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
+    async def test_xrp_no_at_91c_blocked_il31(self, live_env, bypass_first_run):
+        """IL-31: KXXRP NO@91c blocked -- 5 bets, 80.0% WR, needs 91% break-even, -14.07 USD.
+
+        Trigger: trade #3383 2026-03-17 08:16 UTC -19.11 USD (same window as IL-30).
+        """
+        ob = make_orderbook(yes_bid=9)  # yes_bid=9 → no_ask = 91c
+        signal = make_signal(side="no", price_cents=90, ticker="KXXRP15M-26MAR170415-15")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=9, no_price=91),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is None
+        kalshi.create_order.assert_not_called()
+
+    async def test_btc_no_at_91c_not_blocked_by_il31(self, live_env, bypass_first_run):
+        """KXBTC NO@91c is NOT blocked -- IL-31 targets KXXRP only. BTC NO@91c is profitable."""
+        ob = make_orderbook(yes_bid=9)
+        signal = make_signal(side="no", price_cents=90, ticker="KXBTC15M-26MAR170415-15")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=9, no_price=91),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
 
 # ── post_only taker fallback (S88) ───────────────────────────────────────────
 

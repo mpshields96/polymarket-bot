@@ -306,6 +306,28 @@ async def execute(
         )
         return None
 
+    # IL-30: ETH YES@93c — 9 bets, 88.9% WR, need 93.0% break-even, -10.83 USD
+    # Loss math: win=7c, lose=93c per contract. EV = 0.889×7 - 0.111×93 = 6.22 - 10.32 = -4.1c/contract.
+    # One loss wipes ~13 wins (1.26 USD each). Trigger: trade #3382 2026-03-17 08:16 UTC -19.53 USD.
+    # ETH YES@90-92c and YES@94c+ excluded — only 93c is the loss pocket for ETH.
+    if "KXETH" in signal.ticker and price_cents == 93 and signal.side == "yes":
+        logger.info(
+            "[live] KXETH YES@93c -- structurally negative EV "
+            "(88.9%% WR at 9 bets, needs 93.0%% to break even) -- skip",
+        )
+        return None
+
+    # IL-31: XRP NO@91c — 5 bets, 80.0% WR, need 91.0% break-even, -14.07 USD
+    # Loss math: win=9c, lose=91c per contract. EV = 0.80×9 - 0.20×91 = 7.2 - 18.2 = -11c/contract.
+    # Trigger: trade #3383 2026-03-17 08:16 UTC KXXRP NO@91c -19.11 USD.
+    # KXXRP NO@91c same correlated-loss-window pattern as IL-30 (same 15-min settlement).
+    if "KXXRP" in signal.ticker and price_cents == 91 and signal.side == "no":
+        logger.info(
+            "[live] KXXRP NO@91c -- structurally negative EV "
+            "(80.0%% WR at 5 bets, needs 91.0%% to break even) -- skip",
+        )
+        return None
+
     # ── Execution-time price guard ────────────────────────────────────────
     # Convert execution price to YES-equivalent for range + slippage checks.
     # Protects against HFT repricing in the asyncio gap after signal generation.
