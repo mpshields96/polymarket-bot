@@ -1803,10 +1803,32 @@ class TestPerAssetStructuralLossGuards:
         assert result is None
         kalshi.create_order.assert_not_called()
 
-    async def test_btc_no_at_91c_not_blocked_by_il31(self, live_env, bypass_first_run):
-        """KXBTC NO@91c is NOT blocked -- IL-31 targets KXXRP only. BTC NO@91c is profitable."""
+    async def test_btc_no_at_91c_blocked_il32(self, live_env, bypass_first_run):
+        """IL-32: KXBTC NO@91c blocked -- 7 bets, 85.7% WR, needs 91% break-even, -11.27 USD.
+        Confirmed S95 2026-03-17 08:46 UTC: -19.11 USD loss at KXBTC15M-26MAR170445-45.
+        """
         ob = make_orderbook(yes_bid=9)
-        signal = make_signal(side="no", price_cents=90, ticker="KXBTC15M-26MAR170415-15")
+        signal = make_signal(side="no", price_cents=91, ticker="KXBTC15M-26MAR170445-45")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=9, no_price=91),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is None
+        kalshi.create_order.assert_not_called()
+
+    async def test_eth_no_at_91c_not_blocked_by_il32(self, live_env, bypass_first_run):
+        """IL-32 is KXBTC-specific -- KXETH NO@91c is not blocked by IL-32."""
+        ob = make_orderbook(yes_bid=9)
+        signal = make_signal(side="no", price_cents=91, ticker="KXETH15M-26MAR170445-45")
         kalshi = make_kalshi_mock()
         result = await execute(
             signal,

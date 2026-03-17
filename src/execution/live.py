@@ -328,6 +328,31 @@ async def execute(
         )
         return None
 
+    # IL-32: BTC NO@91c — 7 bets, 85.7% WR, need 91.0% break-even, -11.27 USD
+    # Loss math: win=9c, lose=91c per contract. EV = 0.857×9 - 0.143×91 = 7.71 - 13.0 = -5.3c/contract.
+    # 85.7% WR (6W/1L) is below the 91% break-even threshold.
+    # Confirmed S95 2026-03-17 08:46 UTC: loss at KXBTC15M-26MAR170445-45 (-19.11 USD).
+    if "KXBTC" in signal.ticker and price_cents == 91 and signal.side == "no":
+        logger.info(
+            "[live] KXBTC NO@91c -- structurally negative EV "
+            "(85.7%% WR at 7 bets, needs 91.0%% to break even) -- skip",
+        )
+        return None
+
+    # ── Sniper execution-time floor (90c minimum, any side) ──────────────
+    # Sniper signals generated at 90c+ but asyncio gap can cause slippage to 88-89c.
+    # At sub-90c prices the FLB edge is gone — break-even WR is too low vs actual WR.
+    # Root cause: KXBTC YES@88c (IL-29) and KXETH NO@89c both fired below the signal floor.
+    # Fix: reject ANY sniper execution price below 90c, regardless of side.
+    # Does NOT affect drift strategies (they pass strategy_name != "expiry_sniper_v1").
+    _SNIPER_EXECUTION_FLOOR_CENTS = 90
+    if strategy_name == "expiry_sniper_v1" and price_cents < _SNIPER_EXECUTION_FLOOR_CENTS:
+        logger.info(
+            "[live] Sniper execution price %d¢ below floor %d¢ (slippage) — skip %s",
+            price_cents, _SNIPER_EXECUTION_FLOOR_CENTS, signal.ticker,
+        )
+        return None
+
     # ── Execution-time price guard ────────────────────────────────────────
     # Convert execution price to YES-equivalent for range + slippage checks.
     # Protects against HFT repricing in the asyncio gap after signal generation.
