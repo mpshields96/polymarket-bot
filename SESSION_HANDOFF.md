@@ -4,10 +4,9 @@
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
-  Bot RUNNING PID 46556 → /tmp/polybot_session98.log
-  All-time live P&L: -20.89 USD
-  Today P&L: -75.47 USD (174 settled, 78% WR including pre-guard losses)
-  Tests: 1450 passing. Last commit: 391d06a (feat: self-improvement infrastructure)
+  Bot RUNNING PID 50882 → /tmp/polybot_session98.log
+  All-time live P&L: ~-20.89 USD (last check 22:45 UTC)
+  Tests: 1482 passing. Last commit: f221a61 (feat: Dim 2 BayesianDriftModel)
 
 ## S98 KEY CHANGES (committed and deployed)
   1. maker_mode=True added to sol_drift and xrp_drift (btc/eth had it since S65)
@@ -136,17 +135,30 @@
   pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session98.log 2>&1 &
   Then verify: ps aux | grep "[m]ain.py" — exactly 1. Then cat bot.pid.
 
-## SELF-IMPROVEMENT PRIORITY (replaces generic "research" tasks)
-  Read .planning/SELF_IMPROVEMENT_ROADMAP.md for full multi-session plan.
-  #1 Wire data/auto_guards.json into live.py execute() — ~30 min, guards active on restart
-     Pattern: load JSON at execute() call, loop through guards, return None if match
-  #2 src/models/bayesian_drift.py — online posterior update per settled drift bet
-     Research: Jaakkola/Jordan (1997) variational Bayes for binary classifiers
-     Prior: Gaussian over (intercept, slope), update after each settled live bet
-     Storage: data/drift_posterior.json, load at bot startup
-  #3 Settlement hook in main.py — calls bayesian_drift.update() after each settled live drift bet
-  #4 Academic: Snowberg/Wolfers (2010) FLB dynamics — why does 90-95c edge exist structurally?
-  #5 Auto-promotion script: when OOS 20/20 + Brier < 0.30, promote without human input
+## SELF-IMPROVEMENT BUILD STATUS (updated S98 end)
+  Read .planning/SELF_IMPROVEMENT_ROADMAP.md for full plan.
+
+  DONE (this session):
+  - Dim 1a: scripts/auto_guard_discovery.py — scans DB, finds negative-EV buckets (commit 391d06a)
+  - Dim 1b: live.py wired — loads data/auto_guards.json at module import (commit 8f5474b)
+  - Dim 2:  src/models/bayesian_drift.py — BayesianDriftModel, 26 tests, 1482 total (commit f221a61)
+
+  NEXT SESSION MUST DO (in order):
+  #1 WIRE Bayesian model into main.py settlement loop
+     After each settled live drift bet (btc_drift/eth_drift/sol_drift/xrp_drift):
+       drift_pct = (settlement_btc_price - reference_btc_price) / reference_btc_price
+       _drift_model.update(drift_pct=drift_pct, side=trade["side"], won=(trade["side"]==trade["result"]))
+       _drift_model.save()
+     NOTE: needs reference BTC price at bet placement — store in DB or in-memory dict
+     File to edit: main.py settlement_loop() — search for "record_win\|record_loss"
+  #2 WIRE Bayesian predict into BTCDriftStrategy.generate_signal()
+     When model.should_override_static() (after 30+ live bets):
+       prob_yes = _drift_model.predict(drift_pct)  (replaces sigmoid step 6)
+     Pattern: inject _drift_model as optional param to generate_signal()
+  #3 Run scripts/auto_guard_discovery.py at startup (add to polybot-init Step 3)
+  #4 Academic: read Snowberg/Wolfers (2010) "Explaining the Favourite-Longshot Bias"
+     Test FLB strength by hour-of-day against sniper DB to find structural patterns
+  #5 OOS auto-promotion: when 20/20 bets + Brier < 0.30, auto-promote (no human needed)
 
 ## PENDING TASKS (priority order)
   #1 MONITORING — run 5-min background checks, chain indefinitely
