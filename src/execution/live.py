@@ -201,6 +201,17 @@ async def execute(
         )
         return None
 
+    # IL-21: XRP NO@92c — 4 bets, 75.0% WR, need 92.0% break-even, -15.33 USD
+    # Asymmetric payout: wins ~1.40 USD, losses ~19 USD. Structurally unrecoverable.
+    # Pattern: NO@91c=100% WR, NO@92c=75% WR, NO@93c+=100% WR. 92c is the bad bucket.
+    # Confirmed S92 2026-03-17: loss at KXXRP15M-26MAR170000 triggered analysis.
+    if "KXXRP" in signal.ticker and price_cents == 92 and signal.side == "no":
+        logger.info(
+            "[live] KXXRP NO@92c -- structurally negative EV "
+            "(75.0%% WR at 4 bets, needs 92.0%% to break even) -- skip",
+        )
+        return None
+
     # ── Execution-time price guard ────────────────────────────────────────
     # Convert execution price to YES-equivalent for range + slippage checks.
     # Protects against HFT repricing in the asyncio gap after signal generation.
