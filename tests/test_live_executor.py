@@ -1060,8 +1060,8 @@ class TestSniperNegativeEvBucketGuard:
         kalshi.create_order.assert_not_called()
         db.save_trade.assert_not_called()
 
-    async def test_yes_at_97c_not_blocked(self, live_env, bypass_first_run):
-        """YES@97c is NOT blocked -- historically +2.90 USD at 100% WR (profitable)."""
+    async def test_yes_at_97c_blocked_by_ceiling(self, live_env, bypass_first_run):
+        """YES@97c is BLOCKED by ceiling -- break-even WR 97.97% vs 93% observed (-30.18 USD)."""
         ob = make_orderbook(no_bid=3)  # no_bid=3 -> yes_ask = 100-3 = 97c
         signal = make_signal(side="yes", price_cents=93)
         kalshi = make_kalshi_mock()
@@ -1073,8 +1073,8 @@ class TestSniperNegativeEvBucketGuard:
             price_guard_min=1, price_guard_max=99,
         )
 
-        assert result is not None
-        kalshi.create_order.assert_called_once()
+        assert result is None
+        kalshi.create_order.assert_not_called()
 
     async def test_yes_at_95c_not_blocked(self, live_env, bypass_first_run):
         """YES@95c is NOT blocked -- 35 bets, 100% WR, +18.32 USD (profitable)."""
@@ -1092,8 +1092,8 @@ class TestSniperNegativeEvBucketGuard:
         assert result is not None
         kalshi.create_order.assert_called_once()
 
-    async def test_yes_at_98c_not_blocked(self, live_env, bypass_first_run):
-        """YES@98c is NOT blocked -- 26 bets, 100% WR, +3.47 USD (profitable)."""
+    async def test_yes_at_98c_blocked_by_ceiling(self, live_env, bypass_first_run):
+        """YES@98c is BLOCKED by ceiling -- break-even WR 98.99% vs 98% observed (-9.06 USD)."""
         ob = make_orderbook(no_bid=2)  # no_bid=2 -> yes_ask = 98c
         signal = make_signal(side="yes", price_cents=93)
         kalshi = make_kalshi_mock()
@@ -1105,8 +1105,8 @@ class TestSniperNegativeEvBucketGuard:
             price_guard_min=1, price_guard_max=99,
         )
 
-        assert result is not None
-        kalshi.create_order.assert_called_once()
+        assert result is None
+        kalshi.create_order.assert_not_called()
 
 
 # ── Iron Law 3: expiry_sniper price_guard_min must be 87 ────────────────────
@@ -1368,8 +1368,8 @@ class TestPerAssetStructuralLossGuards:
         )
         assert result is None
 
-    async def test_btc_yes_at_97c_not_blocked(self, live_env, bypass_first_run):
-        """KXBTC YES@97c is NOT blocked -- 100% WR, profitable. Only SOL is blocked at 97c."""
+    async def test_btc_yes_at_97c_blocked_by_ceiling(self, live_env, bypass_first_run):
+        """KXBTC YES@97c is BLOCKED by ceiling -- fee math: break-even 97.97% vs 93% WR."""
         ob = make_orderbook(no_bid=3)  # yes_ask = 97c
         signal = make_signal(side="yes", price_cents=93, ticker="KXBTC15M-26MAR160200-00")
         kalshi = make_kalshi_mock()
@@ -1385,11 +1385,11 @@ class TestPerAssetStructuralLossGuards:
             price_guard_min=1,
             price_guard_max=99,
         )
-        assert result is not None
-        kalshi.create_order.assert_called_once()
+        assert result is None
+        kalshi.create_order.assert_not_called()
 
-    async def test_eth_yes_at_97c_not_blocked(self, live_env, bypass_first_run):
-        """KXETH YES@97c is NOT blocked -- 100% WR, profitable. Only SOL is blocked at 97c."""
+    async def test_eth_yes_at_97c_blocked_by_ceiling(self, live_env, bypass_first_run):
+        """KXETH YES@97c is BLOCKED by ceiling -- fee math: break-even 97.97% vs 93% WR."""
         ob = make_orderbook(no_bid=3)  # yes_ask = 97c
         signal = make_signal(side="yes", price_cents=93, ticker="KXETH15M-26MAR160200-00")
         kalshi = make_kalshi_mock()
@@ -1405,7 +1405,7 @@ class TestPerAssetStructuralLossGuards:
             price_guard_min=1,
             price_guard_max=99,
         )
-        assert result is not None
+        assert result is None
 
     async def test_xrp_yes_at_95c_blocked(self, live_env, bypass_first_run):
         """KXXRP YES@95c is blocked -- IL-20: 90.0% WR at 10 bets, need 95.0% break-even, -14.27 USD.
@@ -1604,8 +1604,8 @@ class TestPerAssetStructuralLossGuards:
         )
         assert result is None
 
-    async def test_btc_yes_at_98c_not_blocked_by_il23(self, live_env, bypass_first_run):
-        """KXBTC YES@98c is NOT blocked -- IL-23 targets KXXRP only. BTC YES@98c is 100% WR."""
+    async def test_btc_yes_at_98c_blocked_by_ceiling(self, live_env, bypass_first_run):
+        """KXBTC YES@98c is BLOCKED by ceiling -- fee math: break-even 98.99% vs 98% WR (-9.06 USD)."""
         ob = make_orderbook(no_bid=2)  # no_bid=2 -> yes_ask = 98c
         signal = make_signal(side="yes", price_cents=97, ticker="KXBTC15M-26MAR170000-15")
         kalshi = make_kalshi_mock()
@@ -1621,11 +1621,11 @@ class TestPerAssetStructuralLossGuards:
             price_guard_min=1,
             price_guard_max=99,
         )
-        assert result is not None
-        kalshi.create_order.assert_called_once()
+        assert result is None
+        kalshi.create_order.assert_not_called()
 
-    async def test_eth_yes_at_98c_not_blocked_by_il23(self, live_env, bypass_first_run):
-        """KXETH YES@98c is NOT blocked -- IL-23 targets KXXRP only. ETH YES@98c is 100% WR (16 bets)."""
+    async def test_eth_yes_at_98c_blocked_by_ceiling(self, live_env, bypass_first_run):
+        """KXETH YES@98c is BLOCKED by ceiling -- fee math: break-even 98.99% vs 98% WR."""
         ob = make_orderbook(no_bid=2)  # no_bid=2 -> yes_ask = 98c
         signal = make_signal(side="yes", price_cents=97, ticker="KXETH15M-26MAR170000-15")
         kalshi = make_kalshi_mock()
@@ -1641,8 +1641,8 @@ class TestPerAssetStructuralLossGuards:
             price_guard_min=1,
             price_guard_max=99,
         )
-        assert result is not None
-        kalshi.create_order.assert_called_once()
+        assert result is None
+        kalshi.create_order.assert_not_called()
 
     async def test_sol_no_at_95c_blocked(self, live_env, bypass_first_run):
         """IL-24: KXSOL NO@95c blocked -- 93.8% WR at 16 bets, need 95% break-even, -31.50 USD."""
@@ -2080,6 +2080,100 @@ class TestSniperExecutionFloor:
         # btc_drift price guard is 35-65c; YES@89c is outside drift guard, should be blocked
         # by the drift price guard (execution_yes_price=89 > 65). Confirms floor only applies to sniper.
         assert result is None
+
+
+# ── Sniper execution ceiling (S95) ───────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+class TestSniperExecutionCeiling:
+    """Sniper execution-time 95c ceiling — rejects structurally unprofitable high prices (S95).
+
+    Fee math: at 97c YES, taker fee makes break-even WR = 97.97%.
+    Observed WR at 97c YES = 93% (30 bets, -30.18 USD). Structural loss.
+    At 98c YES: break-even = 98.99%. Observed = 98% (62 bets, -9.06 USD). Also losing.
+    96c already blocked (IL-10). Ceiling at 95c closes 97-98c YES bleed for all assets.
+    """
+
+    async def test_sniper_rejects_yes_at_97c_ceiling(self, live_env, bypass_first_run):
+        """Sniper rejects YES@97c — above ceiling, break-even 97.97% vs 93% observed WR."""
+        ob = make_orderbook(yes_bid=97)
+        signal = make_signal(side="yes", price_cents=97, ticker="KXBTC15M-26MAR170445-45")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=97, no_price=3),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is None
+        kalshi.create_order.assert_not_called()
+
+    async def test_sniper_rejects_yes_at_98c_ceiling(self, live_env, bypass_first_run):
+        """Sniper rejects YES@98c — break-even 98.99% vs 98% observed WR, structurally negative."""
+        ob = make_orderbook(yes_bid=98)
+        signal = make_signal(side="yes", price_cents=98, ticker="KXETH15M-26MAR170445-45")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=98, no_price=2),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is None
+        kalshi.create_order.assert_not_called()
+
+    async def test_sniper_allows_yes_at_95c_exactly(self, live_env, bypass_first_run):
+        """Sniper allows YES@95c — exactly at ceiling, profitable bucket."""
+        ob = make_orderbook(yes_bid=95)
+        signal = make_signal(side="yes", price_cents=95, ticker="KXBTC15M-26MAR170445-45")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=95, no_price=5),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
+    async def test_drift_not_affected_by_sniper_ceiling(self, live_env, bypass_first_run):
+        """Drift strategies are NOT blocked at 97c — ceiling only applies to sniper."""
+        ob = make_orderbook(yes_bid=50)
+        signal = make_signal(side="yes", price_cents=50, ticker="KXBTC15M-26MAR170445-45")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=50, no_price=50),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="btc_drift_v1",
+            price_guard_min=35,
+            price_guard_max=65,
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
 
 
 # ── post_only taker fallback (S88) ───────────────────────────────────────────

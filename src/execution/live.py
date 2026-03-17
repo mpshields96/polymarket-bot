@@ -379,6 +379,21 @@ async def execute(
         )
         return None
 
+    # ── Sniper execution-time ceiling (95c maximum, any side) ────────────
+    # Fee math: at 97c YES, break-even WR = 97.97% (payout = 3c minus ~1% taker fee).
+    # Observed WR at 97c YES = 93% across 30 bets (-30.18 USD cumulative).
+    # At 98c YES: break-even = 98.99%. Observed = 98% across 62 bets (-9.06 USD).
+    # These are structural losses, not bad luck — the fee math makes them impossible to profit.
+    # 96c already blocked (IL-10). Ceiling at 95c closes the 97-98c YES bleed for all assets.
+    # Does NOT affect drift strategies.
+    _SNIPER_EXECUTION_CEILING_CENTS = 95
+    if strategy_name == "expiry_sniper_v1" and price_cents > _SNIPER_EXECUTION_CEILING_CENTS:
+        logger.info(
+            "[live] Sniper execution price %d¢ above ceiling %d¢ (fee bleed) — skip %s",
+            price_cents, _SNIPER_EXECUTION_CEILING_CENTS, signal.ticker,
+        )
+        return None
+
     # ── Execution-time price guard ────────────────────────────────────────
     # Convert execution price to YES-equivalent for range + slippage checks.
     # Protects against HFT repricing in the asyncio gap after signal generation.
