@@ -2266,4 +2266,166 @@ class TestSniperMaxSlippageCents:
 
         assert result is not None
         kalshi.create_order.assert_called_once()
+
+
+@pytest.mark.asyncio
+class TestSniperPerWindowCap:
+    """Sniper per-window correlated risk cap (S95).
+
+    Root cause: S95 crypto dump hit BTC+ETH+XRP in same 15-min window simultaneously.
+    -58 USD in one window. Fix: cap to 2 bets / 30 USD per window.
+    Window ID extracted from ticker: 'KXBTC15M-26MAR170415-15' -> '26MAR170415-15'.
+    """
+
+    async def test_first_bet_in_window_allowed(self, live_env, bypass_first_run):
+        """First sniper bet in a window is always allowed (0 bets so far)."""
+        ob = make_orderbook(yes_bid=92)
+        signal = make_signal(side="yes", price_cents=92, ticker="KXBTC15M-26MAR170415-15")
+        db = make_db_mock(window_bets=0, window_usd=0.0)
+        kalshi = make_kalshi_mock()
+
+        result = await execute(
+            signal,
+            make_market(yes_price=92, no_price=8),
+            ob,
+            10.0,
+            kalshi,
+            db,
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is not None
         kalshi.create_order.assert_called_once()
+
+    async def test_second_bet_in_window_allowed(self, live_env, bypass_first_run):
+        """Second sniper bet allowed when count=1 (below cap of 2)."""
+        ob = make_orderbook(yes_bid=91)
+        signal = make_signal(side="yes", price_cents=91, ticker="KXETH15M-26MAR170415-15")
+        db = make_db_mock(window_bets=1, window_usd=10.0)
+        kalshi = make_kalshi_mock()
+
+        result = await execute(
+            signal,
+            make_market(yes_price=91, no_price=9),
+            ob,
+            10.0,
+            kalshi,
+            db,
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
+    async def test_third_bet_in_window_blocked_by_count_cap(self, live_env, bypass_first_run):
+        """Third sniper bet blocked when count=2 (at cap) -- S95 correlated loss guard."""
+        ob = make_orderbook(yes_bid=90)
+        signal = make_signal(side="yes", price_cents=90, ticker="KXXRP15M-26MAR170415-15")
+        db = make_db_mock(window_bets=2, window_usd=20.0)
+        kalshi = make_kalshi_mock()
+
+        result = await execute(
+            signal,
+            make_market(yes_price=90, no_price=10),
+            ob,
+            10.0,
+            kalshi,
+            db,
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is None
+        kalshi.create_order.assert_not_called()
+
+    async def test_usd_cap_blocks_when_spend_at_limit(self, live_env, bypass_first_run):
+        """Sniper blocked when window USD spend >= 30.0 USD cap."""
+        ob = make_orderbook(yes_bid=91)
+        signal = make_signal(side="yes", price_cents=91, ticker="KXSOL15M-26MAR170415-15")
+        db = make_db_mock(window_bets=1, window_usd=30.0)
+        kalshi = make_kalshi_mock()
+
+        result = await execute(
+            signal,
+            make_market(yes_price=91, no_price=9),
+            ob,
+            10.0,
+            kalshi,
+            db,
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is None
+        kalshi.create_order.assert_not_called()
+
+    async def test_usd_cap_blocks_when_spend_exceeds_limit(self, live_env, bypass_first_run):
+        """Sniper blocked when window USD spend > 30.0 (over cap)."""
+        ob = make_orderbook(yes_bid=92)
+        signal = make_signal(side="yes", price_cents=92, ticker="KXBTC15M-26MAR170415-15")
+        db = make_db_mock(window_bets=1, window_usd=35.0)
+        kalshi = make_kalshi_mock()
+
+        result = await execute(
+            signal,
+            make_market(yes_price=92, no_price=8),
+            ob,
+            10.0,
+            kalshi,
+            db,
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is None
+        kalshi.create_order.assert_not_called()
+
+    async def test_window_cap_does_not_apply_to_drift(self, live_env, bypass_first_run):
+        """Drift strategies are NOT subject to per-window cap -- different risk profile."""
+        ob = make_orderbook(no_bid=46)  # yes_ask = 54c
+        signal = make_signal(side="yes", price_cents=52, ticker="KXBTC15M-26MAR170415-15")
+        # Even with 10 bets in window, drift proceeds
+        db = make_db_mock(window_bets=10, window_usd=100.0)
+        kalshi = make_kalshi_mock()
+
+        result = await execute(
+            signal,
+            make_market(yes_price=54),
+            ob,
+            5.0,
+            kalshi,
+            db,
+            live_confirmed=True,
+            strategy_name="btc_drift_v1",
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
+    async def test_window_extracted_from_ticker_correctly(self, live_env, bypass_first_run):
+        """Window ID is extracted as everything after first '-' in the ticker."""
+        # ticker "KXBTC15M-26MAR170415-15" -> window "26MAR170415-15"
+        ob = make_orderbook(yes_bid=90)
+        signal = make_signal(side="yes", price_cents=90, ticker="KXBTC15M-26MAR170415-15")
+        db = make_db_mock(window_bets=0, window_usd=0.0)
+        kalshi = make_kalshi_mock()
+
+        await execute(
+            signal,
+            make_market(yes_price=90, no_price=10),
+            ob,
+            10.0,
+            kalshi,
+            db,
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        db.count_sniper_bets_in_window.assert_called_once_with("26MAR170415-15")
