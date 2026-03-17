@@ -212,6 +212,17 @@ async def execute(
         )
         return None
 
+    # IL-22: SOL NO@92c — 3 bets, 67.0% WR, need 92.0% break-even, -12.97 USD
+    # Same asymmetric payout pattern as XRP NO@92c (IL-21): wins ~1.40 USD, losses ~18 USD.
+    # SOL NO@91c=100% WR, NO@92c=67% WR, NO@93c+=100% WR. Same per-asset volatility notch.
+    # Confirmed S94 2026-03-17: guard added proactively after bucket analysis (n=3 but math is clear).
+    if "KXSOL" in signal.ticker and price_cents == 92 and signal.side == "no":
+        logger.info(
+            "[live] KXSOL NO@92c -- structurally negative EV "
+            "(67.0%% WR at 3 bets, needs 92.0%% to break even) -- skip",
+        )
+        return None
+
     # ── Execution-time price guard ────────────────────────────────────────
     # Convert execution price to YES-equivalent for range + slippage checks.
     # Protects against HFT repricing in the asyncio gap after signal generation.

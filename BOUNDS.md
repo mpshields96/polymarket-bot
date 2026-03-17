@@ -427,4 +427,22 @@ Pattern: NO@91c=100% WR, NO@92c=75% WR, NO@93c+=100% WR. 92c is the single bad b
 
 ---
 
-*Last updated: Session 92 (2026-03-17). IL-19 added: KXSOL YES@97c. IL-20 added: KXXRP YES@95c. IL-21 added: KXXRP NO@92c.*
+### IL-22: KXSOL NO@92c is structurally negative EV — block execution
+
+**Rule:** `src/execution/live.py execute()` must return `None` when `"KXSOL" in signal.ticker and price_cents == 92 and signal.side == "no"`.
+
+BTC/ETH/XRP NO@92c remain unaffected — only SOL is blocked here (XRP covered by IL-21).
+KXSOL NO@91c and NO@93c+ remain profitable (100% WR).
+
+**Stats at time of guard (S94 2026-03-17):** 3 bets, 67.0% WR, -12.97 USD net.
+Break-even requires 92.0% WR. Same asymmetric payout as IL-21: wins ~1.40 USD each, losses ~18 USD each.
+Guard added proactively based on payout asymmetry math (n=3 is small but break-even math is asset-independent).
+Pattern: NO@91c=100% WR, NO@92c=67% WR, NO@93c+=100% WR. Same per-asset volatility notch as XRP.
+
+**Test:** `tests/test_live_executor.py::TestPerAssetStructuralLossGuards::test_sol_no_at_92c_blocked`
+`tests/test_live_executor.py::TestPerAssetStructuralLossGuards::test_btc_no_at_92c_not_blocked`
+`tests/test_live_executor.py::TestPerAssetStructuralLossGuards::test_eth_no_at_92c_not_blocked`
+
+---
+
+*Last updated: Session 94 (2026-03-17). IL-22 added: KXSOL NO@92c.*
