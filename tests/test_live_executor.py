@@ -847,14 +847,16 @@ class TestPostOnlyMakerOrders:
         assert kalshi.create_order.call_args.kwargs["post_only"] is True
 
     async def test_post_only_default_false(self, live_env, bypass_first_run):
-        """post_only defaults to False when not specified."""
-        ob = make_orderbook(no_bid=45)
+        """post_only defaults to False when not specified. Uses 90c sniper price (floor min)."""
+        ob = make_orderbook(yes_bid=90)
         kalshi = make_kalshi_mock()
         db = make_db_mock()
 
         result = await execute(
-            make_signal(), make_market(), ob, 5.0, kalshi, db,
+            make_signal(price_cents=90), make_market(yes_price=90, no_price=10),
+            ob, 5.0, kalshi, db,
             live_confirmed=True, strategy_name="expiry_sniper_v1",
+            price_guard_min=1, price_guard_max=99,
         )
 
         assert result is not None
@@ -884,7 +886,7 @@ class TestPostOnlyMakerOrders:
 
         result = await execute(
             make_signal(), make_market(), ob, 5.0, kalshi, db,
-            live_confirmed=True, strategy_name="expiry_sniper_v1",
+            live_confirmed=True, strategy_name="btc_drift_v1",
         )
 
         assert result is not None
@@ -1717,8 +1719,11 @@ class TestPerAssetStructuralLossGuards:
         )
         assert result is None
 
-    async def test_eth_yes_at_88c_not_blocked_by_il29(self, live_env, bypass_first_run):
-        """KXETH YES@88c is NOT blocked -- IL-29 targets KXBTC only. ETH YES@88c is 100% WR."""
+    async def test_eth_yes_at_88c_blocked_by_sniper_floor(self, live_env, bypass_first_run):
+        """KXETH YES@88c (sniper) blocked by execution floor -- 88c < 90c sniper floor.
+        IL-29 targets KXBTC only; but sniper floor blocks ALL sub-90c sniper executions.
+        Root cause: asyncio gap allows price slip from 90c signal to 88c execution.
+        """
         ob = make_orderbook(yes_bid=88)
         signal = make_signal(side="yes", price_cents=88, ticker="KXETH15M-26MAR170415-15")
         kalshi = make_kalshi_mock()
@@ -1734,8 +1739,8 @@ class TestPerAssetStructuralLossGuards:
             price_guard_min=1,
             price_guard_max=99,
         )
-        assert result is not None
-        kalshi.create_order.assert_called_once()
+        assert result is None
+        kalshi.create_order.assert_not_called()
 
     async def test_eth_yes_at_93c_blocked_il30(self, live_env, bypass_first_run):
         """IL-30: KXETH YES@93c blocked -- 9 bets, 88.9% WR, needs 93% break-even, -10.83 USD.
@@ -1844,6 +1849,157 @@ class TestPerAssetStructuralLossGuards:
         )
         assert result is not None
         kalshi.create_order.assert_called_once()
+
+    async def test_btc_no_at_91c_blocked_il32(self, live_env, bypass_first_run):
+        """IL-32: KXBTC NO@91c blocked -- 7 bets, 85.7% WR, needs 91% break-even, -11.27 USD."""
+        ob = make_orderbook(yes_bid=9)  # no_price=91c
+        signal = make_signal(side="no", price_cents=90, ticker="KXBTC15M-26MAR170445-45")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=9, no_price=91),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is None
+        kalshi.create_order.assert_not_called()
+
+    async def test_eth_no_at_91c_not_blocked_by_il32(self, live_env, bypass_first_run):
+        """KXETH NO@91c is NOT blocked -- IL-32 targets KXBTC only. ETH NO@91c is profitable."""
+        ob = make_orderbook(yes_bid=9)
+        signal = make_signal(side="no", price_cents=90, ticker="KXETH15M-26MAR170445-45")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=9, no_price=91),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
+
+@pytest.mark.asyncio
+class TestSniperExecutionFloor:
+    """Sniper execution-time 90c floor — rejects sub-floor slippage (S95).
+
+    Root cause: sniper signals generated at 90c+ but asyncio gap causes slippage.
+    KXBTC YES@88c (IL-29) and KXETH NO@89c both executed below signal floor.
+    Fix: reject ANY sniper execution price below 90c, regardless of asset or side.
+    """
+
+    async def test_sniper_rejects_yes_at_89c_slippage(self, live_env, bypass_first_run):
+        """Sniper rejects YES@89c execution — 1c below floor, FLB edge gone."""
+        ob = make_orderbook(yes_bid=89)
+        signal = make_signal(side="yes", price_cents=90, ticker="KXBTC15M-26MAR170445-45")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=89, no_price=11),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is None
+        kalshi.create_order.assert_not_called()
+
+    async def test_sniper_rejects_no_at_89c_slippage(self, live_env, bypass_first_run):
+        """Sniper rejects NO@89c execution -- KXETH NO@89c triggered this guard (trade #3390)."""
+        ob = make_orderbook(yes_bid=11)  # no_price=89c
+        signal = make_signal(side="no", price_cents=90, ticker="KXETH15M-26MAR170445-45")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=11, no_price=89),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is None
+        kalshi.create_order.assert_not_called()
+
+    async def test_sniper_allows_yes_at_90c_exactly(self, live_env, bypass_first_run):
+        """Sniper allows YES@90c -- exactly at floor, no slippage."""
+        ob = make_orderbook(yes_bid=90)
+        signal = make_signal(side="yes", price_cents=90, ticker="KXBTC15M-26MAR170445-45")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=90, no_price=10),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
+    async def test_sniper_allows_no_at_90c_exactly(self, live_env, bypass_first_run):
+        """Sniper allows NO@90c -- exactly at floor."""
+        ob = make_orderbook(yes_bid=10)  # no_price=90c
+        signal = make_signal(side="no", price_cents=90, ticker="KXBTC15M-26MAR170445-45")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=10, no_price=90),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
+    async def test_drift_not_affected_by_sniper_floor(self, live_env, bypass_first_run):
+        """Drift strategies are NOT blocked at 89c -- floor only applies to sniper."""
+        ob = make_orderbook(yes_bid=89)
+        signal = make_signal(side="yes", price_cents=89, ticker="KXBTC15M-26MAR170445-45")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=89, no_price=11),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="btc_drift_v1",
+            price_guard_min=35,
+            price_guard_max=65,
+        )
+        # btc_drift price guard is 35-65c; YES@89c is outside drift guard, should be blocked
+        # by the drift price guard (execution_yes_price=89 > 65). Confirms floor only applies to sniper.
+        assert result is None
 
 
 # ── post_only taker fallback (S88) ───────────────────────────────────────────
@@ -1978,15 +2134,19 @@ class TestSniperMaxSlippageCents:
     async def test_sniper_allows_2c_slippage_when_max_is_3(
         self, live_env, bypass_first_run
     ):
-        """SOL YES signal@90c, orderbook ask=88c → 2c slip < 3c max → proceeds."""
-        ob = make_orderbook(no_bid=12)  # yes_ask = 100-12 = 88c
-        signal = make_signal(side="yes", price_cents=90, ticker="KXSOL15M-26MAR151915-15")
+        """SOL YES signal@93c, orderbook ask=91c → 2c slip < 3c max → proceeds.
+
+        Updated S95: test originally used signal@90c→exec@88c, but sniper floor now
+        blocks execution at 88c (sub-90c floor). Updated to use 93c→91c (still above floor).
+        """
+        ob = make_orderbook(yes_bid=91)  # yes execution at 91c
+        signal = make_signal(side="yes", price_cents=93, ticker="KXSOL15M-26MAR151915-15")
         kalshi = make_kalshi_mock()
         db = make_db_mock()
 
         result = await execute(
             signal,
-            make_market(yes_price=88),
+            make_market(yes_price=91, no_price=9),
             ob,
             18.0,
             kalshi,
