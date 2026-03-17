@@ -59,23 +59,22 @@
 ## CURRENT STATUS — (updated each session)
 ═══════════════════════════════════════════════════
 
-BUILD COMPLETE. 1446/1446 tests passing. verify.py advisory WARNs only — non-critical.
-Last commit: 747a7ca (research: S96 guard coverage + UCL launcher + volatility gate data)
+BUILD COMPLETE. 1450/1450 tests passing. verify.py advisory WARNs only — non-critical.
+Last commit: b124706 (docs: S98 session wrap — maker_mode deployed, strategy analysis, handoff updated)
 
-## BOT STATE — Session 96 research (2026-03-17 19:35 UTC) — BOT RUNNING
+## BOT STATE — Session 98 (2026-03-17 22:00 UTC) — BOT RUNNING
 
-Bot PID 21666 → /tmp/polybot_session96.log
-All-time live P&L: -18.03 USD (improving from -24.11 at S95 wrap)
-Today P&L: -54.6 USD (pre-guard-fixed losses from 04:15-08:46 UTC dump, all now blocked)
-SESSION 96 KEY: guard validation — ALL March 14/16 losses now blocked. Strongest guard stack ever.
-S96 KEY: Sniper ceiling at 95c CONFIRMED DEPLOYED (commit 5a1948c, S95). Was listed as pending.
-S96 KEY: UCL March 18 launcher active PID 25012 (fires 17:20 UTC, log /tmp/ucl_sniper_mar18.log).
-S96 KEY: NCAA Round 1 — no opportunity now. Re-run scanner March 19-20.
+Bot PID 40498 → /tmp/polybot_session98.log
+All-time live P&L: -24.50 USD
+S98 KEY: maker_mode=True added to sol_drift + xrp_drift (commit 06d5f2e). All 4 drift strategies now maker.
+S98 KEY: btc_drift Stage 1 HOLD — last 20 NO WR = 50% (only 1.3% above break-even). Wait for recovery.
+S98 KEY: NCAA launcher restarted PID 41378 (fires March 19/20 08:00 UTC). UCL PID 25012 alive.
+S98 KEY: OOS post-filter at 13/20. 7 more bets to gate decision.
 
 Check bot: cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "RUNNING" || echo "STOPPED"
-Watch: tail -f /tmp/polybot_session96.log | grep --line-buffered "LIVE\|Kill switch\|cooling\|ceiling\|floor"
+Watch: tail -f /tmp/polybot_session98.log | grep --line-buffered "LIVE\|Kill switch\|cooling\|ceiling\|floor"
 
-Tests: 1446/1446 | Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime hard stop
+Tests: 1450/1450 | Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime hard stop
 Active protection: bankroll floor (20 USD) + consecutive cooling (8→2hr) + sniper floor (90c) + ceiling (95c)
 Guards: IL-5 through IL-32 COMPLETE + per-window cap (2 bets/30 USD) + sniper floor + ceiling
 Per-asset: KXXRP YES@94/95/97/98c, KXSOL YES@94/96/97c, KXSOL NO@92/95c, KXXRP NO@91/92/94/97/98c
