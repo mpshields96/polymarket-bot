@@ -502,11 +502,17 @@ RULES:
 When context is near limit, BEFORE stopping:
 1. `python main.py --report` + `python main.py --graduation-status` → capture output
 2. `cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo running` → confirm bot alive
-3. Update SESSION_HANDOFF.md: bot PID, log path, last commit, pending tasks, mid-flight work
-4. Update this file's "Current project state" section (test count, commit hash, strategies live)
-5. `git add -A && git commit -m "docs: session handoff $(date +%Y-%m-%d)"` + git push
-6. Output a self-contained copy-paste prompt for the new chat that picks up at the exact second
-7. The new-chat prompt must include: bot PID, log path, last commit, next concrete action
+3. **GUARD INTEGRITY CHECK (mandatory — both research and main chats):**
+   Run: `./venv/bin/python3 scripts/strategy_analyzer.py --brief`
+   Verify output says "Guard stack CLEAN" or "Guarded (historical losses blocked)".
+   If it shows "Losing buckets (guards recommended)" → DO NOT wrap. Add guard first.
+   Rationale: Session 91 incident — guards were bypassed by code changes and losses
+   resulted before next session caught it. Every wrap must confirm guards intact.
+4. Update SESSION_HANDOFF.md: bot PID, log path, last commit, pending tasks, mid-flight work
+5. Update this file's "Current project state" section (test count, commit hash, strategies live)
+6. `git add -A && git commit -m "docs: session handoff $(date +%Y-%m-%d)"` + git push
+7. Output a self-contained copy-paste prompt for the new chat that picks up at the exact second
+8. The new-chat prompt must include: bot PID, log path, last commit, next concrete action
 
 ## GSD Framework — Token-Optimized (dual-chat mode)
 DEFAULT: gsd:quick + superpowers:TDD + superpowers:verification-before-completion for all standard work.

@@ -282,11 +282,17 @@ Do this BEFORE stopping (mandatory):
 1. python3 main.py --report → capture P&L
 2. python3 main.py --graduation-status → capture graduation progress
 3. cat bot.pid + kill -0 check → confirm bot alive
-4. Update SESSION_HANDOFF.md (bot PID, log path, last commit, pending tasks)
-5. Update CLAUDE.md "Current project state" (test count, commit hash, strategies live)
-6. Append .planning/CHANGELOG.md entry (what was done, why, what's pending)
-7. git add -A + commit + push (commit message: "docs: session handoff YYYY-MM-DD")
-8. Write a self-contained copy-paste prompt for the new chat
+4. **GUARD INTEGRITY CHECK — MANDATORY (both research and main chats):**
+   Run: `./venv/bin/python3 scripts/strategy_analyzer.py --brief`
+   Verify: output shows "Guard stack CLEAN" or "Guarded (historical losses blocked)".
+   If output shows "Losing buckets (guards recommended)" for any bucket → DO NOT WRAP.
+   Fix the guard first, THEN wrap. Guards failing = real money lost next session.
+   This check takes 5 seconds. There is no excuse to skip it.
+5. Update SESSION_HANDOFF.md (bot PID, log path, last commit, pending tasks)
+6. Update CLAUDE.md "Current project state" (test count, commit hash, strategies live)
+7. Append .planning/CHANGELOG.md entry (what was done, why, what's pending)
+8. git add -A + commit + push (commit message: "docs: session handoff YYYY-MM-DD")
+9. Write a self-contained copy-paste prompt for the new chat
 
 ## ACKNOWLEDGMENT REQUIREMENT
 
