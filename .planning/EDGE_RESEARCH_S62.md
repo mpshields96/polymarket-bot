@@ -3323,3 +3323,20 @@ Interpretation: BTC markets are more HFT-dominated → orderbook signal weaker f
 ETH orderbook signal is the stronger one (65.6% vs 56.4% WR, same filter).
 RECOMMENDATION: Both remain paper-only. ETH is the priority for live activation.
 After 20+ OOS ETH paper bets at 60%+ WR, consider ETH live and keep BTC paper only.
+
+### eth_drift Direction Filter Concern (Session 92)
+
+eth_drift YES post-filter (37 bets since March 11): 16/37 = 43.2% WR, -26.54 USD
+Overall YES all-time: 38/74 = 51.4% WR (barely positive before filter).
+Overall NO all-time: 16/35 = 45.7% WR (pre-filter, worse).
+
+Pattern: Both ETH directions losing in recent market conditions.
+vs btc_drift NO-only: 58.3% WR (working well, opposite direction to eth_drift YES).
+
+Hypothesis: BTC and ETH both trending down recently (post-Feb 2026 sell-off?).
+btc_drift NO = correct bet on downward BTC.
+eth_drift YES = wrong bet on upward ETH (mirrors BTC direction).
+
+Action: Do NOT change direction filter (37 bets not conclusive, p~0.19).
+Monitor 20 more YES bets. If WR stays below 50% at 57 bets (p<0.05), flip to NO.
+Options: flip to "no", disable entirely, or wait for data.
