@@ -3988,6 +3988,27 @@ Risk: if trend continues to <50%, Stage 1 would amplify losses.
 60% WR is above break-even for near-50c bets. The negative P&L on last 20 is likely
 variance at Stage 1 sizing. No structural concern. Continue monitoring.
 
+### FINDING 5: sol_drift regime check — 80% → 60% WR, still statistically significant
+
+Rolling 10-bet performance:
+  Bets 1-10: 80% WR, +1.33 USD
+  Bets 11-20: 80% WR, +5.63 USD
+  Bets 21-30: 60% WR, -5.73 USD
+  Bets 31-40: 60% WR, +0.33 USD
+
+Decline at bet 21 but all-time 70% WR over 40 bets = p≈0.006 (highly significant).
+Last 20 at 60% WR is not statistically distinguishable from 70% true rate with only 20 bets.
+No structural concern. Continue Stage 1. Next check: if last 10 drops below 50%, investigate.
+
+### FINDING 6: xrp_drift declining — last 10 = 40% WR
+
+  All YES: 40 bets, 50% WR, -2.47 USD
+  Last 20: 50% WR, -0.76 USD
+  Last 10: 40% WR, -1.64 USD
+
+Trend: 50% → 50% → 40%. Hold at micro-live. If last 10 stays below 45%, flag for disable.
+Do NOT promote to Stage 1 — last 20 = break-even, last 10 = losing.
+
 ### SESSION 97 GRADE: B+
   Systematic strategy review during monitoring drought period
   Identified eth_drift as potential disable candidate (both directions near 50%)
