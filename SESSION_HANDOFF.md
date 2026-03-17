@@ -28,7 +28,7 @@ MANDATORY READING BEFORE ANY ACTION:
 
 BOT STATE (Session 95 overnight — 2026-03-17 05:30 UTC):
   Bot RUNNING PID 13381 → /tmp/polybot_session95.log
-  All-time live P&L: +36.57 USD (recovered +4.83 from 4 sniper wins after IL-24 restart)
+  All-time live P&L: +39.93 USD (recovered +8.19 from sniper wins post-IL-24 restart — 8/8 wins last hour)
   Tests: 1416 passing. Last commit: 3cf5761 (docs: S95 overnight research findings)
   Guards: IL-5 through IL-27 ALL ACTIVE. Guard stack VERIFIED COMPLETE. All per-asset guards confirmed.
   POST-RESTART PERFORMANCE (04:14 UTC onward): 8/8 wins, +9.02 USD — guards working perfectly.
