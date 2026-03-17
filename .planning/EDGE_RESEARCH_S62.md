@@ -3646,3 +3646,51 @@ DEAD ENDS (additions Session 95):
   UCL March 17 2026 paper run (launcher fired too late — 22:25 UTC, games over)
   macOS date -j for UTC timing (always use Python calendar.timegm instead)
 
+
+---
+
+## SESSION 95 — CONTINUED (2026-03-17 04:00+ UTC)
+
+### Guard Audit: Three Large Losses Triggered IL-24 through IL-27
+
+Today's losses (post-midnight UTC March 17):
+  trade#3178 KXXRP NO@92c -19.32 USD at 00:05 UTC → TRIGGER for IL-21 (committed 00:40 UTC)
+  trade#3224 KXXRP YES@98c -19.60 USD at 02:25 UTC → TRIGGER for IL-23 (committed 02:50 UTC)
+  trade#3253 KXSOL NO@95c -19.95 USD at 03:55 UTC → TRIGGER for IL-24 (committed ~04:15 UTC)
+
+All three were TRIGGER EVENTS (loss happened before guard added). Not guard failures.
+Each trade was placed while running pre-guard code.
+
+New guards deployed (commit 273cb4a + e5be228):
+  IL-24: KXSOL NO@95c — n=15, 93% WR, -11.55 USD all-time. Needs 95% WR. Blocked.
+  IL-25: KXXRP NO@97c — n=4, 75% WR, -17.43 USD. Redundant with global IL-10 (97c NO). Added for documentation.
+  IL-26: KXXRP NO@98c — n=5, 80% WR, -18.07 USD. Redundant with global IL-11 (98c NO). Added for documentation.
+  IL-27: KXSOL YES@96c — n=3, 67% WR, -18.51 USD. Redundant with global IL-10 (96c). Added for documentation.
+
+Bot restarted (PID 13381) at 23:14 CDT March 16 = 04:14 UTC March 17.
+1416 tests passing. Guard stack verified intact post-restart.
+
+### Full Bucket Audit — S95 Snapshot
+
+All confirmed profitable (100% WR, positive P&L):
+  KXBTC: NO@90-98c, YES@90-98c — CLEAN (100% WR all)
+  KXETH: NO@90-95/97-98c, YES@90-98c — CLEAN
+  KXSOL: YES@90-93/95/98c, NO@90-91/93-94/96-99c — CLEAN (problem buckets guarded)
+  KXXRP: YES@91-93/96/99c, NO@91/93-96/99c — CLEAN (problem buckets guarded)
+
+KXETH NO@96c: n=2, 50% WR, -13.95 USD — watch only (n too small to guard)
+KXXRP YES@90c: n=1, 0% WR, -19.80 USD — watch only (n=1)
+
+### UCL March 17 Launcher Status (04:17 UTC)
+
+PID 5181: fires at 17:24 UTC March 17 (correct — hardcoded sleep 49411s, no timezone bug)
+PID 75548: fires at ~22:25 UTC March 17 (timezone bug, too late — dead run, harmless)
+PID 8183: UCL March 18 launcher, fires at 17:25 UTC March 18 (correct)
+Games for March 17: ARS@76c, MCI@66c, SPO@64c (all >= 60c pre-game filter) ← will be sniped
+
+### All-Time P&L Context
+
+Gross P&L (before fees): still positive, but guard trigger events reduced net
+Net all-time: 30.05 USD (down from ~50 USD due to 3 trigger losses totaling -58.87 USD)
+Recovery path: guards ensure these exact buckets never lose again
+Sniper: primary engine still intact. Each guard added = future losses prevented.
