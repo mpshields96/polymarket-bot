@@ -62,6 +62,10 @@ _KNOWN_GUARDS: list[tuple] = [
     (94, "yes", "KXSOL"),  # IL-10C: SOL YES@94c
     (97, "yes", "KXSOL"),  # IL-19: SOL YES@97c
     (92, "no",  "KXSOL"),  # IL-22: SOL NO@92c
+    (95, "no",  "KXSOL"),  # IL-24: SOL NO@95c
+    (97, "no",  "KXXRP"),  # IL-25: XRP NO@97c (also covered by global IL-10)
+    (98, "no",  "KXXRP"),  # IL-26: XRP NO@98c (also covered by global IL-11)
+    (96, "yes", "KXSOL"),  # IL-27: SOL YES@96c (also covered by global IL-10)
 ]
 
 
