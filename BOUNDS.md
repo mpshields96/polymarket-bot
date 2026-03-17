@@ -500,4 +500,14 @@ Trigger: trade #3383 KXXRP NO@91c -19.11 USD. 5 bets, 80% WR, needs 91% break-ev
 All three losses (IL-29/30/31) occurred in same 15-min settlement window — correlated macro move.
 KXXRP NO@91c was previously 4/4 (100% WR) but single loss wiped all prior gains.
 
-*Last updated: Session 95 (2026-03-17). IL-29/30/31 added from three-loss window at 08:16 UTC.*
+**IL-32 (2026-03-17 08:46 UTC): KXBTC NO@91c BLOCKED**
+Trigger: trade #3391 KXBTC NO@91c -19.11 USD. 7 bets, 85.7% WR, needs 91% break-even, -11.27 USD.
+Second two-loss window at 08:46 UTC: KXBTC NO@91c + KXETH NO@89c (n=1, watch only).
+
+**SNIPER EXECUTION FLOOR (2026-03-17 09:00 UTC): price_cents >= 90 enforced**
+Root cause: sniper signals at 90c+ but asyncio gap allows execution at 88-89c.
+IL-29 (KXBTC YES@88c) and KXETH NO@89c (n=1) both executed below the signal floor.
+Fix: execute() rejects ANY sniper execution price < 90c, regardless of asset or side.
+This is a structural guard — prevents future slippage losses without per-bucket rules.
+
+*Last updated: Session 95 (2026-03-17). IL-32 + sniper execution floor (90c min) added.*
