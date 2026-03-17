@@ -4239,3 +4239,36 @@ Next session priority: UCL March 18 results (check /tmp/ucl_sniper_mar18.log aft
     - Waiting for NCAA Round 1 lines (March 19-20)
     - Waiting for OOS gate (7 more bets)
     - Waiting for CPI April 10
+
+### ADDENDUM S98 — eth_drift and strategy P&L breakdown
+
+All-time live P&L by strategy (as of 2026-03-17 22:10 UTC):
+  expiry_sniper_v1:          646 bets, 96.0% WR, +35.63 USD  ← only engine
+  sol_drift_v1:               40 bets, 70.0% WR, +1.56 USD   ← healthy
+  btc_lag_v1:                  2 bets, 100% WR,  +4.07 USD   ← dead (no signals)
+  xrp_drift_v1:               41 bets, 51.2% WR, -2.13 USD   ← marginal
+  eth_lag_v1:                  3 bets, 33.3% WR, -6.53 USD   ← dead
+  btc_drift_v1:               64 bets, 46.9% WR, -12.64 USD  ← micro-live drag
+  eth_orderbook_imbalance_v1: 15 bets, 33.3% WR, -18.20 USD  ← paper/micro only
+  eth_drift_v1:              135 bets, 48.9% WR, -24.16 USD  ← BIGGEST DRAG
+  TOTAL:                      946 bets,           -22.40 USD
+
+Key insight: WITHOUT eth_drift (-24.16 USD) we'd be at +1.76 USD all-time.
+Without eth_drift + btc_drift (-12.64 USD): +14.40 USD all-time.
+The sniper is the ONLY strategy generating meaningful profit.
+
+eth_drift breakdown:
+  Pre-demotion (bets 1-87): 49.4% WR, -16.24 USD (at Stage 1 sizing ~5 USD/bet)
+  Post-demotion (bets 88-135): 47.9% WR, -7.92 USD (1 contract/bet ~0.63 USD avg)
+  NOTE: "micro-live" = minimum 1 contract = ~0.63 USD/bet, NOT 0.01 USD.
+    calibration_max_usd=0.01 forces min(sizing, 0.01) but minimum is always 1 contract.
+    Effective minimum bet = 1 contract × price ≈ 0.35-0.65 USD per bet.
+
+Break-even for eth_drift YES@~50c: ~49% WR. Current 47.9% (48 post-demotion bets).
+Statistical significance: too small to conclude structural deficit (95% CI spans break-even).
+DECISION: Continue micro-live until 100+ post-demotion YES-only bets.
+  If still <49% WR at 100 bets: disable. Current expected weekly loss: ~2-3 USD.
+
+KXSOL NO@95c: 14W/1L = 93.3% WR. Break-even for 95c NO = 95%. Slightly below.
+  One loss in 15 bets = within expected variance. No guard per anti-bloat principle.
+  Monitor: flag if 2+ more losses in next 20 bets.
