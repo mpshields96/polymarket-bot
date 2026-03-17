@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-17 05:30 UTC (Session 95 overnight — guard audit complete, +4.83 USD from 4 sniper wins)
+# Last updated: 2026-03-17 05:36 UTC (Session 95 overnight part 2 — all guards confirmed, 43.56 USD all-time)
 # ═══════════════════════════════════════════════════════════════
 
 ## ⚠️ UCL SOCCER SNIPER — TIME-SENSITIVE
@@ -26,22 +26,27 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 95 overnight — 2026-03-17 05:30 UTC):
+BOT STATE (Session 95 overnight pt2 — 2026-03-17 05:36 UTC):
   Bot RUNNING PID 13381 → /tmp/polybot_session95.log
-  All-time live P&L: +39.93 USD (recovered +8.19 from sniper wins post-IL-24 restart — 8/8 wins last hour)
-  Tests: 1416 passing. Last commit: 3cf5761 (docs: S95 overnight research findings)
-  Guards: IL-5 through IL-27 ALL ACTIVE. Guard stack VERIFIED COMPLETE. All per-asset guards confirmed.
-  POST-RESTART PERFORMANCE (04:14 UTC onward): 8/8 wins, +9.02 USD — guards working perfectly.
-  Three overnight losses were TRIGGER EVENTS (guards added reactively):
-    trade#3178 KXXRP NO@92c -19.32 UTC 00:05 → triggered IL-21 (committed 00:40)
-    trade#3224 KXXRP YES@98c -19.60 UTC 02:25 → triggered IL-23 (committed 02:50)
-    trade#3253 KXSOL NO@95c -19.95 UTC 03:55 → triggered IL-24 (committed 04:15)
-  XRP drift: 23 YES-only settled (24 with 1 open). Need ~6 MORE for Stage 1 eval. ETA: ~March 20-21.
-  XRP drift Brier: 0.2501 (needs <0.25 — barely misses at n=23, will improve with more bets)
+  All-time live P&L: +43.56 USD (recovering well — +3.63 USD since 05:30 UTC)
+  Tests: 1416 passing. Last commit: 5211da0 (docs: S95 overnight pt2 - guard triggers explained)
+  Guards: IL-5 through IL-27 ALL ACTIVE. Guard stack VERIFIED COMPLETE.
+  POST-RESTART PERFORMANCE (04:14 UTC onward): 19 bets, 15W/4L (79% WR), +13.51 USD — guards working.
+  Three overnight losses were TRIGGER EVENTS (guards added reactively — NOT guard bypasses):
+    trade#3178 KXXRP NO@92c -19.32 UTC 00:17 → triggered IL-21
+    trade#3224 KXXRP YES@98c -19.60 UTC 02:31 → triggered IL-23
+    trade#3253 KXSOL NO@95c -19.95 UTC 04:03 → triggered IL-24 (committed 04:10, restart 04:14)
+  Guards confirmed firing in log at 00:27 CDT (05:27 UTC): IL-23, IL-19, IL-10, IL-10A, IL-5 all active.
+  XRP drift YES: 25/30 bets. Need 5 more for Stage 1 eval. ETA ~March 20-21.
+  XRP drift Brier: 0.267 (all bets including NO). YES-only Brier needs separate calc at 30 bets.
   SOL drift: Stage 1 (full Kelly + 20 USD cap). 40 total bets, 70% WR, Brier 0.198 (EXCELLENT).
-    At model_prob=0.7: 94% actual WR! Strong signal confirmed.
-  eth_drift YES: last 30 bets at 47% WR (-12.83 USD), Brier 0.2511. Below break-even after fees.
-    Both YES (51% all-time) and NO (46% all-time) below break-even. Needs Matthew decision.
+  eth_drift: MICRO-LIVE (calibration_max_usd=0.01 per S60 demotion still in effect in main.py).
+    118 total live bets (includes Stage 1 era losses), -23.32 USD. Current micro-live bets tiny (<$0.65 each).
+    strategy_analyzer "NEUTRAL" is accurate — losing small but not a critical bleed at micro-live scale.
+    Needs Matthew decision: disable or keep collecting calibration data.
+  btc_drift: MICRO-LIVE (calibration_max_usd=0.01). NO-only: 41 bets, 56% WR, Brier 0.2358, +18 USD.
+    Most +18 USD came from Stage 1 era (before S60 demotion). Current micro bets are tiny.
+    READY for Stage 1 promotion (awaits Matthew decision).
   GUARD STACK DEEP ANALYSIS (overnight):
     BTC/ETH YES and NO at all prices 90-95c: 100% WR, all profitable — no guards needed.
     SOL/XRP: problem at specific high prices all guarded (IL-10A/B/C, IL-19, IL-20, IL-21, IL-22, IL-23, IL-24).
