@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-17 04:30 UTC (Session 95 research — IL-24/25/26/27 guards, bot PID 13381)
+# Last updated: 2026-03-17 05:30 UTC (Session 95 overnight — guard audit complete, +4.83 USD from 4 sniper wins)
 # ═══════════════════════════════════════════════════════════════
 
 ## ⚠️ UCL SOCCER SNIPER — TIME-SENSITIVE
@@ -26,19 +26,27 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 95 research — 2026-03-17 04:30 UTC):
+BOT STATE (Session 95 overnight — 2026-03-17 05:30 UTC):
   Bot RUNNING PID 13381 → /tmp/polybot_session95.log
-  All-time live P&L: +30.05 USD (three guard-trigger losses cost ~58 USD overnight)
-  Tests: 1416 passing. Last commit: bc6d688 (docs: S95 guard audit + UCL launcher status)
-  Guards: IL-5 through IL-27 ALL ACTIVE. Guard stack VERIFIED COMPLETE as of S95 research.
-  NEW GUARDS (S95): IL-24 KXSOL NO@95c | IL-25 KXXRP NO@97c | IL-26 KXXRP NO@98c | IL-27 KXSOL YES@96c
-  Three overnight losses were TRIGGER EVENTS (guards added reactively, bot had pre-guard code):
+  All-time live P&L: +36.57 USD (recovered +4.83 from 4 sniper wins after IL-24 restart)
+  Tests: 1416 passing. Last commit: 3cf5761 (docs: S95 overnight research findings)
+  Guards: IL-5 through IL-27 ALL ACTIVE. Guard stack VERIFIED COMPLETE. All per-asset guards confirmed.
+  POST-RESTART PERFORMANCE (04:14 UTC onward): 8/8 wins, +9.02 USD — guards working perfectly.
+  Three overnight losses were TRIGGER EVENTS (guards added reactively):
     trade#3178 KXXRP NO@92c -19.32 UTC 00:05 → triggered IL-21 (committed 00:40)
     trade#3224 KXXRP YES@98c -19.60 UTC 02:25 → triggered IL-23 (committed 02:50)
     trade#3253 KXSOL NO@95c -19.95 UTC 03:55 → triggered IL-24 (committed 04:15)
-  XRP drift: 23 YES-only bets settled. Need 7 MORE for Stage 1 eval. ETA: ~March 20-21.
-  SOL drift: Stage 1 (full Kelly + 20 USD cap). 28 NO bets at 71% WR (Kelly variance causing net -2.75)
-  eth_drift YES: last 30 bets at 47% WR (-12.83 USD) — trending negative, needs Matthew decision
+  XRP drift: 23 YES-only settled (24 with 1 open). Need ~6 MORE for Stage 1 eval. ETA: ~March 20-21.
+  XRP drift Brier: 0.2501 (needs <0.25 — barely misses at n=23, will improve with more bets)
+  SOL drift: Stage 1 (full Kelly + 20 USD cap). 40 total bets, 70% WR, Brier 0.198 (EXCELLENT).
+    At model_prob=0.7: 94% actual WR! Strong signal confirmed.
+  eth_drift YES: last 30 bets at 47% WR (-12.83 USD), Brier 0.2511. Below break-even after fees.
+    Both YES (51% all-time) and NO (46% all-time) below break-even. Needs Matthew decision.
+  GUARD STACK DEEP ANALYSIS (overnight):
+    BTC/ETH YES and NO at all prices 90-95c: 100% WR, all profitable — no guards needed.
+    SOL/XRP: problem at specific high prices all guarded (IL-10A/B/C, IL-19, IL-20, IL-21, IL-22, IL-23, IL-24).
+    KXXRP YES@90c: n=1 loss (-19.80 USD) — WATCH ONLY (n too small for guard).
+    98c YES: BTC/ETH/SOL 100% WR. Only KXXRP problematic — GUARDED by IL-23. No global 98c YES guard needed.
   Orderbook imbalance: asymmetric filter active (min_yes=52c, max_no=44c). Paper-only, no restart.
   SESSION 90 MONITORING KEY EVENTS (2026-03-16 21:17–23:10 UTC):
   - Bot crashed at 17:22 UTC (PID 18772 → 31365) — Binance.US WebSocket 1011 keepalive timeout
