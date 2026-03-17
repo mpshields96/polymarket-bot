@@ -3813,3 +3813,90 @@ All launchers verified ALIVE as of 05:30 UTC.
 KXNFP: not open as of March 17. Typically opens 2-3 days before BLS release (April 4).
 Check again April 1-2.
 
+
+---
+## SESSION 95 CONTINUATION — 2026-03-17 (Research Wrap)
+
+### SNIPER FEE STRUCTURE ANALYSIS — CRITICAL FINDING
+
+All-time sniper performance by execution price bucket (1446 test-validated data):
+
+Profitable buckets (90-95c range):
+  90c NO: 14 bets, 100% WR, +20.88 USD
+  91c YES: 19 bets, 100% WR, +28.88 USD
+  92c YES: 49 bets, 100% WR, +57.68 USD
+  93c NO: 45 bets, 100% WR, +45.72 USD
+  93c YES: 45 bets, 93% WR, +14.07 USD
+  94c NO: 48 bets, 97% WR, +21.91 USD
+  94c YES: 53 bets, 96% WR, +4.78 USD
+  95c NO: 54 bets, 98% WR, +15.57 USD
+  95c YES: 42 bets, 97% WR, +6.69 USD
+
+Losing buckets (96c+ range) — fee math overwhelms WR:
+  96c YES: 17 bets, 94% WR, -13.35 USD (guarded IL-10)
+  96c NO: 14 bets, 92% WR, -9.09 USD (guarded IL-10)
+  97c YES: 30 bets, 93% WR, -30.18 USD (KXBTC/KXETH STILL UNGUARDED)
+  97c NO: 13 bets, 92% WR, -15.03 USD (guarded globally)
+  98c YES: 62 bets, 98% WR, -9.06 USD (KXBTC/KXETH/KXSOL STILL UNGUARDED)
+  98c NO: 27 bets, 96% WR, -14.48 USD (guarded IL-11)
+  99c YES: 15 bets, 93% WR, -14.85 USD (guarded IL-5)
+  99c NO: 7 bets, 100% WR, +0.00 USD (guarded IL-5)
+
+### FEE MATH PROOF (why 97c+ is structurally unprofitable)
+
+At execution price P cents, Kalshi taker fee = ~1% of notional:
+  Net cost per contract = P + (P * 0.01) = P * 1.01
+  Win payout = 100c
+  Loss = P * 1.01 (full cost lost)
+  Break-even WR = (P * 1.01) / 100
+
+  At 97c: break-even = 0.9797 = 97.97%
+  At 98c: break-even = 0.9898 = 98.98%
+  At 96c: break-even = 0.9696 = 96.96%
+  At 95c: break-even = 0.9595 = 95.95% → achievable (bot gets ~97% WR at 95c)
+  At 94c: break-even = 0.9494 = 94.94% → achievable (bot gets ~97% WR at 94c)
+
+Conclusion: sniper profitable ceiling is 95c. Above 95c, fees structurally consume margin.
+Current guards handle 96c and 97c/98c NO globally, but 97c YES and 98c YES for BTC/ETH
+are still unguarded and producing ongoing losses.
+
+### RECOMMENDED FIX: Global sniper execution ceiling at 95c
+
+Add to src/execution/live.py constants (line ~52):
+  _SNIPER_EXECUTION_CEILING_CENTS = 95
+
+Add to execute() after the floor check (line ~375):
+  if strategy_name == "expiry_sniper_v1" and price_cents > _SNIPER_EXECUTION_CEILING_CENTS:
+      logger.info("[live] Sniper execution price %dc above ceiling %dc -- skip %s",
+                  price_cents, _SNIPER_EXECUTION_CEILING_CENTS, signal.ticker)
+      return None
+
+Estimated one-time savings: ~39 USD (eliminates 97c YES + 98c YES bleed)
+Ongoing savings: prevents future structural bleed as new markets are added
+
+This is NOT a guard against specific assets. It's a structural fee math ceiling.
+Every sniper bet above 95c is mathematically expected to lose money over time.
+
+### S95 BUILDS SUMMARY
+  Commits in this session:
+    2b50531: IL-28-IL-32 + sniper floor (90c min) + per-window cap constants+enforcement
+    c0fef8e: db.count_sniper_bets_in_window() + count_open_sniper_positions()
+    79246e2: TestSniperPerWindowCap (7 tests, 1446 total passing)
+
+  Guard logic deployed:
+    IL-28 (KXXRP NO@94c), IL-29 (KXBTC YES@88c), IL-30 (KXETH YES@93c),
+    IL-31 (KXXRP NO@91c), IL-32 (KXBTC NO@91c)
+    Sniper floor: rejects price_cents < 90 for all sniper bets
+    Per-window cap: max 2 bets / 30 USD per 15-min market window (correlation risk)
+
+  What still needs to be done:
+    Add sniper ceiling at 95c — this is the single highest-leverage remaining fix
+    Estimated ~39 USD structural savings going forward
+
+### SESSION GRADE: B-
+  Reactive (responded to losses) not proactive (didn't find new edges)
+  Fee math analysis is a real finding that changes what to build next
+  Guards are mathematically calibrated, not fear-based
+  Per-window cap is mathematically sound concentration risk management
+  Didn't investigate new edges (UCL, CPI, etc.) — was consumed by loss investigation
+
