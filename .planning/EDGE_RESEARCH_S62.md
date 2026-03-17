@@ -3760,3 +3760,56 @@ GDP: scripts/gdp_release_monitor.py ready. Run April 30 at 08:25 ET.
   KXGDP-26APR30 markets open.
 
 NFP: Check KXNFP when opens ~April 2-3 for April 4 release.
+
+---
+
+## SESSION 95 OVERNIGHT CONTINUATION (2026-03-17 05:30+ UTC) — Part 2
+
+### Guard Trigger Events — All 3 Big Losses Were Expected TRIGGER Events
+
+Three large losses today (March 17 UTC) are explained:
+1. 00:17 UTC: KXXRP NO@92c = -19.32 USD → Trigger for IL-21 (added S92, but bot restarted this session)
+2. 02:31 UTC: KXXRP YES@98c = -19.60 USD (trade #3224) → Trigger for IL-23 (added S94 wrap)
+3. 04:03 UTC: KXSOL NO@95c = -19.95 USD → Trigger for IL-24 (added immediately this session)
+
+All three guards are now active. Bot restarted at 04:14 UTC with IL-5 through IL-27 complete.
+Post-restart (trades #3254+): 16 bets, 13W/3L (81% WR), +9.93 USD. Guards working.
+KXXRP YES@90c watch: 1 loss (March 15), n=1 insufficient for guard. Status: WATCH ONLY.
+
+### Strategy State (05:30 UTC March 17)
+
+expiry_sniper post-IL-27: 10/10 wins, all clean. No guarded bucket violations.
+btc_drift NO-only: 41 bets, 56% WR, +18.04 USD, Brier 0.2358 → READY for Stage 1.
+  NOTE: current code has calibration_max_usd=0.01 (micro-live, 1 contract/bet).
+  Stage 1 promotion = remove calibration_max_usd cap → Kelly + $5 max.
+eth_drift: 118 total live bets (YES direction filter active). ALSO micro-live.
+  code: calibration_max_usd=_DRIFT_CALIBRATION_CAP_USD (S60 demotion still in effect).
+  P&L: -23.32 USD all-time (includes Stage 1 era losses from before S60 demotion).
+  Current micro-live bets are tiny (<$0.65 each) — not a significant bleed.
+  NOTE: strategy_analyzer "NEUTRAL — 50% WR" includes old Stage 1 era bets. Current micro=OK.
+sol_drift: 40 bets all-time, 70% WR, +1.56 USD, Brier 0.198. Healthy at Stage 1.
+  Recent variance: -9.52 USD loss today (Stage 1 sized). Kelly variance, not structural.
+xrp_drift YES: 25/30 bets, 56% WR, +0.21 USD. Need 5 more for Stage 1 eval.
+
+### eth_drift Price Bucket Analysis — Potential Price Filter
+
+Finding from bucket analysis: YES@40-52c range is poorest performing (negative WR).
+YES@53c+: mixed but generally better. YES@35-39c: historical data mixed.
+However: most negative YES buckets have n=2-6 (small samples), variance likely cause.
+RECOMMENDATION: No change needed until n≥30 per bucket for statistical significance.
+The -23.32 USD total is largely from Stage 1 era (S44-S60, before micro-live demotion).
+Current micro-live losses are minimal (pennies per bet).
+
+### Soccer Sniper Status
+
+UCL March 17 launcher (PID 5181): fires at 17:24 UTC → soccer_sniper_paper.py
+UCL March 18 launcher (PID 8183): fires at 17:25 UTC → soccer_sniper_paper.py (CONFIRMED ALIVE)
+soccer_live_monitor.py (PID 15211): running for KXUCLGAME --date 26MAR17
+NCAA scanner (PID 6662): fires at ~16:00 UTC (sleep 44150s from 22:44 CDT = ~10:55 UTC)
+All launchers verified ALIVE as of 05:30 UTC.
+
+### NFP Markets
+
+KXNFP: not open as of March 17. Typically opens 2-3 days before BLS release (April 4).
+Check again April 1-2.
+
