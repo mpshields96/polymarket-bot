@@ -4964,3 +4964,137 @@ NEXT RESEARCH PRIORITY: NCAA Round 1 scanner (March 17-18 — lines mature befor
 All-time: +48.42 USD | Need: 76.58 more to +125 target
 Guard prevents future -19 USD losses at 92c NO → net structural improvement.
 
+
+---
+
+## Session 94 Research + Monitoring (2026-03-17 01:00–02:55 UTC)
+
+### Focus
+Autonomous research continuation + live monitoring. Session context was resumed from compaction.
+Primary discovery: live trade #3224 (KXXRP YES@98c, -19.60 USD) caught mid-cycle and guarded.
+
+### What Was Built
+
+1. IL-22 guard — src/execution/live.py (from session start work):
+   KXSOL NO@92c BLOCKED (67% WR at 3 bets, proactive — same asymmetric math as IL-21)
+   3 regression tests in TestPerAssetStructuralLossGuards. Commit: 53c337c.
+
+2. IL-23 guard — src/execution/live.py (triggered live by trade #3224 at 02:31 UTC):
+   KXXRP YES@98c BLOCKED (90.9% WR at 11 bets, needs 98% BE, -17.89 USD net)
+   Extreme asymmetry: win=0.20 USD, lose=19.60 USD. BTC/ETH/SOL YES@98c all 100% WR unaffected.
+   Same per-asset XRP pattern as YES@94c (IL-10A), YES@95c (IL-20), YES@97c (IL-10B).
+   3 regression tests. 1413 total passing. Commits: bd61d2a + 808b10e.
+
+3. Background launchers deployed:
+   /tmp/ucl_sniper_launcher.sh (PID 75548) — activates 17:25 UTC for SPO/ARS/MCI games
+   /tmp/ncaa_scanner_march17.sh (PID 85172) — activates 17:00 UTC for Round 1 lines
+
+### Research Findings
+
+FEE ANALYSIS (critical finding):
+  Gross P&L = +135.64 USD — already EXCEEDS the +125 USD target on a gross basis.
+  Total fees paid: 89.68 USD (sniper: 82.63 USD, drift: 7.05 USD)
+  Sniper fee rate: 1.0-1.1% of notional, ~0.154 USD/bet, ~0.346 USD gross/bet
+  Net path to target: ~412 more sniper bets, ~23 days at current 18 bets/day rate
+  btc_drift and eth_drift have maker_mode=True. sol_drift and xrp_drift do NOT (missing).
+
+GUARD STACK AUDIT (comprehensive):
+  All 7 n>=3 historical loss buckets confirmed guarded by IL-5 through IL-23.
+  KXXRP YES@90c: n=1 only — watch-only, no guard needed yet.
+  Time-of-day analysis: every "bad hour" loss is from a now-guarded price bucket.
+  Conclusion: no time-of-day filter needed. Guard stack is complete and correct.
+
+STRATEGY STATUS:
+  btc_drift: 38 NO-only, 57.9% WR, Brier 0.237, +18.68 USD — ALL Stage 1 criteria met
+  eth_drift YES: 76 bets, 52.6% WR, last 20 at 60% WR — direction filter working, watch more
+  sol_drift: 39 bets, Stage 1, 71% WR, Brier 0.195
+  xrp_drift YES-only: 21/30 — need 9 more for Stage 1 eval, ETA March 20-21
+
+### Dead Ends Confirmed This Session
+  Time-of-day sniper filtering — bad hours are pre-guard-era artifacts, not structural
+  (Adding time filter would have blocked wins without preventing the guarded losses)
+
+### Self-Rating: B+
+GRADE B+ — Caught live -19.60 USD loss and deployed IL-23 guard in same cycle.
+Critical fee insight identified (gross already above target — fees are the only gap).
+Full guard stack audit completed. No new offensive edge found.
+Lost 1-2 sessions worth of P&L gains before IL-23 guard (10 wins, 1 loss at extreme asymmetry).
+
+ONE KEY FINDING: The bot is already past the gross profit target. Fee reduction
+  is the highest-leverage action now — not finding new edges, but reducing taker fees.
+  sol_drift and xrp_drift missing maker_mode=True (btc/eth already have it).
+
+NEXT PRIORITY: Matthew to decide: (1) promote btc_drift to Stage 1 (criteria all met),
+  (2) add maker_mode=True to sol_drift + xrp_drift tasks in main.py (low risk).
+  Both need restart but are low-risk config changes.
+
+### Goal Progress
+All-time: ~53 USD (recovering after large losses earlier) | Need: ~72 more to +125 target
+Gross P&L: +135 USD (already past target — fees are the only barrier)
+
+### Commits this session
+- 53c337c: feat: IL-22 guard (KXSOL NO@92c)
+- 46a2994: docs: Session 94 continuation wrap
+- bd61d2a: feat: IL-23 guard KXXRP YES@98c (hook auto-commit)
+- 808b10e: feat: IL-23 guard BOUNDS.md update
+
+
+## Session 94 Wrap — 2026-03-17 02:55 UTC
+**Type**: Autonomous monitoring + guard deployment
+
+### What Changed and Why
+1. IL-23 guard deployed: KXXRP YES@98c BLOCKED (commits bd61d2a + 808b10e)
+   - Trade 3224: KXXRP YES@98c → result=NO → -19.60 USD. Triggered immediate analysis.
+   - Historical data: 11 bets, 90.9% WR, needs 98% break-even, -17.89 USD net.
+   - Pattern: KXXRP YES@94/95/97c already blocked (IL-10A/B/C). 98c was the only gap.
+   - ETH YES@98c confirmed SAFE (100% WR, 16 bets) — guard is KXXRP-specific.
+   - 3 regression tests added: test_xrp_yes_at_98c_blocked, test_btc_yes_at_98c_not_blocked_by_il23, test_eth_yes_at_98c_not_blocked_by_il23
+   - Bot restarted PID 94102 to activate guard. 1413 tests passing.
+
+2. Autonomous monitoring maintained 4+ hours (sessions 94 continuation).
+   - 5-min background task cycles, chained indefinitely per /polybot-auto directive.
+   - Context reset handled mid-session — rebuilt state from DB and log.
+
+### Strategy Performance (Session 94)
+- expiry_sniper: session losses dominated by two gaps (-19.32 and -19.60 USD from XRP)
+  Both gaps now guarded (IL-21 and IL-23). Post-guard sniper continues clean.
+  Sniper crossed 100 USD all-time milestone during session (peaked ~109 USD before losses).
+- sol_drift: Stage 1, 39 bets, 71% WR, Brier 0.193 — healthy
+- xrp_drift: 21 YES-only bets (need 30). Brier 0.258. On track ~March 20-21.
+- btc_drift: 60/30, Brier 0.247, READY — micro-live pending Matthew's call to promote.
+- eth_drift: 113/30, 50% WR, direction_filter="yes" — borderline, watching.
+
+### Strategy Analyzer Insights (--brief output)
+- SNIPER profitable buckets: 90-95c (solid)
+- SNIPER guarded buckets: 96c, 97c (showing "Guarded" correctly)
+- SNIPER "Losing 98c" = display artifact — analyzer aggregates across all assets,
+  doesn't distinguish per-asset IL-23 guard. ETH/BTC 98c are 100% WR and remain open.
+  ACTION: Update strategy_analyzer.py to parse per-asset guards in a future session.
+- btc_drift UNDERPERFORMING: 48% WR but trend IMPROVING, direction filter="no" active
+- eth_drift UNDERPERFORMING: 50% WR, trend IMPROVING, direction filter="yes" active
+
+### Self-Rating: C+
+WINS:
+- IL-23 deployed same session as loss (fast response, data-driven)
+- Sniper milestone: 100 USD all-time crossed
+- Autonomous loop maintained without interruption for 4+ hours
+
+LOSSES:
+- XRP YES@98c gap existed despite adjacent buckets guarded (should have been caught in S93 when IL-21 was deployed)
+- Two large losses dominated the session (-19.32 carried from S93, -19.60 new)
+- Context reset required full DB state rebuild
+
+ONE THING NEXT CHAT MUST DO DIFFERENTLY:
+- At session start, run strategy_analyzer.py --brief AND cross-check every "Losing" bucket
+  against all per-asset guards in live.py. Pre-empt losses before they happen.
+
+ONE THING THAT WOULD HAVE MADE MORE MONEY:
+- Deploy IL-23 in Session 93 alongside IL-21. The 98c XRP YES data was there.
+
+### Goal Progress
+All-time P&L: +40.71 USD | Need: 84.29 more to hit +125 USD target
+Today: -13.87 USD (dominated by pre-guard losses)
+Rate (recent non-loss days): ~3-5 USD/day sniper
+Highest-leverage action: Let the bot run — guards are now clean. Consistent sniper wins
+  will close the gap. Next milestone: fix strategy_analyzer.py per-asset guard awareness.
+

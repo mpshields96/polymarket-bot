@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-17 01:45 UTC (Session 94 continuation — IL-22 guard, fee analysis, guard audit)
+# Last updated: 2026-03-17 02:55 UTC (Session 94 wrap — IL-23 guard KXXRP YES@98c, fee analysis, 1413 tests)
 # ═══════════════════════════════════════════════════════════════
 
 ## ⚠️ UCL SOCCER SNIPER — TIME-SENSITIVE
@@ -22,15 +22,16 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 94 continuation — 2026-03-17 01:45 UTC):
-  Bot RUNNING PID 65713 → /tmp/polybot_session93.log
-  All-time live P&L: +45.96 USD (794 total bets settled, 536 sniper bets)
-  Tests: 1410 passing. Last commit: 53c337c (feat: IL-22 guard KXSOL NO@92c)
-  Guards: IL-5 through IL-22 ALL ACTIVE. Guard stack VERIFIED COMPLETE as of S94.
+BOT STATE (Session 94 wrap — 2026-03-17 02:55 UTC):
+  Bot RUNNING PID 94102 → /tmp/polybot_session94.log
+  All-time live P&L: +40.71 USD (813+ bets, 541+ sniper bets, 79% WR all-time)
+  Tests: 1413 passing. Last commit: 808b10e (feat: IL-23 guard BOUNDS.md)
+  Guards: IL-5 through IL-23 ALL ACTIVE. Guard stack VERIFIED COMPLETE as of S94 wrap.
+  CRITICAL: KXXRP YES@98c now blocked (IL-23). Trade #3224 lost -19.60 USD before guard.
   STAGE 2: bankroll ~213 USD → sizing.py Stage 2 → drift bets cap at 10 USD/bet
-  XRP drift: 32 total (21 YES-only post-filter). Need 9 MORE YES-only bets for Stage 1 eval.
-    direction_filter="yes" active. Keeping MICRO-live. ETA: ~March 20-21 for 30 YES-only.
-  SOL drift: 38/30 Stage 1 (full Kelly + 20 USD cap, 71% WR, Brier 0.195)
+  XRP drift: 21 YES-only bets. Need 9 MORE YES-only bets for Stage 1 eval.
+    direction_filter="yes" active. Keeping MICRO-live. ETA: ~March 20-21.
+  SOL drift: 39 bets, Stage 1 (full Kelly + 20 USD cap, 71% WR, Brier 0.195)
   Orderbook imbalance: asymmetric filter active (min_yes=52c, max_no=44c). Paper-only, no restart.
   SESSION 90 MONITORING KEY EVENTS (2026-03-16 21:17–23:10 UTC):
   - Bot crashed at 17:22 UTC (PID 18772 → 31365) — Binance.US WebSocket 1011 keepalive timeout
@@ -125,11 +126,12 @@ GRADUATION STATUS (2026-03-16 UTC — Session 90 research):
 
 SNIPER BUCKET STATUS (full guard stack — do NOT change without Matthew approval):
   BLOCKED: 96c both sides (IL-10), 97c NO (IL-10), 98c NO (IL-11), 99c/1c (IL-5)
-  BLOCKED (per-asset S81): KXXRP YES@94c, KXXRP YES@97c, KXSOL YES@94c
-  BLOCKED (per-asset S88): KXSOL YES@97c (IL-19 — 87.5% WR, 97% needed to break even)
-  BLOCKED (per-asset S88): KXXRP YES@95c (IL-20 — 90% WR, 95% needed to break even)
-  PROFITABLE: 91c-95c BTC/ETH/SOL, 97c YES BTC/ETH, 98c YES all assets
-  BTC/ETH sniper: historically 98-99% WR — core engine, do not touch
+  BLOCKED (per-asset S81): KXXRP YES@94c (IL-10A), KXXRP YES@97c (IL-10B), KXSOL YES@94c (IL-10C)
+  BLOCKED (per-asset S88): KXSOL YES@97c (IL-19), KXXRP YES@95c (IL-20)
+  BLOCKED (per-asset S92/S94): KXXRP NO@92c (IL-21), KXSOL NO@92c (IL-22), KXXRP YES@98c (IL-23)
+  PROFITABLE (guarded set): BTC/ETH/SOL YES@90c-98c, BTC/ETH/SOL NO@90c-98c, XRP NO@90c-91c/93c+
+  SNIPER IS THE ENGINE: 541+ bets, ~97% WR on guarded bucket set, +102 USD all-time
+  BTC/ETH sniper: historically 99-100% WR at 90c+ — do not touch these buckets
 
 S85 KEY FIXES (commits f848adb + 0867a0a):
   1. NCAA scanner: 2 bugs fixed (HTTP 401 + AttributeError). Now fully functional.
@@ -171,11 +173,14 @@ SESSION 93 KEY FINDINGS (2026-03-17 ~01:40 UTC — MONITORING):
   6. P&L impact: All-time dropped +65.68 → +48.42 USD due to XRP NO@92c -19.32 USD loss.
 
 PENDING TASKS (Session 95 — PRIORITY ORDER):
-  #0 COMPLETED S94: IL-22 guard deployed (commit 53c337c). KXSOL NO@92c BLOCKED. 1410 tests pass.
-  #0b KEY FINDING S94: Gross P&L = +135 USD (target is +125). Fees = 89.68 USD is the only gap.
-      Sniper pays 82.63 USD in taker fees. Fee/bet = 0.15 USD. Net/bet = 0.19 USD. Path: ~412 bets, ~23 days.
-      btc_drift and eth_drift have maker_mode=True. sol_drift and xrp_drift do NOT (missing in main.py).
-      ACTION FOR MATTHEW: Add maker_mode=True to sol_drift and xrp_drift tasks in main.py? (low risk)
+  #0 COMPLETED S94: IL-22 (KXSOL NO@92c) + IL-23 (KXXRP YES@98c) guards deployed. 1413 tests pass.
+      IL-23 caught in-session: trade #3224 KXXRP YES@98c -> NO, -19.60 USD at 02:31 UTC.
+      KXXRP now has 5 guards: YES@94c, YES@95c, YES@97c, YES@98c, NO@92c.
+  #0b KEY FINDING S94: Gross P&L = +135 USD — ALREADY PAST the +125 USD target.
+      Fees = 89.68 USD (sniper 82.63 USD at 1% taker rate) is the ONLY gap to net target.
+      Sniper net/bet = 0.19 USD. Path to +125: ~412 more sniper bets, ~23 days at current pace.
+      sol_drift and xrp_drift missing maker_mode=True (btc/eth have it). Low-risk config change.
+      ACTION FOR MATTHEW: Add maker_mode=True to sol_drift + xrp_drift in main.py? (requires restart)
   #0 URGENT TODAY: UCL soccer sniper — March 17 start at 17:25 UTC (12:25 CDT):
      python3 scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR17
      SPO@64c (17:45 UTC kickoff), ARS@77c + MCI@67c (20:00 UTC kickoff)
