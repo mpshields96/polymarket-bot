@@ -65,27 +65,32 @@ IF no clear direction:
 ═══════════════════════════════════════════════════
 CURRENT STATE (auto-updated by wrap commands)
 ═══════════════════════════════════════════════════
-Last updated: Session 90 research wrap (2026-03-16) — crash fix deployed, +47.22 USD all-time
-Bot: RUNNING PID 18772 → /tmp/polybot_session90.log
-All-time P&L: +47.22 USD (today: +92.22 USD, 140 settled, 91% WR)
-Bankroll: ~100 USD | Tests: 1388 passing, 3 skipped
-Last commit: 2d1ffed (fix: return_exceptions=True + crash log file S90)
+Last updated: Session 93 monitoring + research wrap (2026-03-17) — IL-21 guard deployed, guard checks every 5min
+Bot: RUNNING PID 65713 → /tmp/polybot_session93.log
+All-time P&L: +48.42 USD (82% WR, 785 bets) | Need 76.58 more to +125 target
+Bankroll: ~213 USD (Stage 2) | Tests: 1407 passing, 3 skipped
+Last commit: fd02a5b (feat: IL-21 guard — block KXXRP NO@92c)
 
-SESSION STARTUP SELF-REFLECTION (NEW — run every session):
+SESSION STARTUP SELF-REFLECTION (MANDATORY — run every session):
   ./venv/bin/python3 scripts/strategy_analyzer.py --brief
   Surfaces: profitable sniper buckets, drift direction validation, graduation status, target gap.
   Output saved to data/strategy_insights.json.
 
+  IL-21 DEPLOYED (S93 research chat): KXXRP NO@92c BLOCKED (commit fd02a5b, 3 regression tests).
+  Pattern was 5 bets, 75% WR vs 92% break-even, -19.32 USD loss. Guard is live.
+
 Live strategies:
-  btc_drift: STAGE 1 — direction_filter="no", 49% WR (-10.76 USD), trend=IMPROVING
-  eth_drift: STAGE 1 — direction_filter="yes", 49% WR (-24.41 USD), trend=DECLINING — watch
-  sol_drift: GRADUATED — 30/30 bets, Brier 0.191, +1.23 USD — full Kelly active (calibration_max=None)
-  xrp_drift: MICRO — 24/30 bets, Brier 0.253, -0.68 USD — needs 6 more
-  expiry_sniper: LIVE (20 USD cap, 15% pct cap) — PRIMARY ENGINE (+14.56 USD today, 100% WR)
-    PROFITABLE RANGE: 90-94c (+92.41 USD all-time), 95c (+33.52 USD all-time)
+  btc_drift: MICRO-LIVE — direction_filter="no", 49% WR (-11.41 USD), trend=STABLE (S93 analyzer)
+  eth_drift: MICRO-LIVE — direction_filter="yes", 50% WR (-23.48 USD) — NEUTRAL
+  sol_drift: GRADUATED (34/30) — full Kelly, Brier 0.191, 72% WR, +7.33 USD — HEALTHY
+  xrp_drift: MICRO (30/30 threshold met) — direction_filter="yes", keeping MICRO per conservative policy
+    YES post-filter: 19 bets, 63.2% WR, Brier 0.232. Need 11 more YES-only bets.
+  expiry_sniper: LIVE (20 USD cap, 15% pct cap) — PRIMARY ENGINE
+    PROFITABLE: 90-95c YES/NO all assets, 97c YES BTC/ETH only, 98c YES all
     BLOCKED: 96c both (IL-10), 97c NO (IL-10), 98c NO (IL-11), 99c/1c (IL-5)
     BLOCKED per-asset (S81): KXXRP YES@94c, KXXRP YES@97c, KXSOL YES@94c
-    ACTIVE BUCKETS: 91c-95c BTC/ETH both sides, 97c YES all assets, 98c YES all assets
+    BLOCKED per-asset (S88): KXSOL YES@97c (IL-19), KXXRP YES@95c (IL-20)
+    BLOCKED (S93): KXXRP NO@92c (IL-21, 75% WR vs 92% break-even, commit fd02a5b)
 
 Direction filters (do not change):
   btc_drift="no" | eth_drift="yes" | sol_drift="no" | xrp_drift="yes"
