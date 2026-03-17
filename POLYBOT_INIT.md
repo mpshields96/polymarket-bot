@@ -59,25 +59,28 @@
 ## CURRENT STATUS — (updated each session)
 ═══════════════════════════════════════════════════
 
-BUILD COMPLETE. 1388/1388 tests passing (3 skipped). verify.py advisory WARNs only — non-critical.
-Last commit: 2d1ffed (fix: return_exceptions=True crash fix S90)
+BUILD COMPLETE. 1446/1446 tests passing. verify.py advisory WARNs only — non-critical.
+Last commit: 747a7ca (research: S96 guard coverage + UCL launcher + volatility gate data)
 
-## BOT STATE — Session 90 research wrap (2026-03-16 21:45 UTC) — BOT RUNNING
+## BOT STATE — Session 96 research (2026-03-17 19:35 UTC) — BOT RUNNING
 
-Bot PID 18772 → /tmp/polybot_session90.log
-All-time live P&L: +47.22 USD (TODAY +92.22 USD, 140 settled, 91% WR)
-sol_drift: 34/30 Stage 1 GRADUATED | xrp_drift: 30/30 direction_filter="yes" active since S54
-SESSION 90 KEY: crash fix deployed (return_exceptions=True) | weather confirmed DEAD END
-Weather: paper bets FAILING (25-57% WR vs 80%+ needed) — do NOT live trade weather
-NCAA scanner: 0 edges March 16 — run March 17-18 for mature lines
+Bot PID 21666 → /tmp/polybot_session96.log
+All-time live P&L: -18.03 USD (improving from -24.11 at S95 wrap)
+Today P&L: -54.6 USD (pre-guard-fixed losses from 04:15-08:46 UTC dump, all now blocked)
+SESSION 96 KEY: guard validation — ALL March 14/16 losses now blocked. Strongest guard stack ever.
+S96 KEY: Sniper ceiling at 95c CONFIRMED DEPLOYED (commit 5a1948c, S95). Was listed as pending.
+S96 KEY: UCL March 18 launcher active PID 25012 (fires 17:20 UTC, log /tmp/ucl_sniper_mar18.log).
+S96 KEY: NCAA Round 1 — no opportunity now. Re-run scanner March 19-20.
 
 Check bot: cat bot.pid && kill -0 $(cat bot.pid) 2>/dev/null && echo "RUNNING" || echo "STOPPED"
-Watch:  tail -f /tmp/polybot_session90.log | grep --line-buffered "LIVE\|Kill switch\|cooling\|consecutive"
+Watch: tail -f /tmp/polybot_session96.log | grep --line-buffered "LIVE\|Kill switch\|cooling\|ceiling\|floor"
 
-Tests: 1388/1388 | Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime hard stop
-Active protection: bankroll floor (20 USD) + consecutive cooling (8→2hr) + 20 USD/bet hard cap
-Guards (IL-5/IL-10/IL-10A/B/C/IL-11/IL-19/IL-20): 96c both, 97c NO, 98c NO, 99c all BLOCKED
-Per-asset: KXXRP YES@94c, KXXRP YES@95c, KXXRP YES@97c, KXSOL YES@94c, KXSOL YES@97c BLOCKED
+Tests: 1446/1446 | Kill switch: consecutive_loss_limit=8, daily_loss_cap=DISABLED, NO lifetime hard stop
+Active protection: bankroll floor (20 USD) + consecutive cooling (8→2hr) + sniper floor (90c) + ceiling (95c)
+Guards: IL-5 through IL-32 COMPLETE + per-window cap (2 bets/30 USD) + sniper floor + ceiling
+Per-asset: KXXRP YES@94/95/97/98c, KXSOL YES@94/96/97c, KXSOL NO@92/95c, KXXRP NO@91/92/94/97/98c
+           KXBTC NO@91c, KXETH YES@93c, KXBTC YES@88c BLOCKED
+CEILING: ALL prices above 95c blocked for sniper (commit 5a1948c)
 
 RESPONSE FORMAT RULES (BOTH MANDATORY — Matthew terminates chat for violations):
   RULE 1: NEVER markdown table syntax (| --- |) — wrong font in Claude Code UI.
