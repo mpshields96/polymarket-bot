@@ -341,6 +341,35 @@ class DB:
         row = self._conn.execute(query, params).fetchone()
         return row[0] or 0
 
+    def count_open_sniper_positions(self, is_paper: bool) -> int:
+        """Return count of unsettled expiry_sniper_v1 positions (live or paper).
+
+        Used to enforce max-1-concurrent-position rule: if any sniper bet is open
+        and unsettled, skip ALL new sniper signals until it settles.
+        """
+        row = self._conn.execute(
+            "SELECT COUNT(*) FROM trades WHERE strategy = ? AND result IS NULL AND is_paper = ?",
+            ("expiry_sniper_v1", int(is_paper)),
+        ).fetchone()
+        return row[0] or 0
+
+    def count_sniper_bets_in_window(self, window: str) -> tuple[int, float]:
+        """Count live sniper bets placed in a given 15-min market window.
+
+        window: the part of the ticker after the first '-', e.g. '26MAR170415-15'
+        Returns (count, total_cost_usd) including settled bets — limits total placement
+        per window regardless of settlement status.
+        """
+        row = self._conn.execute(
+            """SELECT COUNT(*), COALESCE(SUM(cost_usd), 0.0)
+               FROM trades
+               WHERE is_paper = 0
+                 AND strategy = 'expiry_sniper_v1'
+                 AND ticker LIKE ?""",
+            (f"%-{window}",),
+        ).fetchone()
+        return (row[0] or 0, float(row[1] or 0.0))
+
     def has_open_position(self, ticker: str, is_paper: Optional[bool] = None) -> bool:
         """Return True if there is an unsettled trade on this exact ticker."""
         query = "SELECT COUNT(*) FROM trades WHERE ticker = ? AND result IS NULL"

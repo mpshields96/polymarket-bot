@@ -44,6 +44,13 @@ _EXECUTION_MIN_PRICE_CENTS: int = 35
 _EXECUTION_MAX_PRICE_CENTS: int = 65
 _EXECUTION_MAX_SLIPPAGE_CENTS: int = 10
 
+# ── Sniper per-window correlated risk limits ──────────────────────────────────
+# Prevents simultaneous bets across multiple assets in the same 15-min window.
+# Root cause S95: 08:00-08:46 UTC crypto dump hit BTC+ETH+XRP simultaneously,
+# 3-4 concurrent ~20 USD losses per correlated window (-58 USD in one window).
+_SNIPER_MAX_BETS_PER_WINDOW: int = 2
+_SNIPER_MAX_USD_PER_WINDOW: float = 30.0
+
 
 async def execute(
     signal: Signal,

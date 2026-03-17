@@ -30,7 +30,7 @@ def db(tmp_path):
 
 
 def _save_trade(db, *, ticker="KXBTC15M-TEST", side="yes", price_cents=44,
-                count=10, cost_usd=4.40, is_paper=True):
+                count=10, cost_usd=4.40, is_paper=True, strategy="btc_lag"):
     return db.save_trade(
         ticker=ticker,
         side=side,
@@ -38,7 +38,7 @@ def _save_trade(db, *, ticker="KXBTC15M-TEST", side="yes", price_cents=44,
         price_cents=price_cents,
         count=count,
         cost_usd=cost_usd,
-        strategy="btc_lag",
+        strategy=strategy,
         edge_pct=0.12,
         win_prob=0.62,
         is_paper=is_paper,
@@ -428,6 +428,35 @@ class TestHasOpenPosition:
         _save_trade(db, ticker="KXBTC15M-TEST")
         _save_trade(db, ticker="KXBTC15M-TEST")
         assert db.has_open_position("KXBTC15M-TEST") is True
+
+
+# ── count_open_sniper_positions ──────────────────────────────────
+
+
+class TestCountOpenSniperPositions:
+    """count_open_sniper_positions() counts unsettled expiry_sniper_v1 positions."""
+
+    def test_zero_when_empty(self, db):
+        assert db.count_open_sniper_positions(is_paper=False) == 0
+
+    def test_counts_live_sniper_only(self, db):
+        _save_trade(db, strategy="expiry_sniper_v1", is_paper=False)
+        assert db.count_open_sniper_positions(is_paper=False) == 1
+        assert db.count_open_sniper_positions(is_paper=True) == 0
+
+    def test_counts_multiple_open_positions(self, db):
+        _save_trade(db, ticker="KXBTC15M-A", strategy="expiry_sniper_v1", is_paper=False)
+        _save_trade(db, ticker="KXETH15M-A", strategy="expiry_sniper_v1", is_paper=False)
+        assert db.count_open_sniper_positions(is_paper=False) == 2
+
+    def test_settled_positions_not_counted(self, db):
+        trade_id = _save_trade(db, strategy="expiry_sniper_v1", is_paper=False)
+        db.settle_trade(trade_id, result="yes", pnl_cents=900)
+        assert db.count_open_sniper_positions(is_paper=False) == 0
+
+    def test_other_strategies_not_counted(self, db):
+        _save_trade(db, strategy="btc_drift_v1", is_paper=False)
+        assert db.count_open_sniper_positions(is_paper=False) == 0
 
 
 # ── CSV Export ────────────────────────────────────────────────────
