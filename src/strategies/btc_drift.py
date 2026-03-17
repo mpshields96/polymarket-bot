@@ -40,11 +40,14 @@ import math
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, Optional, Tuple
 
 from src.strategies.base import BaseStrategy, Signal
 from src.platforms.kalshi import Market, OrderBook
 from src.data.binance import BinanceFeed
+
+if TYPE_CHECKING:
+    from src.models.bayesian_drift import BayesianDriftModel
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +108,10 @@ class BTCDriftStrategy(BaseStrategy):
         # minutes_into_window tells us how stale our reference is relative to market open.
         # 0 = observed right at open (ideal), 15 = observed at end of window (worthless).
         self._reference_prices: Dict[str, Tuple[float, float]] = {}
+        # Bayesian drift model — injected by main.py after BayesianDriftModel.load().
+        # When model.should_override_static() (30+ obs), predict() replaces the static sigmoid.
+        # None = use static sigmoid (default until posterior has 30+ live observations).
+        self._drift_model = None
 
     @property
     def name(self) -> str:
@@ -187,12 +194,24 @@ class BTCDriftStrategy(BaseStrategy):
         time_factor = max(0.0, min(1.0, 1.0 - time_remaining_frac))
 
         # ── 6. Probabilistic model (sigmoid + time adjustment) ─────────
-        # raw_prob is P(YES settles at 100) based solely on price drift direction
-        raw_prob = 1.0 / (1.0 + math.exp(-self._sensitivity * pct_from_open))
-        raw_prob = max(0.01, min(0.99, raw_prob))
+        # raw_prob is P(YES settles at 100) based solely on price drift direction.
+        # Two paths:
+        #   Bayesian: posterior from 30+ live settled bets (more accurate over time)
+        #   Static:   paper-calibrated sigmoid with fixed sensitivity=300
+        if self._drift_model is not None and self._drift_model.should_override_static():
+            raw_prob = self._drift_model.predict(pct_from_open)
+            raw_prob = max(0.01, min(0.99, raw_prob))
+            logger.debug(
+                "[%s] Bayesian prediction (n=%d): drift=%+.3f%% raw_prob=%.3f",
+                self.name, self._drift_model.n_observations, pct_from_open * 100, raw_prob,
+            )
+        else:
+            raw_prob = 1.0 / (1.0 + math.exp(-self._sensitivity * pct_from_open))
+            raw_prob = max(0.01, min(0.99, raw_prob))
 
         # Time-adjust: early in market → hedge toward 0.5 (uncertain outcome).
         # Late in market → anchor to raw_prob (drift is more likely final).
+        # Applies regardless of whether raw_prob came from Bayesian or static path.
         blend = 1.0 - self._time_weight + self._time_weight * time_factor
         prob_yes = 0.5 + (raw_prob - 0.5) * blend
         prob_yes = max(0.01, min(0.99, prob_yes))
