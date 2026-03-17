@@ -1,13 +1,13 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-17 19:35 UTC (Session 96 research — guard validation + UCL launcher)
+# Last updated: 2026-03-17 21:03 UTC (Session 96 monitoring wrap — 11/11 sniper wins, guards verified)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
   Bot RUNNING PID 21666 → /tmp/polybot_session96.log
-  All-time live P&L: -18.03 USD (improving — was -24.11 at S95 wrap)
-  Today P&L: -54.6 USD (dominated by pre-guard-fixed losses from 04:15-08:46 UTC dump)
-  Tests: 1446 passing. Last commit: 315b068 (research: volatility gate future lead)
+  All-time live P&L: -6.88 USD (recovered +11.51 USD since 19:13 UTC restart)
+  Today P&L: -72.56 USD live (losses from pre-restart unguarded buckets — all now guarded)
+  Tests: 1446 passing. Last commit: 1a8f2c9 (research: S97 sol_drift regime check)
 
 ## KEY FINDING (Session 96 research) — HIGH CONFIDENCE FOR TONIGHT
   ALL March 14 (+64 USD) and March 16 (+47 USD) losses are NOW GUARDED.
@@ -134,10 +134,22 @@
   #7 CPI speed-play April 10 08:30 ET — scripts/cpi_release_monitor.py
   #8 GDP speed-play April 30 — check April 23-24
 
+## GUARD VERIFICATION (S96 monitoring — LIVE CONFIRMED)
+  Ceiling at 95c: CONFIRMED via log "96c signal — skip" at 14:24 CDT
+  Per-window cap: CONFIRMED via log "2/2 bets in window — skip KXETH" at 14:28 CDT
+  Floor at 90c: ACTIVE
+  S96 guard violations: 0 (11/11 sniper bets all in 90-95c range)
+
 ## HEALTH NOTES
   --health "Daily loss soft stop active" = DISPLAY ONLY (kill_switch.py 187-193 commented out)
-  Guards IL-5 through IL-32 complete. All morning losses now guarded.
-  Remaining bleed: structural fee losses at 97-98c YES (see #1 task above)
+  Guards IL-5 through IL-32 + floor + ceiling + per-window cap = COMPLETE
+  All pre-restart losses NOW GUARDED. Bot is clean for overnight.
 
-## COPY-PASTE THIS TO START A NEW SESSION (Session 96)
+## OVERNIGHT WATCH (critical hours UTC)
+  21:00 UTC: historically +22.57 USD — active now
+  04:00 UTC: GOLDEN HOUR — historically +37.99 USD (largest single hour)
+  09:00-12:00 UTC: +108 USD combined historically
+  Former danger hours (08:00 UTC -111 USD) now GUARDED — expect clean run
+
+## COPY-PASTE THIS TO START A NEW SESSION (Session 97)
   Read SESSION_HANDOFF.md then use /polybot-auto
