@@ -137,6 +137,25 @@ async def execute(
         )
         return None
 
+    # ── Sniper per-window correlated risk guard ───────────────────────────────
+    # Cap simultaneous sniper bets across assets in the same 15-min window.
+    # "26MAR170415-15" is the window shared by KXBTC15M-26MAR170415-15, KXETH15M-..., etc.
+    if strategy_name == "expiry_sniper_v1":
+        _window = signal.ticker.split("-", 1)[1] if "-" in signal.ticker else signal.ticker
+        _window_count, _window_usd = db.count_sniper_bets_in_window(_window)
+        if _window_count >= _SNIPER_MAX_BETS_PER_WINDOW:
+            logger.info(
+                "[live] Sniper window cap: %d/%d bets already in window %s — skip %s",
+                _window_count, _SNIPER_MAX_BETS_PER_WINDOW, _window, signal.ticker,
+            )
+            return None
+        if _window_usd >= _SNIPER_MAX_USD_PER_WINDOW:
+            logger.info(
+                "[live] Sniper window USD cap: %.2f/%.2f USD already in window %s — skip %s",
+                _window_usd, _SNIPER_MAX_USD_PER_WINDOW, _window, signal.ticker,
+            )
+            return None
+
     # ── Negative-EV bucket guard: 96c, 97c-NO, 98c-NO ───────────────────────
     # These buckets are structurally unprofitable based on live bet history:
     #   96c both sides: 31 bets, 93.5% WR, -22.44 USD (needs 96%+ to break even)

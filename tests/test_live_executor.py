@@ -117,9 +117,10 @@ def make_kalshi_mock(order=None):
     return kalshi
 
 
-def make_db_mock(trade_id=100):
+def make_db_mock(trade_id=100, window_bets=0, window_usd=0.0):
     db = MagicMock()
     db.save_trade.return_value = trade_id
+    db.count_sniper_bets_in_window.return_value = (window_bets, window_usd)
     return db
 
 
@@ -1886,6 +1887,85 @@ class TestPerAssetStructuralLossGuards:
             strategy_name="expiry_sniper_v1",
             price_guard_min=1,
             price_guard_max=99,
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
+
+@pytest.mark.asyncio
+class TestSniperPerWindowCorrelatedRiskGuard:
+    """Sniper per-window correlated risk limits (S95).
+
+    Root cause: 08:00-08:46 UTC crypto dump hit BTC+ETH+XRP simultaneously,
+    3-4 concurrent ~20 USD bets all lost in one correlated window (-58 USD).
+    Fix: max 2 bets and max 30 USD per 15-min window for expiry_sniper_v1.
+    """
+
+    async def test_first_bet_in_window_allowed(self, live_env, bypass_first_run):
+        """First sniper bet in a window always allowed (0 existing bets)."""
+        ob = make_orderbook(yes_bid=93)
+        signal = make_signal(side="yes", price_cents=93, ticker="KXBTC15M-26MAR170415-15")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal, make_market(yes_price=93, no_price=7), ob, 18.0, kalshi,
+            make_db_mock(window_bets=0, window_usd=0.0),
+            live_confirmed=True, strategy_name="expiry_sniper_v1",
+            price_guard_min=1, price_guard_max=99,
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
+    async def test_second_bet_in_window_allowed(self, live_env, bypass_first_run):
+        """Second sniper bet in a window allowed (1 existing bet, max=2)."""
+        ob = make_orderbook(yes_bid=92)
+        signal = make_signal(side="yes", price_cents=92, ticker="KXETH15M-26MAR170415-15")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal, make_market(yes_price=92, no_price=8), ob, 18.0, kalshi,
+            make_db_mock(window_bets=1, window_usd=18.0),
+            live_confirmed=True, strategy_name="expiry_sniper_v1",
+            price_guard_min=1, price_guard_max=99,
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
+    async def test_third_bet_in_window_blocked_by_count(self, live_env, bypass_first_run):
+        """Third sniper bet blocked by count cap (2 existing bets, max=2)."""
+        ob = make_orderbook(yes_bid=93)
+        signal = make_signal(side="yes", price_cents=93, ticker="KXSOL15M-26MAR170415-15")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal, make_market(yes_price=93, no_price=7), ob, 18.0, kalshi,
+            make_db_mock(window_bets=2, window_usd=36.0),
+            live_confirmed=True, strategy_name="expiry_sniper_v1",
+            price_guard_min=1, price_guard_max=99,
+        )
+        assert result is None
+        kalshi.create_order.assert_not_called()
+
+    async def test_bet_blocked_by_usd_cap(self, live_env, bypass_first_run):
+        """Sniper bet blocked when USD cap exceeded (1 bet but 30+ USD already in window)."""
+        ob = make_orderbook(yes_bid=93)
+        signal = make_signal(side="yes", price_cents=93, ticker="KXETH15M-26MAR170415-15")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal, make_market(yes_price=93, no_price=7), ob, 18.0, kalshi,
+            make_db_mock(window_bets=1, window_usd=30.0),
+            live_confirmed=True, strategy_name="expiry_sniper_v1",
+            price_guard_min=1, price_guard_max=99,
+        )
+        assert result is None
+        kalshi.create_order.assert_not_called()
+
+    async def test_drift_not_affected_by_window_cap(self, live_env, bypass_first_run):
+        """Drift strategies are NOT subject to per-window sniper cap."""
+        ob = make_orderbook(no_bid=45)
+        signal = make_signal(side="yes", price_cents=55)
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal, make_market(), ob, 5.0, kalshi,
+            make_db_mock(window_bets=5, window_usd=100.0),
+            live_confirmed=True, strategy_name="btc_drift_v1",
         )
         assert result is not None
         kalshi.create_order.assert_called_once()
