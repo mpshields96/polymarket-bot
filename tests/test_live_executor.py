@@ -1699,6 +1699,44 @@ class TestPerAssetStructuralLossGuards:
         assert result is not None
         kalshi.create_order.assert_called_once()
 
+    async def test_btc_yes_at_88c_blocked(self, live_env, bypass_first_run):
+        """IL-29: KXBTC YES@88c blocked -- 50% WR at 2 bets, need 88% break-even, -17.93 USD."""
+        ob = make_orderbook(yes_bid=88)
+        signal = make_signal(side="yes", price_cents=88, ticker="KXBTC15M-26MAR170415-15")
+        result = await execute(
+            signal,
+            make_market(yes_price=88, no_price=12),
+            ob,
+            5.0,
+            make_kalshi_mock(),
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is None
+
+    async def test_eth_yes_at_88c_not_blocked_by_il29(self, live_env, bypass_first_run):
+        """KXETH YES@88c is NOT blocked -- IL-29 targets KXBTC only. ETH YES@88c is 100% WR."""
+        ob = make_orderbook(yes_bid=88)
+        signal = make_signal(side="yes", price_cents=88, ticker="KXETH15M-26MAR170415-15")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=88, no_price=12),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
 
 # ── post_only taker fallback (S88) ───────────────────────────────────────────
 

@@ -294,6 +294,18 @@ async def execute(
         )
         return None
 
+    # IL-29: BTC YES@88c — 2 bets, 50.0% WR, need 88.0% break-even, -17.93 USD
+    # Loss math: win=12c, lose=88c per contract. EV = 0.50×12 - 0.50×88 = -38c/contract.
+    # 88c YES is BELOW the normal sniper floor (90c+). One loss wipes ~7 wins.
+    # Pattern: extreme-price YES on BTC at below-floor prices = insufficient edge vs required WR.
+    # Confirmed S95 2026-03-17 08:05 UTC: loss at KXBTC15M-26MAR170415-15 (-19.36 USD).
+    if "KXBTC" in signal.ticker and price_cents == 88 and signal.side == "yes":
+        logger.info(
+            "[live] KXBTC YES@88c -- structurally negative EV "
+            "(50.0%% WR at 2 bets, needs 88.0%% to break even, below 90c floor) -- skip",
+        )
+        return None
+
     # ── Execution-time price guard ────────────────────────────────────────
     # Convert execution price to YES-equivalent for range + slippage checks.
     # Protects against HFT repricing in the asyncio gap after signal generation.
