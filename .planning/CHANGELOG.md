@@ -4824,3 +4824,31 @@ Pattern 1/2 safety improvements, UCL/EPL candlestick analysis.
 - bb91dfc: docs: Session 90 research wrap — guard-aware analyzer, UCL date correction
 - a870a60: feat: asymmetric price filter for orderbook imbalance (S90 data-driven)
 - 895ac33: docs: Session 91 wrap — orderbook filter, weather dead end, UCL prep
+
+## Session 92 — 2026-03-17 00:00 UTC
+
+### Changed files
+- .planning/EDGE_RESEARCH_S62.md — eth_orderbook in-sample analysis, BTC vs ETH comparison, btc_drift finding
+- SESSION_HANDOFF.md — UCL sniper times prominently flagged, btc_drift promotion candidate, pending tasks updated
+
+### Why
+- No code changes this session — research and analysis only
+- All-time P&L at session start: ~52.50 USD (session high was 60.28 USD, SOL NO@63c loss pulled back)
+- Today: 120+ settled, 90% WR, +65 USD — phenomenal day driven by expiry_sniper (128/130 wins)
+
+### Research findings
+1. eth_orderbook retrospective filter analysis: 42/64 = 65.6% WR after filter
+   YES 52-65c: 66.7%, YES 35-51c: 35.5%, NO 35-44c: 46.2%. p~0.006. ALL IN-SAMPLE.
+   Need 20+ OOS paper bets (post March 17 filter deployment) before live activation.
+2. BTC orderbook: 22/39 = 56.4% WR filtered (weaker than ETH 65.6%). ETH is priority.
+3. btc_drift NO-only (direction filter active): 36 bets, 58.3% WR, Brier 0.236 (< 0.25)
+   MEETS Stage 1 criteria. Currently micro-live. Matthew should decide on promotion.
+   eth_drift YES-only: 74 bets, 51.4% WR, Brier 0.252 (just above threshold) — not ready.
+4. NCAA scanner: 96 KXNCAAMBGAME open, 0 edges. Re-run March 17-18 for Round 1 lines.
+5. XRP drift: 19 YES-only, 63.2% WR, Brier 0.232 (already < 0.25). Need 11 more.
+
+### Commits
+- 3bfcd7b: docs: eth_orderbook filter in-sample analysis
+- 173335f: docs: BTC vs ETH orderbook signal comparison
+- b7491ad: docs: btc_drift NO meets Stage 1 criteria — flag for Matthew
+- 5f06a43: docs: Session 92 handoff — UCL sniper times, eth_orderbook OOS gate
