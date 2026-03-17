@@ -1,20 +1,24 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-17 02:55 UTC (Session 94 wrap — IL-23 guard KXXRP YES@98c, fee analysis, 1413 tests)
+# Last updated: 2026-03-17 04:30 UTC (Session 95 research — IL-24/25/26/27 guards, bot PID 13381)
 # ═══════════════════════════════════════════════════════════════
 
 ## ⚠️ UCL SOCCER SNIPER — TIME-SENSITIVE
-## March 17 (TODAY): Start at 17:25 UTC CDT=12:25
-##   python3 scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR17
-##   Game 1: SPO (Sporting CP) @64c — kicks 17:45 UTC
-##   Game 2: ARS (Arsenal) @77c — kicks 20:00 UTC
-##   Game 3: MCI (Man City) @67c — kicks 20:00 UTC
-## March 18: Same command with --date 26MAR18
+## March 17 (TODAY): PID 5181 auto-fires at 17:24 UTC (hardcoded sleep, no timezone bug)
+##   Games: ARS@76c (17:45 UTC), MCI@66c + SPO@64c (20:00 UTC) — all >= 60c threshold
+##   script: scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR17
+## March 18: PID 8183 auto-fires at 17:25 UTC
 ##   BAR@62c, BMU@72c, LFC@76c eligible (all above 60c threshold)
+##   script: scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR18
 
-## COPY-PASTE THIS TO START A NEW SESSION (Session 95)
+## ⚠️ PENDING MATTHEW DECISIONS (flag in every response)
+## 1. btc_drift Stage 1 promotion: 41 NO-only bets, 56% WR, Brier ~0.237 — ALL criteria MET
+## 2. maker_mode=True for sol_drift + xrp_drift (btc/eth already have it, needs restart)
+## 3. eth_drift direction: last 30 YES bets at 47% WR — flip to "no" or hold?
 
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 95).
+## COPY-PASTE THIS TO START A NEW SESSION (Session 96)
+
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 96).
 
 MANDATORY READING BEFORE ANY ACTION:
   cat SESSION_HANDOFF.md
@@ -22,16 +26,19 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 94 wrap — 2026-03-17 02:55 UTC):
-  Bot RUNNING PID 94102 → /tmp/polybot_session94.log
-  All-time live P&L: +40.71 USD (813+ bets, 541+ sniper bets, 79% WR all-time)
-  Tests: 1413 passing. Last commit: 808b10e (feat: IL-23 guard BOUNDS.md)
-  Guards: IL-5 through IL-23 ALL ACTIVE. Guard stack VERIFIED COMPLETE as of S94 wrap.
-  CRITICAL: KXXRP YES@98c now blocked (IL-23). Trade #3224 lost -19.60 USD before guard.
-  STAGE 2: bankroll ~213 USD → sizing.py Stage 2 → drift bets cap at 10 USD/bet
-  XRP drift: 21 YES-only bets. Need 9 MORE YES-only bets for Stage 1 eval.
-    direction_filter="yes" active. Keeping MICRO-live. ETA: ~March 20-21.
-  SOL drift: 39 bets, Stage 1 (full Kelly + 20 USD cap, 71% WR, Brier 0.195)
+BOT STATE (Session 95 research — 2026-03-17 04:30 UTC):
+  Bot RUNNING PID 13381 → /tmp/polybot_session95.log
+  All-time live P&L: +30.05 USD (three guard-trigger losses cost ~58 USD overnight)
+  Tests: 1416 passing. Last commit: bc6d688 (docs: S95 guard audit + UCL launcher status)
+  Guards: IL-5 through IL-27 ALL ACTIVE. Guard stack VERIFIED COMPLETE as of S95 research.
+  NEW GUARDS (S95): IL-24 KXSOL NO@95c | IL-25 KXXRP NO@97c | IL-26 KXXRP NO@98c | IL-27 KXSOL YES@96c
+  Three overnight losses were TRIGGER EVENTS (guards added reactively, bot had pre-guard code):
+    trade#3178 KXXRP NO@92c -19.32 UTC 00:05 → triggered IL-21 (committed 00:40)
+    trade#3224 KXXRP YES@98c -19.60 UTC 02:25 → triggered IL-23 (committed 02:50)
+    trade#3253 KXSOL NO@95c -19.95 UTC 03:55 → triggered IL-24 (committed 04:15)
+  XRP drift: 23 YES-only bets settled. Need 7 MORE for Stage 1 eval. ETA: ~March 20-21.
+  SOL drift: Stage 1 (full Kelly + 20 USD cap). 28 NO bets at 71% WR (Kelly variance causing net -2.75)
+  eth_drift YES: last 30 bets at 47% WR (-12.83 USD) — trending negative, needs Matthew decision
   Orderbook imbalance: asymmetric filter active (min_yes=52c, max_no=44c). Paper-only, no restart.
   SESSION 90 MONITORING KEY EVENTS (2026-03-16 21:17–23:10 UTC):
   - Bot crashed at 17:22 UTC (PID 18772 → 31365) — Binance.US WebSocket 1011 keepalive timeout
@@ -124,14 +131,15 @@ GRADUATION STATUS (2026-03-16 UTC — Session 90 research):
     YES-only (post-filter): 19 bets, 63.2% WR. Need 30 YES-only bets for Stage 1 eval. Keep micro-live.
   expiry_sniper_v1: 140+ live bets today, 91% WR, +92.22 USD today — CORE ENGINE
 
-SNIPER BUCKET STATUS (full guard stack — do NOT change without Matthew approval):
+SNIPER BUCKET STATUS (full guard stack IL-5 through IL-27 — do NOT change without Matthew approval):
   BLOCKED: 96c both sides (IL-10), 97c NO (IL-10), 98c NO (IL-11), 99c/1c (IL-5)
   BLOCKED (per-asset S81): KXXRP YES@94c (IL-10A), KXXRP YES@97c (IL-10B), KXSOL YES@94c (IL-10C)
   BLOCKED (per-asset S88): KXSOL YES@97c (IL-19), KXXRP YES@95c (IL-20)
   BLOCKED (per-asset S92/S94): KXXRP NO@92c (IL-21), KXSOL NO@92c (IL-22), KXXRP YES@98c (IL-23)
-  PROFITABLE (guarded set): BTC/ETH/SOL YES@90c-98c, BTC/ETH/SOL NO@90c-98c, XRP NO@90c-91c/93c+
-  SNIPER IS THE ENGINE: 541+ bets, ~97% WR on guarded bucket set, +102 USD all-time
-  BTC/ETH sniper: historically 99-100% WR at 90c+ — do not touch these buckets
+  BLOCKED (per-asset S95): KXSOL NO@95c (IL-24), KXXRP NO@97c (IL-25), KXXRP NO@98c (IL-26), KXSOL YES@96c (IL-27)
+  PROFITABLE (guarded set): BTC/ETH/SOL YES@90-94/98c, BTC/ETH NO@90-98c, SOL NO@90-94/96-99c, XRP NO@90-91/93-96c
+  WATCH: KXETH NO@96c (n=2, -13.95 USD — too small to guard), KXXRP YES@90c (n=1 — watch only)
+  SNIPER IS THE ENGINE: 550+ bets, ~97% WR on guarded bucket set, ~100 USD all-time
 
 S85 KEY FIXES (commits f848adb + 0867a0a):
   1. NCAA scanner: 2 bugs fixed (HTTP 401 + AttributeError). Now fully functional.
