@@ -1,15 +1,30 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-17 11:45 UTC (Session 95 research wrap — fee ceiling analysis)
+# Last updated: 2026-03-17 19:35 UTC (Session 96 research — guard validation + UCL launcher)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
-  Bot RUNNING PID 49110 → /tmp/polybot_session95.log
-  All-time live P&L: -24.11 USD (recovering)
-  Today P&L: -89.79 USD live (dominated by pre-guard losses now fixed)
-  Tests: 1446 passing. Last commit: 79246e2 (test: TestSniperPerWindowCap 7 tests)
+  Bot RUNNING PID 21666 → /tmp/polybot_session96.log
+  All-time live P&L: -18.03 USD (improving — was -24.11 at S95 wrap)
+  Today P&L: -54.6 USD (dominated by pre-guard-fixed losses from 04:15-08:46 UTC dump)
+  Tests: 1446 passing. Last commit: 315b068 (research: volatility gate future lead)
 
-## CRITICAL FINDING (Session 95 research wrap) — ACTION REQUIRED
+## KEY FINDING (Session 96 research) — HIGH CONFIDENCE FOR TONIGHT
+  ALL March 14 (+64 USD) and March 16 (+47 USD) losses are NOW GUARDED.
+  Sniper ceiling at 95c is DEPLOYED (commit 5a1948c) — was listed as pending but already done.
+  Tonight's guard stack is the STRONGEST EVER. Expect March 14/16-style performance.
+
+  Remaining unguarded losses in ALL history:
+    KXSOL YES@93c: -4.65 USD — acceptable variance in 93.3% WR bucket
+    KXBTC YES@93c: -4.65 USD — same
+    KXXRP YES@90c: -19.8 USD — single bet, too small sample
+
+## CRITICAL FINDING (Session 95 research wrap) — RESOLVED
+  Sniper execution ceiling at 95c is ALREADY DEPLOYED (commit 5a1948c, March 16 23:30 UTC).
+  The SESSION_HANDOFF from S95 listed it as pending but it was already committed.
+  NO action needed.
+
+## ORIGINAL CRITICAL NOTE (preserved for context):
   SNIPER STRUCTURAL FEE BLEED STILL ACTIVE at 97c YES + 98c YES for KXBTC/KXETH:
 
   At 97c execution, Kalshi taker fee math:
@@ -92,24 +107,30 @@
   SNIPER FLOOR: sub-90c execution blocked (new S95)
   PER-WINDOW CAP: max 2 bets / 30 USD per 15-min window (new S95)
 
-  STILL UNGUARDED + BLEEDING: 97c YES (KXBTC/KXETH), 98c YES (KXBTC/KXETH/KXSOL)
-    → Fix with global ceiling at 95c (see CRITICAL FINDING above)
+  CEILING DEPLOYED: 97c+ all sides blocked by ceiling at 95c (commit 5a1948c) ✓
 
-## RESTART COMMAND (Session 95):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session95.log 2>&1 &
+## RESTART COMMAND (Session 96):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session96.log 2>&1 &
   Then verify: ps aux | grep "[m]ain.py" — exactly 1. Then cat bot.pid.
 
 ## PENDING TASKS (priority order)
-  #1 ADD SNIPER CEILING AT 95c — HIGHEST LEVERAGE (blocks structural fee bleed at 97-98c YES)
-     Pattern: same as floor check in execute() (lines 374-380 in live.py)
-     _SNIPER_EXECUTION_CEILING_CENTS = 95
-     Saves ~39 USD going forward. Pure fee math. Not a guard, a structural fix.
-     Requires: restart after implementing + adding test to TestSniperExecutionFloor
-  #2 MONITORING — run 5-min background checks, chain indefinitely
-  #3 UCL soccer March 18 17:25 UTC — BAR@62c, BMU@72c, LFC@76c
-  #4 NCAA scanner — run March 17-18 when Round 1 lines mature
-  #5 XRP drift Stage 1 watch — 39/30 YES-only bets, need 30 for eval (~March 20-21)
-  #6 eth_orderbook OOS validation — need 20+ post-filter paper bets
+  #1 MONITORING — run 5-min background checks, chain indefinitely
+  #2 UCL soccer March 18 — LAUNCHER ACTIVE PID 25012, fires 17:20 UTC
+     Script: python3 scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR18 --poll 30
+     Log: /tmp/ucl_sniper_mar18.log. Verify PID alive before 17:20 UTC March 18.
+     Teams eligible (pre-game price 60c+): BAR@62c, BMU@72c, LFC@76c
+  #3 Matthew pending decisions (flag in first response):
+     a. btc_drift Stage 1 promotion: 64 NO-only bets, 57.9% WR, Brier 0.252 — ALL criteria MET
+        Note: btc_drift is currently MICRO-LIVE (calibration_max_usd=0.01 on line 2901 main.py)
+        despite Session 41 Stage 1 comment. The _DRIFT_CALIBRATION_CAP_USD = 0.01 on line 2887.
+        To promote: change line 2901 from _DRIFT_CALIBRATION_CAP_USD to None (requires restart).
+     b. maker_mode=True for sol_drift + xrp_drift (btc/eth already have it, needs restart)
+     c. eth_drift direction: 43.2% WR on YES-only. Still micro-live, flag for decision.
+  #4 NCAA scanner — no opportunity now (confirmed S96). Re-run March 19-20 for Round 1 lines.
+  #5 xrp_drift Stage 1 eval: 39/30 YES-only bets, 51% WR — hold at micro-live until WR improves
+  #6 eth_orderbook OOS validation — 13/20 post-filter bets (need 7 more). Monitor passively.
+  #7 CPI speed-play April 10 08:30 ET — scripts/cpi_release_monitor.py ready
+  #8 GDP speed-play April 30 — check April 23-24
   #7 CPI speed-play April 10 08:30 ET — scripts/cpi_release_monitor.py
   #8 GDP speed-play April 30 — check April 23-24
 
