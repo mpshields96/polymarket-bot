@@ -3,14 +3,9 @@
 
 ---
 
-## [ ] count_trades_today() uses UTC midnight, not CST midnight
+## [DONE] count_trades_today() uses UTC midnight, not CST midnight
 **Added:** 2026-03-01 Session 25 cont2
-**Problem:** `db.count_trades_today(strategy, is_paper)` uses UTC midnight as the day boundary. The daily loss counter was already moved to CST midnight (UTC-6) in Session 25, but bet cap counting wasn't updated. This means bets from CST Feb 28 evening (00:00-06:00 UTC = 6-8 PM CST) eat into the CST March 1 daily bet cap.
-**Impact observed:** btc_drift_v1 hit 10/10 UTC cap at 11:06 CST March 1. A 9.4% edge signal at 53¢ (would have passed all new quality filters) was blocked because 8/10 slots were used by CST-yesterday bets.
-**Fix:** Modify `db.count_trades_today()` to accept an optional `tz_offset_hours=-6` parameter, same pattern as `daily_live_loss_usd()`. Update all callers in main.py. Write regression test.
-**Effort:** ~30 min (DB query + one param, update main.py callers, 2-3 new tests)
-**Priority:** Medium — causes no losses, only misses good signals when day boundary crosses CST evening
-**Approval needed:** Yes — functional behavior change to bet cap logic; don't merge without Matthew's OK
+**Completed:** Already fixed — `count_trades_today()` now uses CST midnight (UTC-6), consistent with `daily_live_loss_usd()`. Verified Session 59.
 
 ---
 
@@ -171,12 +166,9 @@ This is pure read infrastructure. No execution. No credentials needed. Safe to b
 
 ---
 
-## [ ] Restart Hardening — venv Python Path
+## [DONE] Restart Hardening — venv Python Path
 **Added:** 2026-02-28 Session 21
-**Issue:** Restart commands with `python` or `nohup python` fail if venv not active. Always need full path: `/Users/matthewshields/Projects/polymarket-bot/venv/bin/python`
-**Fix:** Add a `scripts/restart_bot.sh` shell script that encodes the correct path, log path, and CONFIRM pipe. Single command to restart safely.
-**Estimated effort:** 5 minutes
-**Priority:** Low — restart is infrequent
+**Completed:** scripts/restart_bot.sh exists and handles venv path, CONFIRM pipe, session number. Verified Session 59.
 
 ---
 
@@ -876,3 +868,14 @@ sol_drift IS likely ready (0.177 Brier, 78% win rate, +9.25 USD, 27/30 bets).
   - test_kill_switch.py: updated TestDirectionFilter docstring to document all 4 active filters
   Both direction_filter="yes" tests had "future use" comments — updated to reflect ACTIVE status.
   All 1042 tests pass. No behavior changes.
+
+## [2026-03-15] Sniper slippage risk — min execution price check
+- Signal fires at 90c+, but execution can fill as low as 86c due to market slippage
+- At 86c, model confidence drops to ~0 (price_confidence = (86-87)/13 = negative)
+- Trade 2786: YES KXETH15M @ 86c, result=NO, -19.78 USD loss
+- Potential fix: add min_execution_price_cents param to sniper loop (e.g. reject fills <89c)
+- Would prevent edge erosion when market moves against signal between fire and fill
+- Need to quantify: how many bets fill <90c? Is this a frequent pattern or rare slippage?
+- DO NOT implement without Matthew approval — changes sniper execution behavior
+
+TODO: strategy_analyzer.py shows '98c: Losing buckets (guards recommended)' as false alarm. IL-11 blocks ALL NO@98c, IL-23 blocks KXXRP YES@98c. BTC/ETH/SOL YES@98c profitable (100% WR). Analyzer doesn't distinguish per-asset guards from broad guards. Low priority — update to show 'partially guarded' with per-asset breakdown.

@@ -462,4 +462,23 @@ Same per-asset pattern as KXXRP YES@94c (IL-10A), YES@95c (IL-20), YES@97c (IL-1
 
 ---
 
-*Last updated: Session 94 (2026-03-17). IL-23 added: KXXRP YES@98c. All XRP YES@90c+ high-price buckets now guarded.*
+---
+
+### IL-24: KXSOL NO@95c is structurally negative EV — block execution
+
+**Rule:** `src/execution/live.py execute()` must return `None` when `"KXSOL" in signal.ticker and price_cents == 95 and signal.side == "no"`.
+
+BTC/ETH/XRP NO@95c remain unaffected — all 100% WR (11/11, 10/10, 12/12). SOL-specific volatility notch.
+
+**Stats at time of guard (S95 2026-03-17):** 16 bets, 93.8% WR, -31.50 USD net.
+Break-even requires 95.0% WR. Extreme asymmetric payout: wins ~0.84 USD each, losses ~19.95 USD each.
+Triggered by trade KXSOL15M-26MAR170000-00 no@95c at 04:05 UTC, -19.95 USD.
+Same per-asset pattern as KXSOL YES@94c (IL-10C), YES@97c (IL-19), NO@92c (IL-22).
+
+**Test:** `tests/test_live_executor.py::TestPerAssetStructuralLossGuards::test_sol_no_at_95c_blocked`
+`tests/test_live_executor.py::TestPerAssetStructuralLossGuards::test_btc_no_at_95c_not_blocked_by_il24`
+`tests/test_live_executor.py::TestPerAssetStructuralLossGuards::test_eth_no_at_95c_not_blocked_by_il24`
+
+---
+
+*Last updated: Session 95 (2026-03-17). IL-24 added: KXSOL NO@95c. IL-25/26/27 added by hook (dead code — covered by IL-10/IL-11 broad guards). All known SOL structural loss buckets at 90c+ now guarded.*
