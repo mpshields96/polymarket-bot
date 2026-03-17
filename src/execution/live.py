@@ -235,6 +235,53 @@ async def execute(
         )
         return None
 
+    # IL-24: SOL NO@95c — 16 bets, 93.8% WR, need 95.0% break-even, -31.50 USD
+    # SOL has higher intra-window volatility than BTC/ETH — same break-even WR but lower actual WR.
+    # BTC/ETH/XRP NO@95c are all 100% WR and profitable. SOL NO@95c is structurally below break-even.
+    # Loss math: win=5c, lose=95c per contract. EV = 0.938×5 - 0.063×95 = 4.69 - 5.985 = -1.3c/contract.
+    # On 20 USD max bet at 95c: EV ≈ -0.27 USD per bet. Cumulative: -31.50 USD over 16 bets.
+    # Confirmed S95 2026-03-17 04:05 UTC: loss at KXSOL15M-26MAR170000-00 (-19.95 USD) triggered analysis.
+    if "KXSOL" in signal.ticker and price_cents == 95 and signal.side == "no":
+        logger.info(
+            "[live] KXSOL NO@95c -- structurally negative EV "
+            "(93.8%% WR at 16 bets, needs 95.0%% to break even) -- skip",
+        )
+        return None
+
+    # IL-25: XRP NO@97c — 4 bets, 75.0% WR, need 97.0% break-even, -17.43 USD
+    # Loss math: win=3c, lose=97c per contract. EV = 0.75×3 - 0.25×97 = 2.25 - 24.25 = -22c/contract.
+    # Pattern: KXXRP NO@98c same structure (IL-26). High-price NO on XRP = structurally negative EV.
+    # Confirmed S95 2026-03-17: bucket analysis after KXSOL NO@95c loss triggered full audit.
+    if "KXXRP" in signal.ticker and price_cents == 97 and signal.side == "no":
+        logger.info(
+            "[live] KXXRP NO@97c -- structurally negative EV "
+            "(75.0%% WR at 4 bets, needs 97.0%% to break even) -- skip",
+        )
+        return None
+
+    # IL-26: XRP NO@98c — 5 bets, 80.0% WR, need 98.0% break-even, -18.07 USD
+    # Loss math: win=2c, lose=98c per contract. EV = 0.80×2 - 0.20×98 = 1.6 - 19.6 = -18c/contract.
+    # Pattern: mirrors KXXRP YES@98c (IL-23). Both sides at 98c are structurally negative on XRP.
+    # Confirmed S95 2026-03-17: bucket analysis after KXSOL NO@95c loss triggered full audit.
+    if "KXXRP" in signal.ticker and price_cents == 98 and signal.side == "no":
+        logger.info(
+            "[live] KXXRP NO@98c -- structurally negative EV "
+            "(80.0%% WR at 5 bets, needs 98.0%% to break even) -- skip",
+        )
+        return None
+
+    # IL-27: SOL YES@96c — 3 bets, 67.0% WR, need 96.0% break-even, -18.51 USD
+    # Loss math: win=4c, lose=96c per contract. EV = 0.67×4 - 0.33×96 = 2.68 - 31.68 = -29c/contract.
+    # n=3 is below preferred threshold but payout asymmetry is extreme — 1 loss wipes 24+ wins.
+    # SOL has per-asset volatility notch at this price level (96c) not seen in BTC/ETH/XRP.
+    # Confirmed S95 2026-03-17: bucket analysis after KXSOL NO@95c loss triggered full audit.
+    if "KXSOL" in signal.ticker and price_cents == 96 and signal.side == "yes":
+        logger.info(
+            "[live] KXSOL YES@96c -- structurally negative EV "
+            "(67.0%% WR at 3 bets, needs 96.0%% to break even) -- skip",
+        )
+        return None
+
     # ── Execution-time price guard ────────────────────────────────────────
     # Convert execution price to YES-equivalent for range + slippage checks.
     # Protects against HFT repricing in the asyncio gap after signal generation.
