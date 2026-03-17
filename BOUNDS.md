@@ -481,4 +481,10 @@ Same per-asset pattern as KXSOL YES@94c (IL-10C), YES@97c (IL-19), NO@92c (IL-22
 
 ---
 
-*Last updated: Session 95 (2026-03-17). IL-24 added: KXSOL NO@95c. IL-25/26/27 added by hook (dead code — covered by IL-10/IL-11 broad guards). All known SOL structural loss buckets at 90c+ now guarded.*
+**IL-28 (2026-03-17 06:40 UTC): KXXRP NO@94c BLOCKED**
+Trigger: trade #3292 KXXRP NO@94c -19.74 USD. Net -5.29 USD over 17 bets (94.1% WR).
+Fee-adjusted break-even at 94c is ~94.4%; actual WR of 94.1% is net negative.
+One loss (~18-20 USD) wipes ~16 prior wins (~1.05 USD each). Pattern matches IL-21/25/26.
+KXXRP NO@93c and NO@95c remain profitable (100% WR, n=17 and n=12 respectively).
+
+*Last updated: Session 95 (2026-03-17). IL-28 added: KXXRP NO@94c BLOCKED. Trigger: trade #3292 -19.74 USD.*

@@ -1277,10 +1277,34 @@ class TestPerAssetStructuralLossGuards:
         assert result is not None
         kalshi.create_order.assert_called_once()
 
-    async def test_xrp_no_at_94c_not_blocked(self, live_env, bypass_first_run):
-        """KXXRP NO@94c is NOT blocked -- only YES@94c is the losing bucket."""
+    async def test_xrp_no_at_94c_blocked_il28(self, live_env, bypass_first_run):
+        """IL-28: KXXRP NO@94c IS blocked -- 17 bets, 94.1% WR, fee-adjusted break-even ~94.4%, -5.29 USD net.
+
+        Previously test asserted result is not None (pre-IL-28). Updated S95 2026-03-17 when
+        trade #3292 triggered -19.74 USD loss confirming structural negative EV at NO@94c.
+        """
         ob = make_orderbook(yes_bid=6)  # no_ask = 100-6 = 94c
         signal = make_signal(side="no", price_cents=93, ticker="KXXRP15M-26MAR151500-06")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=6, no_price=94),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is None
+        kalshi.create_order.assert_not_called()
+
+    async def test_btc_no_at_94c_not_blocked_by_il28(self, live_env, bypass_first_run):
+        """KXBTC NO@94c is NOT blocked -- IL-28 targets KXXRP only. BTC at 94c NO is profitable."""
+        ob = make_orderbook(yes_bid=6)
+        signal = make_signal(side="no", price_cents=93, ticker="KXBTC15M-26MAR151500-06")
         kalshi = make_kalshi_mock()
         result = await execute(
             signal,
