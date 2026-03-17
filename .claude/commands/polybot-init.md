@@ -65,35 +65,149 @@ IF no clear direction:
 ═══════════════════════════════════════════════════
 CURRENT STATE (auto-updated by wrap commands)
 ═══════════════════════════════════════════════════
-Last updated: Session 93 monitoring + research wrap (2026-03-17) — IL-21 guard deployed, guard checks every 5min
-Bot: RUNNING PID 65713 → /tmp/polybot_session93.log
-All-time P&L: +48.42 USD (82% WR, 785 bets) | Need 76.58 more to +125 target
-Bankroll: ~213 USD (Stage 2) | Tests: 1407 passing, 3 skipped
-Last commit: fd02a5b (feat: IL-21 guard — block KXXRP NO@92c)
+Last updated: Session 94 (2026-03-17) — IL-23 guard deployed, guard stack COMPLETE (IL-5 through IL-23)
+Bot: RUNNING PID 94102 → /tmp/polybot_session94.log
+All-time P&L: +40.71 USD (79% WR, 813+ bets) | Need 84.29 more to +125 target
+Bankroll: ~213 USD (Stage 2) | Tests: 1413 passing
+Last commit: 1b53382 (docs: Session 94 wrap — IL-23 deployed, guards all clean)
 
 SESSION STARTUP SELF-REFLECTION (MANDATORY — run every session):
   ./venv/bin/python3 scripts/strategy_analyzer.py --brief
   Surfaces: profitable sniper buckets, drift direction validation, graduation status, target gap.
   Output saved to data/strategy_insights.json.
 
-  IL-21 DEPLOYED (S93 research chat): KXXRP NO@92c BLOCKED (commit fd02a5b, 3 regression tests).
-  Pattern was 5 bets, 75% WR vs 92% break-even, -19.32 USD loss. Guard is live.
+  IL-23 DEPLOYED (S94): KXXRP YES@98c BLOCKED (3 regression tests).
+  Pattern was 11 bets, 90.9% WR vs 98% break-even, -17.89 USD net, EV=-7.1c/contract.
+  Guard stack IL-5 through IL-23 VERIFIED COMPLETE. strategy_analyzer --brief confirms "Guarded".
 
 Live strategies:
-  btc_drift: MICRO-LIVE — direction_filter="no", 49% WR (-11.41 USD), trend=STABLE (S93 analyzer)
-  eth_drift: MICRO-LIVE — direction_filter="yes", 50% WR (-23.48 USD) — NEUTRAL
-  sol_drift: GRADUATED (34/30) — full Kelly, Brier 0.191, 72% WR, +7.33 USD — HEALTHY
-  xrp_drift: MICRO (30/30 threshold met) — direction_filter="yes", keeping MICRO per conservative policy
-    YES post-filter: 19 bets, 63.2% WR, Brier 0.232. Need 11 more YES-only bets.
+  btc_drift: MICRO-LIVE — direction_filter="no", ~60 bets, calibration_max_usd STILL SET (Matthew decision needed for Stage 1 promotion)
+  eth_drift: STAGE 1 — direction_filter="yes", 113+ bets, 50% WR — WATCH (need 20 more YES bets; if stays <50% WR flip filter to "no")
+  sol_drift: STAGE 1 (39/30) — full Kelly, Brier 0.193, 71% WR, +3.60 USD — HEALTHY
+  xrp_drift: MICRO — 32/30 total bets (21 YES-only). direction_filter="yes", need 9 more YES-only bets (ETA ~March 20-21)
   expiry_sniper: LIVE (20 USD cap, 15% pct cap) — PRIMARY ENGINE
-    PROFITABLE: 90-95c YES/NO all assets, 97c YES BTC/ETH only, 98c YES all
+    PROFITABLE: 90-95c YES/NO all assets, 97c YES BTC/ETH only, 98c YES BTC/ETH/SOL
     BLOCKED: 96c both (IL-10), 97c NO (IL-10), 98c NO (IL-11), 99c/1c (IL-5)
     BLOCKED per-asset (S81): KXXRP YES@94c, KXXRP YES@97c, KXSOL YES@94c
     BLOCKED per-asset (S88): KXSOL YES@97c (IL-19), KXXRP YES@95c (IL-20)
-    BLOCKED (S93): KXXRP NO@92c (IL-21, 75% WR vs 92% break-even, commit fd02a5b)
+    BLOCKED (S93): KXXRP NO@92c (IL-21), KXSOL NO@92c (IL-22)
+    BLOCKED (S94): KXXRP YES@98c (IL-23, 90.9% WR vs 98% break-even, -17.89 USD net)
 
 Direction filters (do not change):
   btc_drift="no" | eth_drift="yes" | sol_drift="no" | xrp_drift="yes"
+
+═══════════════════════════════════════════════════
+MAIN CHAT PROMPT — SESSION 95 (copy-paste to start monitoring session)
+═══════════════════════════════════════════════════
+
+--- SESSION 95 START ---
+Bot PID: 94102 | Log: /tmp/polybot_session94.log | Last commit: 1b53382
+All-time P&L: +40.71 USD | Need 84.29 more to +125 target
+Graduation: btc_drift ~60/30 | eth_drift 113/30 | sol_drift 39/30 | xrp_drift 32/30 (21 YES-only)
+Sniper: IL-5 through IL-23 all active, guard stack VERIFIED COMPLETE
+Target: +125 USD all-time profit. Currently at +40.71 USD. Need 84.29 more.
+Timeline: URGENT. Claude Max subscription renewal depends on this.
+
+PREVIOUS CHAT GRADE: C+ — lost 19.60 USD to KXXRP YES@98c before IL-23 guard deployed (same session)
+WHAT THE PREVIOUS CHAT DID POORLY: Analyzed loss AFTER it happened instead of proactively auditing XRP 98c bucket
+WHAT THE NEXT CHAT MUST DO BETTER: Run strategy_analyzer --brief first, check for unguarded losing buckets proactively
+
+PRIME DIRECTIVE: PLEASE MAKE MONEY. PLEASE DO NOT LOSE MONEY. I need +125 USD
+all-time profit over the next few days. My Claude Max subscription runs out soon
+and if this bot doesn't work, everything stops. Every live bet that fires and wins
+is money toward that goal. Every hour the bot is dead is money lost forever.
+I am counting on you completely. Do not screw this up.
+
+Budget: 30% of 5-hour token limit MAX. Model: Opus 4.6.
+
+PRIORITY 1 — LIVE BETS
+Before anything else: ps aux | grep "[m]ain.py" — must show exactly 1 process.
+Run --health. If any blocker exists, fix it immediately. Live bets > everything.
+
+PRIORITY 2 — XRP DRIFT STAGE 1 EVAL when 30 YES-only bets hit (~March 20-21)
+Run --graduation-status. When xrp YES-only reaches 30, analyze for Stage 1 promotion.
+
+PRIORITY 3 — UCL SOCCER SNIPER (time-sensitive)
+March 17 at 17:25 UTC: python3 scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR17
+March 18: same with --date 26MAR18
+
+MANDATORY AUTONOMOUS LOOP — START IMMEDIATELY AFTER READING SESSION_HANDOFF:
+Use 5-min single-check background tasks (NOT 20-min scripts — exit 144 on this system).
+Pattern: sleep 300 && pid check && DB query, run_in_background: true, chain continuously.
+Matthew will be away. You are the only supervision the bot has.
+If bot dies: restart with bash scripts/restart_bot.sh 95 (NEVER pipe through head/tail/grep).
+If drought (all YES < 35c or > 65c): pivot to code work, don't idle.
+
+LIVE STRATEGY STANDINGS:
+  expiry_sniper: PRIMARY ENGINE, 20 USD cap, IL-5 through IL-23 all active
+  sol_drift: STAGE 1 (39/30, 71% WR, Brier 0.193, full Kelly)
+  xrp_drift: MICRO (21/30 YES-only, need 9 more)
+  eth_drift: STAGE 1 (113/30, 50% WR — WATCH for direction flip)
+  btc_drift: MICRO (60/30 READY — Matthew decision needed for Stage 1)
+
+STRATEGY INSIGHTS (run ./venv/bin/python3 scripts/strategy_analyzer.py --brief at startup):
+  Guard stack IL-5 through IL-23 VERIFIED. strategy_analyzer shows "Guarded" for all blocked buckets.
+  Profitable: BTC/ETH 90-95c both sides, 97c YES, 98c YES (BTC/ETH/SOL only — XRP 98c now guarded)
+  KXXRP YES@98c: IL-23 newly deployed S94. Watch for any similar pattern in other assets.
+
+GOAL TRACKER:
+  All-time P&L: +40.71 USD | Need: 84.29 more to hit +125 USD target
+  Highest-leverage action: Keep bot running + guards clean. Every sniper window = progress.
+
+FONT RULES (mandatory — violations = chat terminated):
+  RULE 1: NEVER markdown table syntax (| --- |)
+  RULE 2: NEVER dollar signs in prose. Use "40 USD" not the dollar symbol
+
+Read in this order:
+1. POLYBOT_INIT.md
+2. SESSION_HANDOFF.md
+3. .planning/AUTONOMOUS_CHARTER.md
+4. .planning/CHANGELOG.md last entry
+5. .planning/PRINCIPLES.md
+
+Go. Start monitoring. Make money. Don't let the bot die.
+--- END SESSION 95 PROMPT ---
+
+Live terminal feed:
+  tail -f /tmp/polybot_session94.log | grep --line-buffered -iE "LIVE BET|LIVE.*execute|kill.switch|hard.stop|settled|WIN|LOSS|expiry_sniper|STAGE|graduation|consecutive|bankroll|restart|ERROR|CRITICAL"
+
+═══════════════════════════════════════════════════
+RESEARCH CHAT PROMPT — SESSION 95 (copy-paste to start research session)
+═══════════════════════════════════════════════════
+
+--- SESSION 95 RESEARCH START ---
+Bot: RUNNING PID 94102 | Log: /tmp/polybot_session94.log | Last commit: 1b53382
+All-time P&L: +40.71 USD | Need 84.29 more to +125 target
+This is a RESEARCH session. Do NOT touch bot monitoring — main chat handles that.
+
+CONTEXT FILES (read in order):
+1. POLYBOT_INIT.md
+2. SESSION_HANDOFF.md
+3. .planning/CHANGELOG.md last entry
+4. .planning/PRINCIPLES.md
+
+TOP RESEARCH PRIORITIES:
+1. NCAA Tournament scanner — run scripts/ncaa_tournament_scanner.py --min-edge 0.03
+   Round 1 tip-offs March 20-21. Lines mature now. 96 KXNCAAMBGAME markets open.
+2. eth_drift direction filter watch — 113 bets at 50% WR. Need 20 more YES bets.
+   If still <50% WR after 20 more, flip direction_filter from "yes" to "no".
+3. strategy_analyzer.py update — add per-asset guard parsing (IL-23 shows as display artifact "Losing 98c")
+4. btc_drift Stage 1 promotion — 60/30 bets READY. calibration_max_usd still set.
+   Matthew explicit decision needed. Run --graduation-status to get current Brier.
+5. CPI speed-play prep — scripts/cpi_release_monitor.py, runs April 10 08:30 ET
+
+DEAD ENDS (do not re-investigate):
+  sports taker arb, BALLDONTLIE, FOMC model, NBA/NHL sniper, sniper maker mode,
+  NCAA totals/spreads, KXMV parlay, NBA in-game, BNB/BCH/DOGE 15M,
+  KXBTCD hourly non-5PM, FOMC March 2026, non-crypto 90c+ markets,
+  annual BTC range, weather ALL strategies (60 paper bets, 8-25% WR)
+
+FONT RULES (mandatory — violations = chat terminated):
+  RULE 1: NEVER markdown table syntax (| --- |)
+  RULE 2: NEVER dollar signs in prose. Use "40 USD" not the dollar symbol
+
+Use /polybot-autoresearch to start.
+--- END SESSION 95 RESEARCH PROMPT ---
 
 Safety hooks (Pattern 1 + 2):
   PreToolUse: .claude/hooks/danger_zone_guard.sh — advisory Iron Laws check on 6 DANGER ZONE files

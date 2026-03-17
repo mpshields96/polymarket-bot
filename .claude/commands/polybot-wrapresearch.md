@@ -58,6 +58,12 @@ D) .claude/commands/polybot-init.md → CURRENT STATE section
    - Update: bot status, P&L, bankroll, test count, last commit
    - Update: research state (new findings, dead ends, open leads)
    - Update: "Last updated: Session [N]" line
+   - WRITE the MAIN CHAT PROMPT section (--- SESSION [N+1] START --- block)
+     with filled-in PID, P&L, graduation counts, current priorities
+   - WRITE the RESEARCH CHAT PROMPT section (--- SESSION [N+1] RESEARCH START --- block)
+     with filled-in top research priorities from this session's findings, dead ends, open leads
+   NOTE: Both prompts MUST be in polybot-init.md — Matthew does not feed prompts manually.
+   /polybot-init reads this file at session start and surfaces both prompts.
 
 E) MEMORY.md
    (~/.claude/projects/-Users-matthewshields-Projects-polymarket-bot/memory/MEMORY.md)
