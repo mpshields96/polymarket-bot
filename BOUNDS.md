@@ -487,4 +487,17 @@ Fee-adjusted break-even at 94c is ~94.4%; actual WR of 94.1% is net negative.
 One loss (~18-20 USD) wipes ~16 prior wins (~1.05 USD each). Pattern matches IL-21/25/26.
 KXXRP NO@93c and NO@95c remain profitable (100% WR, n=17 and n=12 respectively).
 
-*Last updated: Session 95 (2026-03-17). IL-28 added: KXXRP NO@94c BLOCKED. Trigger: trade #3292 -19.74 USD.*
+**IL-29 (2026-03-17 08:05 UTC): KXBTC YES@88c BLOCKED**
+Trigger: trade #3380 KXBTC YES@88c -19.36 USD. Below 90c sniper floor — insufficient historical data.
+2 bets, 50% WR, -17.93 USD net. One of three simultaneous losses in 26MAR170415-15 window.
+
+**IL-30 (2026-03-17 08:16 UTC): KXETH YES@93c BLOCKED**
+Trigger: trade #3382 KXETH YES@93c -19.53 USD. 9 bets, 88.9% WR, needs 93.0% break-even, -10.83 USD.
+One loss wipes ~13 wins (~1.26 USD each). ETH YES@90-92c and YES@94c+ remain viable.
+
+**IL-31 (2026-03-17 08:16 UTC): KXXRP NO@91c BLOCKED**
+Trigger: trade #3383 KXXRP NO@91c -19.11 USD. 5 bets, 80% WR, needs 91% break-even, -14.07 USD.
+All three losses (IL-29/30/31) occurred in same 15-min settlement window — correlated macro move.
+KXXRP NO@91c was previously 4/4 (100% WR) but single loss wiped all prior gains.
+
+*Last updated: Session 95 (2026-03-17). IL-29/30/31 added from three-loss window at 08:16 UTC.*
