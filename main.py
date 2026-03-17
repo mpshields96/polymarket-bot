@@ -23,6 +23,7 @@ import argparse
 import asyncio
 import contextlib
 import logging
+import math
 import os
 import sys
 from datetime import datetime, timezone
@@ -1125,9 +1126,17 @@ async def crypto_daily_loop(
         await asyncio.sleep(CRYPTO_DAILY_POLL_INTERVAL_SEC)
 
 
+# ── Bayesian drift model update helper ────────────────────────────────
+# Logic lives in src/models/bayesian_settlement.py for clean testability.
+from src.models.bayesian_settlement import (
+    apply_bayesian_update as _apply_bayesian_update,
+    _DRIFT_STRATEGY_NAMES,
+)
+
+
 # ── Settlement polling loop ────────────────────────────────────────────
 
-async def settlement_loop(kalshi, db, kill_switch):
+async def settlement_loop(kalshi, db, kill_switch, drift_model=None):
     """
     Background loop: detect settled markets and record outcomes in DB.
 
@@ -1194,6 +1203,11 @@ async def settlement_loop(kalshi, db, kill_switch):
                             kill_switch.record_win()
                         else:
                             kill_switch.record_loss(abs(pnl_cents) / 100.0)
+
+                        # ── Bayesian posterior update (live drift bets only) ──────────
+                        # Updates sigmoid parameter estimates after each settled live drift bet.
+                        # Sniper / lag bets are excluded — different signal model.
+                        _apply_bayesian_update(drift_model, trade, won)
 
             # Auto-export CSV after each settlement poll that found settled trades
             if open_trades:
@@ -2666,6 +2680,13 @@ async def main():
     # Log kill switch health AFTER all restores — surfaces any active blocks immediately
     kill_switch.log_startup_status()
 
+    # ── Load Bayesian drift posterior ─────────────────────────────────
+    # Safe at startup — returns flat prior if file is missing or corrupt.
+    # Updated after each settled live drift bet in settlement_loop.
+    from src.models.bayesian_drift import BayesianDriftModel as _BDM
+    _drift_model = _BDM.load()
+    logger.info("[startup] Bayesian drift model: %s", _drift_model.summary())
+
     current_bankroll = db.latest_bankroll() or starting_bankroll
     stage = get_stage(current_bankroll)
 
@@ -3131,7 +3152,7 @@ async def main():
         name="sol_lag_loop",
     )
     settle_task = asyncio.create_task(
-        settlement_loop(kalshi=kalshi, db=db, kill_switch=kill_switch),
+        settlement_loop(kalshi=kalshi, db=db, kill_switch=kill_switch, drift_model=_drift_model),
         name="settlement_loop",
     )
 
