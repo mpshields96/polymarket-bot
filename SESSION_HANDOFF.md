@@ -202,7 +202,14 @@ PENDING TASKS (Session 93 — PRIORITY ORDER):
      Expected: ~40% of 6 eligible teams cross 90c mid-game = 2-3 paper bets placed
      Need 3+ paper wins before live activation. UCL QF March 31/April 1 = 2nd legs.
      La Liga/EPL resume March 21-22. Pre-game >= 0.60 threshold.
-  #6 btc_drift NO PROMOTION CANDIDATE — Matthew's decision needed:
+  #6 eth_drift YES direction filter UNDERPERFORMING — Matthew's decision needed:
+     Post-filter (since March 11): 16/37 = 43.2% WR, -26.54 USD — LOSING MONEY
+     Break-even at YES@50c: ~52%. 43.2% is significantly below.
+     btc_drift NO-only (post-filter): 58.3% WR, +18.66 USD — works correctly.
+     Options: (1) wait for 50+ bets, (2) flip filter to "no", (3) disable eth_drift.
+     Per PRINCIPLES.md: 37 bets not conclusive (p~0.19). Recommend: watch 20 more bets.
+     NOT urgent since eth_drift is micro-live (max $0.65/bet). Just losing slowly.
+  #7 btc_drift NO PROMOTION CANDIDATE — Matthew's decision needed:
      36 NO-only live bets, 58.3% WR, Brier 0.236 (< 0.25 threshold), +18.66 USD
      MEETS Stage 1 criteria. Currently micro-live (S60 demotion). Upgrade to Stage 1?
      Command: In main.py find btc_drift trading_loop call, set calibration_max_usd=None
