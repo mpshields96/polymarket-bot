@@ -1,20 +1,30 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-17 05:36 UTC (Session 95 overnight part 2 — all guards confirmed, 43.56 USD all-time)
+# Last updated: 2026-03-17 10:30 UTC (Session 95 overnight — MAJOR LOSS EVENT + guards IL-28 through IL-32 + sniper floor)
 # ═══════════════════════════════════════════════════════════════
 
-## ⚠️ UCL SOCCER SNIPER — TIME-SENSITIVE
-## March 17 (TODAY): PID 5181 auto-fires at 17:24 UTC (hardcoded sleep, no timezone bug)
-##   Games: ARS@76c (17:45 UTC), MCI@66c + SPO@64c (20:00 UTC) — all >= 60c threshold
-##   script: scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR17
-## March 18: PID 8183 auto-fires at 17:25 UTC
-##   BAR@62c, BMU@72c, LFC@76c eligible (all above 60c threshold)
-##   script: scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR18
+## ⚠️ CRITICAL — READ THIS FIRST (Session 95 morning events)
+## All-time P&L is currently -40.41 USD (was +47.75 USD peak at 06:13 UTC).
+## FIVE large losses occurred in two consecutive 15-min windows (08:16 and 08:46 UTC):
+##   08:16 UTC window: KXBTC YES@88c -19.36, KXETH YES@93c -19.53, KXXRP NO@91c -19.11 = -58 USD
+##   08:46 UTC window: KXETH NO@89c -19.58, KXBTC NO@91c -19.11 = -38.69 USD
+##   Root cause: Correlated multi-asset sniper losses + slippage below 90c floor
+##   FIXES DEPLOYED: IL-28 through IL-32 + sniper execution floor (90c minimum)
+##   Bot restarted PID 42326 at 09:04 UTC. Clean since then (90 min, no large losses).
+##
+## UCL SOCCER: March 17 PID 5181 fires at 17:24 UTC. March 18 PID 8183 fires at 17:25 UTC.
+## NCAA scanner: PID 6662 auto-fires. Check /tmp/polybot_ncaa_mar17.log for results.
 
-## ⚠️ PENDING MATTHEW DECISIONS (flag in every response)
+## ⚠️ PENDING MATTHEW DECISIONS (flag in every response — UPDATED)
 ## 1. btc_drift Stage 1 promotion: 41 NO-only bets, 56% WR, Brier ~0.237 — ALL criteria MET
 ## 2. maker_mode=True for sol_drift + xrp_drift (btc/eth already have it, needs restart)
 ## 3. eth_drift direction: last 30 YES bets at 47% WR — flip to "no" or hold?
+## 4. xrp_drift Stage 1: 37 YES-only bets, Brier 0.267 (READY FOR LIVE mechanically)
+##    BUT: 51% WR / -1.68 USD net — economically borderline. Recommend hold at micro-live.
+## 5. CORRELATED LOSS RISK: Sniper fires on 4 assets simultaneously.
+##    Two windows both had 2-3 assets lose at once (-58 USD and -38.69 USD).
+##    Possible mitigations: max 2 simultaneous positions, per-window loss cap.
+##    REQUIRES MATTHEW DECISION on whether to limit concurrent sniper positions.
 
 ## COPY-PASTE THIS TO START A NEW SESSION (Session 96)
 
@@ -26,18 +36,20 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 95 overnight pt2 — 2026-03-17 05:36 UTC):
-  Bot RUNNING PID 13381 → /tmp/polybot_session95.log
-  All-time live P&L: +43.56 USD (recovering well — +3.63 USD since 05:30 UTC)
-  Tests: 1416 passing. Last commit: 5211da0 (docs: S95 overnight pt2 - guard triggers explained)
-  Guards: IL-5 through IL-27 ALL ACTIVE. Guard stack VERIFIED COMPLETE.
-  POST-RESTART PERFORMANCE (04:14 UTC onward): 19 bets, 15W/4L (79% WR), +13.51 USD — guards working.
-  Three overnight losses were TRIGGER EVENTS (guards added reactively — NOT guard bypasses):
-    trade#3178 KXXRP NO@92c -19.32 UTC 00:17 → triggered IL-21
-    trade#3224 KXXRP YES@98c -19.60 UTC 02:31 → triggered IL-23
-    trade#3253 KXSOL NO@95c -19.95 UTC 04:03 → triggered IL-24 (committed 04:10, restart 04:14)
-  Guards confirmed firing in log at 00:27 CDT (05:27 UTC): IL-23, IL-19, IL-10, IL-10A, IL-5 all active.
-  XRP drift YES: 25/30 bets. Need 5 more for Stage 1 eval. ETA ~March 20-21.
+BOT STATE (Session 95 — 2026-03-17 10:30 UTC):
+  Bot RUNNING PID 42326 → /tmp/polybot_session95.log
+  All-time live P&L: -40.41 USD (down from +47.75 peak — see CRITICAL section above)
+  Tests: 1429 passing. Last commit: c5520f6 (feat: IL-32 KXBTC NO@91c + sniper execution floor 90c)
+  Guards: IL-5 through IL-32 COMPLETE + sniper execution floor (price_cents >= 90 for sniper)
+  SESSION 95 GUARD DEPLOYMENTS (all committed, all tested):
+    IL-28: KXXRP NO@94c (06:40 UTC, trade #3292 -19.74 USD)
+    IL-29: KXBTC YES@88c (08:05 UTC, trade #3380 -19.36 USD) — below sniper floor
+    IL-30: KXETH YES@93c (08:16 UTC, trade #3382 -19.53 USD)
+    IL-31: KXXRP NO@91c (08:16 UTC, trade #3383 -19.11 USD)
+    IL-32: KXBTC NO@91c (08:46 UTC, trade #3391 -19.11 USD)
+    SNIPER FLOOR: execute() rejects price_cents < 90 for expiry_sniper_v1 (slippage fix)
+  POST-IL-32 PERFORMANCE (09:04 UTC onward): 62 bets 46W (74% WR), recovering
+  XRP drift YES: 37/30 bets (milestone hit). Brier 0.267. READY FOR LIVE mechanically but 51% WR.
   XRP drift Brier: 0.267 (all bets including NO). YES-only Brier needs separate calc at 30 bets.
   SOL drift: Stage 1 (full Kelly + 20 USD cap). 40 total bets, 70% WR, Brier 0.198 (EXCELLENT).
   eth_drift: MICRO-LIVE (calibration_max_usd=0.01 per S60 demotion still in effect in main.py).
