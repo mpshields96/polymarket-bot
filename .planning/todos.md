@@ -879,3 +879,12 @@ sol_drift IS likely ready (0.177 Brier, 78% win rate, +9.25 USD, 27/30 bets).
 - DO NOT implement without Matthew approval — changes sniper execution behavior
 
 TODO: strategy_analyzer.py shows '98c: Losing buckets (guards recommended)' as false alarm. IL-11 blocks ALL NO@98c, IL-23 blocks KXXRP YES@98c. BTC/ETH/SOL YES@98c profitable (100% WR). Analyzer doesn't distinguish per-asset guards from broad guards. Low priority — update to show 'partially guarded' with per-asset breakdown.
+
+## SOCCER SNIPER UPCOMING OPPORTUNITIES
+[2026-03-17 - S95 research]
+- March 21: KXEPLGAME FUL (Fulham) @62c — barely above 60c threshold (check closer to game)
+- March 22: KXLALIGAGAME BAR (Barcelona) @79c — strong candidate (set up launcher similar to UCL)
+- NBA Finals (June): If series starts, check KXNBAGAME for 90c+ favorites post-game-1
+- NFP April 4: Check KXNFP when opens (~April 2-3) for speed-play opportunity
+- eth_drift direction decision (MATTHEW): YES at 47% WR last 30 bets. NO was also 46% WR (35 bets).
+  Both directions underperforming. Options: disable eth_drift, flip to NO, or wait. Needs Matthew.
