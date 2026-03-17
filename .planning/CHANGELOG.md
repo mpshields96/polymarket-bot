@@ -5302,3 +5302,43 @@ Comprehensive guard audit performed:
   3. Matthew decision: maker_mode=True for sol_drift + xrp_drift
   4. Matthew decision: eth_drift direction (49% WR YES-only — consider flip to "no")
   5. UCL soccer March 18 17:25 UTC — BAR@62c, BMU@72c, LFC@76c
+
+## Session 97 Research — 2026-03-17 ~19:13–21:30 UTC
+
+### Type: RESEARCH + MONITORING hybrid (autoresearch mode)
+### Bot: RUNNING PID 21666 throughout | Tests: 1450 passing
+### Last commit: 0ea88fd (research: S97 complete — guard calibration, market scan, momentum dead ends)
+
+### What was researched
+1. Strategy regime analysis — eth/btc/sol/xrp drift all assessed for directional bias + WR trend
+2. Kalshi market scan — 9054 series probed, no new liquid continuous high-volume series
+3. Sniper price bucket deep dive — all guarded buckets confirmed, IL stack is optimal
+4. Continuation momentum dead end — 34-41% run rate, identical WR in/out = no signal
+5. Orderbook OOS: 16/20 post-filter bets at 62.5% WR — 4 more to validation gate
+6. KXXRP NO@93c loss at 21:06 UTC analyzed: WR 94.4% > 93% break-even — no guard added
+
+### Key data findings
+- eth_drift: YES side 52.5% WR vs NO side 48% WR. Stay YES, do NOT flip to NO
+- btc_drift: all-time 54.5% but last 20 = 50%. Softening. Caution on Stage 1 promo
+- sol_drift: 60% last 20 vs 80% first 20. Still significant p<0.05 — HOLD Stage 1
+- xrp_drift: last 10 = 40% WR. Hold at micro-live — do NOT promote
+- All 8:00-9:00 UTC morning losses historically: ALL guarded by IL-28 through IL-32 + floor
+
+### Dead ends confirmed
+- eth_drift direction flip to NO: worse (48% vs 52% YES)
+- Continuation momentum: no signal
+- New Kalshi continuous series: none found in 9054-series scan
+- Volatility gate: ~0 marginal value (all trigger windows already guarded)
+
+### Tools/scripts changed
+- /tmp/polybot_monitor_cycle.sh: added OOS tracking + MILESTONE alert at 20 bets
+
+### Self-rating: B+
+KXXRP NO@93c loss analyzed via PRINCIPLES.md (WR above break-even = no guard needed).
+eth_drift direction confirmed YES is better — do NOT flip.
+No new exploitable edges found, but 5+ dead ends confirmed which saves future research time.
+
+### Next research priority
+1. UCL March 18 results — check /tmp/ucl_sniper_mar18.log after 20:00 UTC March 18
+2. NCAA Round 1 scanner — re-run March 19-20
+3. Orderbook OOS — 4 more bets to validation gate (passive, ~March 18-19)

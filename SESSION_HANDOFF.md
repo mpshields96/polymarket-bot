@@ -1,13 +1,13 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-17 21:03 UTC (Session 96 monitoring wrap — 11/11 sniper wins, guards verified)
+# Last updated: 2026-03-17 21:30 UTC (Session 97 research wrap — strategy analysis, dead ends confirmed)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
   Bot RUNNING PID 21666 → /tmp/polybot_session96.log
-  All-time live P&L: -6.88 USD (recovered +11.51 USD since 19:13 UTC restart)
+  All-time live P&L: -25.36 USD (KXXRP NO@93c loss -19.53 USD at 21:06 UTC — see guard analysis below)
   Today P&L: -72.56 USD live (losses from pre-restart unguarded buckets — all now guarded)
-  Tests: 1446 passing. Last commit: 1a8f2c9 (research: S97 sol_drift regime check)
+  Tests: 1450 passing. Last commit: 0ea88fd (research: S97 complete — guard calibration, market scan, momentum dead ends)
 
 ## KEY FINDING (Session 96 research) — HIGH CONFIDENCE FOR TONIGHT
   ALL March 14 (+64 USD) and March 16 (+47 USD) losses are NOW GUARDED.

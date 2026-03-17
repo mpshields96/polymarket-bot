@@ -22,18 +22,33 @@ WHAT THIS MEANS:
 
 MANDATORY STARTUP SEQUENCE:
 1. ps aux | grep "[m]ain.py" — check if bot is running (may be stopped)
-2. Read SESSION_HANDOFF.md — get current state
-3. Read .planning/EDGE_RESEARCH_S62.md — know what's already been found
-4. Pick the HIGHEST-IMPACT research task from the R&D roadmap (Section 9)
+2. Read SESSION_HANDOFF.md — get current state, PID, pending tasks
+3. Read .planning/EDGE_RESEARCH_S62.md — SESSION 97 WRAP section at bottom for latest
+4. Pick the HIGHEST-IMPACT task from R&D PRIORITY STACK below
 5. START WORKING — no planning documents, just build and test
 
-R&D PRIORITY STACK (from EDGE_RESEARCH_S62.md Section 9):
-1. BALLDONTLIE API integration — free, includes Kalshi+Pinnacle in one call
-2. Kalshi-vs-Pinnacle price comparison scanner (use the-odds-api we already have)
-3. Limit order execution test on one strategy (sniper = easiest candidate)
-4. FOMC/CPI strategy activation (already built, 0 bets placed!)
-5. Weather ensemble approach (GFS data is free from NOAA)
-6. NCAA March Madness pricing analysis (happening RIGHT NOW)
+CURRENT STATE (Session 97 wrap — 2026-03-17 21:30 UTC):
+Bot: RUNNING PID 21666 | All-time P&L: -25.36 USD | Tests: 1450 passing
+Last commit: 0ea88fd (research: S97 complete)
+UCL March 18 launcher: PID 25012, fires 17:20 UTC March 18. Log: /tmp/ucl_sniper_mar18.log.
+
+S97 RESEARCH FINDINGS (do NOT re-investigate these):
+- eth_drift: STAY YES — NO side is WORSE (48% vs 52% YES WR). Do NOT flip direction.
+- xrp_drift: DECLINING — last 10 = 40% WR. Hold micro-live, do NOT promote.
+- btc_drift: SOFTENING — last 20 = 50% WR. All criteria met but trend cautionary.
+- Continuation momentum: DEAD END — run rate 34-41% but WR identical in/out of runs.
+- Kalshi market scan: 9054 series scanned, 0 new liquid continuous high-volume markets.
+- KXXRP NO@93c loss at 21:06 UTC: 17W/1L = 94.4% > 93% break-even — NO guard needed.
+
+R&D PRIORITY STACK (Session 98 — pick highest-impact):
+1. UCL March 18 results — check /tmp/ucl_sniper_mar18.log after 20:00 UTC March 18
+   Did any of BAR/BMU/LFC bets fire? Update soccer edge data in EDGE_RESEARCH_S62.md
+2. NCAA Round 1 scanner — re-run March 19-20 for Round 1 lines (tip-offs March 20-21)
+3. Orderbook OOS — 16/20 post-filter bets (4 more to gate). Check DB, passive accumulation.
+   When 20+ hit: flag for Matthew micro-live promotion decision
+4. btc_drift Stage 1 — 64 bets, 57.9% all-time but last 20 = 50%. Flag for Matthew.
+5. CPI speed-play April 10 08:30 ET — scripts/cpi_release_monitor.py ready, run ~08:28 ET
+6. GDP speed-play April 30 — check April 23-24 for KXGDP market availability
 
 RESEARCH LOOP — work in 20-min focused sprints:
 Sprint 1: Pick highest-impact task, build/research it

@@ -4138,3 +4138,36 @@ Filter is working correctly. Need 7 more OOS bets. Decision gate: 20+ OOS bets +
   Validated volatility gate hypothesis with data (saved for future, not needed now)
   No new edges found (correct — NCAA confirmed no-go, SPX markets thin on Kalshi)
   btc_drift Stage 1 promotion still pending Matthew decision (micro-live, 57.9% WR/Brier 0.252)
+
+## SESSION 97 WRAP — 2026-03-17 21:30 UTC
+
+### Session type: RESEARCH + MONITORING hybrid
+### Bot: RUNNING PID 21666 throughout
+### All-time P&L at wrap: -25.36 USD (session started at -6.88 USD)
+### Post-restart sniper since 19:13 UTC: 12W/1L, -5.12 USD (1 KXXRP NO@93c loss at -19.53)
+
+### SESSION 97 RESEARCH SELF-RATING: B+
+
+DISCOVERIES:
+1. eth_drift YES/NO symmetric dead end — both sides near 50% WR (52.5% YES, 48% NO), no directional edge
+2. orderbook OOS at 16/20 post-filter (62.5% WR, YES side strong at +13.58 USD, NO side weak)
+3. btc_drift WR trending soft — all-time 54.5% but last 20 = 50%. At Stage 1 criteria boundary
+4. sol_drift regime check — 60% last 20 vs 80% first 20. Still significant p<0.05 — HOLD Stage 1
+5. xrp_drift declining — last 10 = 40% WR. Hold at micro-live, do NOT promote
+6. Kalshi market scan — 9054 series, 0 new liquid continuous high-volume series found
+7. Continuation momentum confirmed dead end — 34-41% run rate, identical WR in/out of runs
+8. KXXRP NO@93c loss (21:06 UTC, -19.53 USD): WR=94.4% (17W/1L) > 93% break-even
+   NOT guarded (anti-bloat per PRINCIPLES.md) — statistical variance, not structural defect
+
+TOOLS BUILT:
+- /tmp/polybot_monitor_cycle.sh updated with OOS count tracking + MILESTONE alert at 20 bets
+
+DEAD ENDS CONFIRMED:
+- eth_drift direction flip: NO side is WORSE (48% vs 52% YES). Do NOT flip.
+- Continuation momentum (pre-placement maker): 34-41% run rate but WR identical in/out of runs
+- New Kalshi continuous markets: 0 new liquid series beyond existing crypto 15M
+- Volatility gate implementation: marginal value = ~0 historically (all trigger windows guarded)
+
+GRADE: B+ — comprehensive strategy analysis, valid dead ends documented, no new exploitable edges
+One session-changing finding: eth_drift should stay YES (do NOT flip) — the data shows NO side is worse
+Next session priority: UCL March 18 results (check /tmp/ucl_sniper_mar18.log after 20:00 UTC)
