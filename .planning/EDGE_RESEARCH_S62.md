@@ -3393,3 +3393,184 @@ ONE KEY FINDING: XRP 15-min markets have structurally exploitable AND structural
 NEXT PRIORITY: Run NCAA Round 1 scanner on March 17-18 when lines mature (tip-offs March 20-21).
   Also: monitor eth_drift YES for 20 more bets — if stays below 50% WR, flip direction to "no".
 
+
+---
+
+## SESSION 94 RESEARCH FINDINGS (2026-03-17 UTC)
+
+### Primary Build: IL-22 Guard — KXSOL NO@92c
+
+**Finding:** KXSOL NO@92c follows same asymmetric payout pattern as KXXRP NO@92c (IL-21).
+- 3 settled bets: 2 wins (~1.40 USD each) + 1 loss (~-18 USD)
+- Net: -12.97 USD at 67% WR
+- Break-even WR required: 92.0% (same payout math as IL-21)
+- Pattern: SOL NO@91c=100% WR, SOL NO@92c=67% WR, SOL NO@93c+=100% WR
+
+**Guard stack review (comprehensive — all 5+ bet loss buckets are now guarded):**
+  All historical loss buckets are guarded. IL-5 through IL-22 cover all known problematic
+  price points. No new unguarded loss buckets found in 90c+ sniper range.
+  Guard stack verification: `./venv/bin/python3 scripts/strategy_analyzer.py --brief` shows "CLEAN".
+
+**Implementation:**
+  - Guard added: src/execution/live.py (IL-22 block)
+  - Tests: 3 new tests in TestPerAssetStructuralLossGuards (1410 total passing)
+  - BOUNDS.md: IL-22 documented
+  - Commit: 53c337c
+
+### Strategy Status Update (Session 94)
+
+**btc_drift NO-only (Stage 1 candidate):**
+  37 bets, 59% WR, Brier 0.234 (correct calc using win_prob=P(signal side wins)), +19.1 USD
+  Meets ALL Stage 1 criteria. Currently micro-live ($0.01 cap, direction_filter="no" active).
+  REQUIRES MATTHEW'S DECISION to promote. Not promoted autonomously per charter.
+  If promoted: bet size goes from $0.01 to up to $5. Brier 0.234 < 0.25 = solid.
+
+**eth_drift YES (direction filter analysis):**
+  YES: 76 bets, 53% WR, Brier 0.245, last 20 at 60% WR — IMPROVING, don't flip
+  NO: 35 bets, 46% WR — worse direction (don't flip to NO)
+  RECOMMENDATION: Keep direction_filter="yes". Watch 20 more YES bets.
+
+**XRP drift YES-only graduation:**
+  21/30 YES-only bets at 62% WR, Brier 0.235, +1.45 USD — ON TRACK
+  Needs 9 more YES-only bets (~3 days at ~3/day). ETA: March 20-21.
+
+**SOL drift:** 37/30 Stage 1, 73% WR, +9.92 USD — HEALTHY
+
+### NCAA Tournament Scan (Session 94)
+
+Ran scanner at 01:08 UTC and 01:09 UTC March 17:
+  96 KXNCAAMBGAME markets open (includes First Four play-in + Round 1)
+  Top edges at 1% threshold: Liberty@GMU 1.9%, others < 1%
+  At 90c+ threshold: Virginia 93c = Pinnacle 93c (0.2% edge = noise)
+  At 85c+ threshold: Auburn 92c = Pinnacle 92c, Gonzaga 94c vs 93c Sharp (-0.1% edge)
+  CONCLUSION: NCAA market is well-calibrated at this stage. No actionable edges.
+  NEXT SCAN: Run at 17:00 UTC March 17 (noon ET) when more Round 1 lines may mature.
+  Credits used: 351 total (19,649 remaining).
+
+### Soccer Sniper Schedule (Session 94)
+
+  UCL March 17 launcher created: /tmp/ucl_sniper_launcher.sh
+  PID tracked at: /tmp/ucl_launcher.pid  
+  Auto-starts at 17:25 UTC → runs soccer_sniper_paper.py --series KXUCLGAME --date 26MAR17
+  Games: SPO@64c (17:45), ARS@77c + MCI@67c (20:00)
+  Expected: ~40% MID_GAME rate = 2-3 paper bets placed
+  Gate: 3+ paper wins before live activation
+
+### maker mode effectiveness (Session 94 analysis)
+
+btc_drift uses maker_mode=True (post_only=True, 30s expiry). Taker fallback on rejection.
+Session 94 observation: 4 post_only rejections in 40 min = ~6/hr rejection rate for drift.
+At $0.01/bet, fee savings are negligible. Maker mode matters most at Stage 1+ bet sizes.
+If btc_drift is promoted to Stage 1 ($5/bet): post_only saves ~7c fee per $5 bet = 1.4%.
+This is meaningful edge (1.4% = roughly 1/3 of the 4% minimum edge threshold).
+
+### REVISED PRIORITY STACK (Session 94)
+
+1. UCI sniper March 17 at 17:25 UTC (auto-launcher running, bot in background)
+2. NCAA scanner at 17:00 UTC March 17 (lines may mature, check for 3%+ edges)
+3. March 18: UCL March 18 sniper (BAR@62c, BMU@72c, LFC@76c)
+4. XRP drift YES-only graduation: need 9 more YES bets (~March 20-21)
+5. btc_drift Stage 1 promotion: ALL criteria met, awaiting Matthew decision
+6. ETH orderbook OOS: need 20+ post-filter paper bets (passive, ~7-10 days)
+7. CPI speed-play: April 10 08:30 ET
+8. GDP speed-play: April 23-24 (check April 23-24)
+9. eth_drift: watch 20 more YES bets before deciding direction flip
+
+DEAD ENDS (additions Session 94):
+  NCAA tournament favorites at 90c+ (market well-calibrated, <0.5% edge vs Pinnacle sharp)
+
+
+---
+
+## SESSION 94 CONTINUATION FINDINGS (2026-03-17 01:30 UTC)
+
+### Guard Stack Comprehensive Audit
+
+Ran full sniper bucket analysis (all assets, both sides, n>=3, net negative P&L):
+
+CONFIRMED GUARDED — all 7 identified loss buckets:
+  KXSOL YES@94c: IL-10C (n=12, 92% WR, -7.28 USD)
+  KXSOL YES@96c: IL-10 "96c both sides" (n=3, 67% WR, -18.51 USD)
+  KXSOL YES@97c: IL-19 (n=8, 88% WR, -17.18 USD)
+  KXSOL YES@99c: IL-5 "all 99c" (n=4, 75% WR, -14.85 USD)
+  KXXRP YES@94c: IL-10A (n=15, 93% WR, -9.09 USD)
+  KXXRP YES@95c: IL-20 (n=10, 90% WR, -14.27 USD)
+  KXXRP YES@97c: IL-10B (n=6, 83% WR, -18.04 USD)
+
+Watch-only (n<5, no guard per PRINCIPLES.md):
+  KXXRP YES@90c: n=1, 0% WR, -19.80 USD — single data point, watch only
+  Note: signal_price_cents=None for this trade — may be pre-guard-era slippage event
+
+GUARD STACK STATUS: Complete. No new IL guards needed as of Session 94 continuation.
+
+### Time-of-Day Analysis
+
+Ran UTC-hour analysis on all 535+ sniper bets. Found 8 "bad hours" with negative total P&L.
+
+KEY FINDING: Every single major loss in "bad hours" is from already-guarded price buckets.
+  UTC 22 losses: KXXRP YES@97c (IL-10B) + KXETH YES@86c (slippage guard)
+  UTC 13 losses: KXXRP YES@94c (IL-10A) + KXXRP NO@98c (IL-10 98c-NO)
+  UTC 08 losses: KXXRP YES@90c (n=1 watch-only) + KXXRP YES@95c (IL-20)
+  UTC 06 losses: KXSOL YES@96c (IL-10) + KXSOL YES@97c (IL-19)
+
+CONCLUSION: Time-of-day filtering is NOT needed. Bad hours are artifacts of pre-guard-era
+  losses from specific price buckets. New bets in those hours will no longer hit those buckets.
+  The IL guard stack is the correct and sufficient solution.
+
+### Fee Analysis — CRITICAL FINDING
+
+All-time fees paid: 89.68 USD across all strategies:
+  expiry_sniper_v1: 82.63 USD in fees (82% of all fees) on 536 bets
+  eth_drift_v1: 3.78 USD | sol_drift_v1: 2.48 USD | btc_drift_v1: 0.78 USD | xrp_drift_v1: 0.34 USD
+
+CRITICAL: Gross P&L (before fees) = 45.96 + 89.68 = 135.64 USD. Target is +125 USD.
+  We have already EXCEEDED the target on a gross basis.
+  Fees are the ONLY gap between current +45.96 USD and +125 USD target.
+
+Sniper fee rate: ~1.0-1.1% of notional consistently across all price buckets.
+Sniper net/bet: 0.1919 USD | Fee/bet: 0.1542 USD | Gross/bet: 0.3461 USD
+Fees cut sniper performance NEARLY IN HALF (fees = 45% of gross profit).
+
+Path to target at current rate:
+  Need 79.04 USD more
+  At 0.1919 USD/bet net: ~412 more sniper bets
+  At ~18 sniper bets/day: ~23 days to reach +125 USD
+
+Fee reduction lever:
+  btc_drift and eth_drift already have maker_mode=True (post_only, 30s expiry, taker fallback)
+  sol_drift and xrp_drift do NOT have maker_mode (missing from main.py config)
+  sol_drift fee saved if maker_mode added: ~1.86 USD historically (small)
+  Sniper maker mode: NOT feasible for near-expiry high-confidence trades (need immediate fills)
+  RECOMMENDATION: Add maker_mode=True to sol_drift and xrp_drift for consistency (Matthew approval needed).
+  RECOMMENDATION: Do NOT add maker mode to sniper — execution speed trumps fee savings at 90c+.
+
+### Strategy State at 01:30 UTC March 17
+
+btc_drift: 38 NO-only bets, 57.9% WR, Brier 0.237, +18.68 USD — ALL Stage 1 criteria met
+eth_drift YES: 76 bets, 52.6% WR, Brier 0.250, -4.70 USD | last 20 YES: 60% WR +2.56 USD
+sol_drift NO: 26 bets, 73.1% WR, Brier 0.195, -3.91 USD (large Kelly losses drag P&L)
+xrp_drift YES-only: 21/30 bets, 62% WR, +1.45 USD
+
+### Background Tasks Running (01:30 UTC March 17)
+
+  Bot: PID 65713 ALIVE
+  UCL sniper launcher: PID 75548, sleeping until 17:25 UTC
+  NCAA scanner launcher: PID 85172, sleeping until 17:00 UTC
+  Monitoring cycle: PID 81184 (polybot_monitor_cycle.sh)
+
+### REVISED PRIORITY STACK (Session 94 continuation)
+
+1. UCL sniper March 17 at 17:25 UTC (auto-launcher running PID 75548)
+2. NCAA scanner at 17:00 UTC March 17 (auto-launcher running PID 85172)
+3. March 18: UCL March 18 sniper (BAR@62c, BMU@72c, LFC@76c — need new launcher)
+4. XRP drift YES-only graduation: 21/30, need 9 more (~March 20-21)
+5. btc_drift Stage 1 promotion: ALL criteria met (38 NO-only, 57.9%, Brier 0.237, +18.68 USD)
+   REQUIRES MATTHEW DECISION — do not promote autonomously
+6. Add maker_mode=True to sol_drift and xrp_drift configs (low-risk, Matthew approval needed)
+7. ETH orderbook OOS: passive accumulation, ~7-10 days
+8. CPI speed-play: April 10 08:30 ET
+9. GDP speed-play: April 23-24
+
+DEAD ENDS (additions Session 94 continuation):
+  Time-of-day sniper filtering (bad hours fully explained by already-guarded buckets)
+

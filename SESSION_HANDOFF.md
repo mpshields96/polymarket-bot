@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-17 ~20:00 UTC (Session 93 research wrap — IL-21 guard deployed, 1407 tests passing)
+# Last updated: 2026-03-17 01:45 UTC (Session 94 continuation — IL-22 guard, fee analysis, guard audit)
 # ═══════════════════════════════════════════════════════════════
 
 ## ⚠️ UCL SOCCER SNIPER — TIME-SENSITIVE
@@ -12,9 +12,9 @@
 ## March 18: Same command with --date 26MAR18
 ##   BAR@62c, BMU@72c, LFC@76c eligible (all above 60c threshold)
 
-## COPY-PASTE THIS TO START A NEW SESSION (Session 94)
+## COPY-PASTE THIS TO START A NEW SESSION (Session 95)
 
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 94).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 95).
 
 MANDATORY READING BEFORE ANY ACTION:
   cat SESSION_HANDOFF.md
@@ -22,17 +22,15 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 93 research wrap — 2026-03-17 ~20:00 UTC):
+BOT STATE (Session 94 continuation — 2026-03-17 01:45 UTC):
   Bot RUNNING PID 65713 → /tmp/polybot_session93.log
-  All-time live P&L: +48.42 USD (82% WR, 785 bets total)
-  Today: -6.16 USD early UTC (before today's sniper bets settle)
-  Tests: 1407 passing. Last commit: fd02a5b (feat: IL-21 guard KXXRP NO@92c)
-  Config: MAX_TRADE_PCT=15%, HARD_MAX=20 USD, ALL guards active (IL-5 through IL-21)
-  IL-21 NEW: KXXRP NO@92c BLOCKED (75% WR, needs 92%, asymmetric -19 USD loss risk)
-  STAGE 2: bankroll ~213 USD → sizing.py Stage 2 (100-250 USD) → drift bets cap at 10 USD/bet
-  XRP drift: 30 TOTAL bets (19 YES-only post-filter). Need 11 MORE YES-only bets for Stage 1 eval.
-    direction_filter="yes" already active. Keeping MICRO-live. ETA: ~March 20-21 for 30 YES-only.
-  SOL drift: 34/30 Stage 1 (full Kelly + 20 USD cap, graduated S81)
+  All-time live P&L: +45.96 USD (794 total bets settled, 536 sniper bets)
+  Tests: 1410 passing. Last commit: 53c337c (feat: IL-22 guard KXSOL NO@92c)
+  Guards: IL-5 through IL-22 ALL ACTIVE. Guard stack VERIFIED COMPLETE as of S94.
+  STAGE 2: bankroll ~213 USD → sizing.py Stage 2 → drift bets cap at 10 USD/bet
+  XRP drift: 32 total (21 YES-only post-filter). Need 9 MORE YES-only bets for Stage 1 eval.
+    direction_filter="yes" active. Keeping MICRO-live. ETA: ~March 20-21 for 30 YES-only.
+  SOL drift: 38/30 Stage 1 (full Kelly + 20 USD cap, 71% WR, Brier 0.195)
   Orderbook imbalance: asymmetric filter active (min_yes=52c, max_no=44c). Paper-only, no restart.
   SESSION 90 MONITORING KEY EVENTS (2026-03-16 21:17–23:10 UTC):
   - Bot crashed at 17:22 UTC (PID 18772 → 31365) — Binance.US WebSocket 1011 keepalive timeout
@@ -172,8 +170,12 @@ SESSION 93 KEY FINDINGS (2026-03-17 ~01:40 UTC — MONITORING):
   5. sol_drift HEALTHY: 72% WR, +7.33 USD (strategy_analyzer confirmed).
   6. P&L impact: All-time dropped +65.68 → +48.42 USD due to XRP NO@92c -19.32 USD loss.
 
-PENDING TASKS (Session 94 — PRIORITY ORDER):
-  #0 COMPLETED S93: IL-21 guard deployed (commit fd02a5b). KXXRP NO@92c BLOCKED. 1407 tests pass.
+PENDING TASKS (Session 95 — PRIORITY ORDER):
+  #0 COMPLETED S94: IL-22 guard deployed (commit 53c337c). KXSOL NO@92c BLOCKED. 1410 tests pass.
+  #0b KEY FINDING S94: Gross P&L = +135 USD (target is +125). Fees = 89.68 USD is the only gap.
+      Sniper pays 82.63 USD in taker fees. Fee/bet = 0.15 USD. Net/bet = 0.19 USD. Path: ~412 bets, ~23 days.
+      btc_drift and eth_drift have maker_mode=True. sol_drift and xrp_drift do NOT (missing in main.py).
+      ACTION FOR MATTHEW: Add maker_mode=True to sol_drift and xrp_drift tasks in main.py? (low risk)
   #0 URGENT TODAY: UCL soccer sniper — March 17 start at 17:25 UTC (12:25 CDT):
      python3 scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR17
      SPO@64c (17:45 UTC kickoff), ARS@77c + MCI@67c (20:00 UTC kickoff)
@@ -187,9 +189,9 @@ PENDING TASKS (Session 94 — PRIORITY ORDER):
   #2 Weather strategy DISABLE — confirmed dead end (20 bets, 45% WR, -60 USD paper):
      Next restart: remove weather_* loops from main.py or comment them out.
      Extreme prices (YES@4c, NO@91c) — no 35-65c price guard was applied.
-  #3 XRP drift Stage 1 eval — 19 YES-only bets. Need 11 more YES-only.
-     ETA: March 20-21 (at ~3 YES/day). Brier already 0.232 < 0.25 threshold.
-     IMPORTANT: btc_drift and eth_drift BOTH demoted micro-live in S60 (48%/49% WR).
+  #3 XRP drift Stage 1 eval — 21 YES-only bets. Need 9 more YES-only.
+     ETA: March 20-21 (at ~3 YES/day). Current: 62% WR, Brier 0.235, +1.45 USD.
+     IMPORTANT: btc_drift is micro-live (calibration_max_usd still set — Matthew's call to promote).
   #4 eth_orderbook_imbalance OOS validation — new filter deployed March 17.
      Need 20+ NEW paper bets (post-filter) at 60%+ WR before considering live re-activation.
      Retrospective: 42/64 = 65.6% WR on filtered bets (in-sample). Strong signal.
@@ -226,11 +228,11 @@ PENDING TASKS (Session 94 — PRIORITY ORDER):
      Per PRINCIPLES.md: 37 bets not conclusive (p~0.19). Recommend: watch 20 more bets.
      NOT urgent since eth_drift is micro-live (max $0.65/bet). Just losing slowly.
   #7 btc_drift NO PROMOTION CANDIDATE — Matthew's decision needed:
-     36 NO-only live bets, 58.3% WR, Brier 0.236 (< 0.25 threshold), +18.66 USD
-     MEETS Stage 1 criteria. Currently micro-live (S60 demotion). Upgrade to Stage 1?
-     Command: In main.py find btc_drift trading_loop call, set calibration_max_usd=None
+     38 NO-only live bets, 57.9% WR, Brier 0.237 (< 0.25 threshold), +18.68 USD
+     ALL Stage 1 criteria met. Currently micro-live (S60 demotion). Upgrade to Stage 1?
+     Command: In main.py btc_drift trading_loop, set calibration_max_usd=None
      Risk: bet size goes from 0.40 USD to up to 5 USD. Read PRINCIPLES.md first.
-     eth_drift YES: 74 bets, 51.4% WR, Brier 0.252 (just above 0.25) — NOT ready yet.
+     eth_drift YES: 76 bets, 52.6% WR, Brier 0.250, last 20 at 60% WR — watch more bets.
   #7 SOL YES 93c bucket watch — check at 20+ Stage 1 bets (currently 14 total)
   #8 CPI speed-play — April 10 08:30 ET (scripts/cpi_release_monitor.py)
   #9 KXGDP speed-play — April 30 (GDP release, check April 23-24)
