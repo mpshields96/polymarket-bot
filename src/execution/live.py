@@ -223,6 +223,18 @@ async def execute(
         )
         return None
 
+    # IL-23: XRP YES@98c — 11 bets, 90.9% WR, need 98.0% break-even, -17.89 USD
+    # Pattern: KXXRP YES@94/95/97c already blocked (IL-10A/B/C, IL-20). 98c same structure.
+    # Loss math: win=2c, lose=98c per contract. EV = 0.909×2 - 0.091×98 = -7.1c/contract.
+    # On 20 USD max bet at 98c: EV ≈ -1.42 USD per bet. Structurally unrecoverable.
+    # Confirmed S94 2026-03-17: loss at KXXRP15M-26MAR162230-30 (-19.60 USD) triggered analysis.
+    if "KXXRP" in signal.ticker and price_cents == 98 and signal.side == "yes":
+        logger.info(
+            "[live] KXXRP YES@98c -- structurally negative EV "
+            "(90.9%% WR at 11 bets, needs 98.0%% to break even) -- skip",
+        )
+        return None
+
     # ── Execution-time price guard ────────────────────────────────────────
     # Convert execution price to YES-equivalent for range + slippage checks.
     # Protects against HFT repricing in the asyncio gap after signal generation.

@@ -1559,6 +1559,64 @@ class TestPerAssetStructuralLossGuards:
         assert result is not None
         kalshi.create_order.assert_called_once()
 
+    async def test_xrp_yes_at_98c_blocked(self, live_env, bypass_first_run):
+        """IL-23: KXXRP YES@98c blocked -- 90.9% WR at 11 bets, need 98% break-even, -17.89 USD."""
+        ob = make_orderbook(no_bid=2)  # no_bid=2 -> yes_ask = 98c
+        signal = make_signal(side="yes", price_cents=97, ticker="KXXRP15M-26MAR170000-15")
+        result = await execute(
+            signal,
+            make_market(yes_price=98, no_price=2),
+            ob,
+            5.0,
+            make_kalshi_mock(),
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is None
+
+    async def test_btc_yes_at_98c_not_blocked_by_il23(self, live_env, bypass_first_run):
+        """KXBTC YES@98c is NOT blocked -- IL-23 targets KXXRP only. BTC YES@98c is 100% WR."""
+        ob = make_orderbook(no_bid=2)  # no_bid=2 -> yes_ask = 98c
+        signal = make_signal(side="yes", price_cents=97, ticker="KXBTC15M-26MAR170000-15")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=98, no_price=2),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
+    async def test_eth_yes_at_98c_not_blocked_by_il23(self, live_env, bypass_first_run):
+        """KXETH YES@98c is NOT blocked -- IL-23 targets KXXRP only. ETH YES@98c is 100% WR (16 bets)."""
+        ob = make_orderbook(no_bid=2)  # no_bid=2 -> yes_ask = 98c
+        signal = make_signal(side="yes", price_cents=97, ticker="KXETH15M-26MAR170000-15")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=98, no_price=2),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
 
 # ── post_only taker fallback (S88) ───────────────────────────────────────────
 
