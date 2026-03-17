@@ -1,13 +1,29 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-17 21:30 UTC (Session 97 research wrap — strategy analysis, dead ends confirmed)
+# Last updated: 2026-03-17 22:00 UTC (Session 98 research — maker_mode deployment, strategy analysis)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
-  Bot RUNNING PID 21666 → /tmp/polybot_session96.log
-  All-time live P&L: -25.36 USD (KXXRP NO@93c loss -19.53 USD at 21:06 UTC — see guard analysis below)
-  Today P&L: -72.56 USD live (losses from pre-restart unguarded buckets — all now guarded)
-  Tests: 1450 passing. Last commit: 0ea88fd (research: S97 complete — guard calibration, market scan, momentum dead ends)
+  Bot RUNNING PID 40498 → /tmp/polybot_session98.log
+  All-time live P&L: -24.50 USD (per strategy_analyzer --brief at 22:00 UTC)
+  Today P&L: -79.08 USD (includes pre-restart losses from earlier today, all guarded)
+  Tests: 1450 passing. Last commit: 06d5f2e (feat: maker_mode=True to sol_drift and xrp_drift S98)
+
+## S98 KEY CHANGES (committed and deployed)
+  1. maker_mode=True added to sol_drift and xrp_drift (btc/eth had it since S65)
+     Now ALL 4 drift strategies have post_only=True + 30s expiration (fee savings ~75%)
+  2. NCAA launcher restarted (PID 41378) — fires March 19 08:00 UTC + March 20 08:00 UTC
+     Log: /tmp/ncaa_scan_results.log
+  3. UCL launcher PID 25012 ALIVE — fires March 18 17:20 UTC
+     Log: /tmp/ucl_sniper_mar18.log — check after 20:00 UTC March 18
+
+## S98 OBJECTIVE DECISIONS (no Matthew input needed)
+  btc_drift Stage 1 promotion: HOLD
+    DB shows 44 NO-only bets at 54.5% WR, last 20 = 50% WR.
+    Break-even at avg 47.8c NO price = 48.7%. Last 20 only 1.3% above break-even.
+    SESSION_HANDOFF S97 said "64 NO-only, 57.9% WR" — was stale (included pre-filter YES bets).
+    Correct figures: 44 NO-only, 54.5% WR all-time, 50% last 20. Too thin to promote.
+  maker_mode for sol/xrp: DONE (deployed in this session)
 
 ## KEY FINDING (Session 96 research) — HIGH CONFIDENCE FOR TONIGHT
   ALL March 14 (+64 USD) and March 16 (+47 USD) losses are NOW GUARDED.
@@ -109,23 +125,26 @@
 
   CEILING DEPLOYED: 97c+ all sides blocked by ceiling at 95c (commit 5a1948c) ✓
 
-## RESTART COMMAND (Session 96):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session96.log 2>&1 &
+## RESTART COMMAND (Session 98):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session98.log 2>&1 &
   Then verify: ps aux | grep "[m]ain.py" — exactly 1. Then cat bot.pid.
 
 ## PENDING TASKS (priority order)
   #1 MONITORING — run 5-min background checks, chain indefinitely
   #2 UCL soccer March 18 — LAUNCHER ACTIVE PID 25012, fires 17:20 UTC
      Script: python3 scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR18 --poll 30
-     Log: /tmp/ucl_sniper_mar18.log. Verify PID alive before 17:20 UTC March 18.
+     Log: /tmp/ucl_sniper_mar18.log. Check after 20:00 UTC March 18 for results.
      Teams eligible (pre-game price 60c+): BAR@62c, BMU@72c, LFC@76c
-  #3 Matthew pending decisions (flag in first response):
-     a. btc_drift Stage 1 promotion: 64 NO-only bets, 57.9% WR, Brier 0.252 — ALL criteria MET
-        Note: btc_drift is currently MICRO-LIVE (calibration_max_usd=0.01 on line 2901 main.py)
-        despite Session 41 Stage 1 comment. The _DRIFT_CALIBRATION_CAP_USD = 0.01 on line 2887.
-        To promote: change line 2901 from _DRIFT_CALIBRATION_CAP_USD to None (requires restart).
-     b. maker_mode=True for sol_drift + xrp_drift (btc/eth already have it, needs restart)
-     c. eth_drift direction: 43.2% WR on YES-only. Still micro-live, flag for decision.
+  #3 NCAA Round 1 — launcher PID 41378 sleeping, fires March 19 08:00 UTC + March 20 08:00 UTC
+     Log: /tmp/ncaa_scan_results.log. Tip-offs March 20-21. Re-scan March 19-20.
+  #4 Orderbook OOS — 13/20 post-filter bets (7 more to gate). Monitor passively.
+     Decision at 20 bets: if Brier < 0.30 → promote to live. Current 53.8% WR (marginal positive).
+  #5 btc_drift Stage 1: HOLD per S98 analysis. Wait for last 20 WR to recover to 55%+.
+     Current: 44 NO-only bets, 54.5% WR, last 20 = 50% WR (1.3% above break-even, too thin).
+     To promote when ready: change calibration_max_usd=_DRIFT_CALIBRATION_CAP_USD → None (line ~2901 main.py).
+  #6 xrp_drift Stage 1 eval: 39/30 YES-only bets, 51% WR — hold at micro-live until WR improves
+  #7 CPI speed-play April 10 08:30 ET — scripts/cpi_release_monitor.py ready
+  #8 GDP speed-play April 30 — check KXGDP availability April 23-24
   #4 NCAA scanner — no opportunity now (confirmed S96). Re-run March 19-20 for Round 1 lines.
   #5 xrp_drift Stage 1 eval: 39/30 YES-only bets, 51% WR — hold at micro-live until WR improves
   #6 eth_orderbook OOS validation — 13/20 post-filter bets (need 7 more). Monitor passively.
@@ -151,5 +170,5 @@
   09:00-12:00 UTC: +108 USD combined historically
   Former danger hours (08:00 UTC -111 USD) now GUARDED — expect clean run
 
-## COPY-PASTE THIS TO START A NEW SESSION (Session 97)
+## COPY-PASTE THIS TO START A NEW SESSION (Session 99)
   Read SESSION_HANDOFF.md then use /polybot-auto

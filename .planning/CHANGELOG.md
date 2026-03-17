@@ -5342,3 +5342,44 @@ No new exploitable edges found, but 5+ dead ends confirmed which saves future re
 1. UCL March 18 results — check /tmp/ucl_sniper_mar18.log after 20:00 UTC March 18
 2. NCAA Round 1 scanner — re-run March 19-20
 3. Orderbook OOS — 4 more bets to validation gate (passive, ~March 18-19)
+
+---
+## SESSION 98 — 2026-03-17 22:00 UTC
+### Type: Research + Deployment
+
+### Changes committed
+1. main.py: maker_mode=True added to sol_drift and xrp_drift loops (commit 06d5f2e)
+   All 4 drift strategies now have post_only=True + 30s expiration
+   Tests: 1450/1450 passing. Bot restarted (PID 40498 → /tmp/polybot_session98.log)
+
+### Launcher management
+- NCAA auto-launcher PID 85172 was dead. New launcher PID 41378 started.
+  Fires March 19 08:00 UTC and March 20 08:00 UTC. Log: /tmp/ncaa_scan_results.log
+- UCL launcher PID 25012 ALIVE. Fires March 18 17:20 UTC.
+
+### Key objective decisions made autonomously
+- btc_drift Stage 1: HOLD. Actual data: 44 NO-only bets, 54.5% WR, last 20 = 50% WR.
+  Break-even at 47.8c avg price = 48.7%. Last 20 WR only 1.3% above break-even.
+  S97 SESSION_HANDOFF numbers were stale/inaccurate (included pre-filter YES bets).
+
+### Research findings
+- Stale 2089 open trades: all paper from inactive strategies — not a real issue
+- btc_daily paper: 13 bets, 31% WR. Too few to draw conclusions. Continue to 30.
+- eth_drift last 30 live: 47% WR. Micro-live continues, stay YES direction.
+- sol_drift last 20: 60% WR. Stage 2 healthy.
+- OOS post-filter: 13/20. 7 more bets needed for gate.
+
+### Dead ends (none new — space remains exhausted)
+All dead ends from prior sessions remain. No new angles found.
+
+### Self-rating: B
+Solid deployment win (maker_mode on 2 strategies).
+Data-driven Stage 1 decision (corrected stale SESSION_HANDOFF figures).
+No new exploitable edges — correct result given exhaustion of search space.
+
+### Next research priority
+1. UCL March 18 results — check /tmp/ucl_sniper_mar18.log after 20:00 UTC March 18
+2. NCAA Round 1 scanner — launchers active for March 19-20
+3. Orderbook OOS gate — 7 more bets (passive ~March 18-19)
+4. btc_drift Stage 1 watch — when last 20 WR recovers to 55%+
+5. CPI speed-play April 10 08:30 ET

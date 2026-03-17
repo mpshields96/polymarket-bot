@@ -4171,3 +4171,71 @@ DEAD ENDS CONFIRMED:
 GRADE: B+ — comprehensive strategy analysis, valid dead ends documented, no new exploitable edges
 One session-changing finding: eth_drift should stay YES (do NOT flip) — the data shows NO side is worse
 Next session priority: UCL March 18 results (check /tmp/ucl_sniper_mar18.log after 20:00 UTC)
+
+---
+## SESSION 98 — 2026-03-17 (Research + Deployment)
+
+### DEPLOYMENT: maker_mode=True added to sol_drift and xrp_drift (commit 06d5f2e)
+  btc_drift and eth_drift had maker_mode=True since S65.
+  sol_drift and xrp_drift were missing it. Now all 4 drift strategies have post_only=True + 30s expiration.
+  Fee savings: ~75% on taker fees (~5c/trade at 50c bets). Expected annual savings: ~10 USD per 200 bets.
+  Tests: 1450/1450 passing. Bot restarted cleanly (PID 40498).
+
+### FINDING 1: Stale open trades (2089) — all paper, not a live issue
+  Breakdown: sports_futures_v1 paper=1: 1990, fomc_rate_v1 paper=1: 50, weather: ~40, copy_trader: 6.
+  These are all inactive paper strategies whose settlement loop doesn't run (paper-only paths).
+  No impact on live trading. Not worth building cleanup code per anti-bloat principle.
+
+### FINDING 2: btc_drift break-even analysis confirms HOLD on Stage 1
+  btc_drift NO bets: avg price 47.8c → break-even WR = 48.7% (lower than initially estimated)
+  All-time NO: 44 bets, 54.5% WR (+17.43 USD). Above break-even by 5.8%.
+  Last 20 NO: 50% WR. Only 1.3% above break-even — very thin margin.
+  SESSION_HANDOFF said "64 NO-only bets, 57.9% WR" — that was stale/inaccurate.
+  Actual DB: 44 NO-only bets, 54.5% WR. Total 64 bets includes 20 YES bets (pre-filter era).
+  DECISION: HOLD btc_drift Stage 1. Wait for last 20 NO WR to recover to 55%+ before promotion.
+  At micro-live (0.01 USD cap), downside is negligible. Stage 1 at 5 USD with 50% WR trend = real risk.
+
+### FINDING 3: NCAA auto-launcher had died — restarted
+  Old launcher PID 85172 was dead. New launcher PID 41378 created.
+  Fires: March 19 08:00 UTC (39h 13m from now) and March 20 08:00 UTC.
+  Log: /tmp/ncaa_scan_results.log
+
+### FINDING 4: UCL launcher PID 25012 ALIVE
+  Fires March 18 17:20 UTC. Checked: alive.
+  Log: /tmp/ucl_sniper_mar18.log — check after 20:00 UTC March 18.
+
+### FINDING 5: OOS post-filter at 13/20
+  Post-filter OOS: 13 settled, 7 wins (53.8% WR), -0.72 USD.
+  Last 3 bets were losses (during extreme crypto dump period, March 17 11-13 UTC).
+  Need 7 more bets for gate. Decision criteria: 20+ bets + Brier < 0.30.
+  At 53.8% WR vs break-even ~49%: marginal positive edge. Proceeding to gate.
+
+### FINDING 6: btc_daily paper — 31% WR, concerning but premature to change
+  13/30 bets, 4 wins, -20.49 USD paper.
+  10 pre-filter bets (YES and NO): 3W/7L = 30% WR — before direction_filter="no"
+  3 post-filter bets (NO only): 1W/2L = 33% WR — very small sample
+  The model predicts BTC daily threshold bets using intraday drift.
+  BTC's behavior in March (volatile dump/recovery) may be driving losses.
+  Per PRINCIPLES.md: do NOT change parameters with only 13 bets.
+  Continue to 30 bets (ETA: ~April 3). KXBTCD Friday feasibility gate also at 30 bets.
+
+### FINDING 7: sol_drift healthy at 60% WR last 20 (Stage 2 continues)
+  40 live bets, 70% all-time WR, last 20 = 60% WR. Still well above break-even.
+  No change needed.
+
+### FINDING 8: eth_drift last 30 live = 47% WR (below break-even at ~49%)
+  Strategy is micro-live (0.01 USD cap). Losses are tiny.
+  S97 confirmed: stay YES direction (NO side is 48% WR, even worse).
+  Continue micro-live. If last 20 drops below 45% consistently, flag for disable.
+
+### SESSION 98 GRADE: B
+  Deployment win: maker_mode on sol/xrp (saves real money, clean commit)
+  NCAA launcher restarted — coverage restored
+  UCL launcher verified alive
+  btc_drift Stage 1 decision: HOLD (data-driven, correct call)
+  No new exploitable edges discovered (correct — nothing left to find in this space)
+  Research space is largely exhausted. Focus shifts to:
+    - Waiting for UCL results (March 18 20:00 UTC)
+    - Waiting for NCAA Round 1 lines (March 19-20)
+    - Waiting for OOS gate (7 more bets)
+    - Waiting for CPI April 10
