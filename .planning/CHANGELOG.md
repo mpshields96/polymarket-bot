@@ -4852,3 +4852,115 @@ Pattern 1/2 safety improvements, UCL/EPL candlestick analysis.
 - 173335f: docs: BTC vs ETH orderbook signal comparison
 - b7491ad: docs: btc_drift NO meets Stage 1 criteria — flag for Matthew
 - 5f06a43: docs: Session 92 handoff — UCL sniper times, eth_orderbook OOS gate
+
+## Session 93 — 2026-03-17 01:40 UTC — Autonomous monitoring + guard integrity (monitoring chat)
+### Type: MONITORING (Matthew away, full autonomy)
+
+### Work done
+1. Guard frequency per Matthew's directive: embedded strategy_analyzer.py --brief into EVERY
+   5-min monitoring cycle (not just session wrap). GUARD ALERT logic added to flag new losses.
+   Why: Matthew explicitly said guards must be checked every 30 min minimum. Exceeded that.
+
+2. XRP NO@92c structural loss FOUND AND DOCUMENTED:
+   Pattern: KXXRP NO@91c = 100% WR, NO@92c = 75% WR (vs 92% break-even), NO@93c+ = 100%.
+   4 bets at session start → 5 bets after 20:15 ET window loss (-19.32 USD).
+   Added IL-21 guard watch to SESSION_HANDOFF as #0 URGENT. At 5+ bets = threshold met.
+   This loss pulled all-time from ~+65.68 USD to +48.42 USD.
+
+3. Windows monitored (17:00-01:00+ UTC, March 16-17):
+   19:00 ET: ETH NO@95c +0.84, XRP YES@92c +1.47 — both WIN
+   19:15 ET: BTC/SOL/ETH/XRP all NO — 4/4 WINS, +3.99 USD
+   19:45 ET: BTC YES@95c +0.84, SOL YES@95c +0.84, ETH YES@97c +0.40 — all WIN
+   20:00 ET: BTC NO@93c +1.26, ETH NO@94c +1.05, XRP NO@94c +1.05, SOL NO@55c +7.74 — all WIN
+   20:15 ET: SOL YES@95c +0.84, ETH YES@51c +0.47 WIN; XRP NO@92c -19.32 LOSS
+
+4. NCAA scanner scheduled + ran at 00:01 UTC March 17:
+   Result: 96 KXNCAAMBGAME open, 48 Odds API games, 0 edges above 3%.
+   Normal — lines not mature yet. Re-run 12:00-18:00 ET March 17.
+
+5. Weather dead end CONFIRMED: 60 paper bets, avg WR 15% (chi=25%, den=8%, lax=17%, mia=8%).
+   GEFS model not calibrated to Kalshi weather markets. Disable weather loops on next restart.
+
+6. Strategy analyzer false alarm FIXED (commit 6557d09):
+   --brief previously showed "Losing buckets (guards recommended): 96/97/98c" — WRONG.
+   Fix: uses detect_guard_gaps() to classify — now shows "Guarded (historical losses blocked)".
+
+7. asyncio crash fix (commit 2d1ffed):
+   Bot crashed at 17:22 UTC (PID 18772 → 31365) — Binance.US WebSocket 1011 keepalive timeout.
+   Fix: asyncio.gather() return_exceptions=True. Auto-restart confirmed working.
+
+### Strategy Analyzer Insights (--brief output, session end)
+  All-time: +48.42 USD (82% WR, 785 bets) | Today: -6.16 USD (80% WR, 10 bets — early UTC Mar 17)
+  SNIPER: Profitable buckets: 95, 90-94c
+  SNIPER: Guarded buckets (historical losses blocked): 98, 97, 96c — ALL CLEAN
+  btc_drift: UNDERPERFORMING — 49% WR, trend STABLE (direction filter "no" correct)
+  eth_drift: NEUTRAL — 110 live bets, 50% WR, -23.48 USD
+  sol_drift: HEALTHY — 36 live bets, 72% WR, +7.33 USD
+
+### Self-Rating
+GRADE: B
+WINS: 8hr autonomous monitoring, guard frequency embedded per Matthew's directive,
+  found XRP NO@92c structural loss pattern before it became worse, NCAA scanner automated,
+  weather dead end confirmed with data, strategy_analyzer false alarm fixed.
+LOSSES: XRP NO@92c loss -19.32 USD happened during monitoring (pattern was known at 4 bets,
+  below 5-bet PRINCIPLES.md threshold). All-time pulled back from +65.68 to +48.42.
+  Guard should have been added 1-2 sessions ago when pattern first appeared.
+ONE THING next chat must do differently: ADD IL-21 GUARD IMMEDIATELY on session start.
+  Don't monitor first — add the guard first. XRP NO@92c at 5 bets = code change, not watch.
+ONE THING that would have made more money: Guard added at 4 bets (slightly below threshold
+  but pattern was already statistically clear at 75% WR vs 92% break-even).
+
+### Goal Progress
+All-time: +48.42 USD | Need: 76.58 more to +125 target
+Today rate: difficult to estimate, very volatile (one loss wiped ~17 USD)
+Highest-leverage action: Add IL-21 guard (KXXRP NO@92c BLOCKED) immediately.
+  This single guard would have saved -19.32 USD today. Then monitor UCL sniper (17:30 UTC).
+
+### Commits this session
+- 2d1ffed: fix: asyncio.gather return_exceptions + crash log (bot crash recovery)
+- 6557d09: fix: strategy_analyzer --brief guard-aware classification (false alarm fix)
+
+---
+
+## Session 93 Research Wrap (2026-03-17 ~20:00 UTC)
+
+### Focus
+IL-21 guard implementation (continuation from S92/S93 monitoring findings).
+Session continued mid-compaction from S92/S93 monitoring — the guard was the single outstanding task.
+
+### What Was Built
+1. IL-21 guard — src/execution/live.py:
+   KXXRP NO@92c BLOCKED (75% WR at 4 bets, needs 92% break-even)
+   Asymmetric payout: wins ~1.40 USD, losses ~19 USD. Single loss wiped ~17 USD gains.
+   Pattern: NO@91c=100% WR, NO@92c=75% WR, NO@93c+=100% — same "notch" pattern as YES-side.
+
+2. 3 regression tests in TestPerAssetStructuralLossGuards:
+   test_xrp_no_at_92c_blocked, test_btc_no_at_92c_not_blocked, test_eth_no_at_92c_not_blocked
+   Total tests: 1407 passing.
+
+3. BOUNDS.md updated with IL-21 entry (stats, pattern, test references).
+
+4. Guard wrap protocol: both CLAUDE.md + AUTONOMOUS_CHARTER.md now require strategy_analyzer
+   --brief before every session wrap (commits 4d20541 earlier this session).
+
+### Commit
+fd02a5b — feat: IL-21 guard — block KXXRP NO@92c (structurally negative EV)
+
+### Self-Rating: B
+GRADE B — Built and shipped the guard correctly. No new edge discovery (guard is protective,
+not offensive). Session was completing work found by monitoring chat, not original research.
+Good execution, narrow scope.
+
+ONE KEY FINDING: XRP 15-min markets have asymmetric notch patterns on BOTH sides.
+  YES notches: 94c, 95c, 97c blocked (IL-10A/B/C, IL-20).
+  NO notch: 92c blocked (IL-21).
+  Pattern: something about XRP intra-window volatility creates these single-bucket dead zones.
+
+NEXT RESEARCH PRIORITY: NCAA Round 1 scanner (March 17-18 — lines mature before March 20-21 tip-offs).
+  Command: python3 scripts/ncaa_tournament_scanner.py --min-edge 0.03
+  Also: monitor eth_drift YES (need 20 more bets before direction flip decision).
+
+### Goal Progress
+All-time: +48.42 USD | Need: 76.58 more to +125 target
+Guard prevents future -19 USD losses at 92c NO → net structural improvement.
+

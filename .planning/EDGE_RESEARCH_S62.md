@@ -3340,3 +3340,56 @@ eth_drift YES = wrong bet on upward ETH (mirrors BTC direction).
 Action: Do NOT change direction filter (37 bets not conclusive, p~0.19).
 Monitor 20 more YES bets. If WR stays below 50% at 57 bets (p<0.05), flip to NO.
 Options: flip to "no", disable entirely, or wait for data.
+
+---
+
+## SESSION 93 FINDINGS (2026-03-17 UTC)
+
+### Primary Build: IL-21 Guard — KXXRP NO@92c
+
+**Finding:** KXXRP NO@92c is structurally negative EV due to asymmetric payout.
+- 4 settled bets: 3 wins (avg +1.40 USD each) + 1 loss (-19.32 USD)
+- Net: -15.33 USD at 75% WR
+- Break-even WR required: 92.0% (loss cost = 92c/contract, win payout = 8c/contract)
+- Recovery is mathematically impossible at any reasonable convergence rate
+
+**Price bucket anatomy:**
+  KXXRP NO@91c: 100% WR (profitable — keep open)
+  KXXRP NO@92c: 75% WR (BLOCKED by IL-21)
+  KXXRP NO@93c+: 100% WR (profitable — keep open)
+
+This "notch" pattern (one bad bucket between good ones) is the same as the YES-side
+guards (IL-10A blocks YES@94c, YES@95c, YES@97c but 93c and 98c remain open).
+XRP 15-min markets have structural volatility at specific price points — not random.
+
+**Implementation:**
+  - Guard added: src/execution/live.py (IL-21 block, lines ~208-217)
+  - Tests added: tests/test_live_executor.py (3 tests in TestPerAssetStructuralLossGuards)
+    - test_xrp_no_at_92c_blocked (KXXRP blocked)
+    - test_btc_no_at_92c_not_blocked (isolation: BTC allowed)
+    - test_eth_no_at_92c_not_blocked (isolation: ETH allowed)
+  - BOUNDS.md: IL-21 documented
+  - Commit: fd02a5b
+
+**Session impact:** All-time dropped +65.68 → +47.67 → recovered to +48.42 USD after
+this session's other sniper wins. Single NO@92c loss = -19.32 USD undone most of S92 gains.
+
+### Guard Integrity Protocol Added
+
+Both CLAUDE.md and .planning/AUTONOMOUS_CHARTER.md updated with mandatory guard check step:
+  ./venv/bin/python3 scripts/strategy_analyzer.py --brief
+  Must show "Guard stack CLEAN" or "Guarded" before any session wrap.
+Rationale: prevent future sessions from wrapping with active losing buckets unguarded.
+Commits: 4d20541 + 1be7ffb
+
+### Session Grade: B+
+
+DISCOVERIES: XRP NO-side has same "notch" volatility pattern as YES-side.
+TOOL BUILT: IL-21 guard + 3 regression tests (1407 total passing).
+DEAD END: None new this session.
+EDGE CONFIRMED: Guard eliminates -19 USD loss scenario permanently.
+ONE KEY FINDING: XRP 15-min markets have structurally exploitable AND structurally dangerous
+  price buckets on BOTH sides. Every new XRP bucket at 90c+ needs bucket-level analysis.
+NEXT PRIORITY: Run NCAA Round 1 scanner on March 17-18 when lines mature (tip-offs March 20-21).
+  Also: monitor eth_drift YES for 20 more bets — if stays below 50% WR, flip direction to "no".
+

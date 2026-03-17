@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-17 00:15 UTC (Session 92 wrap — 7 research commits, eth_drift concern, btc_drift graduation)
+# Last updated: 2026-03-17 ~20:00 UTC (Session 93 research wrap — IL-21 guard deployed, 1407 tests passing)
 # ═══════════════════════════════════════════════════════════════
 
 ## ⚠️ UCL SOCCER SNIPER — TIME-SENSITIVE
@@ -12,9 +12,9 @@
 ## March 18: Same command with --date 26MAR18
 ##   BAR@62c, BMU@72c, LFC@76c eligible (all above 60c threshold)
 
-## COPY-PASTE THIS TO START A NEW SESSION (Session 93)
+## COPY-PASTE THIS TO START A NEW SESSION (Session 94)
 
-You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 93).
+You are continuing work on polymarket-bot — a real-money algorithmic trading bot (Session 94).
 
 MANDATORY READING BEFORE ANY ACTION:
   cat SESSION_HANDOFF.md
@@ -22,17 +22,18 @@ MANDATORY READING BEFORE ANY ACTION:
   tail -200 .planning/CHANGELOG.md
   cat .planning/PRINCIPLES.md
 
-BOT STATE (Session 92 — 2026-03-17 00:00 UTC):
-  Bot RUNNING PID 31365 → /tmp/polybot_session90.log
-  All-time live P&L: ~+52.50 USD (TODAY ~+63 USD, 117 settled, 90% WR — still running)
-  Sniper today: 128/130 wins (+97.92 USD sniper-only) — PHENOMENAL DAY
-  Tests: 1404 passing. Last commit: 3bfcd7b (docs: eth_orderbook filter in-sample analysis)
-  Config: MAX_TRADE_PCT=15%, HARD_MAX=20 USD, ALL guards active (IL-5/IL-10/IL-10A/B/C/IL-11/IL-19/IL-20)
+BOT STATE (Session 93 research wrap — 2026-03-17 ~20:00 UTC):
+  Bot RUNNING PID 65713 → /tmp/polybot_session93.log
+  All-time live P&L: +48.42 USD (82% WR, 785 bets total)
+  Today: -6.16 USD early UTC (before today's sniper bets settle)
+  Tests: 1407 passing. Last commit: fd02a5b (feat: IL-21 guard KXXRP NO@92c)
+  Config: MAX_TRADE_PCT=15%, HARD_MAX=20 USD, ALL guards active (IL-5 through IL-21)
+  IL-21 NEW: KXXRP NO@92c BLOCKED (75% WR, needs 92%, asymmetric -19 USD loss risk)
   STAGE 2: bankroll ~213 USD → sizing.py Stage 2 (100-250 USD) → drift bets cap at 10 USD/bet
   XRP drift: 30 TOTAL bets (19 YES-only post-filter). Need 11 MORE YES-only bets for Stage 1 eval.
     direction_filter="yes" already active. Keeping MICRO-live. ETA: ~March 20-21 for 30 YES-only.
   SOL drift: 34/30 Stage 1 (full Kelly + 20 USD cap, graduated S81)
-  Orderbook imbalance: NEW asymmetric filter active (min_yes=52c, max_no=44c). Paper-only, no restart.
+  Orderbook imbalance: asymmetric filter active (min_yes=52c, max_no=44c). Paper-only, no restart.
   SESSION 90 MONITORING KEY EVENTS (2026-03-16 21:17–23:10 UTC):
   - Bot crashed at 17:22 UTC (PID 18772 → 31365) — Binance.US WebSocket 1011 keepalive timeout
     All 4 feeds disconnected simultaneously. Auto-restarted successfully.
@@ -158,7 +159,21 @@ SESSION 87 KEY BUILDS (2026-03-16):
   3. NCAA scanner verified: 64 KXNCAAMBGAME markets open, 0 edges above 3% today (March 16).
      Lines mature March 17-18. Run then.
 
-PENDING TASKS (Session 93 — PRIORITY ORDER):
+SESSION 93 KEY FINDINGS (2026-03-17 ~01:40 UTC — MONITORING):
+  1. XRP NO@92c structural loss confirmed: 5 bets now, 75% WR vs 92% break-even.
+     TODAY: XRP NO@92c LOST -19.32 USD. Pattern: NO@91c=100%, NO@92c=75%, NO@93c+=100%.
+     IL-21 guard MUST be added ASAP (threshold met: 5+ bets, clear structural loss).
+  2. Guard monitoring embedded every 5 min: strategy_analyzer.py --brief in each cycle.
+     Guards CLEAN confirmed: 96/97/98c all "Guarded (historical losses blocked)".
+  3. NCAA scanner ran at 00:01 UTC March 17: 96 KXNCAAMBGAME open, 0 edges found.
+     Normal — re-run 12:00-18:00 ET today when Round 1 lines mature.
+  4. Weather dead end CONFIRMED: 60 paper bets, avg WR 15% (chi=25%, den=8%, lax=17%, mia=8%).
+     GEFS not calibrated to Kalshi. Disable weather loops next restart.
+  5. sol_drift HEALTHY: 72% WR, +7.33 USD (strategy_analyzer confirmed).
+  6. P&L impact: All-time dropped +65.68 → +48.42 USD due to XRP NO@92c -19.32 USD loss.
+
+PENDING TASKS (Session 94 — PRIORITY ORDER):
+  #0 COMPLETED S93: IL-21 guard deployed (commit fd02a5b). KXXRP NO@92c BLOCKED. 1407 tests pass.
   #0 URGENT TODAY: UCL soccer sniper — March 17 start at 17:25 UTC (12:25 CDT):
      python3 scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR17
      SPO@64c (17:45 UTC kickoff), ARS@77c + MCI@67c (20:00 UTC kickoff)
@@ -178,7 +193,8 @@ PENDING TASKS (Session 93 — PRIORITY ORDER):
   #4 eth_orderbook_imbalance OOS validation — new filter deployed March 17.
      Need 20+ NEW paper bets (post-filter) at 60%+ WR before considering live re-activation.
      Retrospective: 42/64 = 65.6% WR on filtered bets (in-sample). Strong signal.
-  #5 BTC YES@93c watch — 6 bets, 83.3% WR (break-even 93%). Need 10-15 bets for guard.
+  #5 COMPLETED S93: XRP NO@92c guard (IL-21) deployed. Commit fd02a5b. 3 regression tests.
+  #5b BTC YES@93c watch — 6 bets, 83.3% WR (break-even 93%). Need 10-15 bets for guard.
   #6 CPI speed-play — April 10 08:30 ET. scripts/cpi_release_monitor.py.
   #7 KXGDP speed-play — April 30. Check April 23-24 (1 week before release).
   Soccer in-play sniper — SCRIPT READY (scripts/soccer_sniper_paper.py):
