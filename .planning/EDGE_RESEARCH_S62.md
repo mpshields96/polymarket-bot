@@ -4009,13 +4009,57 @@ No structural concern. Continue Stage 1. Next check: if last 10 drops below 50%,
 Trend: 50% → 50% → 40%. Hold at micro-live. If last 10 stays below 45%, flag for disable.
 Do NOT promote to Stage 1 — last 20 = break-even, last 10 = losing.
 
+### FINDING 7: Kalshi market scan — no new high-volume series available
+
+Scanned 9054 series. Checked: KXINXI (SPX hourly), NASDAQ100I, KXSOLD, KXGDP, KXCPI.
+All either 0 open markets (US market hours only) or 0 volume.
+KXINXI/NASDAQ100I: US stock market hours only — not actionable overnight.
+KXGDP/KXCPI: 0 volume between release dates (only liquid near event).
+KXSOLD: 0 volume (SOL directional thresholds).
+Conclusion: Our 4 crypto 15-min series remain the only liquid continuous markets.
+
+### FINDING 8: Sniper price bucket analysis — guards correctly calibrated
+
+Detailed analysis of NO@91-92c performance by asset:
+  BLOCKED (below break-even): XRP NO@91c (80% WR), BTC NO@91c (85.7% WR), XRP NO@92c (75% WR), SOL NO@92c (66.7% WR)
+  UNGUARDED (profitable): ETH NO@91c (100% WR), SOL NO@91c (100% WR), ETH NO@92c (100% WR), BTC NO@92c (100% WR)
+
+Guards IL-21/22/31/32 are correctly blocking the specific losing buckets. Unguarded buckets are all profitable.
+No new IL guards needed. Guard structure is optimal.
+
+### FINDING 9: YES/NO direction split — no persistent bias
+
+Direction split: 51.7% YES (crypto UP) windows vs 48.3% NO (DOWN) windows.
+WR: YES=96.9%, NO=97.2% — essentially identical.
+Per-bet avg: YES=0.528 USD, NO=0.421 USD (YES slightly higher due to payout structure).
+Conclusion: No direction filter on sniper warranted. Symmetric edge.
+
+### FINDING 10: Continuation momentum — dead end confirmed
+
+Run rate: 34-41% of sniper bets followed by W+1 in next window.
+WR in runs vs isolated: statistically identical (~95-98%).
+Price in runs: ~0.5c lower than isolated (trivial difference).
+Maker pre-placement not viable: confirms prior dead end (sniper needs immediate taker fills at expiry).
+
+### FINDING 11: Orderbook OOS last 3 bets all LOSSES — possible volatility correlation
+
+Last 3 post-filter OOS bets (11:00-12:33 UTC March 17) were all LOSSES.
+These occurred during the extreme crypto dump (04:15-08:46 UTC dump period aftermath).
+Hypothesis: orderbook imbalance signal reliability degrades during extreme volatility.
+CURRENT ACTION: Do NOT add filter. Wait for 30+ post-filter bets per PRINCIPLES.md.
+Overall 62.5% WR (10/16) still above break-even despite the 3-bet losing streak.
+WATCH: if next 4 OOS bets (needed for gate) continue to be losses → investigate further.
+
 ### SESSION 97 GRADE: B+
   Systematic strategy review during monitoring drought period
   Identified eth_drift as potential disable candidate (both directions near 50%)
   Confirmed orderbook OOS at 16/20 — nearly validated, flag approaching
   Flagged btc_drift declining WR trend (54.5% → 50% last 20) — Stage 1 caution
-  UCL and sniper performing nominally well
-  No new edges found (correct — none available in current monitoring window)
+  Confirmed guard structure is correctly calibrated (no new guards needed)
+  Confirmed no new high-volume Kalshi series available
+  Confirmed no continuation momentum edge (sniper pre-placement dead end)
+  UCL launcher PID 25012 alive, fires 17:20 UTC March 18
+  Post-restart sniper: 11/11 wins (100% WR), +13.36 USD — on track for March 14/16 style overnight
 
 
 ---
