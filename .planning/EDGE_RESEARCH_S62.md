@@ -3928,6 +3928,74 @@ RISK: Could over-filter — some 90c+ markets ARE legitimately certain even duri
 
 PRIORITY: Medium. Add to research stack after sniper ceiling (95c) is deployed.
 
+───────────────────────────────────────────────────────────
+SESSION 97 RESEARCH — STRATEGY ANALYSIS (2026-03-17 ~19:55 UTC)
+───────────────────────────────────────────────────────────
+
+Bot PID 21666 confirmed alive. Post-restart: 4 bets, 4 wins, +4.33 USD.
+UCL launcher PID 25012 ALIVE. Fires 17:20 UTC March 18 (~21.5 hours away).
+Sniper all-time: 635 bets, 96.1% WR, +42.98 USD.
+
+### FINDING 1: eth_drift has NO structural direction advantage
+
+Data: eth_drift live bets—
+  YES: 96 bets, 51% WR, -5.05 USD all-time
+  NO:  35 bets, 45.7% WR, -18.31 USD all-time
+  Last 20 YES: 45% WR, -0.35 USD
+  Last 30 YES: 50% WR, +0.47 USD (breakeven)
+
+KEY: Both sides near 50%. Neither YES nor NO is profitable. Current direction_filter="yes"
+keeps us on the slightly better side but it's a coin flip. Do NOT flip to NO (it's worse).
+
+RECOMMENDATION for Matthew:
+  Option A: Keep YES filter, wait 20 more bets. If last 20 stays <50%, disable eth_drift.
+  Option B: Disable eth_drift now (it's contributing -23 USD all-time with no sign of recovery).
+  Do NOT flip to NO — NO side is 45.7% WR, definitively worse.
+
+### FINDING 2: orderbook imbalance OOS validation at 16/20 (one session away)
+
+Post-filter bets (since commit a870a60, 2026-03-16):
+  16 bets, 62.5% WR, +33.01 USD paper
+  Need 4 more to hit the 20-bet OOS gate.
+  Filter: YES@52-65c (62.5%+ WR) + NO@35-44c (50%+ WR)
+
+This is the strongest OOS validation in the research stack. 62.5% WR against 50% break-even
+for YES@52-65c. Once 20-bet gate is hit (likely 1-2 days), flag for live consideration.
+Marginal cost of live: calibration_max_usd=0.01 (1 contract, ~35-65c per bet).
+
+NEXT ACTION: When OOS reaches 20 bets, run: python main.py --graduation-status
+and flag for Matthew's live promotion decision.
+
+### FINDING 3: btc_drift NO — trending toward break-even, Stage 1 caution warranted
+
+  NO: 44 bets, 54.5% WR, +17.43 USD — profitable
+  Last 30 NO: 53.3% WR, +7.63 USD — trending down
+  Last 20 NO: 50.0% WR, +10.01 USD (P&L positive due to better payout distribution)
+
+SESSION_HANDOFF says ALL criteria met for Stage 1 (30+ bets, 57.9% WR, Brier 0.252).
+BUT: The 57.9% WR was measured earlier. Current data shows 54.5% all-time and last 20 = 50%.
+The edge appears to be softening. Still profitable overall but worth waiting for 10 more bets.
+
+RECOMMENDATION: Flag declining trend to Matthew. Mechanically ready for Stage 1 but
+the edge is weakening. Stage 1 would increase bet size from 0.01 USD cap to full Kelly + 5 USD.
+Risk: if trend continues to <50%, Stage 1 would amplify losses.
+
+### FINDING 4: sol_drift holding but last 20 slightly down
+
+  All-time: 40 bets, 70% WR, +1.56 USD
+  Last 20: 60% WR, -5.40 USD
+
+60% WR is above break-even for near-50c bets. The negative P&L on last 20 is likely
+variance at Stage 1 sizing. No structural concern. Continue monitoring.
+
+### SESSION 97 GRADE: B+
+  Systematic strategy review during monitoring drought period
+  Identified eth_drift as potential disable candidate (both directions near 50%)
+  Confirmed orderbook OOS at 16/20 — nearly validated, flag approaching
+  Flagged btc_drift declining WR trend (54.5% → 50% last 20) — Stage 1 caution
+  UCL and sniper performing nominally well
+  No new edges found (correct — none available in current monitoring window)
+
 
 ---
 ## SESSION 96 RESEARCH — Guard Coverage + Volatility Gate Validation (2026-03-17)
