@@ -3900,3 +3900,30 @@ Every sniper bet above 95c is mathematically expected to lose money over time.
   Per-window cap is mathematically sound concentration risk management
   Didn't investigate new edges (UCL, CPI, etc.) — was consumed by loss investigation
 
+
+---
+## FUTURE RESEARCH LEAD — Sniper Volatility Gate (flagged S95)
+
+HYPOTHESIS: Sniper FLB edge (favorites win at 90c+) relies on near-expiry certainty.
+During macro crypto dumps, all assets trend together — certainty breaks down.
+The S95 morning losses (-96 USD) all occurred during a correlated multi-asset dump.
+
+PROPOSED MECHANISM: Volatility gate on the sniper.
+  If BTC+ETH+SOL+XRP are all moving >X% in the same direction in last N minutes → skip sniper.
+  Data source: Binance feed already live in main.py (btc_move_condition already exists).
+  Implementation: simple check in expiry_sniper loop before firing signal.
+
+WHY THIS IS PREDICTIVE NOT REACTIVE:
+  Current guards (IL series) are post-hoc — wait for losses, then block that bucket.
+  Volatility gate detects the market condition that causes losses, blocks preemptively.
+  Analogous to: fee ceiling (also predictive — derived from math before losses accumulate).
+
+VALIDATION PLAN:
+  Paper-mode sniper with/without filter. Compare WR during high-vol vs low-vol windows.
+  Need ~20-30 paper windows per condition to get signal.
+  Threshold candidates: 0.3%, 0.5%, 1.0% coordinated move across 3+ assets in 5 min.
+
+RISK: Could over-filter — some 90c+ markets ARE legitimately certain even during vol.
+  Start with loose threshold, tighten based on data.
+
+PRIORITY: Medium. Add to research stack after sniper ceiling (95c) is deployed.
