@@ -3694,3 +3694,69 @@ Gross P&L (before fees): still positive, but guard trigger events reduced net
 Net all-time: 30.05 USD (down from ~50 USD due to 3 trigger losses totaling -58.87 USD)
 Recovery path: guards ensure these exact buckets never lose again
 Sniper: primary engine still intact. Each guard added = future losses prevented.
+
+---
+
+## SESSION 95 — OVERNIGHT CONTINUATION (2026-03-17 04:41+ UTC)
+
+### Bot Health Check — 04:52 UTC
+
+All-time P&L: 36.57 USD (up from 31.74 at start of this continuation)
+4 sniper positions settled at 00:45 CDT window: BTC NO@95c, ETH NO@93c, SOL NO@94c, XRP NO@91c
+All 4 WON: net gain +4.83 USD.
+Current open: 1 XRP drift YES (settles ~05:00 UTC)
+Guard stack: CLEAN — no new losing buckets detected
+Launchers:
+  PID 5181: UCL March 17, fires 17:24 UTC (ARS/MCI/SPO)
+  PID 6662: NCAA scanner, fires ~16:00 UTC March 17
+  PID 8183: UCL March 18, fires 17:25 UTC (BAR/BMU/LFC)
+
+### Guard Stack Verification
+
+99c+ bets: last fired March 15 03:44 UTC — BLOCKED since then (IL-5 working)
+96-98c: all GUARDED (IL-5 through IL-27)
+95c: PROFITABLE (+16.86 USD, 98% WR, 89 bets)
+90-94c: PRIMARY PROFIT ZONE (+199.13 USD, 98% WR, 287 bets)
+11-89c: Watch-only (two large losses at 83/86c from March 15, likely execution slippage)
+
+No new guards needed after full bucket audit.
+
+### XRP Drift Graduation Watch
+
+YES bets settled: 23. Need 30 for Stage 1 eval. Brier 0.2501 (needs <0.25).
+ETA: March 20-21 based on current rate of ~1-2 bets/day.
+XRP total bets: 35 (11 NO historical + 24 YES). One open YES (26MAR170100-00).
+
+### ETH Drift Analysis — DECISION NEEDED FOR MATTHEW
+
+eth_drift YES performance:
+  All-time YES: 81 bets, 51% WR, -6.03 USD, Brier 0.2511 (barely misses 0.25 threshold)
+  Last 30 YES: 47% WR, -12.83 USD — trending down
+  Calibration: model=0.5 → 49% actual, model=0.6 → 52% actual
+  At avg 50c price with ~1% fee: need 52%+ WR to profit. Getting 51% all-time, 47% recently.
+
+eth_drift NO historical: 35 bets, 46% WR, -18.31 USD — WORSE than YES
+Options: (1) disable eth_drift, (2) keep YES and wait for reversion, (3) flip to NO (worse historical)
+RECOMMENDATION: Disable eth_drift or raise min_edge threshold to only take very high-confidence bets.
+
+### Strategy Performance Summary
+
+expiry_sniper_v1: PRIMARY ENGINE — 90-94c: +199.13 USD (+98% WR), 95c: +16.86 USD (+98% WR)
+sol_drift_v1: STRONG — 40 bets, 70% WR, Brier 0.198. At 0.7 model_prob: 94% actual WR!
+btc_drift NO: SOLID — 41 bets, 56% WR, +18.04 USD. READY for Stage 1.
+xrp_drift YES: DEVELOPING — 23 bets, 57% WR, +0.34 USD. Need 7 more for Stage 1 eval.
+eth_drift YES: WEAK — 81 bets, 51% WR, -6.03 USD. Below break-even after fees.
+eth_orderbook_imbalance: PAPER-ONLY — was 33% WR live (15 bets), disabled Session 47. Correct.
+
+### Speed-Play Scripts Status
+
+CPI: scripts/cpi_release_monitor.py ready. Run April 10 at 08:28 ET.
+  KXCPI markets open (close 04/10 12:25 UTC = 5 min BEFORE BLS release)
+  Speed-play targets KXFEDDECISION-26APR markets (close April 29, open on April 10)
+  Strategy: detect CPI surprise via BLS API, bet KXFEDDECISION before Kalshi reprices.
+  KXFEDDECISION-26APR has no current prices (opens closer to FOMC meeting).
+
+GDP: scripts/gdp_release_monitor.py ready. Run April 30 at 08:25 ET.
+  KXGDP-26APR30 markets open.
+
+NFP: Check KXNFP when opens ~April 2-3 for April 4 release.
