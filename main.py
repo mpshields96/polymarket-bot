@@ -1132,11 +1132,12 @@ from src.models.bayesian_settlement import (
     apply_bayesian_update as _apply_bayesian_update,
     _DRIFT_STRATEGY_NAMES,
 )
+from src.models.temperature_calibration import StrategyCalibrator as _StrategyCalibrator
 
 
 # ── Settlement polling loop ────────────────────────────────────────────
 
-async def settlement_loop(kalshi, db, kill_switch, drift_model=None):
+async def settlement_loop(kalshi, db, kill_switch, drift_model=None, calibrator=None):
     """
     Background loop: detect settled markets and record outcomes in DB.
 
@@ -1204,10 +1205,11 @@ async def settlement_loop(kalshi, db, kill_switch, drift_model=None):
                         else:
                             kill_switch.record_loss(abs(pnl_cents) / 100.0)
 
-                        # ── Bayesian posterior update (live drift bets only) ──────────
-                        # Updates sigmoid parameter estimates after each settled live drift bet.
+                        # ── Bayesian posterior + temperature calibration update ────────
+                        # Bayesian: updates sigmoid parameter estimates after each settled live drift bet.
+                        # Calibrator: updates per-strategy T_s for post-hoc confidence correction.
                         # Sniper / lag bets are excluded — different signal model.
-                        _apply_bayesian_update(drift_model, trade, won)
+                        _apply_bayesian_update(drift_model, trade, won, calibrator=calibrator)
 
             # Auto-export CSV after each settlement poll that found settled trades
             if open_trades:
@@ -2834,6 +2836,21 @@ async def main():
         _drift_model.should_override_static(),
     )
 
+    # ── Temperature calibrator — per-strategy post-hoc confidence correction ──
+    # Session 107: ETH (p=0.015) and XRP (p=0.033) have statistically significant
+    # calibration overconfidence. T_s shrinks overconfident win_probs toward 50%,
+    # reducing Kelly bet size on strategies with no real edge.
+    _calibrator = _StrategyCalibrator()
+    for _drift_strat in [drift_strategy, eth_drift_strategy, sol_drift_strategy, xrp_drift_strategy]:
+        _drift_strat._calibrator = _calibrator
+    logger.info(
+        "[startup] Temperature calibrator loaded — ETH T=%.3f  BTC T=%.3f  SOL T=%.3f  XRP T=%.3f",
+        _calibrator.temperature("eth_drift_v1"),
+        _calibrator.temperature("btc_drift_v1"),
+        _calibrator.temperature("sol_drift_v1"),
+        _calibrator.temperature("xrp_drift_v1"),
+    )
+
     btc_imbalance_strategy = load_btc_imbalance_from_config()
     logger.info("Strategy loaded: %s (paper-only BTC orderbook imbalance)", btc_imbalance_strategy.name)
     eth_imbalance_strategy = load_eth_imbalance_from_config()
@@ -3224,7 +3241,8 @@ async def main():
         name="sol_lag_loop",
     )
     settle_task = asyncio.create_task(
-        settlement_loop(kalshi=kalshi, db=db, kill_switch=kill_switch, drift_model=_drift_model),
+        settlement_loop(kalshi=kalshi, db=db, kill_switch=kill_switch,
+                        drift_model=_drift_model, calibrator=_calibrator),
         name="settlement_loop",
     )
 

@@ -48,6 +48,7 @@ from src.data.binance import BinanceFeed
 
 if TYPE_CHECKING:
     from src.models.bayesian_drift import BayesianDriftModel
+    from src.models.temperature_calibration import StrategyCalibrator
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +113,10 @@ class BTCDriftStrategy(BaseStrategy):
         # When model.should_override_static() (30+ obs), predict() replaces the static sigmoid.
         # None = use static sigmoid (default until posterior has 30+ live observations).
         self._drift_model = None
+        # Per-strategy temperature calibrator — injected by main.py after StrategyCalibrator.load().
+        # Applies a post-hoc shrinkage T_s to prob_yes: corrected = 0.5 + (p - 0.5) * T_s
+        # None = no calibration correction (T_s = 1.0 implicitly).
+        self._calibrator = None
 
     @property
     def name(self) -> str:
@@ -215,6 +220,14 @@ class BTCDriftStrategy(BaseStrategy):
         blend = 1.0 - self._time_weight + self._time_weight * time_factor
         prob_yes = 0.5 + (raw_prob - 0.5) * blend
         prob_yes = max(0.01, min(0.99, prob_yes))
+
+        # ── 6b. Temperature calibration correction ────────────────────
+        # Per-strategy post-hoc correction for systematic overconfidence.
+        # T_s < 1: model overpredicts (shrink toward 50%) — e.g. eth_drift, xrp_drift
+        # T_s > 1: model underpredicts (expand from 50%) — e.g. sol_drift
+        # T_s = 1: no correction (default, or insufficient data)
+        if self._calibrator is not None:
+            prob_yes = self._calibrator.apply(self.name, prob_yes)
 
         # ── 7. Determine best side ────────────────────────────────────
         # Compare edge on both sides; take the better one
