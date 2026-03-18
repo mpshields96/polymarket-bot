@@ -1,12 +1,12 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-18 00:40 UTC (Session 101 — Kelly correlation research + Dim 4 activated)
+# Last updated: 2026-03-18 01:00 UTC (Session 101 — research + monitoring complete)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
-  Bot RUNNING PID 68913 → /tmp/polybot_session101.log (NEW log, Dim 4 active)
-  All-time live P&L: -9.37 USD (tracking, improved from -16.51 at S99 end)
-  Tests: 1511 passing. Last commit: 69ea04c (auto_promotion_check + FLB research)
+  Bot RUNNING PID 68913 → /tmp/polybot_session101.log (restarted 00:32 UTC, Dim 4 active)
+  All-time live P&L: -7.69 USD (improved +4.20 USD during S101: -9.37 → -7.69)
+  Tests: 1531 passing. Last commit: 21c106e (guard_retirement_check Dim 5)
 
 ## S101 KEY CHANGES
 
@@ -75,13 +75,14 @@
   pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session102.log 2>&1 &
   Then verify: ps aux | grep "[m]ain.py" — exactly 1. Then cat bot.pid.
 
-## STRATEGY STANDINGS (00:40 UTC March 18)
-  expiry_sniper_v1:  PRIMARY ENGINE — guards holding, +2.52 USD today (multiple wins)
-  sol_drift_v1:      STAGE 1 — 41 bets, 71% WR, +3.84 USD
-  xrp_drift_v1:      MICRO — 42 bets, 50% WR, -1.76 USD
-  btc_drift_v1:      MICRO — direction_filter="no", 64 bets
-  eth_drift_v1:      MICRO — direction_filter="yes", 136 bets
-  Bayesian posterior: 0 observations (warming up — needs 30 to activate)
+## STRATEGY STANDINGS (01:00 UTC March 18)
+  expiry_sniper_v1:  PRIMARY ENGINE — guards holding, +2.52 USD today
+  sol_drift_v1:      STAGE 1 — 41 bets, 71% WR, +3.84 USD all-time live
+  xrp_drift_v1:      MICRO — 42 bets, 50% WR, -1.76 USD all-time live
+  btc_drift_v1:      MICRO — direction_filter="no", 64 bets, -12.64 USD all-time live
+  eth_drift_v1:      STAGE 1 — direction_filter="yes", 136 bets, -24.70 USD
+                     NOTE: -24.70 is large. Bayesian model will self-correct over time. No manual intervention.
+  Bayesian posterior: 0 observations (warming up — needs 30 live drift bets to activate)
 
 ## GUARD STACK (IL-5 through IL-32 + floor 90c + ceiling 95c — unchanged)
   auto_guard_discovery.py: 0 new guards found (all negative-EV buckets covered)
