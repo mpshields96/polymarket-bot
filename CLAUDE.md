@@ -32,6 +32,33 @@
 ## it is OUT OF SCOPE for this bot. Log it to .planning/todos.md and move on.
 ## ══════════════════════════════════════════════════════════════
 
+## ══════════════════════════════════════════════════════════════
+## CITATION INTEGRITY — HARD BLOCK (applies to ALL chats: polybot, CCA, general)
+## ══════════════════════════════════════════════════════════════
+## RULE: Never cite an academic source you have not verified.
+## "Verified" means ONE of:
+##   (a) Fetched directly — WebFetch on arXiv/SSRN/DOI URL returned real content
+##   (b) Found via search — WebSearch returned the paper with title/authors/year matching
+##   (c) Exists in the local codebase with a URL you can confirm
+##
+## HARD BLOCK — if you cannot do (a), (b), or (c):
+##   DO NOT write the citation as fact.
+##   Write: "[UNVERIFIED — do not treat as confirmed]" next to the source.
+##   OR drop the citation entirely.
+##
+## This applies to: EDGE_RESEARCH_*.md, SELF_IMPROVEMENT_ROADMAP.md,
+##   CHANGELOG.md, SESSION_HANDOFF.md, any .planning/ file, any response.
+##
+## Pattern to NEVER repeat:
+##   WRONG: "Per Thaler & Ziemba (1988), the FLB exists because..."
+##          (without having fetched or found the paper this session)
+##   RIGHT: "Per Thaler & Ziemba (1988) [fetched: https://...] the FLB exists..."
+##   RIGHT: "FLB mechanism — see Thaler & Ziemba (1988) [unverified — fetch before citing]"
+##
+## Violations = corrupt academic basis of trading decisions.
+## Matthew's standing directive. Zero tolerance.
+## ══════════════════════════════════════════════════════════════
+
 ## MANDATORY READING — BEFORE ANY STRATEGY OR RISK CHANGE
 Read `.planning/PRINCIPLES.md` before modifying any strategy parameter,
 kill switch threshold, or risk rule. It contains:
