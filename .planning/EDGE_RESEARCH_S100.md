@@ -325,3 +325,107 @@ PENDING FOR S102+:
   - NCAA Round 1: re-scan March 19-20
   - CUSUM drift detection: deferred until guard buckets have 10+ post-guard bets each
   - Bayesian model accumulation: check bayesian_drift_status.py at each session start
+
+# ═══════════════════════════════════════════════════════════════════════
+# SESSION 102 APPENDIX — 2026-03-18
+# Focus: FLB Deep Analysis + Page-Hinkley Sequential Drift Detection
+# ═══════════════════════════════════════════════════════════════════════
+
+## FLB ANALYSIS — 668 LIVE SNIPER BETS
+
+### Asset-Level WR (live settled, expiry_sniper_v1)
+
+BTC YES: 90 bets, 97.8% WR, +48.12 USD
+BTC NO:  74 bets, 98.6% WR, +46.39 USD
+ETH YES: 98 bets, 98.0% WR, +37.29 USD
+ETH NO:  66 bets, 97.0% WR, +20.28 USD
+SOL NO:  69 bets, 97.1% WR, +16.16 USD
+SOL YES: 104 bets, 94.2% WR, -14.61 USD  (guarded buckets at 94c/96c/97c explain gap)
+XRP NO:  82 bets, 92.7% WR, -51.70 USD   (structural underperformance — all bad buckets guarded)
+XRP YES: 85 bets, 94.1% WR, -40.05 USD   (same structural issue — guarded)
+
+KEY INSIGHT: BTC and ETH are the clean FLB assets. SOL and XRP have structural
+pockets of negative EV that are now guarded. Once SOL/XRP losses in bad buckets
+are excluded (already guarded), the remaining bets should be profitable.
+
+### Price-Band WR Validation
+
+90c: 96.2% WR vs 90.6% break-even → +5.6pp edge
+91c: 95.6% WR vs 91.6% break-even → +4.0pp edge
+92c: 97.4% WR vs 92.5% break-even → +4.9pp edge
+93c: 96.1% WR vs 93.5% break-even → +2.6pp edge
+94c: 97.2% WR vs 94.4% break-even → +2.8pp edge
+95c: 98.2% WR vs 95.3% break-even → +2.9pp edge
+96c: 93.5% WR vs 96.3% break-even → -2.8pp edge (above ceiling guard, losing)
+97c: 93.0% WR vs 97.2% break-even → -4.2pp edge (above ceiling guard, losing)
+98c: 97.8% WR vs 98.1% break-even → -0.3pp edge (marginal, above ceiling)
+
+CONCLUSION: 90-95c window is correct. Ceiling guard at 95c is validated.
+Floor guard at 90c is validated (88-89c below break-even).
+
+### Time-of-Day Analysis (CONFIRMED DEAD END)
+
+Hour 08 UTC shows -75.65 USD in historical data. INVESTIGATION CONFIRMS:
+  All 5 hour-08 losses are in guarded buckets (KXXRP YES@90c/95c, KXETH YES@93c,
+  KXXRP NO@91c, KXBTC NO@91c). These drove IL-30/31/32 guard additions in S96.
+  NOT a structural time-of-day pattern — purely bucket-specific losses.
+  NO time-of-day filter warranted. This is a permanent DEAD END.
+
+### KXBTC YES@93c — Watchlist (not a guard yet)
+
+n=8, WR=87.5% (below 93.5% break-even), but total P&L=+7.00 USD.
+Variable Kelly sizing means model bet larger on wins. Net positive.
+auto_guard_discovery correctly excludes it (loss threshold not met).
+WATCH: if P&L turns negative after 15+ bets, auto_guard_discovery will catch it.
+
+## DIM 7 — PAGE-HINKLEY SEQUENTIAL DRIFT DETECTION
+
+### Academic Basis
+
+Page (1954) "Continuous inspection schemes" — original CUSUM algorithm
+Hinkley (1971) — one-sided sequential test for mean shift detection
+Basseville & Nikiforov (1993) "Detection of Abrupt Changes in Signals and Systems"
+Lorden (1971) — optimality proof: minimises worst-case detection lag for given ARL
+
+CUSUM is statistically optimal for detecting change-points in sequential data.
+Compared to rolling-window WR: CUSUM uses ALL historical data, resets only on recovery,
+and has a formal false-alarm rate guarantee (h=4 => ARL ~200 under H0).
+
+### Implementation
+
+scripts/strategy_drift_check.py — 34 tests, commit ac7721c
+
+Algorithm:
+  k = target_wr - delta/2  (reference: midpoint between H0 and H1)
+  CUSUM_n = max(0, CUSUM_{n-1} - (X_n - k))
+  Alert when CUSUM_n > h (any point in sequence)
+  Track peak_stat separately from current_stat (alert may persist after partial recovery)
+
+Parameters per strategy:
+  sol_drift_v1:  target=0.68, delta=0.10, h=4.0 (detect drop to 58%)
+  btc_drift_v1:  target=0.50, delta=0.10, h=4.0 (detect drop to 40%)
+  eth_drift_v1:  target=0.50, delta=0.10, h=4.0 (detect drop to 40%)
+  xrp_drift_v1:  target=0.50, delta=0.10, h=4.0 (detect drop to 40%)
+
+### Live Results (S102 first run)
+
+sol_drift:  PH=1.45 (normal, no alert)
+btc_drift:  PH=1.15 (normal, no alert)
+eth_drift:  DRIFT ALERT — peak PH=5.05 > h=4.0. Current PH=2.85 (partial recovery)
+            WR last20=40%, last10=40%. March 12-13 losing sequence drove the peak.
+            INTERPRETATION: Statistically significant WR decline in eth_drift history.
+            ACTION: Bayesian model self-corrects (accumulating live obs since S101 restart).
+            Per PRINCIPLES.md: no manual direction_filter change without 30+ post-change bets.
+xrp_drift:  PH=0.45 (normal, no alert)
+
+### What This Means for the Self-Improvement System
+
+The PH test provides early warning of strategy deterioration — before enough
+losses accumulate to damage P&L. It now runs at every session start, fully automated.
+No Claude intervention needed: the alert is written to /tmp/strategy_drift_report.txt
+and exit code 1 signals an issue to the monitoring loop.
+
+If PH alert persists across 3+ sessions for the same strategy:
+  → Consider reducing bet size on that strategy
+  → Run auto_guard_discovery to check for new loss buckets
+  → Wait for Bayesian model to activate (30+ obs) before structural changes
