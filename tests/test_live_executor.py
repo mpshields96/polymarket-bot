@@ -779,10 +779,10 @@ class TestSniperPriceGuardOverride:
     async def test_sniper_override_yes_side_at_high_price(
         self, live_env, bypass_first_run
     ):
-        """price_guard_min=1/max=99: YES sniper at 94¢ executes normally.
+        """KXBTC YES@94c is blocked by auto-guard (S105: 13 bets, 92.3% WR < 94.4% BE).
 
-        YES@94¢ is a valid sniper entry (favorite at 94¢, YES-equiv=94¢).
-        With override (1-99): 94¢ is inside guard → order placed.
+        Even with price_guard_min=1/max=99 override, the auto-guard fires first.
+        Auto-guard takes precedence over price range guard.
         """
         # no_bid=6 → yes_ask = 100 - 6 = 94¢
         ob = make_orderbook(no_bid=6)
@@ -796,8 +796,8 @@ class TestSniperPriceGuardOverride:
             price_guard_min=1, price_guard_max=99,
         )
 
-        assert result is not None
-        kalshi.create_order.assert_called_once()
+        assert result is None
+        kalshi.create_order.assert_not_called()
 
     async def test_override_does_not_bypass_1_99_validity_check(
         self, live_env, bypass_first_run
@@ -1240,8 +1240,9 @@ class TestPerAssetStructuralLossGuards:
         )
         assert result is None
 
-    async def test_btc_yes_at_94c_not_blocked(self, live_env, bypass_first_run):
-        """BTC YES@94c is NOT blocked -- BTC/ETH are profitable at 94c."""
+    async def test_btc_yes_at_94c_blocked_by_auto_guard(self, live_env, bypass_first_run):
+        """BTC YES@94c is blocked by auto-guard (13 bets, 92.3% WR < 94.4% break-even, -9.94 USD).
+        Auto-guard added S105 after confirmed negative-EV bucket discovery."""
         ob = make_orderbook(no_bid=6)  # yes_ask = 94c
         signal = make_signal(side="yes", price_cents=93, ticker="KXBTC15M-26MAR151500-94")
         kalshi = make_kalshi_mock()
@@ -1257,8 +1258,8 @@ class TestPerAssetStructuralLossGuards:
             price_guard_min=1,
             price_guard_max=99,
         )
-        assert result is not None
-        kalshi.create_order.assert_called_once()
+        assert result is None
+        kalshi.create_order.assert_not_called()
 
     async def test_eth_yes_at_94c_not_blocked(self, live_env, bypass_first_run):
         """ETH YES@94c is NOT blocked -- BTC/ETH are profitable at 94c."""
