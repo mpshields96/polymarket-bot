@@ -40,6 +40,9 @@
   - FLB:    .planning/EDGE_RESEARCH_S100.md — validated guard stack, per-asset analysis (S100)
   - Kelly:  .planning/EDGE_RESEARCH_S100.md — Thorp correlation analysis complete (S101)
             Confirmed clustering, confirmed guard stack is correct response.
+  - Dim 5:  scripts/guard_retirement_check.py — BUILT (S101), 20 tests
+            16 IL guards tracked. All warming up (0-3 paper bets). Needs 50+ to evaluate.
+            Added to session-start checklist. Will auto-flag when buckets recover.
 
   SELF-IMPROVEMENT CHAIN NOW FULLY ACTIVE (after S101 restart):
     live bet → settle → settlement_loop → BayesianDriftModel.update() → drift_posterior.json
@@ -65,6 +68,7 @@
     2. ./venv/bin/python3 scripts/auto_guard_discovery.py (guard scan)
     3. ./venv/bin/python3 scripts/bayesian_drift_status.py (posterior health — check n_obs)
     4. ./venv/bin/python3 scripts/auto_promotion_check.py (promotion gates)
+    5. ./venv/bin/python3 scripts/guard_retirement_check.py (Dim 5 — guard retirement — NEW S101)
   Then pick next task from PENDING list above. Priority: #1 UCL log, then #5 CUSUM/drift detection.
 
 ## RESTART COMMAND (for future restarts):
