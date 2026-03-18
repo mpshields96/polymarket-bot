@@ -65,52 +65,53 @@ IF no clear direction:
 ═══════════════════════════════════════════════════
 CURRENT STATE (auto-updated by wrap commands)
 ═══════════════════════════════════════════════════
-Last updated: Session 94 (2026-03-17) — IL-23 guard deployed, guard stack COMPLETE (IL-5 through IL-23)
-Bot: RUNNING PID 94102 → /tmp/polybot_session94.log
-All-time P&L: +40.71 USD (79% WR, 813+ bets) | Need 84.29 more to +125 target
-Bankroll: ~213 USD (Stage 2) | Tests: 1413 passing
-Last commit: 1b53382 (docs: Session 94 wrap — IL-23 deployed, guards all clean)
+Last updated: Session 101 (2026-03-18) — S101 monitoring wrap, +4.20 USD gained, Dim 4 active, 18 clean cycles
+Bot: RUNNING PID 68913 → /tmp/polybot_session101.log
+All-time P&L: -4.96 USD (96% sniper WR, 963 bets) | Need 129.96 more to +125 target
+Bankroll: ~213 USD (Stage 2) | Tests: 1531 passing
+Last commit: 21c106e (feat: Dim 5 guard retirement check)
 
 SESSION STARTUP SELF-REFLECTION (MANDATORY — run every session):
   ./venv/bin/python3 scripts/strategy_analyzer.py --brief
   Surfaces: profitable sniper buckets, drift direction validation, graduation status, target gap.
-  Output saved to data/strategy_insights.json.
 
-  IL-23 DEPLOYED (S94): KXXRP YES@98c BLOCKED (3 regression tests).
-  Pattern was 11 bets, 90.9% WR vs 98% break-even, -17.89 USD net, EV=-7.1c/contract.
-  Guard stack IL-5 through IL-23 VERIFIED COMPLETE. strategy_analyzer --brief confirms "Guarded".
+  SELF-IMPROVEMENT CHAIN ACTIVE (S101):
+    Dim 1a/1b: auto_guard_discovery.py wired — 0 new guards (stack complete)
+    Dim 2-3: BayesianDriftModel + settlement_loop update — accumulating observations
+    Dim 4: generate_signal() uses Bayesian predict when n_obs >= 30 (LIVE since S101 restart)
+    Dim 5: guard_retirement_check.py — tracking 16 IL guards (all warming up, 0-3 paper bets)
+    Bayesian posterior: 0 observations (needs 30 to activate override — accumulating)
 
 Live strategies:
-  btc_drift: MICRO-LIVE — direction_filter="no", ~60 bets, calibration_max_usd STILL SET (Matthew decision needed for Stage 1 promotion)
-  eth_drift: STAGE 1 — direction_filter="yes", 113+ bets, 50% WR — WATCH (need 20 more YES bets; if stays <50% WR flip filter to "no")
-  sol_drift: STAGE 1 (39/30) — full Kelly, Brier 0.193, 71% WR, +3.60 USD — HEALTHY
-  xrp_drift: MICRO — 32/30 total bets (21 YES-only). direction_filter="yes", need 9 more YES-only bets (ETA ~March 20-21)
-  expiry_sniper: LIVE (20 USD cap, 15% pct cap) — PRIMARY ENGINE
-    PROFITABLE: 90-95c YES/NO all assets, 97c YES BTC/ETH only, 98c YES BTC/ETH/SOL
+  btc_drift: MICRO-LIVE — direction_filter="no", 64 bets, 47% WR UNDERPERFORMING
+  eth_drift: STAGE 1 — direction_filter="yes", 136 bets, 49% WR STABLE
+  sol_drift: STAGE 1 — 41 bets, 71% WR, Brier 0.196, +3.84 USD HEALTHY
+  xrp_drift: MICRO — 42 bets, 50% WR, direction_filter="yes"
+  expiry_sniper: PRIMARY ENGINE — IL-5 through IL-32, 96% WR, 660 bets, +50.96 USD post-guard
+    PROFITABLE: 90-95c YES/NO all assets
     BLOCKED: 96c both (IL-10), 97c NO (IL-10), 98c NO (IL-11), 99c/1c (IL-5)
-    BLOCKED per-asset (S81): KXXRP YES@94c, KXXRP YES@97c, KXSOL YES@94c
-    BLOCKED per-asset (S88): KXSOL YES@97c (IL-19), KXXRP YES@95c (IL-20)
-    BLOCKED (S93): KXXRP NO@92c (IL-21), KXSOL NO@92c (IL-22)
-    BLOCKED (S94): KXXRP YES@98c (IL-23, 90.9% WR vs 98% break-even, -17.89 USD net)
+    BLOCKED per-asset (IL-10A/B/C): KXXRP YES@94c/97c/95c
+    BLOCKED per-asset (IL-19-32): KXSOL/KXXRP/KXBTC/KXETH various extremes
+    FLOOR: sub-90c blocked | CEILING: above 95c blocked | PER-WINDOW: 2 bets/30 USD
 
 Direction filters (do not change):
   btc_drift="no" | eth_drift="yes" | sol_drift="no" | xrp_drift="yes"
 
 ═══════════════════════════════════════════════════
-MAIN CHAT PROMPT — SESSION 95 (copy-paste to start monitoring session)
+MAIN CHAT PROMPT — SESSION 102 (copy-paste to start monitoring session)
 ═══════════════════════════════════════════════════
 
---- SESSION 95 START ---
-Bot PID: 94102 | Log: /tmp/polybot_session94.log | Last commit: 1b53382
-All-time P&L: +40.71 USD | Need 84.29 more to +125 target
-Graduation: btc_drift ~60/30 | eth_drift 113/30 | sol_drift 39/30 | xrp_drift 32/30 (21 YES-only)
-Sniper: IL-5 through IL-23 all active, guard stack VERIFIED COMPLETE
-Target: +125 USD all-time profit. Currently at +40.71 USD. Need 84.29 more.
+--- SESSION 102 START ---
+Bot PID: 68913 | Log: /tmp/polybot_session101.log | Last commit: 21c106e
+All-time P&L: -4.96 USD | Need 129.96 more to +125 target
+Graduation: btc_drift 64/30 | eth_drift 136/30 | sol_drift 41/30 | xrp_drift 42/30
+Sniper: IL-5 through IL-32 all active, 96% WR, 660 bets, +50.96 USD post-guard
+Target: +125 USD all-time profit. Currently at -4.96 USD. Need 129.96 more.
 Timeline: URGENT. Claude Max subscription renewal depends on this.
 
-PREVIOUS CHAT GRADE: C+ — lost 19.60 USD to KXXRP YES@98c before IL-23 guard deployed (same session)
-WHAT THE PREVIOUS CHAT DID POORLY: Analyzed loss AFTER it happened instead of proactively auditing XRP 98c bucket
-WHAT THE NEXT CHAT MUST DO BETTER: Run strategy_analyzer --brief first, check for unguarded losing buckets proactively
+PREVIOUS CHAT GRADE: B+ — 18 clean monitoring cycles, +4.20 USD, Dim 4 now live
+WHAT THE PREVIOUS CHAT DID POORLY: Brief scope confusion early (started implementing research before correcting)
+WHAT THE NEXT CHAT MUST DO BETTER: Check UCL log /tmp/ucl_sniper_mar18.log after 20:00 UTC IMMEDIATELY
 
 PRIME DIRECTIVE: PLEASE MAKE MONEY. PLEASE DO NOT LOSE MONEY. I need +125 USD
 all-time profit over the next few days. My Claude Max subscription runs out soon
@@ -124,35 +125,40 @@ PRIORITY 1 — LIVE BETS
 Before anything else: ps aux | grep "[m]ain.py" — must show exactly 1 process.
 Run --health. If any blocker exists, fix it immediately. Live bets > everything.
 
-PRIORITY 2 — XRP DRIFT STAGE 1 EVAL when 30 YES-only bets hit (~March 20-21)
-Run --graduation-status. When xrp YES-only reaches 30, analyze for Stage 1 promotion.
+PRIORITY 2 — UCL MARCH 18 LOG (URGENT — time-sensitive)
+Check /tmp/ucl_sniper_mar18.log after 20:00 UTC. Launcher fired at 17:21 UTC.
+Teams eligible: BAR, BMU, LFC. See if any sniper bets fired, settled, wins/losses.
 
-PRIORITY 3 — UCL SOCCER SNIPER (time-sensitive)
-March 17 at 17:25 UTC: python3 scripts/soccer_sniper_paper.py --series KXUCLGAME --date 26MAR17
-March 18: same with --date 26MAR18
+PRIORITY 3 — BAYESIAN DRIFT STATUS
+Run ./venv/bin/python3 scripts/bayesian_drift_status.py — check n_obs accumulating.
+Model needs 30 live drift bets to activate. Currently 0 obs (warming up since S101 restart).
 
 MANDATORY AUTONOMOUS LOOP — START IMMEDIATELY AFTER READING SESSION_HANDOFF:
 Use 5-min single-check background tasks (NOT 20-min scripts — exit 144 on this system).
 Pattern: sleep 300 && pid check && DB query, run_in_background: true, chain continuously.
 Matthew will be away. You are the only supervision the bot has.
-If bot dies: restart with bash scripts/restart_bot.sh 95 (NEVER pipe through head/tail/grep).
+If bot dies: restart with bash scripts/restart_bot.sh 102 (NEVER pipe through head/tail/grep).
 If drought (all YES < 35c or > 65c): pivot to code work, don't idle.
 
 LIVE STRATEGY STANDINGS:
-  expiry_sniper: PRIMARY ENGINE, 20 USD cap, IL-5 through IL-23 all active
-  sol_drift: STAGE 1 (39/30, 71% WR, Brier 0.193, full Kelly)
-  xrp_drift: MICRO (21/30 YES-only, need 9 more)
-  eth_drift: STAGE 1 (113/30, 50% WR — WATCH for direction flip)
-  btc_drift: MICRO (60/30 READY — Matthew decision needed for Stage 1)
+  expiry_sniper: PRIMARY ENGINE, IL-5 through IL-32 all active, 96% WR
+  sol_drift: STAGE 1 (41/30, 71% WR, Brier 0.196, full Kelly) — HEALTHY
+  xrp_drift: MICRO (42/30, 50% WR)
+  eth_drift: STAGE 1 (136/30, 49% WR STABLE)
+  btc_drift: MICRO (64/30, 47% WR UNDERPERFORMING)
+  Bayesian posterior: 0 observations (needs 30 to activate — accumulating since S101 restart)
 
-STRATEGY INSIGHTS (run ./venv/bin/python3 scripts/strategy_analyzer.py --brief at startup):
-  Guard stack IL-5 through IL-23 VERIFIED. strategy_analyzer shows "Guarded" for all blocked buckets.
-  Profitable: BTC/ETH 90-95c both sides, 97c YES, 98c YES (BTC/ETH/SOL only — XRP 98c now guarded)
-  KXXRP YES@98c: IL-23 newly deployed S94. Watch for any similar pattern in other assets.
+STRATEGY INSIGHTS (from ./venv/bin/python3 scripts/strategy_analyzer.py --brief):
+  Profitable sniper: 90-95c YES/NO all assets
+  Guarded (blocked): 96c, 97c, 98c (IL-5 through IL-32 — all covered)
+  btc_drift: 47% WR UNDERPERFORMING, direction filter "no" active
+  eth_drift: 49% WR STABLE
+  sol_drift: 71% WR HEALTHY +3.84 USD
 
 GOAL TRACKER:
-  All-time P&L: +40.71 USD | Need: 84.29 more to hit +125 USD target
-  Highest-leverage action: Keep bot running + guards clean. Every sniper window = progress.
+  All-time P&L: -4.96 USD | Need: 129.96 more to hit +125 USD target
+  Today rate: ~4-6 USD/day | Est. days at current rate: 25-35
+  Highest-leverage action: Keep bot running + guards clean. Every sniper window = compounding.
 
 FONT RULES (mandatory — violations = chat terminated):
   RULE 1: NEVER markdown table syntax (| --- |)
@@ -166,10 +172,10 @@ Read in this order:
 5. .planning/PRINCIPLES.md
 
 Go. Start monitoring. Make money. Don't let the bot die.
---- END SESSION 95 PROMPT ---
+--- END SESSION 102 PROMPT ---
 
 Live terminal feed:
-  tail -f /tmp/polybot_session94.log | grep --line-buffered -iE "LIVE BET|LIVE.*execute|kill.switch|hard.stop|settled|WIN|LOSS|expiry_sniper|STAGE|graduation|consecutive|bankroll|restart|ERROR|CRITICAL"
+  tail -f /tmp/polybot_session101.log | grep --line-buffered -iE "LIVE BET|LIVE.*execute|kill.switch|hard.stop|settled|WIN|LOSS|expiry_sniper|STAGE|graduation|consecutive|bankroll|restart|ERROR|CRITICAL"
 
 ═══════════════════════════════════════════════════
 RESEARCH CHAT PROMPT — SESSION 95 (copy-paste to start research session)
@@ -257,4 +263,4 @@ STANDING DIRECTIVES
 - Matthew is a doctor with a new baby — no time for back-and-forth
 - Two parallel chats may run — keep overhead under 15% per chat
 - Loading screen tip at end of every response (one recommendation)
-- Target: +125 USD all-time profit. Currently +51.21 USD. Need 73.79 more.
+- Target: +125 USD all-time profit. Currently -4.96 USD. Need 129.96 more.
