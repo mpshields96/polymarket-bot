@@ -1,13 +1,41 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-18 ~03:30 UTC (Session 102 research wrap)
+# Last updated: 2026-03-18 ~04:00 UTC (Session 103 research overnight)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
   Bot RUNNING PID 68913 → /tmp/polybot_session101.log (running since 00:32 UTC S101)
-  All-time live P&L: +13.67 USD (was -7.69 at S101 end — +21.36 USD gained S102 total)
-  Today (March 18): +24.72 USD live (25 settled, 85% WR) | expiry_sniper 21/21 wins 100% WR
-  Tests: 1565 passing. Last commit: 6a96e5c (research: S102 FLB analysis + PH drift detection)
+  All-time live P&L: +15.14 USD (was +13.67 at S102 wrap — still gaining S103)
+  Today (March 18): +26.19 USD live (27 settled, 89% WR) | expiry_sniper 22/22 wins 100% WR
+  Tests: 1565 passing. Last commit: 812271e (research: Dim7 correlation — independence confirmed)
+
+## S103 KEY RESEARCH FINDINGS (overnight session, research chat)
+
+  1. Ceiling guard validated: 0 above-95c bets since March 17 12:10 UTC. Most impactful change.
+     Before ceiling (Mar17 00:00-12:10): 99 bets, 91% WR, -81.38 USD
+     After ceiling (Mar17 12:10+): 27 bets, 96% WR, +11.05 USD
+     March 18 first full day: 22/22 wins, +27.30 USD
+
+  2. eth_drift PH alert = VARIANCE, not structural.
+     z-score vs break-even = -0.46 (not significant). No guard needed. Bayesian self-corrects.
+
+  3. Sweet spot analysis: 92c is structural core (EV +5.20c/bet, 97% WR, most absolute P&L)
+     Floor at 90c validated: 88-89c are below break-even. Ceiling at 95c is essential.
+
+  4. Asset hierarchy confirmed (90-95c range):
+     BTC: 98% WR, +98.90 USD — STRONGEST
+     ETH: 99% WR, +91.67 USD — STRONGEST
+     SOL: 97% WR, +63.80 USD — GOOD
+     XRP: guarded, unguarded buckets = +32.97 USD positive (historical -25 USD is pre-guard)
+
+  5. Dimension 7 correlation guard = DEAD END. Multi-bet windows: losses are independent.
+     Observed all-loss = 0/144 windows. Expected at 97% WR = 0.1%. No excess clustering.
+
+  6. NCAA scanner: 0 edges at 1% threshold, 88 markets. Re-run March 19-20 for Round 1.
+
+  7. KXBTCD Friday slot: deferred (btc_daily at 14/30 paper bets gate, ~2 weeks away).
+
+  Full analysis: .planning/EDGE_RESEARCH_S103.md
 
 ## S102 KEY CHANGES
 

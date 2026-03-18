@@ -235,7 +235,43 @@
 
 ═══════════════════════════════════════════════════════════════════════
 
-## 8. PENDING LEADS (not yet actioned this session)
+## 8. KXBTCD DAILY/FRIDAY MARKET CHECK (S103)
+
+  KXBTCD March 18 (today): 115 markets, 472,954 volume, 2 in 90-95c sniper range
+  KXBTCD March 20 (Friday): 50 markets, 597,760 volume, 5 in sniper range
+
+  FLB mechanism does NOT transfer to daily threshold markets:
+  - Daily markets settle at 5pm EDT (~13h away at 03:50 UTC)
+  - 90-95c pricing reflects current price distance from threshold (accurate, not biased)
+  - No near-expiry convergence window — 13 hours for BTC to reverse
+  - FLB requires near-expiry (seconds to minutes), not hours-away settlement
+  Gate status: btc_daily paper at 14/30 bets. Friday slot deferred until gate clears.
+
+  Dead end confirmed: KXBTCD daily/Friday as SNIPER strategy (not tradeable as FLB sniper).
+  Still viable: as a DIRECTION strategy once btc_daily Brier < 0.30 at 30 paper bets.
+
+## 9. INTRA-WINDOW SECOND BET ANALYSIS (S103 — additional)
+
+  KXSOLD/KXXRPD 90-95c range: 5-6 markets but volume 0-103 contracts. Not tradeable.
+  These daily threshold markets settle at 5pm EDT — different mechanism from 15-min sniper.
+  Confirmed dead end for sniper extension.
+
+═══════════════════════════════════════════════════════════════════════
+
+## 10. SESSION SUMMARY — KEY CONCLUSIONS
+
+  1. Bot is healthy. All guards working. +15.14 USD all-time P&L (positive).
+  2. Ceiling guard (commit 5a1948c) is the most impactful change: Mar17 -81 → +11 USD same day.
+  3. eth_drift declining (last10=30% WR) is VARIANCE — z=-0.46, not structural.
+  4. Sweet spot: 92c (EV +5.20c/bet). Floor at 90c is optimal. Ceiling at 95c is essential.
+  5. Asset hierarchy: BTC=ETH (98-99% WR) > SOL (97%) > XRP (94%, guarded to positive).
+  6. Dimension 7 dead end confirmed: no intra-window correlation guard needed.
+  7. All 7 self-improvement dimensions ACTIVE and validated.
+  8. UCL March 18: launcher fires 17:21 UTC. Results after 20:00 UTC.
+  9. NCAA Round 1: re-scan March 19-20 (0 edges found today at 1% threshold).
+ 10. KXBTCD Friday: deferred behind btc_daily 30-bet gate (~14/30 now).
+
+## 11. PENDING LEADS (not yet actioned this session)
 
   UCL March 18: launcher fires 17:21 UTC. Check /tmp/ucl_sniper_mar18.log after 20:00 UTC.
   NCAA Round 1: re-run scanner March 19-20 for tip-offs March 20-21.
