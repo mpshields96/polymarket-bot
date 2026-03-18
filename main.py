@@ -2636,14 +2636,29 @@ async def main():
             _merged_guards, _n_added = _ag_mod.merge_guards(_existing_guards, _new_guards)
             if _n_added > 0:
                 _ag_mod.write_guards(_merged_guards)
+                _new_guard_labels = [
+                    f"{g['ticker_contains']} {g['side'].upper()}@{g['price_cents']}c"
+                    for g in _new_guards
+                ]
                 logger.critical(
                     "[startup] AUTO-GUARD: %d NEW guard(s) written to auto_guards.json "
                     "— activated in this session (no restart needed). "
                     "New guards: %s",
                     _n_added,
-                    [f"{g['ticker_contains']} {g['side'].upper()}@{g['price_cents']}c"
-                     for g in _new_guards],
+                    _new_guard_labels,
                 )
+                # Alert Matthew via macOS Reminders (best-effort)
+                try:
+                    import subprocess as _sp
+                    _msg = f"POLYBOT AUTO-GUARD: {_n_added} new guard(s) activated"
+                    _body = ", ".join(_new_guard_labels)
+                    _script = (
+                        f'tell application "Reminders" to make new reminder '
+                        f'with properties {{name:"{_msg}", body:"{_body}"}}'
+                    )
+                    _sp.run(["osascript", "-e", _script], timeout=3, capture_output=True)
+                except Exception:
+                    pass
             else:
                 logger.info(
                     "[startup] AUTO-GUARD: 0 new guards (all %d known buckets covered).",
