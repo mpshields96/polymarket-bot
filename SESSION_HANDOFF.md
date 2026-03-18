@@ -119,3 +119,17 @@
   At 24 USD/day: ~10 days to monthly self-sustaining (~250/24 = 10.4 days of clean operation)
   Highest-leverage action: Keep sniper running clean. Every day = ~24 USD.
   112.05 USD to +125 USD milestone goal.
+
+## S105 RESEARCH CHAT WRAP (2026-03-18 ~22:15 UTC)
+  Grade: A-
+  Primary deliverable: scripts/bet_analytics.py (SPRT/Wilson CI/Brier/CUSUM, 24 tests)
+  New auto-guard: KXBTC YES@94c (guard #3) — added from S104 losses
+  Cross-chat loop: CCA ↔ Research ↔ Main fully wired via shared files
+  Next research priority: btc_drift CUSUM 4.48/5.0 + run bet_analytics.py every session
+
+  MATTHEW STANDING DIRECTIVE (S105 — permanent):
+    All 3 chats learn from each other in a variety of ways.
+    Original main roles ALWAYS take priority.
+    Self-learning mechanism (auto-guard, Bayesian, CUSUM, SPRT findings) feeds CCA loop:
+      bet_analytics findings → POLYBOT_TO_CCA.md → CCA research → improvements
+    Written to: POLYBOT_TO_CCA.md, POLYBOT_TO_MAIN.md, polybot-init.md, polybot-autoresearch.md
