@@ -6120,3 +6120,49 @@ at p<0.01 for first time. New guard added. Cross-chat infra established.
 ### Next Session Top Priority
 btc_drift CUSUM monitoring (4.48/5.0 — approaching alert threshold).
 Run bet_analytics.py at every session start as standard health check.
+
+## Session 106 — 2026-03-18 — Short monitoring, sniper dominant, open-trade warning
+
+### Session Summary
+Very short monitoring session (startup + 1 cycle + wrap). No code changes.
+Bot PID 2502 ran clean throughout. Sniper dominant at 95.9% WR.
+
+### Bot Performance
+  expiry_sniper_v1:  70/73 settled = 95.9% WR, +27.45 USD live today
+  sol_drift_v1:      EDGE CONFIRMED (SPRT lambda=+2.886), Brier 0.198, n=43
+  btc_drift_v1:      CUSUM S=4.480/5.0 — stable, approaching but not crossing threshold
+  eth_drift_v1:      NO EDGE (SPRT lambda=-3.707), CUSUM S=14.140 — Bayesian handles
+  xrp_drift_v1:      collecting, CUSUM S=2.820 stable
+
+### Strategy Analyzer Insights (strategy_analyzer.py --brief)
+  All-time: +16.40 USD (82% WR, 1054 bets)
+  Today:    +28.29 USD (81% WR, 98 bets)
+  Target:   108.60 USD to +125 USD goal
+  SNIPER: Profitable buckets: 95, 90-94c
+  SNIPER: Guarded buckets (historical losses blocked): 98, 97, 96c
+  btc_drift: UNDERPERFORMING 49% WR, direction_filter="no" active [26% spread]
+  eth_drift:  UNDERPERFORMING 46% WR, trend=DECLINING — Bayesian self-corrects
+  sol_drift:  HEALTHY 70% WR, +4.89 USD, READY FOR STAGE 2 (Brier 0.198)
+
+### Key Observations
+  1. sol_drift READY FOR STAGE 2 — graduation-status confirms all criteria met.
+     Brier 0.198, n=43, SPRT edge confirmed. No promotion without Matthew explicit call.
+  2. 1932 open trades older than 48hr — --health warning. Potential settlement loop gap.
+     Needs investigation S107 before data quality degrades.
+  3. btc_drift CUSUM S=4.480 — unchanged from S105. Still below 5.0 threshold. Observation only.
+  4. Old /tmp/polybot_monitor_cycle.sh had bash syntax error at line 66. Use inline 5-min
+     single-check pattern instead (sleep 300 + DB query inline, run_in_background: true).
+
+### Self-Rating: B
+  WINS: Bot clean, sniper 95.9% WR, +27.45 USD live today, all-time +16.40 USD, guards confirmed.
+  LOSSES: Very short session, old monitoring script broken, no drought builds completed.
+  GRADE B: Functionally correct but minimal session. Next chat must investigate 1932 open trades.
+
+### Goal Progress
+  All-time: +16.40 USD | Distance to +125 USD: 108.60 USD
+  At ~27 USD/day: ~4 days to +125, ~8.7 days to self-sustaining (250 USD/month)
+  Highest-leverage: Keep sniper running + fix settlement loop open-trade issue if real
+
+### Next Session Top Priority
+Investigate 1932 open trades older than 48hr — settlement loop concern.
+Also: sol_drift Stage 2 evaluation (Brier 0.198, READY FOR LIVE).
