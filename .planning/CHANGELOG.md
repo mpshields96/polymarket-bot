@@ -8,6 +8,57 @@
 #          ### Lessons learned (optional)
 # ══════════════════════════════════════════════════════════════
 
+## Session 104 (monitoring wrap) — 2026-03-18 — Bot dead on arrival, restarted clean, UCL confirmed, +10.83 USD
+### Changed
+- SESSION_HANDOFF.md — updated with S104 monitoring results, S105 startup sequence
+- .planning/CHANGELOG.md — this entry
+
+### Strategy Performance
+- expiry_sniper_v1: 60/62 today (96.8% WR), +36.09 USD today. 2 losses = same 2 guarded buckets from S103.
+- eth_drift_v1: 2/9 today (-2.12 USD). 5 consecutive losses. PH alert active. Bayesian self-corrects.
+- btc_drift_v1: 2/3 today (+0.66 USD). Normal.
+- sol_drift_v1: 1/2 today (+1.05 USD). Stage 1 healthy.
+- xrp_drift_v1: 1/4 today (-1.13 USD). Micro-live normal variance.
+- All-time P&L: +23.50 USD (was +12.67 at S103 wrap — +10.83 gained S104 monitoring)
+
+### Strategy Analyzer Insights (scripts/strategy_analyzer.py --brief)
+- SNIPER: Profitable buckets: 95c, 90-94c — guard architecture holding correctly
+- SNIPER: Guarded buckets (blocked): 98c, 97c, 96c + KXXRP NO@95c + KXSOL NO@93c (auto)
+- btc_drift_v1: UNDERPERFORMING — 48% WR below 50c break-even. Trend=IMPROVING. Direction filter="no" active (25% spread)
+- eth_drift_v1: UNDERPERFORMING — 47% WR below 50c break-even. Trend=DECLINING. Bayesian corrects — no action.
+- sol_drift_v1: HEALTHY — 43 live bets, 70% WR, +4.89 USD. Best drift strategy.
+- All-time: +23.50 USD (82% WR, 1037 bets) | Target: 101.50 USD to +125 USD goal
+
+### Key Events
+- Bot dead on arrival (PID 14095 dead, daemon dead). Restarted PID 28432 in <30s.
+- Guards confirmed: "Loaded 2 auto-discovered guard(s)" on startup.
+- UCL CONFIRMED: Barcelona vs Newcastle — BAR 47c → 74c (goal ~18:36 UTC) → 99c (clinched by 19:20 UTC)
+  Volume: 5.29M contracts. Kalshi updated BEFORE ESPN. In-play 90c+ sniper hypothesis validated.
+  UCL monitor (PID 34968) still running for 20:00 UTC games.
+- 3 autonomous monitoring cycles completed successfully (PID tracking fixed cycle 2+).
+- UCL monitor stalled silently at 18:51 UTC — process alive but not polling. Restarted manually.
+
+### Self-Rating: B+
+WINS:
+- Bot dead on arrival — restarted cleanly in <30s, guards loaded correctly first try
+- UCL hypothesis confirmed empirically: BAR 47c→99c, vol 5.29M, Kalshi faster than ESPN
+- 3 full monitoring cycles, bot never lost money from missed supervision
+- +10.83 USD all-time gained during this session (12.67 → 23.50 USD)
+- PID tracking bug found and fixed mid-session
+LOSSES:
+- Bot and daemon were both dead at session start — no inter-session coverage
+- UCL monitor stalled silently (process alive, no polling) — 28 min of missed data
+- Cycle 1 PID=0 bug (read stale bot.pid before new bot wrote it)
+ONE THING next chat must do: Check daemon status at startup. If no daemon script exists,
+  implement a simple watchdog or use cron to keep bot alive between sessions.
+ONE THING that would have made more money: Bot had been dead between sessions. If daemon
+  had been running (or cron watchdog), all those expiry sniper bets would have fired.
+
+### Goal Progress
+- All-time P&L: +23.50 USD | Target: +125 USD | Remaining: 101.50 USD
+- Today rate: +34.55 USD/day | Estimated days at rate: ~3 days (high variance)
+- Highest-leverage action: Keep expiry_sniper clean with guard stack. NCAA scanner March 19-20.
+
 ## Session 103 (monitoring wrap) — 2026-03-18 — Auto-guard Dim1 worked, 2 bad buckets blocked
 ### Changed
 - SESSION_HANDOFF.md — updated with S103 monitoring results, S104 startup sequence
