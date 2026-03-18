@@ -65,100 +65,90 @@ IF no clear direction:
 ═══════════════════════════════════════════════════
 CURRENT STATE (auto-updated by wrap commands)
 ═══════════════════════════════════════════════════
-Last updated: Session 101 (2026-03-18) — S101 monitoring wrap, +4.20 USD gained, Dim 4 active, 18 clean cycles
-Bot: RUNNING PID 68913 → /tmp/polybot_session101.log
-All-time P&L: -4.96 USD (96% sniper WR, 963 bets) | Need 129.96 more to +125 target
-Bankroll: ~213 USD (Stage 2) | Tests: 1531 passing
-Last commit: 21c106e (feat: Dim 5 guard retirement check)
+Last updated: Session 103 (2026-03-18 12:32 UTC) — S103 monitoring wrap, 2 new guards activated, +24.56 USD today
+Bot: RUNNING PID 14095 → /tmp/polybot_session103.log
+All-time P&L: +12.67 USD (POSITIVE) | Need 112.33 more to +125 target
+Bankroll: ~220 USD | Tests: 1565 passing
+Last commit: 859cee1 (docs: S103 research wrap — FLB analysis complete)
 
 SESSION STARTUP SELF-REFLECTION (MANDATORY — run every session):
   ./venv/bin/python3 scripts/strategy_analyzer.py --brief
   Surfaces: profitable sniper buckets, drift direction validation, graduation status, target gap.
 
-  SELF-IMPROVEMENT CHAIN ACTIVE (S101):
-    Dim 1a/1b: auto_guard_discovery.py wired — 0 new guards (stack complete)
+  SELF-IMPROVEMENT CHAIN ACTIVE (all 7 dims since S101):
+    Dim 1a/1b: auto_guard_discovery.py — 2 new guards discovered S103 (KXXRP NO@95c + KXSOL NO@93c)
     Dim 2-3: BayesianDriftModel + settlement_loop update — accumulating observations
-    Dim 4: generate_signal() uses Bayesian predict when n_obs >= 30 (LIVE since S101 restart)
+    Dim 4: generate_signal() uses Bayesian predict when n_obs >= 30 (n=4+, needs 26 more)
     Dim 5: guard_retirement_check.py — tracking 16 IL guards (all warming up, 0-3 paper bets)
-    Bayesian posterior: 0 observations (needs 30 to activate override — accumulating)
+    Dim 7: strategy_drift_check.py — PH test, eth_drift PH=3.30 (recovering)
+    Bayesian posterior: 4 observations (needs 30 to activate override — accumulating passively)
 
 Live strategies:
-  btc_drift: MICRO-LIVE — direction_filter="no", 64 bets, 47% WR UNDERPERFORMING
-  eth_drift: STAGE 1 — direction_filter="yes", 136 bets, 49% WR STABLE
+  btc_drift: MICRO-LIVE — direction_filter="no", 65 bets, 47% WR UNDERPERFORMING
+  eth_drift: STAGE 1 — direction_filter="yes", 144 bets, 49% WR, PH alert recovering
   sol_drift: STAGE 1 — 41 bets, 71% WR, Brier 0.196, +3.84 USD HEALTHY
-  xrp_drift: MICRO — 42 bets, 50% WR, direction_filter="yes"
-  expiry_sniper: PRIMARY ENGINE — IL-5 through IL-32, 96% WR, 660 bets, +50.96 USD post-guard
-    PROFITABLE: 90-95c YES/NO all assets
-    BLOCKED: 96c both (IL-10), 97c NO (IL-10), 98c NO (IL-11), 99c/1c (IL-5)
-    BLOCKED per-asset (IL-10A/B/C): KXXRP YES@94c/97c/95c
-    BLOCKED per-asset (IL-19-32): KXSOL/KXXRP/KXBTC/KXETH various extremes
+  xrp_drift: MICRO — 45 bets, 50% WR, direction_filter="yes"
+  expiry_sniper: PRIMARY ENGINE — IL-5 through IL-32 + 2 auto-guards, 85% WR today, +24.56 USD
+    PROFITABLE: 90-95c YES/NO all assets (minus guarded buckets)
+    BLOCKED IL-5 through IL-32: standard static guards (unchanged)
+    AUTO-GUARDED: KXXRP NO@95c (n=19, activated S103), KXSOL NO@93c (n=12, activated S103)
     FLOOR: sub-90c blocked | CEILING: above 95c blocked | PER-WINDOW: 2 bets/30 USD
 
 Direction filters (do not change):
   btc_drift="no" | eth_drift="yes" | sol_drift="no" | xrp_drift="yes"
 
 ═══════════════════════════════════════════════════
-MAIN CHAT PROMPT — SESSION 102 (copy-paste to start monitoring session)
+MAIN CHAT PROMPT — SESSION 104 (copy-paste to start monitoring session)
 ═══════════════════════════════════════════════════
 
---- SESSION 102 START ---
-Bot PID: 68913 | Log: /tmp/polybot_session101.log | Last commit: 21c106e
-All-time P&L: -4.96 USD | Need 129.96 more to +125 target
-Graduation: btc_drift 64/30 | eth_drift 136/30 | sol_drift 41/30 | xrp_drift 42/30
-Sniper: IL-5 through IL-32 all active, 96% WR, 660 bets, +50.96 USD post-guard
-Target: +125 USD all-time profit. Currently at -4.96 USD. Need 129.96 more.
-Timeline: URGENT. Claude Max subscription renewal depends on this.
+--- SESSION 104 START ---
+Bot PID: 14095 | Log: /tmp/polybot_session103.log | Last commit: 859cee1
+All-time P&L: +12.67 USD | Need 112.33 more to +125 target
+Guards: IL-5 through IL-32 + KXXRP NO@95c + KXSOL NO@93c (2 auto-guards active)
+Today rate: +24.56 USD (March 18 through 12:27 UTC — 67 settled, 85% WR)
 
-PREVIOUS CHAT GRADE: B+ — 18 clean monitoring cycles, +4.20 USD, Dim 4 now live
-WHAT THE PREVIOUS CHAT DID POORLY: Brief scope confusion early (started implementing research before correcting)
-WHAT THE NEXT CHAT MUST DO BETTER: Check UCL log /tmp/ucl_sniper_mar18.log after 20:00 UTC IMMEDIATELY
+PREVIOUS CHAT GRADE: B+ — overnight monitoring, caught 2 guard triggers, restarted bot twice
+S103 KEY EVENTS: KXXRP NO@95c and KXSOL NO@93c added as auto-guards after losses
+WHAT THE NEXT CHAT MUST DO FIRST: Check /tmp/ucl_sniper_mar18.log after 20:00 UTC (launcher fires 17:21 UTC)
 
 PRIME DIRECTIVE: PLEASE MAKE MONEY. PLEASE DO NOT LOSE MONEY. I need +125 USD
-all-time profit over the next few days. My Claude Max subscription runs out soon
-and if this bot doesn't work, everything stops. Every live bet that fires and wins
-is money toward that goal. Every hour the bot is dead is money lost forever.
-I am counting on you completely. Do not screw this up.
+all-time profit. Every live bet that fires and wins is money toward that goal.
+Every hour the bot is dead is money lost forever.
 
 Budget: 30% of 5-hour token limit MAX. Model: Opus 4.6.
 
 PRIORITY 1 — LIVE BETS
 Before anything else: ps aux | grep "[m]ain.py" — must show exactly 1 process.
-Run --health. If any blocker exists, fix it immediately. Live bets > everything.
+Confirm guard count: grep "Loaded.*auto-discovered" /tmp/polybot_session103.log | tail -1
+MUST show "Loaded 2 auto-discovered guard(s)" — if only 1, run auto_guard_discovery.py.
 
-PRIORITY 2 — UCL MARCH 18 LOG (URGENT — time-sensitive)
-Check /tmp/ucl_sniper_mar18.log after 20:00 UTC. Launcher fired at 17:21 UTC.
+PRIORITY 2 — UCL MARCH 18 LOG (URGENT after 20:00 UTC)
+Check /tmp/ucl_sniper_mar18.log — launcher fires 17:21 UTC.
 Teams eligible: BAR, BMU, LFC. See if any sniper bets fired, settled, wins/losses.
 
-PRIORITY 3 — BAYESIAN DRIFT STATUS
-Run ./venv/bin/python3 scripts/bayesian_drift_status.py — check n_obs accumulating.
-Model needs 30 live drift bets to activate. Currently 0 obs (warming up since S101 restart).
+PRIORITY 3 — AUTO-GUARD SCAN
+Run ./venv/bin/python3 scripts/auto_guard_discovery.py — confirm 0 new guards needed.
+If new guard found: update auto_guards.json + restart bot immediately.
 
 MANDATORY AUTONOMOUS LOOP — START IMMEDIATELY AFTER READING SESSION_HANDOFF:
 Use 5-min single-check background tasks (NOT 20-min scripts — exit 144 on this system).
 Pattern: sleep 300 && pid check && DB query, run_in_background: true, chain continuously.
 Matthew will be away. You are the only supervision the bot has.
-If bot dies: restart with bash scripts/restart_bot.sh 102 (NEVER pipe through head/tail/grep).
-If drought (all YES < 35c or > 65c): pivot to code work, don't idle.
+Restart command if bot dies:
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session104.log 2>&1 &
 
 LIVE STRATEGY STANDINGS:
-  expiry_sniper: PRIMARY ENGINE, IL-5 through IL-32 all active, 96% WR
-  sol_drift: STAGE 1 (41/30, 71% WR, Brier 0.196, full Kelly) — HEALTHY
-  xrp_drift: MICRO (42/30, 50% WR)
-  eth_drift: STAGE 1 (136/30, 49% WR STABLE)
-  btc_drift: MICRO (64/30, 47% WR UNDERPERFORMING)
-  Bayesian posterior: 0 observations (needs 30 to activate — accumulating since S101 restart)
-
-STRATEGY INSIGHTS (from ./venv/bin/python3 scripts/strategy_analyzer.py --brief):
-  Profitable sniper: 90-95c YES/NO all assets
-  Guarded (blocked): 96c, 97c, 98c (IL-5 through IL-32 — all covered)
-  btc_drift: 47% WR UNDERPERFORMING, direction filter "no" active
-  eth_drift: 49% WR STABLE
-  sol_drift: 71% WR HEALTHY +3.84 USD
+  expiry_sniper: PRIMARY ENGINE, all guards active, 85% WR today, +24.56 USD
+  sol_drift: STAGE 1 (41/30, 71% WR, Brier 0.196) — HEALTHY
+  xrp_drift: MICRO (45/30, 50% WR)
+  eth_drift: STAGE 1 (144/30, 49% WR, PH recovering)
+  btc_drift: MICRO (65/30, 47% WR UNDERPERFORMING)
+  Bayesian posterior: 4 observations (needs 30 to activate — accumulating passively)
 
 GOAL TRACKER:
-  All-time P&L: -4.96 USD | Need: 129.96 more to hit +125 USD target
-  Today rate: ~4-6 USD/day | Est. days at current rate: 25-35
-  Highest-leverage action: Keep bot running + guards clean. Every sniper window = compounding.
+  All-time P&L: +12.67 USD | Need: 112.33 more to hit +125 USD target
+  Today rate: +24.56 USD/day (March 18) | Est. days at current rate: ~5
+  Highest-leverage action: Keep bot running, guards clean, run auto_guard_discovery.py each session.
 
 FONT RULES (mandatory — violations = chat terminated):
   RULE 1: NEVER markdown table syntax (| --- |)
@@ -172,10 +162,10 @@ Read in this order:
 5. .planning/PRINCIPLES.md
 
 Go. Start monitoring. Make money. Don't let the bot die.
---- END SESSION 102 PROMPT ---
+--- END SESSION 104 PROMPT ---
 
 Live terminal feed:
-  tail -f /tmp/polybot_session101.log | grep --line-buffered -iE "LIVE BET|LIVE.*execute|kill.switch|hard.stop|settled|WIN|LOSS|expiry_sniper|STAGE|graduation|consecutive|bankroll|restart|ERROR|CRITICAL"
+  tail -f /tmp/polybot_session103.log | grep --line-buffered -iE "LIVE BET|LIVE.*execute|kill.switch|hard.stop|settled|WIN|LOSS|expiry_sniper|STAGE|graduation|consecutive|bankroll|restart|ERROR|CRITICAL"
 
 ═══════════════════════════════════════════════════
 RESEARCH CHAT PROMPT — SESSION 95 (copy-paste to start research session)

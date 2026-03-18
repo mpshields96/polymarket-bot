@@ -284,3 +284,41 @@
 
   See SESSION_HANDOFF.md for full dead-end list.
   No new dead ends added this session.
+
+## 12. S103 MONITORING — AUTO-GUARD DISCOVERY EVENTS
+
+  Two new guards auto-discovered and activated during overnight monitoring.
+  Bot restarted twice to activate guards. Full recovery after both guard activations.
+
+  EVENT 1 — KXXRP NO@95c (04:13-04:18 UTC)
+    Loss: ID=3596, KXXRP15M-26MAR180015-15, NO@95c, -19.95 USD (04:13 UTC)
+    Guard trigger: 19 bets, 94.7% WR < 95.3% BE, -7.07 USD cumulative
+    auto_guards.json written: 04:17-04:18 UTC
+    Bot restart: PID 68913 → PID 9655 (04:18 UTC)
+    Guard confirmed loaded: "[live] Loaded 1 auto-discovered guard(s)" at startup
+
+  EVENT 2 — KXSOL NO@93c (05:08-05:18 UTC)
+    Loss: KXSOL15M-26MAR180115-15, NO@93c, -19.53 USD (05:08 UTC)
+    Guard trigger: 12 bets, 91.7% WR < 93.4% BE, -7.05 USD cumulative
+    auto_guards.json written: 05:18 UTC
+    Bot restart: PID 9655 → PID 14095 (05:18 UTC)
+    Guard confirmed loaded: "[live] Loaded 2 auto-discovered guard(s)" at startup
+
+  RECOVERY TIMELINE
+    After both losses (05:18 UTC): P&L = -2.37 USD today
+    Both guards active (06:05 UTC): +2.55 USD (fully recovered)
+    By session wrap (12:27 UTC): +24.56 USD today (67 settled, 85% WR)
+    Bot PID 14095 running clean. 0 new guards triggered after activation.
+
+  VALIDATION
+    auto_guard_discovery.py correctly identified both buckets (WR below break-even)
+    Guards activated within 5 minutes of discovery in both cases
+    No false positives — all other buckets remain unguarded and profitable
+
+  MACHINE SLEEP NOTE
+    Machine slept ~09:00-11:15 UTC during monitoring session
+    Background bash tasks (sleep 300 pattern) paused for 2+ hours
+    Bot PID 14095 survived sleep — process still alive on wakeup
+    Health check confirmed kill switch clean, no blocks, bot active on resume
+    Mitigation: no immediate fix — macOS sleep is unavoidable in home environment
+
