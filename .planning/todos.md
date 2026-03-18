@@ -888,3 +888,37 @@ TODO: strategy_analyzer.py shows '98c: Losing buckets (guards recommended)' as f
 - NFP April 4: Check KXNFP when opens (~April 2-3) for speed-play opportunity
 - eth_drift direction decision (MATTHEW): YES at 47% WR last 30 bets. NO was also 46% WR (35 bets).
   Both directions underperforming. Options: disable eth_drift, flip to NO, or wait. Needs Matthew.
+
+## TODO: Evaluate BTC/ETH ceiling lift at 97-98c (S104 bucket analysis)
+  Added: 2026-03-18
+  Bucket analysis shows BTC YES @97-98c and ETH YES @97-98c are 100% WR (pre-ceiling bets):
+    BTC YES @97c: n=6, 100% WR | BTC YES @98c: n=16, 100% WR
+    ETH YES @97c: n=10, 100% WR | ETH YES @98c: n=19, 100% WR
+  Current ceiling blocks these. XRP at 97-98c IS losing (properly guarded separately).
+  GATE: need 30+ post-ceiling bets at 97-98c for BTC/ETH to evaluate. Currently 0.
+  Approach: add paper-only tracking mode for 97-98c BTC/ETH YES sniper bets
+  to accumulate evidence. Don't lift ceiling until paper confirms 30+ at >95% WR.
+  Risk: small P&L gain (about 0.5-1 USD per bet at 97-98c). Low urgency.
+
+## TODO: Per-strategy Bayesian models (S104 analysis)
+  Added: 2026-03-18
+  HYPOTHESIS: Shared Bayesian model (intercept=-0.089) penalizes sol_drift (71% WR)
+  because it averages across eth (47% WR, 145 bets dominant) and btc (47% WR, 66 bets).
+  
+  ANALYSIS:
+    Shared model at 0.15% drift: P(YES) = 0.582, edge = 8.2% (just above threshold)
+    Sol-specific model (71% WR): P(YES) ≈ 0.788, edge = 28.8% (more confident, larger size)
+    BTC-specific (47% WR): P(YES) ≈ 0.505 at threshold → edge = 0.5% → almost no signals
+    ETH-specific (47% WR): same as BTC → near-zero signals (correct given WR)
+  
+  IMPLEMENTATION SCOPE:
+    - bayesian_settlement.py: accept dict {strategy → model} instead of single model
+    - main.py: load 4 models (drift_posterior_btc.json etc.), inject per-strategy
+    - bayesian_bootstrap.py: run per-strategy with --strategy flag
+    - New posterior files: drift_posterior_{btc,eth,sol,xrp}.json
+    - Update tests
+  
+  DATA: 42-145 bets per strategy — sufficient sample for per-strategy model
+  RISK: BTC/ETH would generate almost no live drift signals (correct behavior, but big behavior change)
+  GATE: Run bootstrap per-strategy FIRST, verify model predictions, then implement
+  PRIORITY: Medium. Next after guard retirement accumulation.
