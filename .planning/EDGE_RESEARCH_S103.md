@@ -322,3 +322,63 @@
     Health check confirmed kill switch clean, no blocks, bot active on resume
     Mitigation: no immediate fix — macOS sleep is unavoidable in home environment
 
+
+═══════════════════════════════════════════════════════════════════════
+
+## 13. S104 RESEARCH — BAYESIAN BOOTSTRAP (2026-03-18)
+
+SESSION TYPE: Research + Build
+Session: 104 (research chat)
+Date: 2026-03-18 ~13:00-14:00 UTC
+
+### Key Finding: Bayesian Posterior Bootstrap
+
+HYPOTHESIS: Historical drift bets have win_prob stored in DB. Can reconstruct
+drift_pct via sigmoid inversion: drift_pct ≈ logit(win_prob) / sensitivity.
+This allows retroactive posterior updates, jumping n=15 → n=298.
+
+MATH VALIDATION:
+  The MAP update gradient needs only (drift_pct, side, won).
+  Since win_prob = sigmoid(sensitivity * drift_pct + intercept),
+  inverting gives: drift_pct = logit(win_prob) / sensitivity (approx, intercept≈0).
+  Sequential MAP updates are order-dependent but valid regardless of starting n.
+  Selection bias: same as online approach (only edge bets in DB).
+
+RESULTS after bootstrap on 298 historical bets:
+  n: 15 → 298 (override threshold: 30)
+  uncertainty: 0.64 → 0.066 (94% reduction)
+  kelly_scale: 0.53 → 0.95 (less conservatism)
+  sensitivity: 300 → 280 (live markets slightly less responsive to drift than paper)
+  intercept: -0.077 → -0.089 (bearish bias — eth YES losses dominant)
+  override_active: False → True (ACTIVATED — Bayesian predict() now live)
+
+INTERPRETATION:
+  intercept=-0.089 means the model learned a slight bearish bias from the data.
+  For YES bets (positive drift): raw_prob = sigmoid(280 * drift_pct - 0.089)
+  At drift_pct=0.001 (0.1%): raw_prob = sigmoid(0.28 - 0.089) = sigmoid(0.191) ≈ 0.548
+  Compare to static (sensitivity=300): sigmoid(0.30) ≈ 0.574
+  → Bayesian model predicts LOWER win_prob for same drift → fewer signals fire → fewer bad bets
+  This is the self-correction mechanism working as designed.
+
+TOOL BUILT:
+  scripts/bayesian_bootstrap.py — one-time bootstrap script (run once, never again)
+  16 tests in tests/test_bayesian_bootstrap.py
+  1584 tests total (was 1565)
+
+CAUTION:
+  Do NOT re-run bootstrap — settlement_loop keeps posterior current automatically.
+  Only re-run if data/drift_posterior.json is corrupted/deleted.
+  Running again would reset n and re-process same 298 bets (harmless but unnecessary).
+
+### NCAA Round 1 Scan (2026-03-18 13:18 UTC)
+  86 Kalshi NCAAB markets open, 40 Odds API games
+  No opportunities above 3% edge threshold
+  Conclusion: Edges appear as spread consensus tightens near tip-off
+  Action: Re-scan March 19-20 (tip-offs March 20-21)
+
+### eth_drift PH Alert — Retrospective
+  PH=5.00 sustained (threshold=4.0). WR: overall=46.9%, last20=30%, last10=20%
+  Cause: ETH trending bearish, direction_filter="yes" (YES-only bets)
+  Bayesian response: intercept shifted to -0.089 (was -0.077) — fewer YES signals
+  Action: No manual intervention per PRINCIPLES.md. Bayesian handles it.
+
