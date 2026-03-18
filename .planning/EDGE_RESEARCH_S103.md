@@ -204,7 +204,38 @@
 
 ═══════════════════════════════════════════════════════════════════════
 
-## 7. PENDING LEADS (not yet actioned this session)
+## 7. INTRA-WINDOW CORRELATION ANALYSIS (S103 — DIM 7 RESEARCH)
+
+### Research question
+  Dimension 7 conceptual note: "Are multi-bet losses within same 15-min window more common
+  than expected by independence?" If yes: add intra-window correlation guard.
+
+### Results (90-95c post-ceiling sniper bets)
+  Single-bet windows:  88 windows, 88 bets, 95% WR
+  Multi-bet windows:  144 windows, 385 bets, 97% WR (avg 2.7 bets/window)
+
+  Within multi-bet windows:
+    All win:  136/144 = 94.4%
+    All loss:   0/144 = 0.0%
+    Mixed:      8/144 = 5.6%
+
+  If independent at 97% WR:
+    Expected all-win:  94.1%  (observed 94.4% — matches)
+    Expected all-loss:  0.1%  (observed 0.0% — matches)
+    Expected mixed:     5.8%  (observed 5.6% — matches)
+
+### Conclusion: INDEPENDENCE CONFIRMED — no correlation guard needed
+  Losses do NOT cluster within windows beyond what chance predicts.
+  Multi-bet windows have HIGHER WR (97% vs 95%) — correlated movement = stronger signal.
+  When multiple assets hit 90-95c simultaneously, outcome is more certain, not less.
+
+  Dead end confirmed: Dimension 7 intra-window correlation guard is NOT warranted.
+  The per-window cap (2 bets/30 USD) is sufficient risk management.
+  No additional code needed. Dimension 7 research question CLOSED.
+
+═══════════════════════════════════════════════════════════════════════
+
+## 8. PENDING LEADS (not yet actioned this session)
 
   UCL March 18: launcher fires 17:21 UTC. Check /tmp/ucl_sniper_mar18.log after 20:00 UTC.
   NCAA Round 1: re-run scanner March 19-20 for tip-offs March 20-21.
