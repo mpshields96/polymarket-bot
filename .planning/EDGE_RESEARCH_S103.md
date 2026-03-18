@@ -532,3 +532,43 @@ CONCLUSION: UCL monitoring was valuable for research. FLB pattern is PRESENT
   - Sports-specific guard system
   - Different strategy than crypto expiry sniper
   - This is a SPORTS RESEARCH TRACK — separate from core bot mission
+
+### CPI Research Agent Addendum (agent completed 19:15 UTC)
+
+CORRECTION TO DEAD END — PARTIAL OPPORTUNITY EXISTS:
+
+While KXCPI-26MAR (expiring) closes at 08:25 ET, the NEXT-MONTH contracts
+(KXCPI-26APR) REMAIN OPEN after the March print at 08:30 ET.
+
+Adjacent-month speed-play mechanics:
+  - March settles → April contracts still tradeable
+  - A hot March print (above consensus) → April YES prices should rise
+  - A cold print → April YES prices fall
+  - Adjustment is slower than financial markets (thin book, manual repricing)
+  - Window: possibly 30-120 seconds before bots fill in the gap
+
+Agent finding: CPI surprise rate = 40-50% (out of 10 months, 4-5 diverged from
+market pricing). High enough that an informed prior on surprise direction + fast
+April contract entry could be profitable.
+
+Limiting factors (per agent):
+  - Other bots will do the same thing in April contracts post-release
+  - Volume too low for large size (slippage moves price against you)
+  - Requires conditional order logic (stage limit orders before 08:30)
+
+PRE-RELEASE FINDING (agent):
+  Cleveland Fed nowcast 0.62% vs market implied 0.78-0.82% = 0.18pp divergence
+  If nowcast is reliable: KXCPI-26MAR-T0.8 YES at 51c is overpriced
+  T0.7 NO at 21-22c would pay 79c if CPI < 0.7% (3.6:1 payout)
+  This is a FUNDAMENTAL bet, not a speed-play. High risk of being wrong.
+  Tariff environment = high uncertainty. Don't trust Cleveland Fed over market.
+
+REVISED VERDICT:
+  "CPI speed-play in expiring contract" = DEAD END (confirmed)
+  "CPI adjacent-month opportunity" = SPECULATIVE, requires:
+    a. Staged limit orders in April contracts before 08:30 ET
+    b. Conditional logic to pull/fill based on print direction
+    c. High latency tolerance (not a millisecond game in thin markets)
+    d. Understanding direction of surprise BEFORE it happens (hard)
+  Add to S106+ research if bot grows and this becomes worth automating.
+  Do NOT build for April 10, 2026 — insufficient time to backtest + too much uncertainty.
