@@ -5871,3 +5871,58 @@ but bot survived and continued trading on wake. No manual errors.
 4. Bayesian: 4/30 obs — passive accumulation continues
 5. Guard retirement: 16 guards, 0-3 paper bets each, needs 50+ per bucket
 
+
+---
+
+## Session 104 — 2026-03-18 ~13:00-14:00 UTC (Research)
+
+### BUILDS
+
+#### Bayesian Posterior Bootstrap (scripts/bayesian_bootstrap.py)
+- Retroactively seeded posterior from 298 historical live drift bets
+- Before: n=15, override_active=False, kelly_scale=0.53, uncertainty=0.64
+- After:  n=298, override_active=True, kelly_scale=0.95, uncertainty=0.066
+- Key insight: win_prob stored in DB enables sigmoid inversion to recover drift_pct
+  drift_pct ≈ logit(win_prob) / sensitivity — same update rule as online learning
+- Intercept=-0.089 reflects bearish bias (eth YES losses dominant in 298-bet history)
+- Bayesian predict() now ACTIVE — bot uses live-calibrated probabilities for drift signals
+- 16 tests added (tests/test_bayesian_bootstrap.py), 1584 tests total
+
+#### Tests
+- test_bayesian_bootstrap.py: 16 tests covering edge cases (empty DB, paper exclusion,
+  invalid win_prob, all 4 drift strategies, dry-run, uncertainty narrowing, override activation)
+
+### RESEARCH
+
+#### NCAA Round 1 Scan (13:18 UTC)
+- 86 Kalshi NCAAB markets open, 40 Odds API games, no edges above 3% threshold
+- Re-run March 19-20 — edges tighten near tip-off (Round 1: March 20-21)
+
+#### KXCPI Speed-Play Research
+- 81 KXCPI markets exist on Kalshi, 0 currently open (open near April 10)
+- Confirmed infrastructure exists — probe when markets open ~April 7-9
+- Speed-play hypothesis: bet direction at 08:29:55 ET on CPI release for April 10
+
+#### eth_drift PH Alert — Documented
+- PH=5.00 sustained (peak 5.05 from S102). last10=20% WR
+- Bayesian intercept -0.089 self-corrects → fewer YES signals → less exposure
+- No manual action per PRINCIPLES.md
+
+### BOT STATE
+- Restarted PID 25008 (old PID 21755 killed by force after initial restart failed)
+- All-time P&L: +19.92 USD (was +12.67 at S103 wrap)
+- Bayesian override active: override_active=True, n=298, kelly_scale=0.95
+- UCL monitor background process watching for /tmp/ucl_sniper_mar18.log
+
+### Self-Rating: A-
+Bayesian bootstrap is the most impactful single build this project has seen since auto-guard.
+Jumped Bayesian from n=15 (not active) to n=298 (active) with 10x uncertainty reduction.
+Kelly scale improvement from 0.53 → 0.95 means drift bets will be sized more appropriately.
+NCAA scan confirmed no edges (expected). eth_drift drift documented. Good session.
+
+### Next Session Priorities
+1. UCL March 18 — check /tmp/ucl_sniper_mar18.log after 20:00 UTC
+2. NCAA Round 1 — re-scan March 19-20
+3. Monitor Bayesian override effects — does eth_drift YES frequency drop? (passive)
+4. CPI speed-play — probe KXCPI markets ~April 7-9 when they open
+5. Guard retirement — passive (needs 50+ paper bets per bucket)
