@@ -2618,6 +2618,40 @@ async def main():
             print("  Live trading not confirmed — exiting.")
             sys.exit(0)
         live_confirmed = True
+
+        # ── Auto-guard discovery at startup (Dim 1 — runs before live.py import) ──
+        # live.py loads auto_guards.json at MODULE IMPORT TIME (line 64).
+        # By running discovery here, any new guards are written before that import,
+        # making them active immediately in this session — no restart needed.
+        try:
+            import importlib.util as _ilu
+            _ag_spec = _ilu.spec_from_file_location(
+                "auto_guard_discovery",
+                str(Path(__file__).parent / "scripts" / "auto_guard_discovery.py"),
+            )
+            _ag_mod = _ilu.module_from_spec(_ag_spec)
+            _ag_spec.loader.exec_module(_ag_mod)
+            _new_guards = _ag_mod.discover_guards()
+            _existing_guards = _ag_mod.load_existing_auto_guards()
+            _merged_guards, _n_added = _ag_mod.merge_guards(_existing_guards, _new_guards)
+            if _n_added > 0:
+                _ag_mod.write_guards(_merged_guards)
+                logger.critical(
+                    "[startup] AUTO-GUARD: %d NEW guard(s) written to auto_guards.json "
+                    "— activated in this session (no restart needed). "
+                    "New guards: %s",
+                    _n_added,
+                    [f"{g['ticker_contains']} {g['side'].upper()}@{g['price_cents']}c"
+                     for g in _new_guards],
+                )
+            else:
+                logger.info(
+                    "[startup] AUTO-GUARD: 0 new guards (all %d known buckets covered).",
+                    len(_merged_guards),
+                )
+        except Exception as _ag_err:
+            logger.warning("[startup] AUTO-GUARD discovery failed (non-fatal): %s", _ag_err)
+
         # Propagate confirmation to live executor so its internal guard doesn't
         # re-prompt via input() (which hangs when stdin is piped/non-interactive)
         import src.execution.live as _live_exec_mod
