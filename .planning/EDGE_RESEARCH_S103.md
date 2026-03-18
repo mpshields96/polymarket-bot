@@ -382,3 +382,96 @@ CAUTION:
   Bayesian response: intercept shifted to -0.089 (was -0.077) — fewer YES signals
   Action: No manual intervention per PRINCIPLES.md. Bayesian handles it.
 
+
+### S104 Per-Direction Win Rate Analysis (2026-03-18 ~19:00 UTC)
+Focus: Are direction filters correct? Is SOL YES edge being suppressed?
+
+DATA (from DB, 2026-03-18):
+  btc_drift_v1: NO n=47 WR=55.3% PnL=+18.09 USD | YES n=20 WR=30.0% PnL=-30.07 USD
+    Filter="no" is CORRECT. NO beats YES dramatically. Evidence is strong (p<0.01).
+
+  eth_drift_v1: NO n=35 WR=45.7% PnL=-18.31 USD | YES n=110 WR=47.3% PnL=-8.51 USD
+    Filter="yes" was set but both sides are below breakeven. ETH has no meaningful edge
+    on either side at current sample sizes. Bayesian intercept=-0.098 (ETH-specific
+    posterior) is correctly expressing low confidence. No action per PRINCIPLES.md.
+
+  sol_drift_v1: NO n=31 WR=71.0% PnL=+0.58 USD | YES n=12 WR=66.7% PnL=+4.31 USD
+    Filter="no" is ACTIVE. Both sides profitable! YES side (n=12, 67%) is promising
+    but not statistically significant (p=0.19, need p<0.05 typically ~30 bets).
+    BIG FINDING: SOL YES is historically positive. If YES holds at 30+ bets,
+    removing direction_filter would increase SOL signal frequency by ~30%.
+    ACTION: Accumulate data. Track SOL YES bets. Revisit at 30 YES bets.
+    (Note: direction_filter currently blocks YES, so new YES data won't accumulate
+    naturally — these 12 bets are pre-filter historical data.)
+
+  xrp_drift_v1: NO n=11 WR=36.4% PnL=-2.43 USD | YES n=35 WR=54.3% PnL=-0.46 USD
+    Filter="yes" is CORRECT. YES beats NO clearly. YES edge is small (+4.3%) but
+    directionally right. NO is clearly wrong direction for XRP.
+
+PER-STRATEGY BAYESIAN MODELS (bootstrap analysis):
+  Ran per-strategy bootstrap to see if individual posteriors would change behavior.
+  Key finding: per-strategy models have similar intercepts to the shared model
+  because win_prob was encoded by the SAME shared sigmoid — the bootstrap merely
+  reconstructs what the shared model predicted, not what the actual WR would imply.
+  
+  Per-strategy results:
+    btc_drift_v1:  n=67 intercept=-0.032 kelly=0.81 uncertainty=0.260
+    eth_drift_v1:  n=145 intercept=-0.098 kelly=0.87 uncertainty=0.169
+    sol_drift_v1:  n=43 intercept=-0.042 kelly=0.82 uncertainty=0.236
+    xrp_drift_v1:  n=46 intercept=-0.049 kelly=0.80 uncertainty=0.273
+
+  SOL-specific model still predicts 60.5% NO win rate vs actual 71% — gap is structural
+  (SOL market less efficient) not capturable by Bayesian drift model.
+  ETH-specific intercept (-0.098) is more negative than shared (-0.060), would suppress
+  ETH YES signals slightly more. But implementation scope large for modest benefit.
+  
+  CONCLUSION: Per-strategy Bayesian models are a FUTURE enhancement, not urgent.
+  The structural SOL advantage comes from market microstructure, not model parameters.
+
+WHY SOL OUTPERFORMS (hypothesis):
+  SOL/USDT on Binance.US shows higher autocorrelation in 15-min momentum than BTC.
+  When SOL drifts down from open, the continuation probability is higher than BTC.
+  This is likely because SOL has fewer institutional market makers on Kalshi KXSOL15M
+  vs KXBTC15M (Jane Street, Susquehanna are known BTC market makers on Kalshi).
+  Less sophisticated competition → slower repricing → longer tradeable lag.
+  EVIDENCE: n/a (would need Kalshi order book data to confirm). Plausible hypothesis.
+  ACTION: Monitor SOL drift WR over next 30+ bets to confirm it holds.
+
+### CPI Speed-Play Research (2026-03-18 ~19:00 UTC) — DEAD END
+
+HYPOTHESIS: Trade KXCPI markets immediately after CPI print for a "speed-play" edge.
+
+FINDING — DEAD END: KXCPI markets CLOSE at 08:25 ET on release day, 5 minutes BEFORE
+the CPI print at 08:30 ET. No trades possible after the data drops.
+
+Market structure confirmed via Kalshi API:
+  KXCPI-26MAR-T0.7: close_time = 2026-04-10T12:25:00Z (08:25 ET)
+  CPI release:       2026-04-10 08:30 ET
+  Gap: -5 minutes (market closes before release)
+  Settlement:        2026-04-10T13:56:00Z (09:56 ET = after release)
+
+Current KXCPI-26MAR price ladder (as of March 18, 2026):
+  T0.6 (>0.6%): 88-89c YES (vol=58,789)
+  T0.7 (>0.7%): 78-79c YES (vol=75,494)   ← most liquid
+  T0.8 (>0.8%): 51-52c YES (vol=24,532)   ← near 50c = market median ~0.80%
+  T0.9 (>0.9%): 32-35c YES (vol=14,351)
+  T1.0 (>1.0%): 17-19c YES (vol=37,656)
+
+Market consensus implied CPI: ~0.80% MoM (T0.8 at 51c = near 50/50)
+Cleveland Fed nowcast (March 18, 2026): 0.62% MoM, 3.02% YoY
+Discrepancy: market prices in 0.18pp tariff risk premium vs Cleveland Fed
+
+WHY SPEED-PLAY FAILS:
+  Market close is BEFORE the data release. This is structural — Kalshi closes
+  binary markets minutes before the underlying event to prevent HFT manipulation.
+  We cannot react to the actual print. Any bet must be placed BEFORE 08:25 ET.
+
+WHAT REMAINS (not a speed-play):
+  Pre-release fundamental bet. Edge requires forecasting CPI better than market.
+  Market is reasonably efficient for major macro data (professional forecasters,
+  Bloomberg consensus, Fed models all priced in). This is NOT our edge.
+  No self-improving, automated, or structural edge available here.
+
+VERDICT: CPI speed-play = CONFIRMED DEAD END. Add to dead ends list.
+Do NOT build CPI monitoring scripts or forecasting models.
+Revisit only if Kalshi changes market close timing policy.

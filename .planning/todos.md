@@ -922,3 +922,16 @@ TODO: strategy_analyzer.py shows '98c: Losing buckets (guards recommended)' as f
   RISK: BTC/ETH would generate almost no live drift signals (correct behavior, but big behavior change)
   GATE: Run bootstrap per-strategy FIRST, verify model predictions, then implement
   PRIORITY: Medium. Next after guard retirement accumulation.
+
+## TODO: SOL YES direction data accumulation (S104 analysis)
+  Added: 2026-03-18
+  FINDING: SOL YES historical WR = 66.7% (n=12). Not statistically significant (p=0.19).
+  PROBLEM: direction_filter="no" blocks all new SOL YES bets. No new data will accumulate.
+  PROPOSED: 
+    Option A: Build "shadow paper tracking" for filtered direction — when direction_filter
+    blocks a YES bet, emit a paper-only version to track the outcome.
+    Option B: After 30+ historical YES bets exist (requires removing filter temporarily),
+    evaluate and re-add if YES WR drops.
+  GATE: Do NOT remove filter or add tracking until Matthew explicitly signs off.
+  If shadow tracking is built (Option A), it must be is_paper=1 only, zero live capital risk.
+  REVISIT: When sol_drift_v1 has 30+ historical YES bets OR at next research session.
