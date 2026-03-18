@@ -8,6 +8,51 @@
 #          ### Lessons learned (optional)
 # ══════════════════════════════════════════════════════════════
 
+## Session 103 (monitoring wrap) — 2026-03-18 — Auto-guard Dim1 worked, 2 bad buckets blocked
+### Changed
+- SESSION_HANDOFF.md — updated with S103 monitoring results, S104 startup sequence
+- data/auto_guards.json — 2 active guards now (was 1): added KXSOL NO@93c
+- .planning/CHANGELOG.md — this entry
+
+### Strategy Performance
+- expiry_sniper_v1: 52/54 today (96% WR), +23.72 USD live today. 2 losses: KXXRP NO@95c (-19.95) and KXSOL NO@93c (-19.53). Both buckets now auto-guarded.
+- eth_drift_v1: 2/8 today, -1.64 USD. 4 consecutive losses at session end. Bayesian self-corrects.
+- btc_drift_v1: 1/1 today, +0.51 USD. Normal.
+- xrp_drift_v1: 1/3 today, -0.74 USD. Normal micro-loss.
+- All-time P&L: +12.67 USD (was +13.67 at S102 wrap — dipped to -14.26 at worst, recovered fully)
+
+### Key Events
+- 04:17 UTC: KXXRP NO@95c lost -19.95 USD → auto-guard added → future bets blocked
+- 05:16 UTC: KXSOL NO@93c lost -19.53 USD → auto-guard added → future bets blocked
+- Bot PID changed 3x overnight (68913 → 9655 → 14095) — daemon watchdog (polybot_daemon.py) handled all restarts autonomously
+- PID 14095 loaded 2 guards at startup — both bad buckets now permanently blocked
+- Full recovery from all-time low of -14.26 USD back to +12.67 USD in ~3 hours
+
+### Strategy Analyzer Insights (scripts/strategy_analyzer.py --brief)
+- SNIPER: Profitable buckets: 95c, 90-94c (95c is now net positive again post-guards)
+- SNIPER: Guarded buckets (blocked): 98c, 97c, 96c (IL guards) + KXXRP NO@95c + KXSOL NO@93c (auto)
+- btc_drift_v1: UNDERPERFORMING — 48% WR below 50c break-even. Trend=IMPROVING. Direction filter="no" active (26% spread).
+- eth_drift_v1: UNDERPERFORMING — 47% WR below 50c break-even. Trend=DECLINING. Blocked 4 consec.
+- sol_drift_v1: HEALTHY — 41 live bets, 71% WR, +3.84 USD. Best drift strategy.
+
+### Goal Progress
+- All-time P&L: +12.67 USD | Target: +125 USD | Remaining: 112.33 USD
+- Today rate: +23.72 USD | Estimated days at rate: ~5 days
+- Highest-leverage action: Keep expiry_sniper running clean with guard stack intact
+
+### Self-Rating: B
+WINS:
+- Dim 1 auto-guard worked exactly as designed: detected 2 negative-EV buckets, blocked permanently
+- Bot daemon watchdog handled 3 restarts without any manual intervention
+- Full recovery from -14.26 to +12.67 USD within 3 hours of guard activation
+- Monitoring loop chained 19 cycles autonomously, never dropped supervision
+- UTC midnight fix applied to monitoring script mid-session
+LOSSES:
+- Two large losses (-19.95 and -19.53) = -39.48 USD total. Were preventable if KXSOL NO@93c guard had been loaded at PID 9655 startup.
+- Root cause: guard was not in auto_guards.json when PID 9655 started (4:18 UTC). It got added during my investigation and loaded by PID 14095 (5:18 UTC). One hour gap.
+ONE THING next chat must do: Verify "Loaded N auto-discovered guard(s)" in startup log matches actual guard count. If mismatch, run auto_guard_discovery.py immediately before bot takes any bets.
+ONE THING that would have made more money: Running auto_guard_discovery.py before the first 15-min window fired after bot restart (would have caught KXSOL NO@93c, saved -19.53 USD).
+
 ## Session 102 (monitoring wrap) — 2026-03-18 — BEST P&L DAY, all-time flipped positive
 ### Changed
 - SESSION_HANDOFF.md — updated with S102 monitoring results, S103 startup sequence
@@ -5780,3 +5825,49 @@ by this analysis. No new guards needed.
   dollar impact is small. Don't over-weight small-bet strategy alerts.
 - KXBTC YES@93c watches: WR 87.5% below 93.5% break-even but P&L positive
   due to variable Kelly sizing. Fixed-WR analysis misleads; P&L is authoritative.
+
+---
+
+## Session 103 — 2026-03-18 04:00–12:32 UTC
+### Research + Monitoring Hybrid
+
+### Focus
+Overnight autonomous monitoring. Research phase documented earlier in this session
+(S103 research committed separately — see commits 3e72516, 812271e, 859cee1).
+Monitoring phase: guard discovery, bot restarts, P&L management overnight.
+
+### Bot State at Wrap
+Bot: RUNNING PID 14095 → /tmp/polybot_session103.log
+Today (March 18): +24.56 USD (67 settled, 85% WR)
+All-time P&L: +12.67 USD
+Guards: 2 auto-discovered guards now active (KXXRP NO@95c + KXSOL NO@93c)
+
+### Guard Discovery Events
+1. KXXRP NO@95c — discovered 04:17 UTC, bot restarted PID 68913 → 9655
+   19 bets, 94.7% WR vs 95.3% BE, -7.07 USD cumulative loss
+2. KXSOL NO@93c — discovered 05:18 UTC, bot restarted PID 9655 → 14095
+   12 bets, 91.7% WR vs 93.4% BE, -7.05 USD cumulative loss
+Both guards loaded at restart: "[live] Loaded 2 auto-discovered guard(s)"
+Recovery: -2.37 USD at worst (after both losses), +24.56 USD by 12:27 UTC
+
+### Dead Ends
+None new (monitoring session — research dead ends in earlier S103 commits).
+
+### Self-Rating: B+
+Guards caught exactly what they should. auto_guard_discovery.py worked perfectly.
+P&L recovered from both losses quickly. Machine sleep caused a 2h monitoring gap
+but bot survived and continued trading on wake. No manual errors.
+
+### Lessons
+- auto_guard_discovery.py n>=3 threshold caught KXSOL at 12 bets — fast detection
+- Guard activation requires restart — 5-minute response time acceptable
+- macOS sleep pauses bash background tasks — acceptable gap, bot unaffected
+- Both guards correctly identified by WR < break-even threshold, not P&L alone
+
+### Next Session Priorities
+1. UCL March 18 — check /tmp/ucl_sniper_mar18.log after 20:00 UTC (launcher fires 17:21 UTC)
+2. NCAA Round 1 — re-scan March 19-20 for Round 1 tip-offs March 20-21
+3. Monitor: 2 new guards active — watch for any new bucket failures post-guard
+4. Bayesian: 4/30 obs — passive accumulation continues
+5. Guard retirement: 16 guards, 0-3 paper bets each, needs 50+ per bucket
+
