@@ -176,7 +176,35 @@
 
 ═══════════════════════════════════════════════════════════════════════
 
-## 6. PENDING LEADS (not yet actioned this session)
+## 6. CEILING GUARD IMPACT QUANTIFICATION (S103)
+
+### Before vs After: 2026-03-17 (ceiling committed 12:10 UTC)
+
+  Before ceiling (00:00-12:10 UTC): 99 bets, 91% WR, -81.38 USD
+  After ceiling (12:10-23:59 UTC):  27 bets, 96% WR, +11.05 USD
+
+  March 18 (first FULL day post-ceiling): 22/22 wins, +27.30 USD (100% WR at session end)
+
+### Root cause of pre-ceiling losses
+  At 97c YES: break-even WR = 97.97%, observed = 88% → -5.02c EV per contract
+  At 98c YES: break-even WR = 98.99%, observed = 97% → still negative EV
+  At 19.95 USD per bet (20 contracts × 99c): one loss = -19.95 USD
+  One loss at 98c (-19.40 USD) erases 13 wins at 92c (+1.49 USD each)
+
+### Impact of ceiling guard
+  Pre-ceiling loss event (March 17 08:00-10:00 UTC): 7 losses = -133 USD in 2 hours
+  Post-ceiling: structurally impossible (ceiling blocks all >95c bets)
+  Estimated ongoing savings: ~39 USD/event when crypto reversal at high prices
+
+### Conclusion
+  Commit 5a1948c (ceiling at 95c) is the single most impactful code change in bot history.
+  Without it, profitable days become unprofitable when any above-95c bet loses.
+  With it: max loss per bet = 95c × ~21 contracts = ~19.95 USD, but WR = 98% means
+  expected loss events are ~1/50 bets, fully absorbed by wins at 90-95c.
+
+═══════════════════════════════════════════════════════════════════════
+
+## 7. PENDING LEADS (not yet actioned this session)
 
   UCL March 18: launcher fires 17:21 UTC. Check /tmp/ucl_sniper_mar18.log after 20:00 UTC.
   NCAA Round 1: re-run scanner March 19-20 for tip-offs March 20-21.
