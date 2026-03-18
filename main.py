@@ -2404,13 +2404,21 @@ def print_health(db) -> None:
     stale_hr = 48
     stale_open = [
         t for t in open_trades
-        if (t.get("timestamp") or 0) and (now - (t.get("timestamp") or 0)) / 3600 > stale_hr
+        if not t.get("is_paper")  # paper trades excluded — settlement loop ignores them intentionally
+        and (t.get("timestamp") or 0) and (now - (t.get("timestamp") or 0)) / 3600 > stale_hr
+    ]
+    stale_paper = [
+        t for t in open_trades
+        if t.get("is_paper")
+        and (t.get("timestamp") or 0) and (now - (t.get("timestamp") or 0)) / 3600 > stale_hr
     ]
     if stale_open:
-        print(f"  Stale open (>{stale_hr}hr): {len(stale_open)} -- may be missed settlements")
-        warnings.append(f"{len(stale_open)} open trades older than {stale_hr}hr — settlement loop may have missed them")
+        print(f"  Stale open live (>{stale_hr}hr): {len(stale_open)} -- may be missed settlements")
+        warnings.append(f"{len(stale_open)} open live trades older than {stale_hr}hr — settlement loop may have missed them")
     else:
-        print(f"  Stale open (>{stale_hr}hr): none (OK)")
+        print(f"  Stale open live (>{stale_hr}hr): none (OK)")
+    if stale_paper:
+        print(f"  Stale open paper (>{stale_hr}hr): {len(stale_paper)} -- expected for long-duration paper strategies (sports_futures, fomc, weather)")
 
     # ── 4. Bot process ─────────────────────────────────────────────────
     print()
