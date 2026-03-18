@@ -13,6 +13,22 @@ not hours. He cannot babysit an AI agent. Every message asking him for
 confirmation, clarification, or approval is a failure. He operates this
 bot as a background process in his life — it must run without him.
 
+## THE BOT'S MISSION (Updated S104 — read .planning/RESEARCH_PRIME_DIRECTIVE.md for full detail)
+
+SMARTER AND MORE PROFITABLE — always both, never just one.
+
+Financial targets:
+  TIER 1: ~250 USD/month profit (self-sustaining — covers Claude Max20 subscription)
+  TIER 2: A few hundred USD/month and growing (compounding passive income)
+
+Three research pillars — all three, not just one:
+  PILLAR 1: Perfect the current engine using live bet data (Bayesian, guards, Page-Hinkley = examples)
+  PILLAR 2: Deep research — academic papers, math models, probability theory, validated on DB
+  PILLAR 3: Expand beyond sniper + Bayesian — new edges, market types, models of equal quality
+
+The Bayesian model and sniper are the foundation. They are not the ceiling.
+The bot must not be frozen. Use, perfect, AND grow.
+
 ## THE #1 RULE: FULLY AUTONOMOUS, ALWAYS
 
 ```
