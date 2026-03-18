@@ -164,23 +164,74 @@ to correlated positioning and reduce or skip bets in those conditions.
 
 ## PROGRESS TRACKING
 
-Each self-improvement dimension should be evaluated at every session start:
-  python3 scripts/auto_guard_discovery.py --dry-run  → any new guards found?
-  python3 scripts/auto_promotion_check.py           → any strategies at gate?
-  python3 scripts/bayesian_drift_status.py          → posterior state, confidence?
+Session-start checklist (run ALL 6 — adds ~2 min, catches problems early):
+  1. python3 scripts/auto_guard_discovery.py        → any new guards found?
+  2. python3 scripts/bayesian_drift_status.py       → posterior state, n_obs
+  3. python3 scripts/auto_promotion_check.py        → any strategies at promotion gate?
+  4. python3 scripts/guard_retirement_check.py      → any guards ready to retire?
+  5. python3 scripts/strategy_drift_check.py        → any strategy WR declining?
+  6. cat /tmp/ucl_sniper_mar18.log (if after 17:19 UTC March 18)
 
-The bot is improving if: guards stack grows, posterior narrows, Kelly fraction
+The bot is improving if: guard stack grows, posterior narrows, Kelly fraction
 calibrates closer to true edge, P&L trends positive over rolling 30-day window.
+
+## BUILD STATUS SUMMARY (as of Session 102 — 2026-03-18)
+
+ALL DIMENSIONS BUILT AND LIVE:
+
+  Dim 0: Operational baseline — RUNNING (bot alive 24/7, guards intact)
+  Dim 1: Auto-guard discovery — COMPLETE (S98/S99)
+         scripts/auto_guard_discovery.py, live.py reloads auto_guards.json
+  Dim 2: Bayesian drift model — COMPLETE (S98-S100)
+         src/models/bayesian_drift.py, drift_posterior.json persisted
+  Dim 3: Kelly self-calibration — COMPLETE (S99, uses Bayesian kelly_scale)
+         src/models/bayesian_settlement.py wired into settlement_loop
+  Dim 4: Auto-promotion — COMPLETE (S100)
+         scripts/auto_promotion_check.py (monitoring, no manual action needed)
+         BTCDriftStrategy.generate_signal() uses predict() at 30+ obs
+  Dim 5: Guard retirement — COMPLETE (S101)
+         scripts/guard_retirement_check.py, 16 guards tracked
+         All WARMING UP — needs 50+ paper bets per bucket (~weeks away)
+  Dim 6: FLB academic research — COMPLETE (S102)
+         Documented in EDGE_RESEARCH_S100.md S102 appendix
+         FLB driven by probability misweighting (Snowberg & Wolfers 2010)
+         90-95c window structurally justified. Asset hierarchy confirmed.
+  Dim 7: Strategy drift detection — COMPLETE (S102)
+         scripts/strategy_drift_check.py, Page-Hinkley CUSUM test
+         eth_drift ALERT (peak PH=5.05). sol/btc/xrp normal.
+
+WAITING ON DATA (not code-blocked):
+  - Bayesian activation: 3 obs, needs 27 more live drift bets (days)
+  - Guard retirement: 0-3 paper bets per bucket, needs 50 (weeks)
+  - btc_drift Stage 1 promotion: last20 WR 50%, hold until 55%+
+
+## NEXT FRONTIER (Sessions 103+)
+
+Phase 1 complete: all self-improvement infrastructure is built.
+Phase 2: let the system accumulate data and self-correct autonomously.
+
+Sessions 103+ priorities:
+  1. Monitor Bayesian accumulation (passive) — no code needed
+  2. UCL log check (March 18 17:19 UTC)
+  3. NCAA Round 1 scanner (March 19-20)
+  4. CPI speed-play (April 10 08:30 ET)
+  5. GDP speed-play (April 30)
+
+Longer-term (when data accumulates):
+  - Dim 5: retire guards once 50+ paper bets per bucket confirm recovery
+  - Bayesian override: monitor first 30-obs prediction vs actual WR
+  - Potential Dim 8: cross-asset correlation guard (multi-asset loss windows)
+    Academic basis: Kelly (1956) for correlated bets — but per-window cap (S101)
+    already handles this. Low priority unless P&L data shows new pattern.
 
 ## MULTI-SESSION CONTINUITY
 
-This roadmap is meant to span 6+ months.
-Each session picks the highest-priority incomplete dimension and advances it.
-Academic research informs builds. Builds are validated against DB. Validated
-builds are deployed. Deployed builds run autonomously.
-
-Session 98: Dimension 1 (auto_guard_discovery.py built, live.py wiring pending)
-Session 99+: Wire live.py, then Dimension 2 (Bayesian drift), then Dimension 3+
+Session 98: Dim 1 built
+Session 99: Dim 2+3 built, settlement wiring
+Session 100: Dim 4 built (Bayesian predict wired), auto-promotion
+Session 101: Kelly correlation confirmed, Dim 5 (guard retirement) built
+Session 102: Dim 7 (PH drift detection) built, Dim 6 (FLB research) complete
+             All-time P&L turned POSITIVE (+12.77 USD) for first time
 
 ## DIMENSION 0 — OPERATIONAL BASELINE (non-negotiable, always running)
 This is the floor. Self-improvement only matters if the bot is alive and profitable.
