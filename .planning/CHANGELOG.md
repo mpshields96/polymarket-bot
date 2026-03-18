@@ -5683,3 +5683,61 @@ Bayesian model: 0 observations (just activated, needs 30 to override static sigm
 ### Next session top priority
 UCL March 18 — check /tmp/ucl_sniper_mar18.log after 20:00 UTC
 Then: CUSUM drift detection for guard bucket health (Dim 5 enhancement)
+
+## Session 102 — RESEARCH — 2026-03-18 UTC
+
+### Metrics at session start
+- Bot PID 68913 RUNNING → /tmp/polybot_session101.log
+- All-time live P&L: -7.69 USD at start → +5.21 USD by 02:30 UTC (FIRST POSITIVE)
+- Tests: 1531 at start → 1565 at end (+34 new)
+- Commits: ac7721c (PH drift), 53a2617 (docs)
+
+### Changed: scripts/strategy_drift_check.py (NEW — Dim 7)
+- Page-Hinkley CUSUM sequential test for live strategy drift detection
+- Covers sol_drift, btc_drift, eth_drift, xrp_drift
+- Reports peak stat + current stat separately (alert persists even after partial recovery)
+- Writes /tmp/strategy_drift_report.txt for monitoring loop integration
+- Added to startup sequence as step 6
+
+### Changed: tests/test_strategy_drift_check.py (NEW — 34 tests)
+- Unit: PH stat math properties (monotonicity, floor=0, all-wins=0)
+- Unit: sol_drift scenario stable vs declining (seeded random tests)
+- Unit: rolling_wr computation edge cases
+- Unit: assess_strategy dataclass fields
+- Unit: strategy registry validation
+
+### Changed: SESSION_HANDOFF.md
+- P&L updated to +5.21 USD (positive for first time)
+- Startup sequence: added step 6 (strategy_drift_check.py)
+- PENDING list updated with S103 priorities
+- Strategy standings updated (Bayesian 3 obs)
+
+### Changed: .planning/EDGE_RESEARCH_S100.md (appended S102 section)
+- Full FLB analysis: 668 live sniper bets by asset, side, price_cents
+- Time-of-day dead end confirmed (hour-08 losses = pre-guard artifacts)
+- Dim 7 PH algorithm documentation + academic citations
+
+### Why Dim 7 now
+The drift strategies (eth/btc) are declining: eth_drift last20=40%, last10=40%.
+A rolling-window metric is noisy and has no formal stopping rule. PH CUSUM
+uses all historical data and is optimal by Lorden (1971): minimises worst-case
+detection lag for a given false-alarm rate. Now runs at every session start.
+
+### Why no manual fix to eth_drift
+eth_drift alert (peak PH=5.05) documents statistical significance of the decline.
+But PRINCIPLES.md says no direction_filter change without 30+ post-change bets.
+Bayesian model (Dim 4, S101 restart) accumulates obs and will self-correct over
+time. PH alert is a flag, not an intervention trigger.
+
+### FLB confirmation
+BTC 97-98% WR, ETH 97-98% WR in 90-95c range — strong FLB effect confirmed.
+XRP structurally lower (92-94%), all bad buckets guarded. Guard stack validated
+by this analysis. No new guards needed.
+
+### Lessons
+- PH stat can be "above threshold historically" while current stat is lower
+  (recovery after alert). Track peak separately from current for clear reporting.
+- eth_drift is micro-live ($0.40-0.60/bet). The PH alert is real but the
+  dollar impact is small. Don't over-weight small-bet strategy alerts.
+- KXBTC YES@93c watches: WR 87.5% below 93.5% break-even but P&L positive
+  due to variable Kelly sizing. Fixed-WR analysis misleads; P&L is authoritative.
