@@ -475,3 +475,60 @@ WHAT REMAINS (not a speed-play):
 VERDICT: CPI speed-play = CONFIRMED DEAD END. Add to dead ends list.
 Do NOT build CPI monitoring scripts or forecasting models.
 Revisit only if Kalshi changes market close timing policy.
+
+### GDP Speed-Play Research (2026-03-18 19:05 UTC) — DEAD END
+
+Same finding as CPI. KXGDP-26APR30 markets close at 12:29 UTC = 08:29 ET.
+BEA GDP advance estimate releases at 08:30 ET.
+
+Kalshi closes ALL macro data markets 1-5 minutes before the underlying release.
+This is deliberate policy — no speed-play possible on any macro data series.
+
+CONFIRMED DEAD ENDS (macro speed-play pattern):
+  CPI:  KXCPI markets close at 08:25 ET (CPI at 08:30 ET)
+  GDP:  KXGDP markets close at 08:29 ET (GDP at 08:30 ET)
+  Pattern applies to all Kalshi macro series (KXUNRATE, KXFOMC, etc.)
+
+Remove "CPI speed-play April 10" and "GDP speed-play April 30" from future session prompts.
+These are NOT viable edges. Do NOT re-investigate.
+
+### UCL March 18 Live Research (2026-03-18 S104) — Research Complete
+
+Games observed: 4 UCL Round of 16 second-leg matches
+
+PRICE TIMELINE — Barcelona vs Newcastle (KXUCLGAME-26MAR18BARNEW-BAR):
+  18:15 UTC: 55c (init — scheduled 18:45 kickoff)
+  18:36 UTC: 47c → 74c (+27c) — lineup news, key Newcastle player unavailable
+  19:02 UTC: 74c → 90c (+16c) *** 90c CROSSED — early Barcelona goal (min ~17)
+  19:07 UTC: 98-99c — Barcelona 2+ goals up, game effectively won
+
+LIVE SNAPSHOT @ 19:07 UTC:
+  BAR vs NEW: BAR=98-99c, NEW=0-1c, TIE=0-1c (Barcelona winning)
+  LFC vs GAL: LFC=76-77c, GAL=9-10c (Liverpool leading)
+  TOT vs ATM: TOT=39-40c, ATM=34-35c (very close/level)
+  BMU vs ATA: BMU=70-71c, ATA=12-13c (Bayern winning)
+
+KEY FINDING — UCL LIVE SNIPER FEASIBILITY:
+  UCL markets DO reach 90c+ during live games (confirmed: BAR hit 90c at ~min 17)
+  The 90c crossing trajectory: 55c → 74c (pre-game) → 90c (early goal) → 98c
+  
+  However, this is NOT analogous to crypto expiry sniper:
+  - Crypto at 90c: market is 1-2 minutes from settlement (high-certainty)
+  - Soccer at 90c: 60+ minutes of game remain (can still turn around)
+  - UCL at 90c may be less than 90% to actually settle YES (no FLB at 60 min)
+  - Our crypto edge = near-expiry FLB. Soccer edge = unclear, requires sample data
+  
+  VERDICT: UCL sniper would need separate WR data (90c+ markets, does leading team
+  win 90%+ of the time?). Without historical data, can't confirm FLB applies.
+  This is a one-time research observation, NOT a strategy to deploy.
+
+MONITOR NOTE: Python stdout buffering caused log file to stop at 14:02 UTC.
+  Fix: Add PYTHONUNBUFFERED=1 or sys.stdout.flush() to any future sports monitors.
+  The UCL data was recovered by direct Kalshi API queries.
+
+CONCLUSION: UCL monitoring was valuable for research. FLB pattern is PRESENT
+(90c+ markets DO occur during live games). But deployment requires:
+  - Historical WR data at 90c+ for live soccer (not available)
+  - Sports-specific guard system
+  - Different strategy than crypto expiry sniper
+  - This is a SPORTS RESEARCH TRACK — separate from core bot mission

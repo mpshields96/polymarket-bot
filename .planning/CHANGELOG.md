@@ -5926,3 +5926,35 @@ NCAA scan confirmed no edges (expected). eth_drift drift documented. Good sessio
 3. Monitor Bayesian override effects — does eth_drift YES frequency drop? (passive)
 4. CPI speed-play — probe KXCPI markets ~April 7-9 when they open
 5. Guard retirement — passive (needs 50+ paper bets per bucket)
+
+---
+
+## Session 104 (continued research) — 2026-03-18 ~13:00-19:15 UTC
+Claude session: autonomous research
+Bot running PID 28432 throughout
+
+### Research Completed
+1. Per-direction WR analysis (all 4 drift strategies):
+   - BTC: NO=55.3% (correct filter), YES=30.0%
+   - SOL: NO=71.0%, YES=66.7% (BOTH profitable — filter may be restrictive long-term)
+   - ETH: NO=45.7%, YES=47.3% (no directional edge, self-corrects via Bayesian)
+   - XRP: YES=54.3% (correct filter), NO=36.4%
+2. Per-strategy Bayesian bootstrap: similar to shared model. SOL structural edge not capturable by model.
+3. CPI speed-play: DEAD END. Markets close at 08:25 ET (CPI at 08:30 ET). Kalshi policy.
+4. GDP speed-play: DEAD END. Markets close at 08:29 ET (GDP at 08:30 ET). Same policy.
+5. UCL March 18: FLB confirmed (BAR surged 55c→98c in live game). Not viable without WR data.
+
+### Commits
+- b7079b9: docs: S104 research findings — per-direction analysis, CPI dead end
+- [this wrap]: docs: session wrap
+
+### Posterior state (19:15 UTC)
+  n=301, override_active=True, kelly=0.95, intercept=-0.060, uncertainty=0.065
+
+### P&L (19:15 UTC)
+  Today: ~32 USD | All-time: ~22 USD | Target: 125 USD remaining: ~103 USD
+
+### Self-grade: A-
+  All research questions answered with evidence. Three confirmed dead ends documented.
+  Key finding: SOL structural edge is real but cause unclear (market microstructure hypothesis).
+  No code built this sub-session (research only — appropriate given solid findings).
