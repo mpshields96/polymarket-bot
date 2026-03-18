@@ -281,3 +281,47 @@ Window grouping: bets with CAST(timestamp / 900 AS INTEGER) identical = same 15-
 
   DEAD END: time-of-day guard, general correlation adjustments.
   CONFIRMED: guard stack is the empirically correct and academically grounded approach.
+
+---
+
+## GUARD STACK VALIDATION — Session 101 (2026-03-18 01:10 UTC)
+
+Full bucket P&L analysis (90-95c, all assets, n>=2 live bets) confirms:
+  Every bucket with n>=5 and negative P&L is already covered by the IL guard stack.
+  The only borderline unguarded bucket is KXXRP NO@93c (n=19, 95% WR, -0.81 USD).
+
+Unguarded XRP NO@93c analysis:
+  WR: 94.7% (18W/1L), break-even: ~93.5%, gap: +1.2pp above break-even.
+  Single loss (trade #3497, March 17 21:06 UTC) = -19.53 USD wiped 18 wins.
+  DECISION: Monitor at 50+ bets. Do NOT guard now. WR above break-even.
+
+Per-asset unguarded performance (90-95c only, guard exclusions applied):
+  BTC: 99.0% WR, +101.14 USD, EV=+0.973/bet — BEST
+  ETH: 100.0% WR, +95.36 USD, EV=+1.025/bet — BEST  
+  SOL: 98.9% WR, +92.24 USD, EV=+0.992/bet — STRONG
+  XRP: 97.1% WR, +28.56 USD, EV=+0.420/bet — LOWER (more volatility, guards needed)
+
+FLB FLOOR VALIDATION: 90c floor is optimal. EV at 90c = +0.751/bet vs +0.299 at 95c.
+  Raising floor to 92c would eliminate profitable 90-91c bets for no structural gain.
+
+SELF-IMPROVEMENT CHAIN STATUS AFTER S101 RESTART:
+  Dim 3 (settlement update): NOW ACTIVE — was inactive while bot ran S98 binary.
+    First settled live drift bet will create data/drift_posterior.json.
+  Dim 4 (Bayesian predict): NOW ACTIVE — model injected at startup, kelly_scale=0.25.
+    Will override static sigmoid after 30 obs (needs ~30 live drift bet settlements).
+  Drift strategy health: eth_drift -24.70 USD, btc_drift -12.64 USD.
+    Tiny bet sizes (~0.40-0.60 USD/bet). Bayesian model will self-correct over 30+ obs.
+    No manual intervention per PRINCIPLES.md.
+
+SESSION 101 RESEARCH COMPLETE:
+  - Kelly correlation analysis (Thorp 2006): DONE, guard stack confirmed as correct
+  - Guard retirement infrastructure (Dim 5): BUILT, 16 guards tracked, warming up
+  - Guard stack validation: CONFIRMED, all negative-EV buckets covered
+  - FLB floor analysis: 90c floor CONFIRMED optimal
+  - Bot restarted: Dim 3+4 NOW LIVE for first time
+
+PENDING FOR S102+:
+  - UCL March 18 check: /tmp/ucl_sniper_mar18.log after 20:00 UTC
+  - NCAA Round 1: re-scan March 19-20
+  - CUSUM drift detection: deferred until guard buckets have 10+ post-guard bets each
+  - Bayesian model accumulation: check bayesian_drift_status.py at each session start
