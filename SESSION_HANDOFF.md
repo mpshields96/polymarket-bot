@@ -34,8 +34,13 @@
      Sniper all-time: 721/753 = 95.75% WR, +46.13 USD (strong positive)
      Total bot all-time negative due to drift strategy losses (-56+ USD combined)
 
-  6. CCA COMMS: POLYBOT_TO_CCA.md updated with political markets volume probe request
+  6. CCA COMMS: POLYBOT_TO_CCA.md updated — REQUESTS 5,6,7: signal feature importance,
+     KXETH @92-93c bucket structure (analytical, not guard-adding), sol_drift Stage 3 pathway.
      Political markets: conditional dead end (0 open KXSENATE/KXHOUSE markets until Q4 2026 midterms)
+
+  7. MAIN→RESEARCH COMMS: ~/.claude/cross-chat/MAIN_TO_RESEARCH.md (NEW FILE)
+     Research chat: read this at session start. Contains S112 overnight observations + analysis requests.
+     Key message: NO trauma guards requested. Analytical questions only. Sniper is healthy.
 
 ## S113 KEY FINDINGS (research — 2026-03-19 04:00-07:00 UTC)
 
