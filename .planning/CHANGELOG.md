@@ -6554,3 +6554,65 @@ SESSION 113 — RESEARCH (2026-03-19 ~04:00-07:00 UTC)
   4. Warming buckets: check KXBTC/KXETH YES@93c at n>=20
   5. Meta-labeling: n=7 signal_features, need 1000. Passive.
 
+
+---
+
+## Session 112 — Monitoring (2026-03-19 ~21:08 UTC → ~06:20 UTC)
+
+**Session type:** Overnight autonomous monitoring (21 cycles × 5-min, ~105 min coverage)
+
+**Bot Events:**
+  PID changed 57412 → 87658 at ~05:23 UTC (auto-restart, clean recovery)
+  On restart: 5 auto-guards reloaded ✓, Bayesian n=321 override_active=True ✓
+  eth_drift config change (min_drift_pct=9.99 from S113) took effect at restart
+
+**P&L This Session:**
+  Start: +3.07 USD all-time | End: -10.36 USD all-time | Net: -13.43 USD
+  KXETH YES@92c sniper loss: -19.32 USD (id=3846, 00:30 UTC) — unguarded bucket, statistical event
+  Sniper wins throughout session: recovered some ground (+1.68, +1.26, +0.84, +1.98 etc)
+  eth_drift micro-losses: ~4 × -0.46 USD = -1.84 USD (data collection tax, eth now disabled)
+  Today all-time sniper standalone: +46.13 USD (721/753 = 95.75% WR) — sniper is profitable
+
+**Strategy Analyzer Insights (--brief):**
+  All-time: -10.36 USD (81% WR, 1096 bets) | Today: -33.27 USD (70% WR, 37 bets)
+  Target: 135.36 USD to +125 USD goal
+  SNIPER: Profitable buckets 90-95c | Guarded: 96-98c
+  btc_drift: NEUTRAL — 72 live bets, 50% WR, -9.98 USD [direction_filter="no", 28% spread]
+  eth_drift: UNDERPERFORMING — DISABLED (min_drift_pct=9.99, saves ~2.7 USD/day)
+  sol_drift: HEALTHY — 43 live bets, 70% WR, +4.89 USD
+
+**Key Events:**
+  1. xrp_drift UNBLOCKED — streak cleared to 0 (was 5 consecutive losses). Now READY FOR LIVE.
+  2. Dim 9: n=7 → 10 signal_features (3 new drift bets accumulated toward n=1000 target)
+  3. BTC CUSUM: S=4.100/5.0 — approaching threshold. Monitor closely.
+  4. KXETH YES@93c warming bucket: n=9, WR=88.9%, pnl=-10.83 USD. At n>=10 with p<0.20, guard should fire.
+  5. CCA comms: POLYBOT_TO_CCA.md updated with political markets volume probe request.
+     Political markets: dead end until Q4 2026 midterms (no open KXSENATE/KXHOUSE markets).
+
+**Self-Rating: C+**
+  WINS: 21 cycles with zero bot downtime. Bot restart detected and verified clean (guards + Bayesian).
+    xrp_drift unblocked during session. Dim 9 accumulating. KXETH loss investigated promptly.
+  LOSSES: All-time moved further negative (-3.07 → -10.36, -13.43 swing). Bad sniper variance day.
+    KXETH YES@92c loss -19.32 USD not preventable without ex-post knowledge.
+  GRADE RATIONALE: Bot ran clean operationally but P&L result was poor. No guard failures.
+    Loss is statistical variance, not a systematic failure. Drift disable saves future losses.
+  ONE THING TO DO DIFFERENTLY: Add KXETH YES@93c to explicit monitoring priority — it's
+    one bet away from the auto-guard threshold. When it hits n=10, verify guard fires.
+  ONE THING THAT WOULD HAVE HELPED EARLIER: eth_drift was already disabled by research chat
+    at 04:39 UTC but bot didn't restart until 05:23 UTC — 4 eth_drift bets placed in the gap.
+    Nothing actionable: monitoring chat can't restart bot mid-session without reason.
+
+**Goal Progress:**
+  All-time P&L: -10.36 USD | Goal: +125 USD | Distance: 135.36 USD
+  Sniper rate: ~30 USD/day at historical 95.8% WR and ~40 bets/day
+  But today (-33.27 USD) shows variance dominates short-term. Multi-day view needed.
+  Drift strategies drag: eth disabled (-2.7 USD/day saved). btc_drift approaching disable (CUSUM 4.1/5.0).
+  Highest-leverage action: guard KXETH YES@93c when n reaches 10. Check CCA_TO_POLYBOT.md for btc_drift research.
+
+**Next session priorities (S114 monitoring):**
+  1. Verify eth_drift not firing (grep LIVE BET in session114.log for eth_drift — must be empty)
+  2. btc_drift CUSUM at 4.100/5.0 — if fires (S>=5.0), disable same as eth_drift
+  3. Check KXETH YES@93c: if n>=10 with p<0.20 → auto-guard fires automatically
+  4. Check CCA_TO_POLYBOT.md (time-of-day academic backing requested S113, political markets probe requested S112)
+  5. Monitor xrp_drift post-unblock (streak=0, direction_filter="yes")
+  6. Dim 9 accumulation count (need 1000 for meta-classifier)

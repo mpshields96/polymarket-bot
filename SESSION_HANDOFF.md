@@ -1,14 +1,41 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-19 ~07:00 UTC (Session 113 research — overnight analysis + eth_drift disable)
+# Last updated: 2026-03-19 ~06:20 UTC (Session 112 monitoring wrap — overnight, eth_drift disabled, xrp unblocked)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
-  Bot RUNNING PID 57412 → /tmp/polybot_session111.log
-  All-time live P&L: +2.95 USD | Today: 78 bets, 71% WR, -0.89 USD (eth_drift still running — restart needed)
-  Tests: 1668 passing. Last commit: a5af99d (feat: S113 research — political markets, eth_drift disabled)
-  PENDING RESTART: eth_drift disabled in config.yaml (min_drift_pct=9.99) — needs restart to take effect
-  S113 RESEARCH COMPLETE: overnight analysis, eth_drift formally disabled, political markets probed
+  Bot RUNNING PID 87658 → /tmp/polybot_session114.log
+  All-time live P&L: -10.36 USD | Today: -33.27 USD live (37 settled, 70% WR — bad sniper day)
+  Tests: 1668 passing. Last commit: 83400ee (docs: S113 btc_drift CUSUM trend analysis)
+  eth_drift: DISABLED — took effect at ~05:23 UTC restart (PID 57412→87658). config.yaml min_drift_pct=9.99.
+  xrp_drift: UNBLOCKED — streak cleared to 0 during S112 monitoring (was 5 consecutive losses)
+  S112 MONITORING COMPLETE: 21 cycles, overnight run, bot restarted clean at 05:23 UTC
+
+## S112 MONITORING KEY EVENTS (2026-03-19 ~21:08 UTC → 06:20 UTC)
+
+  1. BOT AUTO-RESTART AT 05:23 UTC (PID 57412 → 87658)
+     New log: /tmp/polybot_session114.log
+     On restart: 5 auto-guards loaded ✓, Bayesian n=321 override_active=True ✓
+     eth_drift config change (min_drift_pct=9.99 from S113 research) took effect at this restart.
+
+  2. KXETH YES@92c SNIPER LOSS (-19.32 USD)
+     id=3846, KXETH15M-26MAR190130-30 YES@92c, 21 contracts, -19.32 USD at ~00:30 UTC
+     Auto-guard did NOT trigger (WR 92.9% = above 92% break-even, P&L < 5 USD threshold)
+     KXETH YES@92c: n=14 bets, 92.9% WR, -1.26 USD total — MARGINAL bucket (barely above break-even)
+     KXETH YES@93c: n=9, 88.9% WR, -10.83 USD — WARMING BUCKET on watchlist (needs n>=10 for guard)
+
+  3. XRP_DRIFT UNBLOCKED
+     Was BLOCKED at 5 consecutive losses at session start. Cleared streak to 0 during session.
+     xrp_drift now READY FOR LIVE per --graduation-status.
+
+  4. DIM 9: n=7→10 signal_features (3 new drift bets logged signal_features)
+
+  5. SNIPER PERFORMANCE (today): 19/22 = 86.4% WR (-33.96 USD today) — bad variance day
+     Sniper all-time: 721/753 = 95.75% WR, +46.13 USD (strong positive)
+     Total bot all-time negative due to drift strategy losses (-56+ USD combined)
+
+  6. CCA COMMS: POLYBOT_TO_CCA.md updated with political markets volume probe request
+     Political markets: conditional dead end (0 open KXSENATE/KXHOUSE markets until Q4 2026 midterms)
 
 ## S113 KEY FINDINGS (research — 2026-03-19 04:00-07:00 UTC)
 
@@ -183,26 +210,30 @@
   4. XRP_DRIFT BLOCKED extended to 5 consecutive losses (was 4)
   5. SDATA: 88% (438/500) resets 2026-04-01 — avoid heavy research scans
 
-## STARTUP SEQUENCE FOR S112 (monitoring):
-    1. ps aux | grep "[m]ain.py" (expect PID 57412 or daemon-restarted)
-    2. grep "Loaded.*auto-discovered" /tmp/polybot_session111.log | tail -1
+## STARTUP SEQUENCE FOR S114 (monitoring):
+    1. ps aux | grep "[m]ain.py" (expect PID 87658 or daemon-restarted)
+    2. grep "Loaded.*auto-discovered" /tmp/polybot_session114.log | tail -1
        MUST say: "Loaded 5 auto-discovered guard(s)"
-    3. grep "override_active=True" /tmp/polybot_session111.log | tail -1
-       MUST say: override_active=True, n>=314
-    4. ./venv/bin/python3 scripts/bet_analytics.py (check CUSUM — btc_drift 4.020/5.0)
+    3. grep "override_active=True" /tmp/polybot_session114.log | tail -1
+       MUST say: override_active=True, n>=321
+    4. ./venv/bin/python3 scripts/bet_analytics.py (check CUSUM — btc_drift 4.100/5.0 APPROACHING)
     5. ./venv/bin/python3 scripts/auto_guard_discovery.py (verify 0 new guards needed)
-    6. ./venv/bin/python3 main.py --graduation-status (check xrp consecutive count)
-    7. cat ~/.claude/cross-chat/CCA_TO_POLYBOT.md | tail -80 (political markets research)
+    6. ./venv/bin/python3 main.py --graduation-status (xrp streak=0, READY FOR LIVE)
+    7. cat ~/.claude/cross-chat/CCA_TO_POLYBOT.md | tail -80 (CCA research responses)
     8. Verify Dim 9 count:
        python3 -c "import sqlite3; c=sqlite3.connect('data/polybot.db'); print(c.execute('SELECT COUNT(*) FROM trades WHERE is_paper=0 AND strategy LIKE \"%drift%\" AND signal_features IS NOT NULL').fetchone())"
+    9. Confirm eth_drift not firing: grep "eth_drift" /tmp/polybot_session114.log | grep "LIVE BET" | tail -3
+       Should be EMPTY (eth_drift disabled min_drift_pct=9.99)
 
-## RESTART COMMAND (for future restarts — session 112):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session112.log 2>&1 &
+## RESTART COMMAND (for future restarts — session 114):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session114.log 2>&1 &
   Then verify: ps aux | grep "[m]ain.py" — exactly 1. Then cat bot.pid.
 
-## STRATEGY STANDINGS (~04:06 UTC March 19 — S111 monitoring wrap)
-  expiry_sniper_v1:  PRIMARY ENGINE — 743+ live bets, 95.8% WR all-time (+3.07 USD POSITIVE)
-                     5 guards clean: 6+/6 wins post-guard this session
+## STRATEGY STANDINGS (~06:20 UTC March 19 — S112 monitoring wrap)
+  expiry_sniper_v1:  PRIMARY ENGINE — 753+ live bets, 95.75% WR all-time, +46.13 USD sniper-only P&L
+                     All-time BOT P&L: -10.36 USD (drift drag ~-56 USD)
+                     5 guards active: 0 guard failures this session
+                     WARMING BUCKETS: KXETH YES@92c (n=14, marginal), KXETH YES@93c (n=9, -10.83 USD watchlist)
                      SPRT lambda=+15.332 EDGE CONFIRMED | CUSUM S=2.025 stable
                      5 auto-guards: KXXRP NO@95c + KXSOL NO@93c + KXBTC YES@94c +
                                     KXXRP NO@93c + KXBTC NO@94c
