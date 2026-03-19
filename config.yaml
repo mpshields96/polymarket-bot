@@ -91,9 +91,12 @@ strategy:
     lag_sensitivity: 15.0             # Same as BTC until we have calibration data
 
   eth_drift:
-    # ETH drift strategy — MICRO-LIVE (Session 36), mirrors btc_drift params.
+    # ETH drift strategy — DISABLED S113 (SPRT NO EDGE lambda=-3.811 + CUSUM DRIFT ALERT S=14.460)
+    # S112 formal stats: 157 bets, WR=46.5%, SPRT boundary crossed at -2.251. No edge at p0=0.5.
+    # Disabled via min_drift_pct=9.99 (99.9% move required — never fires in practice).
+    # Re-enable only if edge direction reverses: need 30+ bets + SPRT edge_confirmed + new direction_filter.
     sensitivity: 800.0
-    min_drift_pct: 0.05
+    min_drift_pct: 9.99              # DISABLED S113 — effectively infinite threshold
     min_minutes_remaining: 3.0
     min_edge_pct: 0.05
     time_weight: 0.7
