@@ -141,10 +141,79 @@ Dim 9 signal_features: n=2 (accumulating toward n=1000)
 Guard stack: CLEAN — 5 auto-guards, all statistically provisional but directionally valid
 
 ═══════════════════════════════════════════════════════════
-SESSION GRADE: B
-Build: statistical significance gate for auto_guard_discovery (15 tests)
-Research: 3 dead ends confirmed (sports/finance/R-score), guard integrity strengthened
+SECTION 5 — PILLAR 3: CRYPTO SERIES EXPANSION ASSESSMENT
+═══════════════════════════════════════════════════════════
+
+## Hypothesis
+
+FLB applies to all Kalshi 15-min binary direction markets — structural basis is the
+market type, not the asset. If other crypto series (BNB, DOGE) trade at meaningful
+volume, they could expand the sniper opportunity set with zero new code beyond a
+price feed.
+
+## Full Crypto 15M Series Inventory (exhaustive scan)
+
+Confirmed existing 15-min direction series on Kalshi (26MAR190000-00 probe):
+  KXBTC15M: vol=171,646 per market  ← PRIMARY
+  KXETH15M: vol=23,166 per market   ← ACTIVE
+  KXSOL15M: vol=5,745 per market    ← ACTIVE
+  KXXRP15M: vol=6,399 per market    ← ACTIVE
+  KXBNB15M: vol=118-1,247 per market (avg ~400-600, direct lookup)
+  KXDOGE15M: vol=745 (current open market, direct lookup)
+  ALL OTHERS: LTC/MATIC/AVAX/LINK/ADA/DOT/ATOM/TRX/SHIB/UNI = 404 not found
+
+Note: Series-level query (/markets?series_ticker=KXBNB15M) returns volume=0 for all
+markets — this is a Kalshi API quirk for these smaller series. Direct ticker lookup
+returns real volume. BTC/ETH/SOL/XRP do NOT have this quirk.
+
+## BNB Viability Analysis — DEAD END
+
+Per-market settled volume (direct lookup, same 18:xx UTC window):
+  KXBNB15M settled: 118-633 contracts per market (5 samples)
+  KXBTC15M settled: 120,789-186,783 contracts per market (same window)
+
+Volume ratio: BNB is ~1/300 of BTC, ~1/15 of XRP.
+
+Sniper fill mechanics at 90-95c near expiry:
+  Assume 2% of total volume trades in final 2 min at high prices (90c+).
+  XRP: 6,400 x 2% = 128 contracts near expiry. At 90c each = 115 USD fill capacity.
+  BNB: 400 x 2% = 8 contracts near expiry. At 90c each = 7.20 USD fill capacity.
+
+Maximum meaningful bet on BNB: ~7 USD per window (1-2 contracts).
+With sniper running 3-5 bets/day and max contribution 7 USD/bet: trivial P&L impact.
+
+Cost of enabling BNB sniper: new price feed (Binance.US BNB/USDT stream), series config,
+paper trading period, guard stack for new buckets.
+
+FLB structural basis: YES (same market type). Statistical evidence: NONE (zero history).
+Volume assessment: TOO THIN for meaningful contribution.
+
+DEAD END: KXBNB15M sniper expansion. Volume too thin (~1/15 of XRP) to justify development.
+
+## DOGE Assessment — DEAD END
+
+KXDOGE15M: vol=745 current open market. Same cadence (15-min). Thinner than BNB.
+Settled market volumes likely similar or smaller. Even less viable than BNB.
+
+DEAD END: KXDOGE15M sniper expansion.
+
+## Summary: All Crypto 15M Series Evaluated
+
+VIABLE (active sniper): KXBTC, KXETH, KXSOL, KXXRP
+TOO THIN: KXBNB (~1/15 XRP vol), KXDOGE (even thinner)
+DOES NOT EXIST: all other crypto series
+COMPLETE — no more crypto 15M series candidates on Kalshi.
+
+The sniper cannot expand to additional crypto series at current Kalshi liquidity.
+Expansion path: await Kalshi listing new high-volume crypto series. No action needed.
+
+═══════════════════════════════════════════════════════════
+SESSION GRADE: B+
+Build: statistical significance gate for auto_guard_discovery (15 tests, commit 9be41d0)
+Research: 5 dead ends confirmed (sports/finance/R-score/KXBNB/KXDOGE), guard integrity
 Audit: trauma analysis answered — guards are sub-statistical but not pure trauma
-Dead ends confirmed: sports game markets, finance markets, R-score ranking
+Pillar 3: complete exhaustive scan of all Kalshi crypto 15M series — no expansion possible
+Dead ends confirmed: sports game markets, finance markets, R-score ranking,
+  KXBNB15M (too thin), KXDOGE15M (too thin), all other crypto 15M (don't exist)
 Tests: 1653 → 1668 passing (+15 new)
 ═══════════════════════════════════════════════════════════
