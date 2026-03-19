@@ -6243,3 +6243,128 @@ Sol Stage 2 evaluation — Matthew's call on bet cap increase.
   2. Monitor new guards (KXXRP NO@93c, KXBTC NO@94c) performance
   3. BTC very_high edge_pct guard (n=18 → need 30)
   4. Sol Stage 2: READY (Matthew's call)
+
+## Session 110 (monitoring wrap) — 2026-03-19 — Two losses, 5 guards, stale-trades fix, CCA consultation
+
+### Changed
+- main.py — fixed false stale open trades warning (c2c6a8a): excluded paper trades from stale check
+  - Root cause: --health was comparing Unix float timestamps against 48hr threshold; 2208 paper
+    dead-end strategy trades (sports_futures, fomc, weather) triggered false alarm
+  - 0 actual stale live trades confirmed. Paper stale count now reported as informational only.
+- POLYBOT_TO_CCA.md — appended corrections: (a) sniper sizing error ($5/bet vs actual ~$19.50/bet)
+  (b) eth/btc drift already at micro-live since S60, no action needed
+  (c) multivariate Kelly question: 4 simultaneous correlated crypto positions may require 0.25-0.5x reduction
+
+### Why
+- Stale trade warning was alarming and needed investigation — turned out to be a false alarm
+  from timestamp format mismatch in the --health diagnostic script
+- CCA delivered 273-line research package including CUSUM validation + bet sizing review.
+  CCA's sniper sizing data was wrong ($5/bet), required correction before acting on advice.
+
+### P&L — Session 110
+  All-time live: -9.58 USD (was -11.2 USD entering session — partial recovery)
+  Today: -33.70 USD live (9 settled: 5W/9 = 55.6% WR)
+
+  Strategy breakdown:
+  - expiry_sniper_v1: 8 bets, 4W/6 settled = 66.7% WR, -33.51 USD (2 large losses)
+    LOSSES: KXBTC15M NO@94c ×21 = -19.74 USD, KXXRP15M NO@93c ×21 = -19.53 USD
+    Cause: last-minute reversals in 20:30 UTC window. BTC and XRP crossed threshold in final 5-6 min.
+    Self-correction: 2 new auto-guards (KXBTC NO@94c, KXXRP NO@93c) activated.
+  - eth_drift_v1: 2 bets, 1W/2 = 50%, +0.17 USD
+  - xrp_drift_v1: 1 bet, 0W/1 = 0%, -0.36 USD (micro-live loss)
+
+### Strategy Analyzer Insights (from scripts/strategy_analyzer.py --brief)
+  All-time: -9.58 USD (82% WR, 1070 bets)
+  Today: -32.49 USD (64% WR, 11 bets)
+  Target: 134.58 USD to +125 USD goal
+  - SNIPER: Profitable buckets: 95, 90-94c
+  - SNIPER: Guarded buckets (historical losses blocked): 98, 97, 96c
+  - btc_drift_v1: UNDERPERFORMING — 49% WR below break-even. Trend=IMPROVING [filter='no', 27% spread]
+  - eth_drift_v1: UNDERPERFORMING — 47% WR below break-even. Trend=DECLINING
+  - sol_drift_v1: HEALTHY — 43 live bets, 70% WR, +4.89 USD
+
+### Goal Progress
+  All-time P&L: -9.58 USD | Distance to +125 USD goal: 134.58 USD
+  At +5 USD/day sniper avg (post-guards): ~27 days to +125 USD
+  Highest-leverage action: let 5 guards filter losses; focus on sniper volume + sol Stage 3 at $250 bankroll
+
+### Self-Rating: C+
+  WINS: Fixed false stale-trade alarm. Confirmed eth/btc drift already at micro-live (no action needed).
+    Two new auto-guards added and verified. Corrected CCA's sniper sizing data error.
+    CCA CUSUM response: h=5.0 confirmed correct per Basseville & Nikiforov (1993). No change needed.
+    Multivariate Kelly question delivered to CCA for next research session.
+  LOSSES: Two large sniper losses (-$39.27) sent all-time P&L negative. Soft stop display warning
+    caused confusion (enforcement is commented out — cosmetic only). SDATA quota at 87%.
+    Dim 9 (signal_features) not yet validated — no drift bets fired after restart.
+  ONE THING next chat must do differently: check if Dim 9 is working on first drift bet.
+  ONE THING that would have made more money: the guards weren't active before the 20:30 losses —
+    both were added AFTER the losses. Pre-emptive guard simulation wasn't built yet.
+
+### Graduation changes
+  None this session. Counts unchanged:
+  btc_drift: 69/30 READY | eth_drift: 153/30 READY | sol_drift: 43/30 READY | xrp_drift: 48/30 BLOCKED
+
+### Next priorities (S111):
+  1. Verify Dim 9 signal_features logging on first drift bet in new session
+  2. Wait for CCA multivariate Kelly response (POLYBOT_TO_CCA.md S108C query)
+  3. Monitor xrp_drift consecutive losses (BLOCKED at 4 — needs 1 win to clear)
+  4. Monitor btc_drift CUSUM (was 4.020/5.0 entering session)
+  5. SDATA quota 87% — avoid research scans, resets April 1
+
+## Session 109 — 2026-03-19 — Research: bet sizing analysis, guard anticipation, Dim 9 signal feature logger
+
+**Grade: B+** — Built real self-improvement infrastructure (Dim 9) with statistical backing.
+Autonomous three-chat sizing decision made with data.
+
+**Research focus:** Bet sizing and values (Matthew's question), guard anticipation strategy,
+signal feature logging for future meta-labeling classifier.
+
+**Key findings:**
+1. SNIPER $15-20 UNDERPERFORMANCE EXPLAINED (not structural):
+   $15-20 range: 451 bets, 94.2% WR, -54 USD
+   $10-15 range: 208 bets, 98.6% WR, +86 USD
+   Root cause: the -54 USD is entirely from buckets NOW GUARDED (KXXRP NO@93c, KXBTC NO@94c, etc.)
+   that were in the $15-20 range before guards existed. With 5 guards active, expect recovery.
+   Decision: KEEP HARD_MAX at $20. Monitor post-S108 WR.
+
+2. SOFT STOP DISPLAY IS MISLEADING:
+   --health shows "SOFT STOP ACTIVE: daily loss $69.27 > $32.24" but the daily loss blocking
+   code is COMMENTED OUT in kill_switch.py lines 187-191. Only consecutive loss soft stop
+   blocks live bets. Do not interrupt trading based on daily loss display.
+
+3. ALL-TIME P&L IS -$11.20 (not +22.91 from SESSION_HANDOFF):
+   Two sniper losses at $20 each = -$40 today pulled all-time negative.
+   SESSION_HANDOFF had stale S107 data. DB is authoritative.
+
+**Code built (commit 8fbf56e):**
+- Dim 9: Signal feature logger
+  src/strategies/base.py: added features: Optional[Dict] to Signal (backward compat)
+  src/strategies/btc_drift.py: populate 12-key features dict on every signal
+  src/db.py: signal_features TEXT column (migration) + save_trade() param
+  src/execution/live.py: pass signal.features → save_trade()
+  tests/test_signal_features.py: 8 new tests (NEW FILE)
+  tests/test_live_executor.py: updated stale KXBTC NO@94c test (now guarded)
+  1631 tests passing.
+
+**Meta-labeling pathway activated:**
+  Features logged: pct_from_open, minutes_remaining, time_factor, raw_prob,
+  prob_yes_calibrated, edge_pct, win_prob_final, price_cents, side,
+  minutes_late, late_penalty, bayesian_active.
+  Target: n >= 1000 for binary meta-classifier (+1-3% WR per CCA KALSHI_INTEL.md).
+  Currently ~350 drift bets. At 60-70/day: ~15 days.
+
+**Guard anticipation (Matthew's question):**
+  Not worth pre-anticipating at bucket level. Auto-guard catches in ~3 bets = max $57.
+  Signal features logger is the smarter path: at n=1000, meta-classifier filters signals.
+  Warming bucket watchlist (n>=2 negative P&L, not yet guarded) = recommended S110 build.
+
+**Bot state at wrap:**
+  RUNNING PID 48350 → /tmp/polybot_session109.log
+  5 guards active (unchanged). 1631 tests. Last commit: 8fbf56e.
+
+**Next priorities (S110):**
+  1. Warming bucket watchlist — small script, n>=2 negative P&L, visibility only
+  2. Monitor signal_features accumulation (check count each session)
+  3. Post-S108 sniper performance at $15-20 range (confirm guard-corrected WR)
+  4. BTC very_high edge_pct: n=18 → need 30+
+  5. Temperature calibration T value drift (too few new bets to see shift yet)
