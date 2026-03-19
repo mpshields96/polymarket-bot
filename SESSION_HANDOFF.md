@@ -1,13 +1,14 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-19 ~04:00 UTC (Session 112 research)
+# Last updated: 2026-03-19 ~06:15 UTC (Session 112 research wrap COMPLETE)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
-  Bot RUNNING PID 57412 → /tmp/polybot_session111.log (check log path — daemon may have restarted)
-  All-time live P&L: -4.92 USD (recovering; post-guard sniper 6/6 wins, +7.44 USD)
-  Tests: 1668 passing. Last commit: 9be41d0 (feat: statistical significance gate for auto_guard_discovery)
-  NOTE: Bot PID changed from 48350 (S110) to 57412 — restart occurred, all guards reloaded
+  Bot RUNNING PID 57412 → /tmp/polybot_session111.log
+  All-time live P&L: +3.07 USD (FIRST POSITIVE — session recovery +10.93 USD)
+  Tests: 1668 passing. Last commit: 180dc8e (docs: S112 research — trauma audit, dead ends, guard stat improvement)
+  NOTE: Bot PID changed from 48350 (S110) to 57412 — restart at S111 open, all guards reloaded
+  S112 RESEARCH COMPLETE: trauma audit done, 5 dead ends added, crypto expansion exhausted
 
 ## S110 KEY EVENTS (monitoring — 2026-03-19)
 
@@ -140,27 +141,39 @@
   CUSUM h=5.0 change (ARL simulation confirms h=5.0 is correct),
   Sports game markets (KXNBAGAME/KXNHLGAME/KXMLBGAME) = zero volume across all settled+open,
   Finance markets (KXFED/KXCPI/KXGDP/KXPCE) = zero volume,
-  R-score ranking for sniper = 1.9% window competition rate makes it irrelevant
+  R-score ranking for sniper = 1.9% window competition rate makes it irrelevant,
+  KXBNB15M sniper = too thin (~400 contracts/market vs XRP's 6,400; max fill ~7 USD/bet),
+  KXDOGE15M sniper = too thin (vol=745, even thinner than BNB),
+  All other crypto 15M series = do not exist on Kalshi (LTC/MATIC/AVAX/LINK/ADA/DOT etc all 404),
+  Crypto 15M expansion COMPLETE: BTC/ETH/SOL/XRP are the ONLY viable series on Kalshi
 
-## STARTUP SEQUENCE FOR S111:
-    1. ps aux | grep "[m]ain.py" (expect PID 48350 or daemon-restarted)
-    2. grep "Loaded.*auto-discovered" /tmp/polybot_session108.log | tail -1
+## S111 MONITORING KEY EVENTS (2026-03-19 21:08–04:06 UTC)
+  1. ALL-TIME P&L TURNED POSITIVE (+3.07 USD) — started session at -7.44 USD, +10.93 USD session gain
+  2. DIM 9 VALIDATED — trade id=3814 confirmed signal_features populated
+  3. WARMING BUCKET WATCHLIST: CLEAN — all negative buckets already guarded
+  4. XRP_DRIFT BLOCKED extended to 5 consecutive losses (was 4)
+  5. SDATA: 88% (438/500) resets 2026-04-01 — avoid heavy research scans
+
+## STARTUP SEQUENCE FOR S112 (monitoring):
+    1. ps aux | grep "[m]ain.py" (expect PID 57412 or daemon-restarted)
+    2. grep "Loaded.*auto-discovered" /tmp/polybot_session111.log | tail -1
        MUST say: "Loaded 5 auto-discovered guard(s)"
-    3. grep "override_active=True" /tmp/polybot_session108.log | tail -1
-       MUST say: override_active=True, n=311
-    4. ./venv/bin/python3 scripts/bet_analytics.py (check drift stats, CUSUM)
-    5. ./venv/bin/python3 scripts/auto_guard_discovery.py (any new guards?)
-    6. ./venv/bin/python3 main.py --graduation-status
-    7. cat ~/.claude/cross-chat/CCA_TO_POLYBOT.md | tail -80 (check CCA multivariate Kelly response)
-    8. Verify Dim 9 on first drift bet:
-       python3 -c "import sqlite3; c=sqlite3.connect('data/polybot.db'); print(c.execute('SELECT id, signal_features FROM trades WHERE is_paper=0 AND strategy LIKE \"%drift%\" ORDER BY id DESC LIMIT 1').fetchone())"
+    3. grep "override_active=True" /tmp/polybot_session111.log | tail -1
+       MUST say: override_active=True, n>=314
+    4. ./venv/bin/python3 scripts/bet_analytics.py (check CUSUM — btc_drift 4.020/5.0)
+    5. ./venv/bin/python3 scripts/auto_guard_discovery.py (verify 0 new guards needed)
+    6. ./venv/bin/python3 main.py --graduation-status (check xrp consecutive count)
+    7. cat ~/.claude/cross-chat/CCA_TO_POLYBOT.md | tail -80 (political markets research)
+    8. Verify Dim 9 count:
+       python3 -c "import sqlite3; c=sqlite3.connect('data/polybot.db'); print(c.execute('SELECT COUNT(*) FROM trades WHERE is_paper=0 AND strategy LIKE \"%drift%\" AND signal_features IS NOT NULL').fetchone())"
 
-## RESTART COMMAND (for future restarts — session 111):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session111.log 2>&1 &
-  Then verify: ps aux | grep "[m]ain.py" — exactly 1. Then check bot.pid.
+## RESTART COMMAND (for future restarts — session 112):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session112.log 2>&1 &
+  Then verify: ps aux | grep "[m]ain.py" — exactly 1. Then cat bot.pid.
 
-## STRATEGY STANDINGS (~01:45 UTC March 19 — S110 wrap)
-  expiry_sniper_v1:  PRIMARY ENGINE — ~750 settled, 95%+ WR (2 losses today), all-time recovering
+## STRATEGY STANDINGS (~04:06 UTC March 19 — S111 monitoring wrap)
+  expiry_sniper_v1:  PRIMARY ENGINE — 743+ live bets, 95.8% WR all-time (+3.07 USD POSITIVE)
+                     5 guards clean: 6+/6 wins post-guard this session
                      SPRT lambda=+15.332 EDGE CONFIRMED | CUSUM S=2.025 stable
                      5 auto-guards: KXXRP NO@95c + KXSOL NO@93c + KXBTC YES@94c +
                                     KXXRP NO@93c + KXBTC NO@94c

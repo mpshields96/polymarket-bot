@@ -6368,3 +6368,130 @@ signal feature logging for future meta-labeling classifier.
   3. Post-S108 sniper performance at $15-20 range (confirm guard-corrected WR)
   4. BTC very_high edge_pct: n=18 → need 30+
   5. Temperature calibration T value drift (too few new bets to see shift yet)
+
+## Session 111 — 2026-03-19 — Monitoring: first all-time positive P&L, Dim 9 validated
+
+**Grade: A** — All-time P&L crossed positive for first time (+3.07 USD), Dim 9 validated,
+clean monitoring with zero bot downtime, warming buckets confirmed clean.
+
+**Session gains:** +10.93 USD (11 settled, 10 wins = 90.9% WR this session)
+Bot restarted at session open (PID 48350 dead → new PID 57412).
+All guards and Bayesian reloaded cleanly (5 guards, n=314, override_active=True).
+
+**Key events:**
+
+1. ALL-TIME P&L TURNED POSITIVE (+3.07 USD) — FIRST TIME
+   Started session at -7.44 USD. Session recovery +10.51 USD via sniper wins.
+   Post-S108 guard-corrected sniper running clean: 90c-95c buckets all profitable.
+   Sniper all-time: 712/743 = 95.8% WR — holding FLB edge.
+
+2. DIM 9 VALIDATED
+   First drift bet this session (btc_drift_v1, id=3814) confirmed signal_features populated.
+   Features include: pct_from_open, minutes_remaining, edge_pct, bayesian_active, etc.
+   Meta-labeling accumulation active. ~370 drift bets. Need 1000+ for classifier.
+
+3. WARMING BUCKET WATCHLIST: CLEAN
+   All sniper price-level buckets with 2+ losses already covered by existing guards.
+   No new warming buckets to flag. Guard system functioning as intended.
+
+4. XRP_DRIFT BLOCKED EXTENDED TO 5
+   xrp_drift added 1 more consecutive loss this session (5 total, was 4).
+   Still BLOCKED per kill switch rules. Monitoring passively.
+
+5. RESEARCH CHAT BUILDS (S111-S112, from git log)
+   S111: Political markets API probe (long-horizon, low-volume — not viable near-term)
+   S111: FLB weakening monitor + Le (2026) calibration formula built
+   S112: Statistical significance gate added to auto_guard_discovery (trauma audit)
+   Tests: 1668 passing (up from 1631 entering session)
+
+**Strategy Analyzer Insights (strategy_analyzer.py --brief):**
+  All-time: +3.07 USD (82% WR, 1085 bets)
+  Today: -19.84 USD (73% WR, 26 bets — two large losses pre-session dragging day negative)
+  SNIPER: Profitable buckets 90-95c. Guarded buckets 96-98c (historical losses blocked).
+  btc_drift: UNDERPERFORMING (49% WR), Trend=IMPROVING, direction_filter="no" providing edge
+  eth_drift: UNDERPERFORMING (47% WR), Trend=DECLINING — Bayesian handling, no manual action
+  sol_drift: HEALTHY — 43 live bets, 70% WR, +4.89 USD EDGE CONFIRMED
+
+**Goal progress:**
+  All-time P&L: +3.07 USD (POSITIVE for first time)
+  Distance to +125 USD goal: 121.93 USD
+  Sniper rate: ~35 USD/day clean. Estimated days to self-sustaining (250 USD/month): ~8 days
+  Highest-leverage action: keep sniper running clean (5 guards active), accumulate Dim 9 data
+
+**Self-Rating:**
+  WINS: All-time went positive (+3.07 USD). Dim 9 validated. Clean restart. Warming buckets CLEAN.
+    10/11 settlement wins in session (90.9% WR). CCA political markets lead noted.
+  LOSSES: xrp_drift added 1 more loss (5 consec blocked). eth_drift declining. SDATA at 88%.
+    Sniper 14/16 session WR (two early losses from prior session settled at open).
+  ONE THING next chat must do differently: run bet_analytics.py at start to check CUSUM state.
+  ONE THING that would have made more money: nothing — sniper was firing correctly all session.
+
+**Graduation changes:**
+  All strategies unchanged from S110 except xrp_drift consecutive losses: 4 → 5 (still BLOCKED)
+  btc_drift: 71/30 READY | eth_drift: 155/30 READY | sol_drift: 43/30 READY | xrp_drift: 49/30 BLOCKED(5)
+
+**Next priorities (S112 monitoring):**
+  1. Run bet_analytics.py at start — check CUSUM states, esp btc_drift (was 4.020/5.0)
+  2. Monitor Dim 9 accumulation — count drift bets with signal_features, target 1000
+  3. xrp_drift needs 1 win to unblock — monitor, no action
+  4. Check CCA_TO_POLYBOT.md for any new research deliveries
+  5. SDATA at 88% — resets 2026-04-01, avoid heavy research scans
+  6. eth_drift declining trend — monitor, Bayesian handling
+
+═══════════════════════════════════════════════════════════
+SESSION 112 — RESEARCH (2026-03-19 ~03:00-06:00 UTC)
+═══════════════════════════════════════════════════════════
+
+**Research Focus:** Trauma audit, guard statistical validity, Pillar 3 expansion probing
+
+**Bot State:** RUNNING PID 57412 throughout. Research chat did NOT monitor or restart.
+
+**Builds:**
+  - scripts/auto_guard_discovery.py: MIN_BETS 3→10, P_VALUE_THRESHOLD=0.20 gate (commit 9be41d0)
+    New functions: binomial_pvalue_below(k, n, p0), meets_statistical_threshold(n, wins, be)
+    Effect: future guards require statistical evidence, not just raw WR below break-even
+  - tests/test_auto_guard_stats.py (NEW): 15 tests, all passing
+    Key regression: test_current_guard_pvalues_all_above_threshold — proves 5 existing guards
+    would NOT have fired under new rules (p=0.44-0.60, all above 0.20 threshold)
+  - Total test count: 1653 → 1668 passing
+
+**Key Data Findings:**
+  Trauma audit: all 5 auto-guards p=0.44-0.60 (sub-statistical individually). BUT joint p=3.1%
+    — marginally significant that all 5 are below break-even. Not pure trauma. Keep all 5.
+  Guard opportunity cost: minimal — blocks ~1-3 bets/week per bucket. Self-correcting via Dim 5.
+  Sports game markets: KXNBAGAME/KXNHLGAME/KXMLBGAME — vol=0 across 50+ settled markets each.
+    Markets exist, settle, but ZERO trades ever occur. Dead end confirmed.
+  Finance markets: KXFED/KXCPI/KXGDP — vol=0 across all settled and open markets. Dead end.
+  R-score ranking: only 1.9% of sniper windows have 2+ simultaneous bets. Not worth building.
+  KXBNB15M: vol=118-1,247 per market (avg ~400-600). XRP comparison: 6,400. BNB is 1/15 as liquid.
+    Near-expiry fill at 90c+: ~8 contracts = 7 USD max bet. Trivial P&L contribution. Dead end.
+  KXDOGE15M: vol=745 current. Even thinner than BNB. Dead end.
+  Crypto 15M exhaustive scan: LTC/MATIC/AVAX/LINK/ADA/DOT/ATOM/TRX/SHIB/UNI = all 404.
+    BTC/ETH/SOL/XRP are the ONLY viable 15M series on Kalshi. Expansion search COMPLETE.
+
+**Dead Ends Confirmed (S112):**
+  Sports game markets (KXNBAGAME/KXNHLGAME/KXMLBGAME) — zero volume, structural
+  Finance markets (KXFED/KXCPI/KXGDP) — zero volume, structural
+  R-score ranking for sniper — 1.9% window competition, negligible impact
+  KXBNB15M sniper — too thin (1/15 XRP vol), max fill 7 USD/bet
+  KXDOGE15M sniper — even thinner than BNB
+  All other crypto 15M (LTC/MATIC/AVAX/LINK etc) — don't exist on Kalshi
+  CRYPTO 15M EXPANSION COMPLETE: BTC/ETH/SOL/XRP are the full viable set
+
+**Self-Rating: B+**
+  WINS: Structural guard fix (trauma prevention gate), exhaustive Pillar 3 crypto scan complete,
+    5 dead ends documented with data, trauma audit answered with formal stats.
+  LOSSES: No new edge found. Political markets (strongest lead, b=1.83) not investigated —
+    waiting on CCA. Could have probed political market volumes directly.
+  ONE FINDING: The FLB sniper cannot expand to additional crypto on Kalshi. BTC/ETH/SOL/XRP
+    are the ONLY viable series. All alternatives lack volume by 15-300x.
+  NEXT SESSION: Investigate political prediction markets on Kalshi (Le 2026 b=1.83 near-expiry).
+    Look for KXELECTION / KXPRESIDENT type series volumes. If viable, structural basis exists.
+
+**Next priorities (S113 research):**
+  1. Political markets — probe KXPRES/KXELECTION/KXCONGRESS series volumes. Le (2026) b=1.83.
+     If vol exists at 90c+ near expiry, this is the strongest non-crypto lead.
+  2. Check CCA_TO_POLYBOT.md for political markets response (filed request S112)
+  3. Monitor warming buckets: KXBTC YES@93c and KXETH YES@93c — both at 88.9% WR, n=9
+  4. Meta-labeling accumulation: n=2 signal_features, need 1000. ~11 more days at 60/day.
+  5. Guard retirement (Dim 5): needs 50+ paper bets per bucket — passive monitoring only
