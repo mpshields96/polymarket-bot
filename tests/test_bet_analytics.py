@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from scripts.bet_analytics import wilson_ci, run_sprt, brier_score, run_cusum, SPRTResult
+from scripts.bet_analytics import wilson_ci, run_sprt, brier_score, run_cusum, SPRTResult, calibration_adjusted_edge
 
 
 # ── Wilson CI (Wilson 1927) ────────────────────────────────────────────────────
@@ -186,3 +186,59 @@ class TestCUSUM:
         # mu_0 - 1 - k = 0.97 - 1 - 0.035 = -0.065 -> floors at 0 from 0
         r = run_cusum([1], mu_0=0.97, mu_1=0.90)
         assert r.statistic == 0.0  # max(0, 0 + (-0.065)) = 0
+
+
+# ── Le (2026) Calibration Adjusted Edge ───────────────────────────────────────
+# Le (2026) arXiv:2602.19520 — 292M trades across 327K Kalshi/Polymarket contracts.
+# Formula: true_prob = p^b / (p^b + (1-p)^b)
+# b=1.03 for crypto (near-perfect), b=1.83 for politics near expiry (4-13pp edge).
+
+class TestCalibrationAdjustedEdge:
+    def test_perfectly_calibrated_b1_no_edge(self):
+        """When b=1.0, true_prob == market_price, edge = 0."""
+        true_prob, edge_pp = calibration_adjusted_edge(0.90, b=1.0)
+        assert abs(true_prob - 0.90) < 0.001
+        assert abs(edge_pp) < 0.01
+
+    def test_crypto_b103_tiny_edge(self):
+        """Crypto b=1.03 at 90c gives ~0.3pp edge (Le 2026)."""
+        true_prob, edge_pp = calibration_adjusted_edge(0.90, b=1.03)
+        assert true_prob > 0.90       # true_prob > market price
+        assert 0.0 < edge_pp < 1.0   # small positive edge
+
+    def test_politics_b183_large_edge(self):
+        """Politics b=1.83 at 70c gives ~13pp edge (Le 2026)."""
+        true_prob, edge_pp = calibration_adjusted_edge(0.70, b=1.83)
+        assert true_prob > 0.80       # well above 70c
+        assert edge_pp > 10.0         # 10+ percentage point edge
+
+    def test_politics_b183_at_90c_gives_8pp_edge(self):
+        """Politics b=1.83 at 90c gives ~8pp edge (Le 2026 formula verified).
+
+        CCA message approximated 4pp but the exact formula gives ~8.2pp:
+          0.90^1.83 = 0.8245, 0.10^1.83 = 0.0148
+          true_prob = 0.8245/(0.8245+0.0148) = 0.982
+        Positive result: 90c politics contracts are significantly more underpriced
+        than CCA's summary suggested — even stronger Pillar 3 case.
+        """
+        true_prob, edge_pp = calibration_adjusted_edge(0.90, b=1.83)
+        assert abs(true_prob - 0.982) < 0.002  # true prob ~98.2%
+        assert 7.0 < edge_pp < 10.0             # ~8.2pp edge
+
+    def test_b_less_than_1_favorites_overpriced(self):
+        """When b<1 (e.g. weather), true_prob < market_price (overpriced)."""
+        true_prob, edge_pp = calibration_adjusted_edge(0.90, b=0.75)
+        assert true_prob < 0.90  # actually less likely than market says
+        assert edge_pp < 0.0     # negative edge
+
+    def test_50c_symmetric_always_zero_edge(self):
+        """At 50c, any b value gives zero edge (symmetric point)."""
+        for b in [0.5, 1.0, 1.5, 2.0]:
+            true_prob, edge_pp = calibration_adjusted_edge(0.50, b=b)
+            assert abs(true_prob - 0.50) < 0.001, f"b={b} failed symmetry"
+            assert abs(edge_pp) < 0.01, f"b={b} should have zero edge at 50c"
+
+    def test_returns_percentage_points(self):
+        """edge_pp should be in percentage points (0-100 scale), not fraction."""
+        _, edge_pp = calibration_adjusted_edge(0.90, b=1.83)
+        assert edge_pp > 1.0  # 4pp in % scale, not 0.04

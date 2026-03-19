@@ -206,6 +206,48 @@ def run_cusum(outcomes: list[int], mu_0: float, mu_1: float,
     )
 
 
+# ── Le (2026) Calibration Adjusted Edge ────────────────────────────────────────
+# Le (2026) arXiv:2602.19520 — 292M trades across 327K Kalshi/Polymarket contracts.
+# Recalibration formula: true_prob = p^b / (p^b + (1-p)^b)
+# b = domain-specific calibration slope (>1 = favorites underpriced, <1 = overpriced)
+# Verified by CCA Session 111. Full findings in .planning/EDGE_RESEARCH_S111.md.
+
+# Domain calibration slopes from Le (2026):
+CALIBRATION_B_CRYPTO  = 1.03   # crypto 15-min markets — near-perfect calibration
+CALIBRATION_B_FINANCE = 1.10   # financial markets — slight favorite underpricing
+CALIBRATION_B_POLITICS_LONG = 1.31  # politics 1+ week horizon — large mispricing
+CALIBRATION_B_POLITICS_EXPIRY = 1.83  # politics near-expiry — MASSIVE mispricing
+CALIBRATION_B_SPORTS_LONG = 1.74  # sports 1+ month — large mispricing
+CALIBRATION_B_WEATHER = 0.75    # weather <48h — favorites OVERPRICED (avoid!)
+
+
+def calibration_adjusted_edge(price: float, b: float) -> tuple[float, float]:
+    """
+    Compute true probability and edge in percentage points from market price
+    using Le (2026) recalibration formula.
+
+    Args:
+        price: market price as fraction (0.0-1.0)
+        b:     domain calibration slope (Le 2026 arXiv:2602.19520)
+
+    Returns:
+        (true_prob, edge_pp) where edge_pp is in percentage points
+        Positive edge_pp = favorable (true prob > market price)
+        Negative edge_pp = unfavorable (market is overpriced for favorites)
+
+    Formula: true_prob = p^b / (p^b + (1-p)^b)
+    When b=1.0: true_prob == price (perfectly calibrated, zero edge)
+    When b>1.0: true_prob > price for p > 0.5 (favorites underpriced)
+    When b<1.0: true_prob < price for p > 0.5 (favorites overpriced)
+    """
+    p = price
+    pb = p ** b
+    qb = (1 - p) ** b
+    true_prob = pb / (pb + qb)
+    edge_pp = (true_prob - p) * 100.0
+    return (true_prob, edge_pp)
+
+
 # ── Data loading ───────────────────────────────────────────────────────────────
 
 def load_bets(db_path: Path, strategy: str | None = None) -> dict[str, list[dict]]:
@@ -340,6 +382,32 @@ def main() -> int:
     for name, bets in all_bets.items():
         if name not in shown:
             analyze_strategy(name, bets, args.min_bets)
+
+    # ── Le (2026) calibration analysis — sniper context ──────────────────────
+    print(f"\n{'─'*55}")
+    print("  CALIBRATION CONTEXT (Le 2026 arXiv:2602.19520)")
+    print(f"{'─'*55}")
+    print("  Domain calibration slopes (b) from 292M trades:")
+    print()
+
+    sniper_prices = [0.90, 0.92, 0.93, 0.94, 0.95]
+    for p in sniper_prices:
+        tp_crypto, edge_crypto = calibration_adjusted_edge(p, CALIBRATION_B_CRYPTO)
+        tp_politics, edge_politics = calibration_adjusted_edge(p, CALIBRATION_B_POLITICS_EXPIRY)
+        print(
+            f"  {int(p*100)}c:  "
+            f"crypto b=1.03 → true={tp_crypto*100:.1f}% (+{edge_crypto:.1f}pp)  |  "
+            f"politics b=1.83 → true={tp_politics*100:.1f}% (+{edge_politics:.1f}pp)"
+        )
+
+    print()
+    print("  Interpretation:")
+    print("  Sniper edge at 90-95c is ~0.3-0.5pp from calibration alone.")
+    print("  Observed 95.8% WR vs ~93% break-even = ~2.8pp gross edge.")
+    print("  Sniper edge = structural FLB + liquidity premium, NOT calibration.")
+    print("  Politics near-expiry: 8-10pp calibration edge vs sniper 0.3pp.")
+    print("  (See .planning/EDGE_RESEARCH_S111.md for full Pillar 3 analysis)")
+    print()
 
     print(f"\n{'─'*55}")
     print("  Observation only. No config changes made.")
