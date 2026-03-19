@@ -1,14 +1,43 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-19 ~06:15 UTC (Session 112 research wrap COMPLETE)
+# Last updated: 2026-03-19 ~07:00 UTC (Session 113 research — overnight analysis + eth_drift disable)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
   Bot RUNNING PID 57412 → /tmp/polybot_session111.log
-  All-time live P&L: +3.07 USD (FIRST POSITIVE — session recovery +10.93 USD)
-  Tests: 1668 passing. Last commit: 180dc8e (docs: S112 research — trauma audit, dead ends, guard stat improvement)
-  NOTE: Bot PID changed from 48350 (S110) to 57412 — restart at S111 open, all guards reloaded
-  S112 RESEARCH COMPLETE: trauma audit done, 5 dead ends added, crypto expansion exhausted
+  All-time live P&L: +2.95 USD | Today: 78 bets, 71% WR, -0.89 USD (eth_drift still running — restart needed)
+  Tests: 1668 passing. Last commit: a5af99d (feat: S113 research — political markets, eth_drift disabled)
+  PENDING RESTART: eth_drift disabled in config.yaml (min_drift_pct=9.99) — needs restart to take effect
+  S113 RESEARCH COMPLETE: overnight analysis, eth_drift formally disabled, political markets probed
+
+## S113 KEY FINDINGS (research — 2026-03-19 04:00-07:00 UTC)
+
+  1. ETH_DRIFT DISABLED IN CONFIG (PENDING RESTART)
+     SPRT lambda=-3.811 (NO EDGE crossed -2.251 boundary). CUSUM S=14.460 (DRIFT ALERT >> 5.0).
+     157 bets, 46.5% WR, -26.89 USD all-time. min_drift_pct raised to 9.99 (effectively infinite).
+     Expected savings at next restart: ~2.7 USD/day.
+     Re-enable criteria: 30+ bets with SPRT edge_confirmed + new direction_filter study.
+
+  2. OVERNIGHT ANALYSIS — ROOT CAUSE FOUND
+     Sleep hours 00-08 UTC: -99.19 USD all-time, WR=92.0%
+     Root cause: March 17 08:xx correlated crash (5 simultaneous losses, ~97 USD) + guarded buckets (~48 USD)
+     WITHOUT crash event: unguarded overnight WR CI [88.9%, 94.7%] overlaps break-even (92.5%).
+     Formal time-of-day block NOT justified (4-condition standard not met yet).
+     Drift strategies show structural overnight drag: btc_drift SLEEP=-0.57/bet vs DAY=+0.50/bet.
+     CCA REQUEST 4 filed for academic backing of overnight drift effect.
+     Main chat POLYBOT_TO_MAIN.md updated with full overnight guidance.
+
+  3. POLITICAL MARKETS — CONDITIONAL DEAD END (revisit Q4 2026 midterms)
+     Kalshi uses unified api.elections.kalshi.com — KXSENATE/KXHOUSE exist but 0 open markets.
+     Math confirmed: b=1.83 = 14x crypto edge at 90c. No markets to trade until midterm cycle.
+     20,000+ KXMVE (March Madness bracket) markets dominate current open market feed.
+
+  4. BTC_DRIFT CUSUM: S=4.100/5.0 (APPROACHING THRESHOLD)
+     SPRT lambda=-1.082 (still collecting). NOT disabling yet. Monitor at each session start.
+     If CUSUM fires (S>=5.0): raise min_drift_pct to 9.99 same as eth_drift.
+
+  5. WARMING BUCKETS: n=9 (no change since S112). Auto-guard gate needs n>=10, p<0.20.
+     Check again when n>=20 for KXBTC YES@93c and KXETH YES@93c.
 
 ## S110 KEY EVENTS (monitoring — 2026-03-19)
 

@@ -6495,3 +6495,62 @@ SESSION 112 — RESEARCH (2026-03-19 ~03:00-06:00 UTC)
   3. Monitor warming buckets: KXBTC YES@93c and KXETH YES@93c — both at 88.9% WR, n=9
   4. Meta-labeling accumulation: n=2 signal_features, need 1000. ~11 more days at 60/day.
   5. Guard retirement (Dim 5): needs 50+ paper bets per bucket — passive monitoring only
+
+═══════════════════════════════════════════════════════════════
+SESSION 113 — RESEARCH (2026-03-19 ~04:00-07:00 UTC)
+═══════════════════════════════════════════════════════════════
+
+**Research Focus:** Political markets probe, overnight/time-of-day analysis, eth_drift formal disable
+
+**Bot State:** RUNNING PID 57412 throughout. All-time +3.45 USD. Tests: 1668/1668.
+
+**Builds:**
+  - config.yaml: eth_drift min_drift_pct 0.05→9.99 (DISABLED pending next restart)
+    Formal criteria met: SPRT lambda=-3.811 (NO EDGE boundary -2.251 crossed), CUSUM S=14.460 (DRIFT ALERT)
+    Effect: no new eth_drift bets after next restart. Saves ~2.7 USD/day.
+    Re-enable criteria: 30+ bets post-restart with SPRT edge_confirmed + new direction study.
+  - scripts/probe_political_markets.py (NEW): Kalshi political market scanner
+  - .planning/EDGE_RESEARCH_S113.md (NEW): full research findings
+
+**Key Data Findings:**
+  Political markets: Kalshi consolidated to api.elections.kalshi.com (unified API).
+    KXSENATE/KXHOUSE exist as series but 0 open markets between election cycles.
+    All 20,000+ open markets currently = KXMVE (March Madness bracket structures).
+    Math confirmed (Le 2026, b=1.83): 14x crypto edge at 90c, 8.2pp net of 2c fee.
+    DEAD END until Q4 2026 midterms. Not a permanent dead end.
+
+  Overnight analysis: 748 sniper bets + 319 drift bets analyzed.
+    Sleep 00-08 UTC: WR=92.0%, P&L=-99.19 USD total all-time
+    Day 09-21 UTC: WR=97.0% (transition), WR=90.9% (peak), combined +159 USD
+    ROOT CAUSE of overnight red: March 17 08:xx correlated crash (5 losses, ~97 USD)
+      + guarded buckets (~48 USD). Unguarded overnight CI [88.9%, 94.7%] overlaps break-even.
+    btc_drift SLEEP (-0.57 USD/bet) vs btc_drift DAY (+0.50 USD/bet) = structural.
+    CCA REQUEST 4 filed: academic backing needed for overnight drift underperformance.
+    
+  eth_drift: SPRT NO EDGE confirmed (lambda=-3.811), CUSUM DRIFT ALERT (S=14.460).
+    157 bets, 46.5% WR, -26.89 USD. Costs ~2.7 USD/day. Disabled in config.
+
+  btc_drift: CUSUM S=4.100/5.0 (approaching threshold). SPRT collecting (lambda=-1.082).
+    NOT disabling yet — SPRT boundary not crossed. Monitor closely.
+
+  bot status: Today -20.67 USD (sniper 15/17=88% but 2 losses = -39 USD), drift -2.74 USD.
+
+**Dead Ends Confirmed (S113):**
+  Political markets (current market cycle — revisit Q4 2026 for midterms)
+  Political sniper (no liquid 90c+ near-expiry markets in March 2026)
+
+**Self-Rating: B**
+  WINS: eth_drift formally disabled with statistical backing, full overnight analysis done,
+    political markets properly investigated (found separate API + cycle explanation),
+    CCA request filed for time-of-day academic research.
+  LOSSES: No new edge found. Overnight issue doesn't yet meet 4-condition standard for a
+    formal time block — more data needed.
+  BEST FINDING: eth_drift disabling saves ~2.7 USD/day. First formally-justified strategy disable.
+
+**Next priorities (S114 research):**
+  1. Check CCA_TO_POLYBOT.md response (time-of-day academic backing, REQUEST 4)
+  2. btc_drift monitoring — CUSUM at 4.100/5.0, approaching threshold. If fires: formal action.
+  3. eth_drift restart confirmation: verify 0 eth_drift bets after next restart
+  4. Warming buckets: check KXBTC/KXETH YES@93c at n>=20
+  5. Meta-labeling: n=7 signal_features, need 1000. Passive.
+
