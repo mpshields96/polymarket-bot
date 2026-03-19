@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Dict, Optional
 
 if TYPE_CHECKING:
     from src.platforms.kalshi import Market, OrderBook
@@ -32,6 +32,12 @@ class Signal:
     ticker: str         # Kalshi market ticker
     price_cents: int    # current limit price for our side (1-99)
     reason: str = field(default="")  # human-readable explanation for logs
+    features: Optional[Dict[str, float]] = field(default=None, compare=False)
+    # Meta-labeling data: all signal features at fire time. Persisted as JSON.
+    # When n >= 1000 labeled examples, train a binary meta-classifier to filter
+    # low-quality signals. Keys: pct_from_open, minutes_remaining, time_factor,
+    # raw_prob, prob_yes_calibrated, edge_pct, win_prob_final, price_cents, side,
+    # minutes_late, late_penalty, bayesian_active.
 
     def __post_init__(self):
         if self.side not in ("yes", "no"):

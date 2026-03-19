@@ -126,6 +126,8 @@ class DB:
             "ALTER TABLE trades ADD COLUMN kalshi_fee_cents INTEGER",     # actual taker fee charged
             "ALTER TABLE trades ADD COLUMN gross_profit_cents INTEGER",   # profit before fees (pnl_cents + kalshi_fee_cents)
             "ALTER TABLE trades ADD COLUMN tax_basis_usd REAL",           # = net_profit_usd for ordinary income reporting
+            # Session 109: signal feature logging for future meta-labeling classifier
+            "ALTER TABLE trades ADD COLUMN signal_features TEXT",          # JSON blob of all signal features at fire time
         ]
         for sql in migrations:
             try:
@@ -164,18 +166,21 @@ class DB:
         client_order_id: Optional[str] = None,
         server_order_id: Optional[str] = None,
         signal_price_cents: Optional[int] = None,
+        signal_features: Optional[dict] = None,
     ) -> int:
         """Insert a new trade record. Returns the new row ID."""
+        import json as _json
+        features_json = _json.dumps(signal_features) if signal_features else None
         cursor = self._conn.execute(
             """INSERT INTO trades
                (timestamp, ticker, side, action, price_cents, count, cost_usd,
                 strategy, edge_pct, win_prob, is_paper, client_order_id, server_order_id,
-                signal_price_cents)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                signal_price_cents, signal_features)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 time.time(), ticker, side, action, price_cents, count, cost_usd,
                 strategy, edge_pct, win_prob, int(is_paper),
-                client_order_id, server_order_id, signal_price_cents,
+                client_order_id, server_order_id, signal_price_cents, features_json,
             ),
         )
         self._conn.commit()

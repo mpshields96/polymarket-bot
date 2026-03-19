@@ -1305,8 +1305,11 @@ class TestPerAssetStructuralLossGuards:
         assert result is None
         kalshi.create_order.assert_not_called()
 
-    async def test_btc_no_at_94c_not_blocked_by_il28(self, live_env, bypass_first_run):
-        """KXBTC NO@94c is NOT blocked -- IL-28 targets KXXRP only. BTC at 94c NO is profitable."""
+    async def test_btc_no_at_94c_blocked_by_auto_guard(self, live_env, bypass_first_run):
+        """KXBTC NO@94c IS blocked -- auto-guard added S108: n=10, 90.0% WR (need 94.4%), -11.24 USD.
+        IL-28 targets KXXRP only; this bucket was subsequently caught by auto_guard_discovery.py.
+        Updated S109: reflects current auto_guards.json (KXBTC NO@94c active).
+        """
         ob = make_orderbook(yes_bid=6)
         signal = make_signal(side="no", price_cents=93, ticker="KXBTC15M-26MAR151500-06")
         kalshi = make_kalshi_mock()
@@ -1322,8 +1325,8 @@ class TestPerAssetStructuralLossGuards:
             price_guard_min=1,
             price_guard_max=99,
         )
-        assert result is not None
-        kalshi.create_order.assert_called_once()
+        assert result is None  # blocked by auto-guard KXBTC NO@94c
+        kalshi.create_order.assert_not_called()
 
     async def test_xrp_yes_at_95c_blocked_il20(self, live_env, bypass_first_run):
         """KXXRP YES@95c IS blocked (IL-20) -- 90.0% WR at 10 bets, need 95.0% break-even.

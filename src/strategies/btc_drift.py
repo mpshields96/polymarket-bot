@@ -301,6 +301,28 @@ class BTCDriftStrategy(BaseStrategy):
             side.upper(), price_cents, reason,
         )
 
+        # ── Meta-labeling feature capture ────────────────────────────
+        # Log all signal features at fire time. When n >= 1000 labeled examples,
+        # train a binary meta-classifier to filter low-quality signals.
+        # Features persisted as JSON in trades.signal_features column.
+        features = {
+            "pct_from_open": round(pct_from_open * 100, 4),   # % drift from reference
+            "minutes_remaining": round(minutes_remaining, 2),
+            "time_factor": round(time_factor, 4),
+            "raw_prob": round(raw_prob, 4),                    # pre-calibration
+            "prob_yes_calibrated": round(prob_yes, 4),         # post-calibration
+            "edge_pct": round(edge_pct, 4),
+            "win_prob_final": round(win_prob, 4),
+            "price_cents": price_cents,
+            "side": side,
+            "minutes_late": round(minutes_late, 2),
+            "late_penalty": round(late_penalty, 4),
+            "bayesian_active": (
+                self._drift_model is not None
+                and self._drift_model.should_override_static()
+            ),
+        }
+
         return Signal(
             side=side,
             edge_pct=round(edge_pct, 4),
@@ -309,6 +331,7 @@ class BTCDriftStrategy(BaseStrategy):
             ticker=market.ticker,
             price_cents=price_cents,
             reason=reason,
+            features=features,
         )
 
     # ── Helpers ───────────────────────────────────────────────────────
