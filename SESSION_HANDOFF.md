@@ -1,13 +1,13 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-19 ~01:45 UTC (Session 110 monitoring wrap)
+# Last updated: 2026-03-19 ~02:50 UTC (Session 111 research)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
-  Bot RUNNING PID 48350 → /tmp/polybot_session108.log
-  All-time live P&L: -9.58 USD (partial recovery from -11.2 USD; 2 open bets at wrap: KXXRP YES@92c + KXETH YES@94c)
-  Tests: 1631 passing. Last commit: 8fbf56e (feat: Dim 9 signal feature logger for meta-labeling)
-  NOTE: All-time went negative due to two $20 sniper losses (last-minute BTC/XRP reversals at 20:30 UTC window)
+  Bot RUNNING PID 57412 → /tmp/polybot_session108.log (check log path — daemon may have restarted)
+  All-time live P&L: -7.86 USD (recovering; S111 today: -31.98 USD live from 2 large sniper losses)
+  Tests: 1653 passing. Last commit: e445391 (docs: S111 research — political markets correction)
+  NOTE: Bot PID changed from 48350 (S110) to 57412 — restart occurred, all guards reloaded
 
 ## S110 KEY EVENTS (monitoring — 2026-03-19)
 
@@ -108,19 +108,27 @@
   - S108:   FLB theoretical grounding complete (research-only, no code build)
   - S109:   Dim 9 signal feature logger — trades.signal_features JSON column (8fbf56e)
 
-## PENDING FOR S111+:
-  #1 Meta-labeling data accumulation — Dim 9 wired, not yet validated (0 features logged).
-     First drift bet in S111 must be checked: SELECT signal_features FROM trades ORDER BY id DESC LIMIT 1.
-     Target n=1000 drift bets for meta-classifier. Currently 313 total drift bets.
-  #2 CCA multivariate Kelly response — submitted S110C query. Check CCA_TO_POLYBOT.md.
-     Question: 4 correlated crypto positions, does correlation reduce independent Kelly fractions?
-  #3 Warming bucket watchlist — log n>=2 negative P&L buckets as visibility-only. Build S111.
+## PENDING FOR S112+:
+  #1 Meta-labeling data accumulation — Dim 9 VALIDATED (trade 3814 has signal_features).
+     n=2 bets with signal_features so far. Target n=1000 for meta-classifier.
+     Currently 315 total drift bets. At ~60/day: ~11 more days.
+  #2 Multivariate Kelly — RESOLVED. CCA: 1/N conservative scaling. At 4 simultaneous positions,
+     scale each Kelly fraction by 0.25x. Current conservative sizing already handles this.
+  #3 Warming bucket watchlist — DONE in S111. All 19 negative buckets fully guarded (IL-5 to IL-32).
+     Zero genuine gaps in guard stack. No new script needed — auto_guard handles future gaps.
   #4 Monitor new guards (KXXRP NO@93c, KXBTC NO@94c) — verify WR improving post-block
   #5 sol_drift Stage 3 check — bankroll needs $250+. Currently ~$88. Natural growth.
-  #6 BTC very_high edge_pct guard: n=18 → need n>=30 before formal test
+  #6 BTC very_high edge_pct guard: n still below 30 — monitor passively
   #7 Monitor temperature calibration T values (too few new bets to see shift yet)
   #8 Guard retirement — Dim 5 needs 50+ paper bets per bucket (~3+ more weeks)
-  #9 CUSUM h=5.0 — RESOLVED. h=5.0 confirmed correct per Basseville & Nikiforov (1993).
+  #9 Political markets Pillar 3 — CCA request filed (2026-03-19). Await CCA response on:
+     - Kalshi political market liquidity and ticker structure
+     - Le (2026) calibration: b=1.83 near-expiry → 8.2pp edge at 90c (S111 corrected CCA's 4pp)
+     - Whether near-expiry political sniper (15min-6hr) is viable with sufficient volume
+  #10 FLB weakening monitor — sniper_monthly_wr.py now tracks rolling 30-day WR.
+      Current: 2026-03 at 95.8%, no degradation signal. Run at each session start.
+  #11 Sniper daily losses pattern — 2 large losses per session for 2 sessions straight (-30+ USD/day).
+      All in guarded buckets or coincidence? Check guard coverage for recent losses at next session.
 
   CONFIRMED DEAD ENDS (cumulative):
   CPI/GDP/FOMC/UNRATE speed-plays, UCL/NCAA live sports sniper (no WR data),
