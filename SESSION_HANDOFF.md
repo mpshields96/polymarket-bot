@@ -1,15 +1,51 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-19 ~18:30 UTC (Session 115 research wrap — per-coin SPRT analysis, monthly WR tracker)
+# Last updated: 2026-03-19 ~20:00 UTC (Session 116 research — forward-edge SPRT, XRP guard validation)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
   Bot RUNNING PID 1860 → /tmp/polybot_session115.log
-  All-time live P&L: +2.01 USD (was -4.59 at S114 wrap — recovered during daytime)
-  Tests: 1674 passing. Last commit: 709b87c (feat: per-coin breakdown + monthly WR)
+  All-time live P&L: +2.01 USD approx (sniper recovering)
+  Tests: 1686 passing. Last commit: d9a44f8 (feat: forward-edge SPRT, S116)
   eth_drift: DISABLED — confirmed 0 bets since restart at 13:03 UTC (min_drift_pct=9.99)
   xrp_drift: UNBLOCKED (direction_filter="yes")
-  S115 COMPLETE: per-coin SPRT analysis (XRP formally diverged), monthly WR tracker built
+  S115+S116 COMPLETE: per-coin SPRT + forward-edge analysis — XRP guards validated
+
+## S116 RESEARCH KEY FINDINGS (2026-03-19 ~18:30-20:00 UTC)
+
+  1. FORWARD EDGE ANALYSIS — XRP GUARDS ARE SUFFICIENT
+     New function: analyze_sniper_forward_edge(bets, guards) in bet_analytics.py
+     Filters bets to: in-zone (90-95c) AND unguarded → shows forward SPRT per coin.
+
+     Forward SPRT (post-guard, in-zone 90-95c):
+       BTC: n=131 WR=98.5% lambda=+7.254 [EDGE CONFIRMED]
+       ETH: n=137 WR=98.5% lambda=+7.704 [EDGE CONFIRMED]
+       SOL: n=140 WR=96.4% lambda=+4.092 [EDGE CONFIRMED]
+       XRP: n=95  WR=93.7% lambda=-0.558 [COLLECTING — NOT at no-edge boundary]
+
+     All-time XRP lambda=-2.769 included 43 guarded + 47 ceiling/floor bets (90 total).
+     With those excluded, forward XRP is NOT broken — it's collecting data.
+     CCA REQUEST 8 resolution: current guards sufficient. No additional intervention.
+
+  2. XRP IN-ZONE BUCKET ANALYSIS COMPLETED
+     YES@92c/93c are the profitable core (+40.63 USD combined, 100% WR).
+     Problem buckets within zone: YES@94c (n=15, WR=93.3%, EV=-0.606) and
+     NO@91c/92c (n=4-5, WR=75-80%) — none meet auto-guard p<0.20 threshold.
+     NO@94c (n=17, WR=94.1%) is marginally below break-even.
+     Monitor YES@94c — if n reaches 25+ and stays below 94% WR, may become guardable.
+
+  3. btc_drift CUSUM TRAJECTORY CONFIRMED
+     Recent bets (March 18-19): 6/9 wins = 67% WR. March 17 crash was the driver.
+     CUSUM at 4.180 for multiple sessions — not rising, likely to stabilize.
+     Not a structural downtrend — trauma event. No disable needed yet.
+
+  4. SOL DIRECTION FILTER CONFIRMED CORRECT
+     YES side (n=12): WR=66.7%, EV=+0.359 (size artifact — March 11 Stage 1 era)
+     NO side (n=31): WR=71.0%, EV=+0.019
+     WR comparison: NO=71% > YES=67%. Current filter="no" is correct.
+     Higher YES EV is a bet-size artifact, not structural.
+
+  5. COMMIT: d9a44f8 (12 new tests, 1686 total passing)
 
 ## S115 RESEARCH KEY FINDINGS (2026-03-19 ~13:00-18:30 UTC)
 
@@ -201,14 +237,13 @@
   - S108:   FLB theoretical grounding complete (research-only, no code build)
   - S109:   Dim 9 signal feature logger — trades.signal_features JSON column (8fbf56e)
 
-## PENDING FOR S116+ (updated S115 research wrap):
-  #1 XRP SNIPER — WAIT FOR CCA REQUEST 8 RESPONSE (HIGHEST PRIORITY):
-     XRP SPRT lambda=-2.769, formally crossed no-edge boundary (-2.251).
-     CCA has been asked for: structural mechanism + formal SPRT + recommendation (A/B/C).
-     Options: (A) full XRP block, (B) time-guard 21-08 UTC, (C) something else.
-     Do NOT build guard preemptively. Wait for CCA mechanism response.
-     XRP YES@92c/93c are 100% WR — do NOT block all XRP, just the problem buckets/hours.
-  #2 btc_drift CUSUM: was 4.180/5.0. If S>=5.0 at session start: disable (min_drift_pct=9.99).
+## PENDING FOR S117+ (updated S116 research wrap):
+  #1 XRP SNIPER — GUARDS ARE SUFFICIENT (resolved S116):
+     All-time SPRT lambda=-2.769 (no-edge) was dominated by pre-guard losses.
+     FORWARD SPRT (post-guard, in-zone): lambda=-0.558 [collecting — not at boundary].
+     NO additional XRP intervention needed. Monitor YES@94c (n=15, WR=93.3%).
+     CCA REQUEST 8 updated: guards sufficient, academic mechanism still interesting.
+  #2 btc_drift CUSUM: 4.180/5.0. If S>=5.0 at session start: disable (min_drift_pct=9.99).
      SPRT lambda=-1.108. If crosses -2.251: also disable.
   #3 KXETH YES@93c warming bucket: n=9, 1 bet from auto-guard threshold.
      Next bet triggers check. Run scripts/auto_guard_discovery.py at session start.

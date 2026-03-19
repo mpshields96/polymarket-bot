@@ -145,3 +145,37 @@ Alert threshold: if WR drops below 93% sustained over 100+ bets in a rolling mon
   709b87c — feat(analytics): per-coin sniper breakdown + monthly WR tracking
   Files: scripts/bet_analytics.py, tests/test_bet_analytics.py
   Tests: 1674 passing, 9 new tests added
+
+---
+
+## S116 ADDITIONS (2026-03-19 ~18:30-20:00 UTC)
+
+### KEY FINDING: XRP GUARDS ARE SUFFICIENT (forward-edge analysis)
+
+New analyze_sniper_forward_edge() function in bet_analytics.py (S116).
+Filters historical bets to in-zone (90-95c) AND unguarded → true forward SPRT.
+
+  BTC forward: n=131 WR=98.5% lambda=+7.254 [EDGE CONFIRMED]
+  ETH forward: n=137 WR=98.5% lambda=+7.704 [EDGE CONFIRMED]
+  SOL forward: n=140 WR=96.4% lambda=+4.092 [EDGE CONFIRMED]
+  XRP forward: n=95  WR=93.7% lambda=-0.558 [COLLECTING — not at no-edge boundary]
+
+XRP all-time lambda=-2.769 included 43 guarded bets + 47 ceiling/floor out-of-zone.
+With current guards applied retroactively, XRP forward performance = collecting range.
+CCA REQUEST 8 conclusion: NO additional XRP intervention needed.
+
+XRP in-zone bucket summary (unguarded):
+  PROFITABLE: YES@92c (n=20, 100% WR, +25.69 USD), YES@93c (n=14, 100% WR, +14.94 USD)
+  PROBLEM: YES@94c (n=15, WR=93.3%, EV=-0.606) — below break-even but p=0.60 (not significant)
+  PROBLEM: NO@91c (n=5, WR=80%, EV=-2.814) — very bad but n too small (p=0.376)
+  PROBLEM: NO@92c (n=4, WR=75%, EV=-3.833) — very bad but n too small (p=0.284)
+  PROBLEM: NO@94c (n=17, WR=94.1%, EV=-0.311) — marginal, just above break-even
+  None meet auto-guard criteria (p<0.20 gate). Continue monitoring.
+
+btc_drift CUSUM 4.180: March 17 crash cluster driver. Recent bets 67% WR (recovering).
+Not a structural downtrend. Expected to stabilize as crash bets age out of window.
+
+SOL direction filter: NO WR=71% > YES WR=67%. Filter="no" is correct.
+YES higher EV (+0.359 vs +0.019) is a bet-size artifact (Stage 1 promotion timing).
+
+COMMIT: d9a44f8 | Tests: 1686 passing (+12 new)

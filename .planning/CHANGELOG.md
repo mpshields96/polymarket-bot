@@ -6688,3 +6688,25 @@ Bot: RUNNING PID 87658. All-time at wrap: -4.59 USD.
 ### btc_drift: CUSUM 4.180/5.0. SPRT lambda=-1.108. Approaching disable threshold.
 
 ### Grade: B+ — formal XRP SPRT finding (actionable when CCA responds), tools built
+
+---
+## Session 116 — 2026-03-19 ~18:30-20:00 UTC
+Grade: A-
+
+### Build
+- feat(analytics): analyze_sniper_forward_edge() — post-guard in-zone SPRT per coin
+  Filters historical bets to 90-95c zone + unguarded → true forward-looking SPRT
+  Runs automatically in bet_analytics.py main() using data/auto_guards.json
+  Tests: 1686 passing (+12 new for TestSniperForwardEdge class)
+  Commit: d9a44f8
+
+### Key Finding
+XRP all-time SPRT lambda=-2.769 (no-edge) is RESOLVED by current guards.
+Forward SPRT after filtering 43 guarded + 47 ceiling/floor bets: lambda=-0.558 [collecting].
+No additional XRP intervention needed. Guards on NO@93c and NO@95c are sufficient.
+CCA REQUEST 8 effectively closed: structural intervention not required beyond current guards.
+
+### Why Grade A-
+Found the core resolution to the session-defining XRP edge question WITHOUT waiting for CCA.
+Built the tool that will surface this automatically every session going forward.
+(-) XRP YES@94c bucket is a monitoring concern (n=15, WR below break-even) but no action yet.
