@@ -11,10 +11,13 @@ RUNS:   At session start (via polybot-init), or manually:
 OUTPUT: data/auto_guards.json — loaded by live.py at next restart.
 
 CRITERIA for auto-guard:
-    1. n_bets >= MIN_BETS (default 3) in the bucket
+    1. n_bets >= MIN_BETS (default 10, raised from 3 in S112 trauma audit)
     2. win_rate < break_even_wr (fee-adjusted)
-    3. total_loss_usd < -MIN_LOSS_USD (default 5 USD)
-    4. Not already covered by a hardcoded IL guard in live.py
+    3. binomial p-value < P_VALUE_THRESHOLD (0.20) — one-sided test H1: WR < break-even
+       Prevents trauma guards from firing on pure-noise samples (S112 audit found
+       all 5 existing auto-guards had p=0.44-0.60, random-chance territory).
+    4. total_loss_usd < -MIN_LOSS_USD (default 5 USD)
+    5. Not already covered by a hardcoded IL guard in live.py
 
 BREAK-EVEN FORMULA (Kalshi taker fee = 7%):
     For a YES bet at P cents:
@@ -43,9 +46,15 @@ DB_PATH = PROJ / "data" / "polybot.db"
 OUTPUT_PATH = PROJ / "data" / "auto_guards.json"
 
 # Thresholds for auto-guard trigger
-MIN_BETS = 3            # minimum sample size
+MIN_BETS = 10           # minimum sample size (raised S112: n=3 was trauma-level)
 MIN_LOSS_USD = 5.0      # minimum total loss to trigger guard (USD)
 KALSHI_FEE_RATE = 0.07  # 7% taker fee
+
+# Statistical significance gate (S112 — trauma audit finding)
+# One-sided binomial p-value threshold: P(X <= observed_wins | n, break_even_wr) < this.
+# 0.20 = permissive early-warning (catches real patterns before n=30 SPRT threshold),
+# but filters pure-noise activations (p=0.44-0.60 seen in all 5 existing guards).
+P_VALUE_THRESHOLD = 0.20
 
 # Ticker prefix map — maps DB ticker prefix to guard pattern
 # e.g. "KXBTC15M-26MAR..." → prefix "KXBTC"
@@ -115,6 +124,50 @@ def break_even_wr(price_cents: int) -> float:
     return p / (p + net_win)
 
 
+def binomial_pvalue_below(k: int, n: int, p0: float) -> float:
+    """
+    One-sided binomial p-value: P(X <= k | n, p0).
+
+    Used to test H0: true WR = break-even WR (p0).
+    H1: true WR < p0 (bucket is unprofitable).
+
+    Returns probability of observing k or fewer wins in n trials if true WR = p0.
+    Low p-value (< P_VALUE_THRESHOLD) → statistically significant underperformance.
+
+    Args:
+        k:  observed wins
+        n:  total bets
+        p0: null hypothesis win rate (break-even WR for this price)
+
+    Returns p-value in [0, 1]. Returns 1.0 if n=0.
+    """
+    if n == 0:
+        return 1.0
+    total = 0.0
+    for i in range(k + 1):
+        total += math.comb(n, i) * (p0 ** i) * ((1 - p0) ** (n - i))
+    return min(1.0, total)
+
+
+def meets_statistical_threshold(n: int, wins: int, break_even: float) -> bool:
+    """
+    Return True if bucket meets statistical guard criteria:
+      1. n >= MIN_BETS
+      2. WR < break-even (raw check)
+      3. binomial p-value < P_VALUE_THRESHOLD (one-sided, H1: WR < break-even)
+
+    All three must hold. This prevents trauma guards from activating on
+    small samples with p-values in random-chance territory.
+    """
+    if n < MIN_BETS:
+        return False
+    wr = wins / n
+    if wr >= break_even:
+        return False
+    p = binomial_pvalue_below(k=wins, n=n, p0=break_even)
+    return p < P_VALUE_THRESHOLD
+
+
 def ticker_prefix(ticker: str) -> str:
     """Extract asset prefix from full ticker. e.g. 'KXBTC15M-26MAR...' → 'KXBTC'."""
     for prefix in _TICKER_PREFIXES:
@@ -181,9 +234,7 @@ def _discover_guards_manual(db_path: Path) -> list[dict]:
         be_wr = break_even_wr(price_cents)
 
         # Skip if doesn't meet guard criteria
-        if n < MIN_BETS:
-            continue
-        if wr >= be_wr:
+        if not meets_statistical_threshold(n, wins, be_wr):
             continue
         if total_pnl_usd >= -MIN_LOSS_USD:
             continue
@@ -218,9 +269,7 @@ def _process_rows(rows: list) -> list[dict]:
         be_wr = break_even_wr(price_cents)
         total_pnl_usd = (total_pnl_cents or 0) / 100.0
 
-        if n_bets < MIN_BETS:
-            continue
-        if wr >= be_wr:
+        if not meets_statistical_threshold(n_bets, wins, be_wr):
             continue
         if total_pnl_usd >= -MIN_LOSS_USD:
             continue
