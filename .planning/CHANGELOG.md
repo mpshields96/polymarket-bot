@@ -6724,3 +6724,22 @@ Sniper at HARD_MAX=20 since S78 (March 14):
 
 Guard ROI: 5 guards save $4.88/day = $146/month combined.
 Forward growth path: XRP improvement would add $17.84/day → $888/month total.
+
+---
+
+## Session 117 (2026-03-19 ~19:30-20:00 UTC) — CONTINUATION (context-overflow from S116)
+**Focus:** Status verification after context overflow. Bot stopped per Matthew request.
+**Grade: C** — Continuation session. No new code. Status checks confirmed system health.
+
+Key findings:
+  - bankroll=179.76 USD → Stage 2 → 10 USD/bet drift cap. Log message "5 USD cap" is stale.
+  - sol_drift SPRT crossed edge_confirmed (lambda=+2.886). First formal boundary crossing.
+  - btc_drift CUSUM=4.260/5.0. Still approaching threshold. Not yet at disable level.
+  - KXETH YES@93c: n=9 (1 bet from auto-guard threshold). Not yet fired.
+  - XRP forward SPRT=-0.558 [collecting] — guards confirmed sufficient, no new intervention.
+  - All-time live P&L: +11.35 USD. Recovering.
+  - CCA REQUEST 8+9 still pending (no new responses).
+
+Tools built: none (continuation session, research complete in S116).
+Dead ends confirmed: none new.
+Next session top priority: btc_drift CUSUM monitor (4.260/5.0 — disable at 5.0).

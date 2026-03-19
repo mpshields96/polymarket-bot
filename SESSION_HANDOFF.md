@@ -1,15 +1,16 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-19 ~20:00 UTC (Session 116 research — forward-edge SPRT, XRP guard validation)
+# Last updated: 2026-03-19 ~20:00 UTC (Session 117 wrap — status checks, sol_drift edge_confirmed, bankroll staging clarification)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
-  Bot RUNNING PID 1860 → /tmp/polybot_session115.log
-  All-time live P&L: +2.01 USD approx (sniper recovering)
-  Tests: 1686 passing. Last commit: d9a44f8 (feat: forward-edge SPRT, S116)
-  eth_drift: DISABLED — confirmed 0 bets since restart at 13:03 UTC (min_drift_pct=9.99)
+  Bot STOPPED (Matthew requested stop 2026-03-19 ~19:52 UTC)
+  All-time live P&L: +11.35 USD (recovering — sniper positive session today)
+  Bankroll: 179.76 USD (Stage 2 sizing: max 10 USD/bet for drift)
+  Tests: 1686 passing. Last commit: 9f765d7 (docs: guard ROI analysis + mission target breakdown)
+  eth_drift: DISABLED (min_drift_pct=9.99) — confirmed 0 bets
   xrp_drift: UNBLOCKED (direction_filter="yes")
-  S115+S116 COMPLETE: per-coin SPRT + forward-edge analysis — XRP guards validated
+  S116+S117 COMPLETE: forward-edge analysis + staging clarification + status confirmation
 
 ## S116 RESEARCH KEY FINDINGS (2026-03-19 ~18:30-20:00 UTC)
 
@@ -237,7 +238,25 @@
   - S108:   FLB theoretical grounding complete (research-only, no code build)
   - S109:   Dim 9 signal feature logger — trades.signal_features JSON column (8fbf56e)
 
-## PENDING FOR S117+ (updated S116 research wrap):
+## S117 KEY FINDINGS (2026-03-19 ~19:30-20:00 UTC — context-overflow continuation)
+
+  1. BANKROLL STAGING CLARIFIED: bankroll=179.76 USD → Stage 2 → 10 USD/bet drift cap.
+     Log message "STAGE 1 SOL drift — Kelly + $5 cap" is stale. Actual cap = 10 USD.
+     No code change needed — sizing.py already handles this correctly.
+
+  2. sol_drift SPRT CROSSED EDGE_CONFIRMED: lambda=+2.886 (boundary=+2.890). First formal crossing.
+     CUSUM=0.560 (stable). Brier=0.198. Strongest-validated drift strategy.
+
+  3. btc_drift CUSUM: 4.260/5.0 (up from 4.180). Still below threshold. Monitor.
+     If S>=5.0 at any session start: disable (min_drift_pct=9.99).
+
+  4. KXETH YES@93c: still n=9. Auto-guard not yet fired. Check at next session start.
+
+  5. CCA REQUEST 8+9: still pending. No new responses.
+
+  6. All-time live P&L: +11.35 USD. Bankroll: 179.76 USD (Stage 2).
+
+## PENDING FOR S118+ (updated S117 wrap):
   #1 XRP SNIPER — GUARDS ARE SUFFICIENT (resolved S116):
      All-time SPRT lambda=-2.769 (no-edge) was dominated by pre-guard losses.
      FORWARD SPRT (post-guard, in-zone): lambda=-0.558 [collecting — not at boundary].
