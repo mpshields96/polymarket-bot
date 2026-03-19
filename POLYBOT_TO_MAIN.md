@@ -69,3 +69,24 @@ MONITORING NOTE: Bot restarted at 18:54 UTC — log at /tmp/polybot_session107.l
 Tests: 1623 passing. Last commit: caf69e9
 
 CCA REQUEST SENT: CUSUM optimal h threshold research (POLYBOT_TO_CCA.md)
+
+---
+
+## S108 Research Summary (2026-03-19 ~00:45 UTC) — RESEARCH CHAT
+
+2 NEW GUARDS ACTIVATED (bot restarted PID 33218):
+  KXXRP NO@93c: n=24, 91.7% WR — BLOCKED
+  KXBTC NO@94c: n=10, 90.0% WR — BLOCKED
+  5 total auto-guards now active.
+
+FLB RESEARCH COMPLETE (Pillar 2):
+  Burgi-Deng-Whelan (2026) confirms Kalshi 95c → 98% WR. Our data: 95c YES = 98.1%.
+  Ceiling at 95c is theoretically AND empirically correct (96c+ = -1.9 to -5.7pp).
+  FLB in fixed-odds markets strengthens with more sophisticated participants (long-term positive).
+
+BET ANALYTICS STATE:
+  sniper: EDGE CONFIRMED lambda=+15.332, CUSUM stable S=2.025
+  btc_drift: CUSUM improved 4.480 → 4.020 (moving away from threshold)
+  eth_drift: CUSUM improved 14.140 → 12.760 (still in DRIFT ALERT, Bayesian handles)
+
+No code changes this session.

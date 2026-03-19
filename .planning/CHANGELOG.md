@@ -6197,3 +6197,49 @@ Also: sol_drift Stage 2 evaluation (Brier 0.198, READY FOR LIVE).
 Monitor temperature calibration effect on drift strategy performance.
 Check CCA_TO_POLYBOT.md for CUSUM threshold research response.
 Sol Stage 2 evaluation — Matthew's call on bet cap increase.
+
+---
+
+## Session 108 — 2026-03-19
+
+**Session type:** Research
+
+**Builds:** None (research-only session)
+
+**Research:**
+
+1. FLB ACADEMIC RESEARCH COMPLETE — Pillar 2 grounding for expiry sniper
+   Verified citations (all fetched/confirmed):
+   - Burgi, Deng & Whelan (2026) CESifo WP 12122 — Kalshi-specific: 95c → 98% WR (+3pp)
+   - Snowberg & Wolfers (2010) NBER WP 15923 / JPE — probability misperception drives FLB
+   - Ottaviani & Sorensen (2010) AEJ:Micro — fixed-odds FLB strengthens with informed bettors
+   - Whelan (2024) Economica — FLB persists in competitive fixed-odds via maker risk aversion
+   - Thaler & Ziemba (1988) JEP — foundational FLB documentation
+   Full findings: .planning/EDGE_RESEARCH_S108.md
+
+2. PER-BUCKET FLB ANALYSIS (734 live sniper bets)
+   90-95c zone: positive FLB excess confirmed (+0.6pp to +10pp)
+   96c+ zone: consistently negative (-1.9pp to -5.7pp)
+   95c YES = 98.1% WR (+3.1pp, n=52) — exact match to Burgi-Deng-Whelan prediction
+   Ceiling at 95c empirically + theoretically confirmed correct
+
+3. 2 NEW AUTO-GUARDS ACTIVATED (bot restarted PID 33218)
+   KXXRP NO@93c: n=24, 91.7% WR (need 93.4%), -15.3 USD
+   KXBTC NO@94c: n=10, 90.0% WR (need 94.4%), -11.24 USD
+   5 total guards now active
+
+4. bet_analytics.py confirmed:
+   sniper: EDGE CONFIRMED lambda=+15.332, CUSUM stable
+   sol_drift: EDGE CONFIRMED lambda=+2.886
+   btc_drift: CUSUM improved 4.480 → 4.020 (S107 → S108)
+   eth_drift: CUSUM 14.140 → 12.760 (slight improvement, Bayesian self-corrects)
+
+**Dead ends:** None added this session.
+
+**CCA:** No response to S107 CUSUM request yet. Check next session.
+
+**Next priorities (S109):**
+  1. Check CCA_TO_POLYBOT.md for CUSUM response
+  2. Monitor new guards (KXXRP NO@93c, KXBTC NO@94c) performance
+  3. BTC very_high edge_pct guard (n=18 → need 30)
+  4. Sol Stage 2: READY (Matthew's call)
