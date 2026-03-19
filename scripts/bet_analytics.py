@@ -430,6 +430,124 @@ def analyze_sniper_coins(bets: list[dict]) -> None:
                 )
 
 
+def analyze_sniper_forward_edge(bets: list[dict], guards: list[dict]) -> None:
+    """Per-coin forward SPRT excluding guarded buckets + out-of-zone bets (S116).
+
+    Shows what the sniper edge looks like with current guards applied retroactively,
+    isolating the forward-looking performance from historical pre-guard losses.
+
+    guards: list of dicts with keys ticker_contains, price_cents, side.
+    zone: 90-95c (FLOOR=90, CEILING=95 applied to bet price_cents).
+    """
+    _FLOOR = 90
+    _CEILING = 95
+
+    if not bets:
+        return
+
+    # Build guard lookup set: (ticker_contains, price_cents, side)
+    guard_set: set[tuple[str, int, str]] = set()
+    for g in guards:
+        guard_set.add((g["ticker_contains"], g["price_cents"], g["side"]))
+
+    # Classify each bet
+    from collections import defaultdict
+    coins: dict[str, dict[str, list]] = {
+        label: {"wins": [], "losses": [], "excl_zone": 0, "excl_guard": 0}
+        for label in ["BTC", "ETH", "SOL", "XRP"]
+    }
+
+    for b in bets:
+        ticker = b.get("ticker", "")
+        price = b.get("price_cents", 0)
+        side = b.get("side", "")
+        won = b.get("won", False)
+        pnl = b.get("pnl_cents", 0) / 100
+
+        # Map to coin label
+        coin = None
+        ticker_contains = None
+        for pfx, label in _COIN_PREFIXES.items():
+            if ticker.startswith(pfx):
+                coin = label
+                ticker_contains = pfx
+                break
+        if coin is None:
+            continue
+
+        # Apply zone filter (floor/ceiling on bet price_cents)
+        if price < _FLOOR or price > _CEILING:
+            coins[coin]["excl_zone"] += 1
+            continue
+
+        # Apply guard filter
+        guarded = False
+        if ticker_contains:
+            for g in guards:
+                if (g["ticker_contains"] in ticker and
+                        g["price_cents"] == price and
+                        g["side"] == side):
+                    guarded = True
+                    break
+        if guarded:
+            coins[coin]["excl_guard"] += 1
+            continue
+
+        # Forward bet — include in analysis
+        if won:
+            coins[coin]["wins"].append(pnl)
+        else:
+            coins[coin]["losses"].append(pnl)
+
+    cfg = STRATEGY_CONFIG["expiry_sniper_v1"]
+    p0, p1 = cfg["p0"], cfg["p1"]
+    _LB, _UB = -2.251, 2.890
+
+    print(f"\n{'─'*55}")
+    print("  SNIPER FORWARD EDGE — post-guard, in-zone 90-95c (S116)")
+    print("  Excludes guarded buckets + out-of-zone historical bets.")
+    print(f"{'─'*55}")
+
+    for label in ["BTC", "ETH", "SOL", "XRP"]:
+        fw = len(coins[label]["wins"])
+        fl = len(coins[label]["losses"])
+        excl_zone = coins[label]["excl_zone"]
+        excl_guard = coins[label]["excl_guard"]
+        n = fw + fl
+        if n == 0:
+            print(f"  {label}: no forward bets (excl: {excl_zone} zone, {excl_guard} guarded)")
+            continue
+
+        wr = fw / n
+        pnl_total = sum(coins[label]["wins"]) + sum(coins[label]["losses"])
+        ci_lo, ci_hi = wilson_ci(n, fw)
+
+        print(
+            f"  {label}: n={n} WR={wr*100:.1f}% CI=[{ci_lo*100:.1f}%,{ci_hi*100:.1f}%]"
+            f" P&L={pnl_total:+.2f} USD"
+        )
+        print(f"    (excluded: {excl_zone} ceiling/floor, {excl_guard} guarded)")
+
+        if n >= MIN_BETS_DEFAULT:
+            outcomes = [1] * fw + [0] * fl
+            sprt = run_sprt(outcomes, p0, p1)
+            # Use lambda position directly (not frozen verdict) — forward analysis
+            # cares about current state, not early confirmation from artificial ordering.
+            lam = sprt.lambda_val
+            if lam >= _UB:
+                verdict_str = "edge_confirmed"
+            elif lam <= _LB:
+                verdict_str = "no_edge_boundary"
+            else:
+                verdict_str = "collecting"
+            print(f"    SPRT forward lambda={lam:+.3f} [{verdict_str}]")
+            if lam < _LB:
+                print(
+                    f"    *** {label}: forward lambda crossed no-edge boundary"
+                    f" — guards insufficient ***"
+                )
+
+
 def analyze_sniper_monthly(bets: list[dict]) -> None:
     """Rolling monthly WR for FLB weakening detection (CCA S115 — Whelan VoxEU)."""
     from collections import defaultdict
@@ -507,6 +625,18 @@ def main() -> int:
     if sniper_detail:
         analyze_sniper_coins(sniper_detail)
         analyze_sniper_monthly(sniper_detail)
+
+    # ── Forward edge (post-guard, in-zone) — S116 ─────────────────────────────
+    _guards_path = db_path.parent / "auto_guards.json"
+    _guards: list[dict] = []
+    if _guards_path.exists():
+        import json as _json
+        try:
+            _guards = _json.loads(_guards_path.read_text()).get("guards", [])
+        except Exception:
+            pass
+    if sniper_detail:
+        analyze_sniper_forward_edge(sniper_detail, _guards)
 
     # ── Le (2026) calibration analysis — sniper context ──────────────────────
     print(f"\n{'─'*55}")

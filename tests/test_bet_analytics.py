@@ -17,7 +17,11 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from scripts.bet_analytics import wilson_ci, run_sprt, brier_score, run_cusum, SPRTResult, calibration_adjusted_edge
+from scripts.bet_analytics import (
+    wilson_ci, run_sprt, brier_score, run_cusum, SPRTResult,
+    calibration_adjusted_edge, analyze_sniper_coins, analyze_sniper_monthly,
+    analyze_sniper_forward_edge,
+)
 
 
 # ── Wilson CI (Wilson 1927) ────────────────────────────────────────────────────
@@ -344,3 +348,77 @@ class TestSniperMonthlyWR:
         bets = [{"ticker": "KXBTC15M", "won": True, "pnl_cents": 100, "settled_at": None}]
         analyze_sniper_monthly(bets)
         # Should not crash
+
+
+class TestSniperForwardEdge:
+    """Tests for post-guard forward SPRT analysis added S116 (XRP guard validation)."""
+
+    def _make_bet(self, ticker: str, price: int, side: str, won: bool,
+                  pnl_cents: int = 100) -> dict:
+        return {
+            "ticker": ticker, "price_cents": price, "side": side,
+            "result": side if won else ("no" if side == "yes" else "yes"),
+            "won": won, "pnl_cents": pnl_cents, "settled_at": 1700000000,
+        }
+
+    def test_guarded_bets_excluded(self, capsys):
+        """Bets matching an active guard should not count in forward SPRT."""
+        # 20 XRP NO@93c bets that are guarded
+        guarded = [self._make_bet("KXXRP15M-abc", 93, "no", False, -2000)] * 10
+        # 10 XRP YES@92c bets (unguarded, in-zone)
+        clean = [self._make_bet("KXXRP15M-abc", 92, "yes", True, 100)] * 10
+        guards = [{"ticker_contains": "KXXRP", "price_cents": 93, "side": "no"}]
+        analyze_sniper_forward_edge(guarded + clean, guards)
+        out = capsys.readouterr().out
+        # forward n should be 10 (guarded bets excluded), not 20
+        assert "XRP" in out
+        # Should show forward bets count (not include the 10 guarded)
+        assert "n=10" in out
+
+    def test_out_of_zone_bets_excluded(self, capsys):
+        """Bets above ceiling (>95c) or below floor (<90c) excluded from forward."""
+        above = [self._make_bet("KXBTC15M-abc", 97, "yes", False, -2000)] * 5
+        below = [self._make_bet("KXBTC15M-abc", 85, "yes", False, -2000)] * 5
+        in_zone = [self._make_bet("KXBTC15M-abc", 92, "yes", True, 100)] * 15
+        analyze_sniper_forward_edge(above + below + in_zone, [])
+        out = capsys.readouterr().out
+        assert "BTC" in out
+        # Only in-zone bets should count
+        assert "n=15" in out
+
+    def test_forward_label_shown(self, capsys):
+        """Output should include 'forward' or 'post-guard' label."""
+        bets = [self._make_bet("KXBTC15M-abc", 92, "yes", True, 100)] * 20
+        analyze_sniper_forward_edge(bets, [])
+        out = capsys.readouterr().out
+        assert "forward" in out.lower() or "post-guard" in out.lower()
+
+    def test_xrp_forward_lambda_better_than_all_time(self, capsys):
+        """Excluding guarded losses should improve XRP lambda vs all-time."""
+        # Mix: 43 guarded losses + 89 wins / 6 losses in-zone
+        guarded_losses = [self._make_bet("KXXRP15M-abc", 93, "no", False, -2000)] * 24
+        guarded_losses += [self._make_bet("KXXRP15M-abc", 95, "no", False, -2000)] * 19
+        in_zone_wins = [self._make_bet("KXXRP15M-abc", 92, "yes", True, 100)] * 89
+        in_zone_losses = [self._make_bet("KXXRP15M-abc", 91, "no", False, -2000)] * 6
+        guards = [
+            {"ticker_contains": "KXXRP", "price_cents": 93, "side": "no"},
+            {"ticker_contains": "KXXRP", "price_cents": 95, "side": "no"},
+        ]
+        all_bets = guarded_losses + in_zone_wins + in_zone_losses
+        analyze_sniper_forward_edge(all_bets, guards)
+        out = capsys.readouterr().out
+        assert "XRP" in out
+        # Forward should show 95 bets (not 138)
+        assert "n=95" in out
+
+    def test_empty_bets_no_crash(self, capsys):
+        analyze_sniper_forward_edge([], [])
+        capsys.readouterr()  # should not raise
+
+    def test_empty_guards_includes_all_in_zone(self, capsys):
+        """With no guards, forward = all in-zone bets."""
+        bets = [self._make_bet("KXETH15M-abc", 93, "yes", True, 100)] * 20
+        analyze_sniper_forward_edge(bets, [])
+        out = capsys.readouterr().out
+        assert "ETH" in out
+        assert "n=20" in out
