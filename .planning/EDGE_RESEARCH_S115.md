@@ -203,3 +203,31 @@ Current sniper bet sizing: ~$19-20/bet (21-22 contracts at 90-95c prices).
 HARD_MAX=20.00 set S78. No further size increase planned (appropriate given XRP risk).
 
 The self-sustaining mission target ($250/month) is achieved with current guards.
+
+---
+
+## S116c ADDITIONS — GUARD ROI ANALYSIS (2026-03-19 ~21:00 UTC)
+
+### GUARD ROI (daily savings from active guards)
+
+Estimated using recent bucket rate × EV deficit × bet size ($19-20):
+  KXBTC NO@94c:  1.8/day × 4.4pp = $1.54/day saved
+  KXXRP NO@93c:  3.9/day × 1.8pp = $1.35/day saved
+  KXBTC YES@94c: 2.1/day × 2.1pp = $0.87/day saved
+  KXSOL NO@93c:  2.1/day × 1.8pp = $0.73/day saved
+  KXXRP NO@95c:  3.4/day × 0.6pp = $0.39/day saved
+  TOTAL: ~$4.88/day = $146/month in prevented losses
+
+Without guards, the sniper run rate would be approximately $6.89/day ($207/month) instead
+of the current $11.77/day ($353/month). Guards contribute $146/month of the total.
+
+XRP remaining structural drag (all buckets, not just guarded):
+  XRP total drag since Mar 14: -$109.67 / 5.6 days = -$19.58/day
+  Guard savings from XRP guards only: ~$1.74/day
+  Net XRP daily drag: -$17.84/day (still structural — non-guarded buckets)
+
+GROWTH PATH to Mission Target 2 ($500+/month):
+  If XRP improves to match BTC/ETH/SOL: +$17.84/day recovery = $29.61/day total = $888/month
+  XRP forward SPRT at -0.558 [collecting] — uncertain, monitoring required
+  SOL drift: EDGE CONFIRMED, +$4.89/bet, growing naturally toward Stage 2 (~$16+/bet)
+  xrp_drift/btc_drift: passive accumulation

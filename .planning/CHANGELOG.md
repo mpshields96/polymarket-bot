@@ -6710,3 +6710,17 @@ CCA REQUEST 8 effectively closed: structural intervention not required beyond cu
 Found the core resolution to the session-defining XRP edge question WITHOUT waiting for CCA.
 Built the tool that will surface this automatically every session going forward.
 (-) XRP YES@94c bucket is a monitoring concern (n=15, WR below break-even) but no action yet.
+
+---
+## Session 116b addendum — 2026-03-19 ~21:00 UTC
+
+### Additional findings
+
+Mission Target 1 ($250/month self-sustaining) confirmed ACHIEVED.
+Sniper at HARD_MAX=20 since S78 (March 14):
+- Net rate: $11.77/day (5 guards saving $4.88/day of prevented losses)
+- BTC+ETH+SOL alone: $31.37/day = $941/month projected
+- XRP drag: -$19.58/day (partially mitigated by new guards, structural issue ongoing)
+
+Guard ROI: 5 guards save $4.88/day = $146/month combined.
+Forward growth path: XRP improvement would add $17.84/day → $888/month total.
