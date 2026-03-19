@@ -179,3 +179,27 @@ SOL direction filter: NO WR=71% > YES WR=67%. Filter="no" is correct.
 YES higher EV (+0.359 vs +0.019) is a bet-size artifact (Stage 1 promotion timing).
 
 COMMIT: d9a44f8 | Tests: 1686 passing (+12 new)
+
+---
+
+## S116b ADDITIONS — SNIPER RUN RATE ANALYSIS (2026-03-19 ~20:30 UTC)
+
+### MISSION TARGET 1 ACHIEVED
+
+Sniper at HARD_MAX=20.00 since March 14 (S78). Current run rate:
+  March 14-19 (5.6 days): n=739 bets, WR=95.8%, PnL=+66.07 USD
+  Daily average: $11.77/day → $353/month (EXCEEDS $250 self-sustaining target)
+
+Per-coin since March 14:
+  BTC: n=188, WR=97.9%, PnL=+103.73 USD
+  ETH: n=190, WR=97.4%, PnL=+73.75 USD
+  SOL: n=187, WR=95.2%, PnL=-1.74 USD
+  XRP: n=174, WR=92.5%, PnL=-109.67 USD (guards just added - forward improvement expected)
+
+BTC+ETH+SOL alone: $31.37/day = $941/month projected.
+XRP drag = -109.67 USD in 5.6 days = -$19.58/day (guards mitigate going forward).
+
+Current sniper bet sizing: ~$19-20/bet (21-22 contracts at 90-95c prices).
+HARD_MAX=20.00 set S78. No further size increase planned (appropriate given XRP risk).
+
+The self-sustaining mission target ($250/month) is achieved with current guards.
