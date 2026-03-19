@@ -1,12 +1,12 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-19 ~02:50 UTC (Session 111 research)
+# Last updated: 2026-03-19 ~04:00 UTC (Session 112 research)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
-  Bot RUNNING PID 57412 → /tmp/polybot_session108.log (check log path — daemon may have restarted)
-  All-time live P&L: -7.86 USD (recovering; S111 today: -31.98 USD live from 2 large sniper losses)
-  Tests: 1653 passing. Last commit: e445391 (docs: S111 research — political markets correction)
+  Bot RUNNING PID 57412 → /tmp/polybot_session111.log (check log path — daemon may have restarted)
+  All-time live P&L: -4.92 USD (recovering; post-guard sniper 6/6 wins, +7.44 USD)
+  Tests: 1668 passing. Last commit: 9be41d0 (feat: statistical significance gate for auto_guard_discovery)
   NOTE: Bot PID changed from 48350 (S110) to 57412 — restart occurred, all guards reloaded
 
 ## S110 KEY EVENTS (monitoring — 2026-03-19)
@@ -108,27 +108,28 @@
   - S108:   FLB theoretical grounding complete (research-only, no code build)
   - S109:   Dim 9 signal feature logger — trades.signal_features JSON column (8fbf56e)
 
-## PENDING FOR S112+:
+## PENDING FOR S113+:
   #1 Meta-labeling data accumulation — Dim 9 VALIDATED (trade 3814 has signal_features).
      n=2 bets with signal_features so far. Target n=1000 for meta-classifier.
-     Currently 315 total drift bets. At ~60/day: ~11 more days.
-  #2 Multivariate Kelly — RESOLVED. CCA: 1/N conservative scaling. At 4 simultaneous positions,
-     scale each Kelly fraction by 0.25x. Current conservative sizing already handles this.
-  #3 Warming bucket watchlist — DONE in S111. All 19 negative buckets fully guarded (IL-5 to IL-32).
-     Zero genuine gaps in guard stack. No new script needed — auto_guard handles future gaps.
-  #4 Monitor new guards (KXXRP NO@93c, KXBTC NO@94c) — verify WR improving post-block
-  #5 sol_drift Stage 3 check — bankroll needs $250+. Currently ~$88. Natural growth.
+     Currently ~315 total drift bets. At ~60/day: ~11 more days.
+  #2 Multivariate Kelly — RESOLVED. CCA: 1/N conservative scaling. Current sizing handles this.
+  #3 Guard stack — CLEAN. All 19 negative buckets guarded. 5 auto-guards active.
+     Auto-guard thresholds upgraded (S112): MIN_BETS=10, p<0.20 required. Prevents future trauma.
+  #4 Monitor new guards (KXXRP NO@93c, KXBTC NO@94c) — post-guard: 6/6 wins. Healthy.
+  #5 sol_drift Stage 3 check — bankroll needs 250 USD+. Currently ~88 USD. Natural growth.
   #6 BTC very_high edge_pct guard: n still below 30 — monitor passively
   #7 Monitor temperature calibration T values (too few new bets to see shift yet)
   #8 Guard retirement — Dim 5 needs 50+ paper bets per bucket (~3+ more weeks)
-  #9 Political markets Pillar 3 — CCA request filed (2026-03-19). Await CCA response on:
-     - Kalshi political market liquidity and ticker structure
-     - Le (2026) calibration: b=1.83 near-expiry → 8.2pp edge at 90c (S111 corrected CCA's 4pp)
-     - Whether near-expiry political sniper (15min-6hr) is viable with sufficient volume
-  #10 FLB weakening monitor — sniper_monthly_wr.py now tracks rolling 30-day WR.
-      Current: 2026-03 at 95.8%, no degradation signal. Run at each session start.
-  #11 Sniper daily losses pattern — 2 large losses per session for 2 sessions straight (-30+ USD/day).
-      All in guarded buckets or coincidence? Check guard coverage for recent losses at next session.
+  #9 Political markets Pillar 3 — CCA request filed (2026-03-19). Await CCA response.
+     Sports near-expiry (Le b=1.74) = DEAD END: KXNBAGAME/KXNHLGAME/KXMLBGAME all vol=0.
+     Finance markets (KXFED/KXCPI/KXGDP) = DEAD END: all vol=0.
+     Political = open lead, CCA investigating. Only viable non-crypto direction so far.
+  #10 FLB weakening monitor — sniper_monthly_wr.py tracks rolling 30-day WR.
+      Current: 2026-03 at 95.8%. No degradation signal.
+  #11 R-score ranking (OctagonAI idea from CCA) = DEAD END: only 1.9% of windows have 2+ bets.
+      Not worth implementing — almost never have to choose between opportunities.
+  #12 WARMING BUCKETS (new, S112): KXBTC YES@93c and KXETH YES@93c both at 88.9% WR, n=9 each.
+      Not statistically significant yet (Wilson CI wide). Monitor at n>=20.
 
   CONFIRMED DEAD ENDS (cumulative):
   CPI/GDP/FOMC/UNRATE speed-plays, UCL/NCAA live sports sniper (no WR data),
@@ -136,7 +137,10 @@
   time-of-day filtering, non-crypto 90c+ markets, annual BTC range markets,
   one-off market scanners, per-strategy full Bayesian models (marginal benefit),
   stale open trades investigation (false alarm — all paper long-duration markets),
-  CUSUM h=5.0 change (ARL simulation confirms h=5.0 is correct)
+  CUSUM h=5.0 change (ARL simulation confirms h=5.0 is correct),
+  Sports game markets (KXNBAGAME/KXNHLGAME/KXMLBGAME) = zero volume across all settled+open,
+  Finance markets (KXFED/KXCPI/KXGDP/KXPCE) = zero volume,
+  R-score ranking for sniper = 1.9% window competition rate makes it irrelevant
 
 ## STARTUP SEQUENCE FOR S111:
     1. ps aux | grep "[m]ain.py" (expect PID 48350 or daemon-restarted)
