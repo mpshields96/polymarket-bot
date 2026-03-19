@@ -6658,3 +6658,33 @@ Bot: RUNNING PID 87658. All-time at wrap: -4.59 USD.
   3. btc_drift CUSUM: was 4.100/5.0 — check current level at S115 start
   4. KXETH YES@93c warming bucket: check if n>=10 at S115 start
   5. Dim 9 meta-labeling accumulation (passive)
+
+## Session 115 — 2026-03-19 (research: per-coin SPRT + monthly WR tracker)
+
+### Builds delivered:
+  COMMIT: 709b87c — feat(analytics): per-coin sniper breakdown + monthly WR tracking
+
+  1. scripts/bet_analytics.py: added 3 new functions
+     - load_sniper_detail(): DB query with ticker + created_at for sniper bets
+     - analyze_sniper_coins(): per-coin SPRT/Wilson CI breakdown for BTC/ETH/SOL/XRP
+     - analyze_sniper_monthly(): rolling monthly WR for FLB weakening detection
+     Why: CCA (Whelan VoxEU) identified FLB weakening risk. Per-coin breakdown
+     was needed to quantify XRP's specific drag vs BTC/ETH/SOL.
+
+  2. tests/test_bet_analytics.py: 9 new tests (was 31, now 40)
+     TestSniperCoinBreakdown (5 tests) + TestSniperMonthlyWR (4 tests)
+
+### Key research finding:
+  XRP sniper SPRT lambda=-2.769 formally crossed no-edge boundary (-2.251).
+  BTC/ETH: SPRT +8.6/+8.1 EDGE CONFIRMED. SOL: +2.2 borderline. XRP: -2.77 DIVERGED.
+  XRP is destroying P&L: -107.27 USD vs BTC+ETH: +172.44 USD combined.
+  XRP YES@92c/93c are 100% WR — problem is specific to certain buckets/hours/sides.
+  CCA REQUEST 8 updated with formal SPRT confirmation. Await structural mechanism.
+
+### Monthly WR tracker (FLB weakening):
+  Only 1 month of data (March 2026): n=780, WR=95.8%, P&L=+60.51 USD.
+  Infrastructure ready. Compare April 2026+ when data available.
+
+### btc_drift: CUSUM 4.180/5.0. SPRT lambda=-1.108. Approaching disable threshold.
+
+### Grade: B+ — formal XRP SPRT finding (actionable when CCA responds), tools built

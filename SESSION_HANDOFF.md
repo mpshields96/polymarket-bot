@@ -1,16 +1,46 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-19 ~12:30 UTC (Session 114 research+monitoring wrap — XRP sniper analysis, CCA REQUEST 8+9 filed)
+# Last updated: 2026-03-19 ~18:30 UTC (Session 115 research wrap — per-coin SPRT analysis, monthly WR tracker)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
-  Bot RUNNING PID 87658 → /tmp/polybot_session114.log
-  All-time live P&L: -4.59 USD (recovering — was -13.08 mid-session after overnight losses)
-  Today: 59+ settled, ~78% WR, -27.5 USD (two big overnight losses dominate today)
-  Tests: 1668 passing. Last commit: 83400ee (docs: S113 btc_drift CUSUM trend analysis)
-  eth_drift: DISABLED — confirmed 0 post-restart bets over 83+ monitoring cycles (min_drift_pct=9.99)
-  xrp_drift: UNBLOCKED (0 consecutive losses since restart)
-  S114 COMPLETE: overnight+daytime monitoring + comprehensive multi-parameter sniper analysis
+  Bot RUNNING PID 1860 → /tmp/polybot_session115.log
+  All-time live P&L: +2.01 USD (was -4.59 at S114 wrap — recovered during daytime)
+  Tests: 1674 passing. Last commit: 709b87c (feat: per-coin breakdown + monthly WR)
+  eth_drift: DISABLED — confirmed 0 bets since restart at 13:03 UTC (min_drift_pct=9.99)
+  xrp_drift: UNBLOCKED (direction_filter="yes")
+  S115 COMPLETE: per-coin SPRT analysis (XRP formally diverged), monthly WR tracker built
+
+## S115 RESEARCH KEY FINDINGS (2026-03-19 ~13:00-18:30 UTC)
+
+  1. XRP SNIPER SPRT FORMALLY CROSSED NO-EDGE BOUNDARY
+     Per-coin SPRT analysis (bet_analytics.py — new analyze_sniper_coins):
+       BTC: n=201, 97.5% WR, lambda=+8.661 EDGE CONFIRMED, +100.50 USD
+       ETH: n=194, 97.4% WR, lambda=+8.136 EDGE CONFIRMED, +71.94 USD
+       SOL: n=200, 95.0% WR, lambda=+2.192 EDGE CONFIRMED, -4.66 USD
+       XRP: n=185, 93.0% WR, lambda=-2.769 NO-EDGE BOUNDARY (-2.251) CROSSED, -107.27 USD
+     XRP per-coin SPRT crossed the boundary. CCA REQUEST 8 updated (urgent).
+     WAIT for CCA structural mechanism before building any guard.
+
+  2. MONTHLY WR TRACKER ADDED TO bet_analytics.py
+     analyze_sniper_monthly() shows rolling per-month WR for FLB weakening detection.
+     Currently 1 month of data (March 2026): n=780, WR=95.8%, P&L=+60.51 USD.
+
+  3. XRP HOURLY BREAKDOWN (diagnostic — not actionable yet)
+     Worst hours: 08:xx WR=62% (n=8, likely crash event), 00:xx WR=60% (n=5), 13:xx WR=67% (n=6)
+     Many hours in 00-08 UTC window are 100% WR. Broad 21-08 block is too blunt.
+     XRP bad-hours SPRT lambda=-0.536 (still collecting — not crossed at hour-level).
+
+  4. BTC_DRIFT CUSUM: 4.180/5.0 at session start. SPRT lambda=-1.108. Still collecting.
+
+  5. KXETH YES@93c: n=9 (1 bet from auto-guard). Next bet triggers check.
+
+  6. CCA deliveries confirmed implemented:
+     - Le (2026) formula already in bet_analytics.py CALIBRATION CONTEXT (confirmed)
+     - FLB weakening monitoring: monthly tracker built
+     - Political markets: CONFIRMED dead end current cycle (0 open markets until Q4 2026)
+
+  7. COMMIT: 709b87c (9 new tests, 1674 total passing)
 
 ## S112 MONITORING KEY EVENTS (2026-03-19 ~21:08 UTC → 06:20 UTC)
 
@@ -171,21 +201,23 @@
   - S108:   FLB theoretical grounding complete (research-only, no code build)
   - S109:   Dim 9 signal feature logger — trades.signal_features JSON column (8fbf56e)
 
-## PENDING FOR S115+ (updated S114 research wrap):
-  #1 XRP SNIPER ANALYSIS — HIGHEST PRIORITY (S114 finding):
-     BTC+ETH+SOL = +163 USD. XRP = -107 USD. XRP bad hours (21-08 UTC): n=106, EV=-1.251/bet.
-     CCA REQUEST 8 filed: formal SPRT + structural mechanism + academic backing.
-     Action when CCA responds: if SPRT confirms + structural basis found → build XRP time-guard.
-     Do NOT guard preemptively — need all 4 conditions met first.
-  #2 CCA REQUEST 4 (overnight drift academic) — check CCA_TO_POLYBOT.md for response.
-  #3 CCA REQUEST 9 (market conditions non-stationarity) — regime detection research pending.
-  #4 btc_drift CUSUM: was 4.100/5.0. If S>=5.0 at session start: disable (min_drift_pct=9.99).
-     SPRT lambda=-1.082. If crosses -2.251: also disable.
-  #5 KXETH YES@93c warming bucket: n=9, check if n>=10 (auto-guard gate threshold).
-  #6 Meta-labeling Dim 9: n=10+ bets with signal_features. Target n=1000. Passive.
+## PENDING FOR S116+ (updated S115 research wrap):
+  #1 XRP SNIPER — WAIT FOR CCA REQUEST 8 RESPONSE (HIGHEST PRIORITY):
+     XRP SPRT lambda=-2.769, formally crossed no-edge boundary (-2.251).
+     CCA has been asked for: structural mechanism + formal SPRT + recommendation (A/B/C).
+     Options: (A) full XRP block, (B) time-guard 21-08 UTC, (C) something else.
+     Do NOT build guard preemptively. Wait for CCA mechanism response.
+     XRP YES@92c/93c are 100% WR — do NOT block all XRP, just the problem buckets/hours.
+  #2 btc_drift CUSUM: was 4.180/5.0. If S>=5.0 at session start: disable (min_drift_pct=9.99).
+     SPRT lambda=-1.108. If crosses -2.251: also disable.
+  #3 KXETH YES@93c warming bucket: n=9, 1 bet from auto-guard threshold.
+     Next bet triggers check. Run scripts/auto_guard_discovery.py at session start.
+  #4 CCA REQUEST 4 (overnight drift academic) — check CCA_TO_POLYBOT.md for response.
+  #5 CCA REQUEST 9 (market conditions non-stationarity) — regime detection research pending.
+  #6 Meta-labeling Dim 9: n=11 bets with signal_features. Target n=1000. Passive.
   #7 Guard retirement (Dim 5): needs 50+ paper bets per guarded bucket. Passive.
   #8 sol_drift Stage 3: bankroll needs 250 USD. Currently ~90 USD. Natural growth.
-  #9 MARKET CONDITIONS NON-STATIONARITY: Dim 10 seed. CCA researching. Future build.
+  #9 FLB weakening tracking: monthly WR tracker built. Check April 2026 when data available.
 
   CONFIRMED DEAD ENDS (cumulative):
   CPI/GDP/FOMC/UNRATE speed-plays, UCL/NCAA live sports sniper (no WR data),
