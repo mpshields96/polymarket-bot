@@ -6166,3 +6166,34 @@ Bot PID 2502 ran clean throughout. Sniper dominant at 95.9% WR.
 ### Next Session Top Priority
 Investigate 1932 open trades older than 48hr — settlement loop concern.
 Also: sol_drift Stage 2 evaluation (Brier 0.198, READY FOR LIVE).
+
+---
+
+## Session 107 — Research (2026-03-18 ~19:10 UTC)
+
+### Built
+- **Dim 8: per-strategy temperature calibration** (commit caf69e9)
+  - `src/models/temperature_calibration.py` — StrategyCalibrator, T_s = sum_actual_excess/sum_predicted_excess
+  - `tests/test_temperature_calibration.py` — 18 tests
+  - `scripts/calibration_bootstrap.py` — seeds calibration.json from DB history
+  - Wired into `bayesian_settlement.py` (update after each bet) + `btc_drift.py` (apply in generate_signal) + `main.py` (inject at startup)
+  - Rationale: ETH calibration overconfidence p=0.015, XRP p=0.033 (statistically significant). Platt (1999) temperature scaling.
+  - T values bootstrapped from 308 bets: ETH=0.500, BTC=0.500, SOL=1.290, XRP=0.500
+  - Bot restarted PID 28165 with calibration active
+
+### Research Findings
+- 1932 stale open trades = false alarm (all paper, long-duration markets). Resolved by c2c6a8a.
+- CUSUM h=5.0 validated: ARL simulation gives ARL(H0)=237, ARL(H1)=72. Correct for our parameters.
+- BTC very_high edge_pct (>15%) = 39% WR (n=18, -17 USD) — anti-predictive observation. Need 30+ for formal test.
+- SOL dominance explained: all edge_pct buckets positive (62-89% WR), calibration error only 4.4pp vs 8-12pp for others.
+- CCA request submitted: CUSUM h=5.0 theoretical optimality (Page 1954 / Basseville 1993)
+
+### Stats
+  Tests: 1623 passing (was 1605 — +18 new temperature calibration tests)
+  All-time P&L: +22.91 USD (was +16.40 USD)
+  Today: +33.96 USD live (102 settled)
+
+### Next Session Top Priority
+Monitor temperature calibration effect on drift strategy performance.
+Check CCA_TO_POLYBOT.md for CUSUM threshold research response.
+Sol Stage 2 evaluation — Matthew's call on bet cap increase.

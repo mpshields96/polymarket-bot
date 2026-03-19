@@ -36,3 +36,36 @@ S105 NEW GUARD: KXBTC YES@94c (auto-guard #3 added from S104 late losses)
 Bot should be running PID 2502 → /tmp/polybot_session105.log
 Tests: 1605 passing
 All-time P&L: +12.95 USD
+
+## [2026-03-18] S107 RESEARCH SUMMARY — for main chat context
+**From:** kalshi-research
+
+S107 PRIMARY BUILD: Dim 8 — per-strategy temperature calibration (commit caf69e9)
+  src/models/temperature_calibration.py (18 tests)
+  scripts/calibration_bootstrap.py — seeds from DB history
+  Wired into bayesian_settlement.py + btc_drift.py + main.py
+
+S107 KEY FINDINGS:
+  1. 1932 stale open trades = FALSE ALARM — all paper, long-duration markets (sports_futures, fomc, copy_trader). No settlement loop bug. Health check already patched in c2c6a8a.
+
+  2. CUSUM h=5.0 IS CORRECT — ARL simulation: ARL(H0)=237, ARL(H1)=72. btc_drift S=4.480 is correctly near threshold (48.5% WR). No action needed. Observation only.
+
+  3. Calibration overconfidence STATISTICALLY SIGNIFICANT:
+     ETH: predicted 54.8%, actual 46.7%, p=0.015
+     XRP: predicted 61%, actual 48.9%, p=0.033
+     BTC: borderline p=0.063
+     SOL: well-calibrated (T=1.29)
+
+  4. Temperature calibration ACTIVE — bot restarted PID 28165 with new code:
+     ETH T=0.500: 54.8% → 52.4% predicted win_prob
+     BTC T=0.500: 57% → 53.5% predicted win_prob
+     XRP T=0.500: 61% → 55.5% (many signals below 5% threshold → fewer bets)
+     SOL T=1.290: 65.3% → 69.8% (larger Kelly for winning strategy)
+
+  5. BTC very_high edge_pct (>15%) = anti-predictive: n=18, 39% WR, -17.36 USD
+     OBSERVATION ONLY — need 30+ data points before action per PRIME DIRECTIVE
+
+MONITORING NOTE: Bot restarted at 18:54 UTC — log at /tmp/polybot_session107.log
+Tests: 1623 passing. Last commit: caf69e9
+
+CCA REQUEST SENT: CUSUM optimal h threshold research (POLYBOT_TO_CCA.md)
