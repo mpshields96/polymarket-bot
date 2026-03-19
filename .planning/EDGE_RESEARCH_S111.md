@@ -179,3 +179,41 @@ Research: guard audit clean, Pillar 3 lead validated, CCA corrections documented
 Self-improvement: Pillar 2 academic findings implemented, Pillar 3 lead identified
 Tests: 1631 → 1653 passing (+22 new tests)
 ═══════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════
+SECTION 6 — POLITICAL MARKETS API PROBE (Session 111 addendum)
+═══════════════════════════════════════════════════════════
+
+## Direct API findings from Kalshi /events and /markets probes
+
+Political events found on Kalshi (sample):
+  [Politics] KXPERSONPRESMAM-45: vol=0, close=2045-01-29 — "Will Mamdani become President?"
+  [Elections] KXBRUVSEAT-35: close=unknown — "Will Andrew Tate's party win UK election seat?"
+  [Politics] KXXISUCCESSOR-45JAN01: yes=45c — "Who will be named Xi Jinping's successor?"
+  [Financials] KXOAIANTH-40: — "Will OpenAI or Anthropic IPO first?"
+  Other categories: World, Climate, Science, Social, Entertainment, Health
+
+Key finding: Most Kalshi political markets are LONG-HORIZON (close dates 2030-2045)
+with near-zero volume. They are NOT continuously tradeable like crypto 15-min markets.
+
+Implication for Le (2026) b=1.83 strategy:
+  The b=1.83 "near-expiry" slope applies specifically to markets within hours of resolution.
+  For political markets, these windows only open during actual events:
+    - Election day (results within hours)
+    - Legislative votes
+    - Major summits/decisions
+
+This means a political sniper would need:
+  1. Event detection (monitor for political markets opening near expiry)
+  2. Volume check (many political markets have zero liquidity)
+  3. Near-expiry price filter (90-95c YES or similar)
+  4. Completely different architecture from crypto 15-min sniper
+
+CONCLUSION: The Le (2026) calibration edge EXISTS in theory, but requires:
+  - Episodic monitoring (not continuous like crypto)
+  - Volume screening (most political markets are illiquid)
+  - Event calendar integration
+  - A different bot architecture
+
+Grade: OPEN LEAD with significant structural complexity. Not viable as quick build.
+CCA request filed. Wait for CCA investigation + paper-trade sample before building.
