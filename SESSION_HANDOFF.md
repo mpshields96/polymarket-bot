@@ -1,13 +1,70 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-19 ~00:45 UTC (Session 108 research wrap)
+# Last updated: 2026-03-19 ~01:45 UTC (Session 110 monitoring wrap)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
-  Bot RUNNING PID 33218 → /tmp/polybot_session108.log (restarted S108 for new guards)
-  All-time live P&L: +22.91 USD (S107 data — S108 is research-only, no new P&L)
-  Tests: 1623 passing. Last commit: caf69e9 (feat: Dim 8 temperature calibration)
-  Note: No new commit this session (research-only)
+  Bot RUNNING PID 48350 → /tmp/polybot_session108.log
+  All-time live P&L: -9.58 USD (partial recovery from -11.2 USD; 2 open bets at wrap: KXXRP YES@92c + KXETH YES@94c)
+  Tests: 1631 passing. Last commit: 8fbf56e (feat: Dim 9 signal feature logger for meta-labeling)
+  NOTE: All-time went negative due to two $20 sniper losses (last-minute BTC/XRP reversals at 20:30 UTC window)
+
+## S110 KEY EVENTS (monitoring — 2026-03-19)
+
+  1. FALSE STALE TRADE ALARM RESOLVED (c2c6a8a)
+     --health showed "1932 stale open trades" — false alarm.
+     Root cause: all 2208 stale were paper dead-end strategy trades (sports_futures=2110, fomc=48, weather=43).
+     Fix: excluded paper trades from stale check. 0 actual stale live trades.
+
+  2. TWO SNIPER LOSSES (-39.27 USD total)
+     KXBTC15M NO@94c ×21 = -19.74 USD | KXXRP15M NO@93c ×21 = -19.53 USD
+     Cause: last-minute reversals in 20:30 UTC window. Not a bug — statistical event.
+     Self-correction: 2 new auto-guards added. 5 total guards now active.
+
+  3. CCA CONSULTATION COMPLETE
+     CUSUM h=5.0 confirmed correct (Basseville & Nikiforov 1993 verified). No change.
+     Multivariate Kelly question submitted to CCA: 4 simultaneous correlated crypto positions
+     may require 0.25-0.5x Kelly fraction reduction (Nekrasov 2014, Thorp 2006).
+     Corrected CCA's sniper sizing error ($5/bet → actual $19.50/bet).
+     eth/btc drift already at micro-live since S60 — no action needed.
+
+  4. SOFT STOP DISPLAY: "Daily loss soft stop active: $69.63 >= $24.41" in --health is COSMETIC ONLY
+     Enforcement code is commented out (kill_switch.py lines 187-192). Bot trades freely.
+
+  5. DIM 9 (SIGNAL_FEATURES): Wired correctly, not yet validated. No drift bets since PID 48350 restart.
+     First drift bet in S111 should populate signal_features column.
+
+## S109 KEY BUILD — Dim 9: Signal Feature Logger
+
+  WHAT: Every live drift bet now logs full signal features as JSON to trades.signal_features.
+  WHY: Meta-labeling classifier (per CCA KALSHI_INTEL.md r/algotrading finding):
+       train binary classifier on features to filter low-quality signals → +1-3% WR.
+       Currently ~350 drift bets total. Need 1000+. At 60-70/day: ~15 days away.
+  FEATURES LOGGED: pct_from_open, minutes_remaining, time_factor, raw_prob,
+       prob_yes_calibrated, edge_pct, win_prob_final, price_cents, side,
+       minutes_late, late_penalty, bayesian_active.
+  COMMIT: 8fbf56e — 8 new tests, 1631 passing.
+  SELF-IMPROVEMENT CHAIN: signal fires → features logged → settle → label added →
+       at n>=1000: meta-classifier trains → signal-level guard filters bad signals.
+
+## THREE-CHAT SIZING DECISION (S109 — autonomous research chat analysis)
+
+  SNIPER HARD_MAX ($20): KEEP.
+    $15-20 range shows 94.2% WR (-$54 on 451 bets) vs $10-15 at 98.6% (+$86, 208 bets).
+    Underperformance explained by now-guarded buckets (KXXRP NO@93c, KXBTC NO@94c, etc.)
+    being in the $15-20 range before guards existed. With all 5 guards active, expect recovery.
+    TRIGGER FOR CHANGE: if post-S108 $15-20 WR stays below 96% after 30+ clean bets.
+
+  SOL DRIFT CAP: NO CHANGE. Kelly(WR=69.8%) = $5.72 at current bankroll, Stage 1 cap = $5.
+    Natural scaling as bankroll grows. Stage 3 ($15 cap) at bankroll $250 still the target.
+
+  ETH/BTC/XRP: KEEP MICRO-LIVE. Data instruments at $0.39/bet. ETH no edge, BTC improving.
+
+## GUARD ANTICIPATION QUESTION (Matthew asked S109)
+  Not worth pre-anticipating guards. Auto-guard catches bad buckets in ~3 bets = max $57 loss.
+  Pre-emptive blocking = speculation. The signal_features logger IS the future solution:
+  at n=1000+, meta-classifier learns signal-level patterns better than bucket-level guards.
+  Next: "warming bucket watchlist" — log n>=2 negative P&L buckets for visibility only.
 
 ## S108 RESEARCH WRAP KEY EVENTS
 
@@ -49,15 +106,21 @@
   - S105:   scripts/bet_analytics.py — SPRT/Wilson CI/Brier/CUSUM (24 tests)
   - S107:   src/models/temperature_calibration.py — per-strategy T_s (18 tests)
   - S108:   FLB theoretical grounding complete (research-only, no code build)
+  - S109:   Dim 9 signal feature logger — trades.signal_features JSON column (8fbf56e)
 
-## PENDING FOR S109+:
-  #1 Check CCA_TO_POLYBOT.md — CUSUM h=5.0 research request sent S107, no response yet
-  #2 Monitor new guards (KXXRP NO@93c, KXBTC NO@94c) performance
-  #3 sol_drift Stage 2 evaluation — EDGE CONFIRMED, n=43, Brier 0.198, T=1.290
-     READY FOR STAGE 3 consideration. Matthew's call on bet cap increase.
-  #4 BTC very_high edge_pct guard: n=18 → need n>=30 before formal test
-  #5 Monitor temperature calibration effect — T values still at bootstrapped values
-  #6 Guard retirement — Dim 5 needs 50+ paper bets per bucket (~3+ more weeks)
+## PENDING FOR S111+:
+  #1 Meta-labeling data accumulation — Dim 9 wired, not yet validated (0 features logged).
+     First drift bet in S111 must be checked: SELECT signal_features FROM trades ORDER BY id DESC LIMIT 1.
+     Target n=1000 drift bets for meta-classifier. Currently 313 total drift bets.
+  #2 CCA multivariate Kelly response — submitted S110C query. Check CCA_TO_POLYBOT.md.
+     Question: 4 correlated crypto positions, does correlation reduce independent Kelly fractions?
+  #3 Warming bucket watchlist — log n>=2 negative P&L buckets as visibility-only. Build S111.
+  #4 Monitor new guards (KXXRP NO@93c, KXBTC NO@94c) — verify WR improving post-block
+  #5 sol_drift Stage 3 check — bankroll needs $250+. Currently ~$88. Natural growth.
+  #6 BTC very_high edge_pct guard: n=18 → need n>=30 before formal test
+  #7 Monitor temperature calibration T values (too few new bets to see shift yet)
+  #8 Guard retirement — Dim 5 needs 50+ paper bets per bucket (~3+ more weeks)
+  #9 CUSUM h=5.0 — RESOLVED. h=5.0 confirmed correct per Basseville & Nikiforov (1993).
 
   CONFIRMED DEAD ENDS (cumulative):
   CPI/GDP/FOMC/UNRATE speed-plays, UCL/NCAA live sports sniper (no WR data),
@@ -67,36 +130,38 @@
   stale open trades investigation (false alarm — all paper long-duration markets),
   CUSUM h=5.0 change (ARL simulation confirms h=5.0 is correct)
 
-## STARTUP SEQUENCE FOR S109:
-    1. ps aux | grep "[m]ain.py" (expect PID 33218 or daemon-restarted)
-    2. grep "Temperature calibrator loaded" /tmp/polybot_session108.log | tail -1
-       MUST say: "ETH T=0.500  BTC T=0.500  SOL T=1.290  XRP T=0.500"
-    3. grep "Loaded.*auto-discovered" /tmp/polybot_session108.log | tail -1
+## STARTUP SEQUENCE FOR S111:
+    1. ps aux | grep "[m]ain.py" (expect PID 48350 or daemon-restarted)
+    2. grep "Loaded.*auto-discovered" /tmp/polybot_session108.log | tail -1
        MUST say: "Loaded 5 auto-discovered guard(s)"
-    4. ./venv/bin/python3 scripts/bet_analytics.py (monitor new guard effect)
+    3. grep "override_active=True" /tmp/polybot_session108.log | tail -1
+       MUST say: override_active=True, n=311
+    4. ./venv/bin/python3 scripts/bet_analytics.py (check drift stats, CUSUM)
     5. ./venv/bin/python3 scripts/auto_guard_discovery.py (any new guards?)
-    6. ./venv/bin/python3 main.py --graduation-status (sol Stage 2 readiness)
-    7. cat ~/.claude/cross-chat/CCA_TO_POLYBOT.md | tail -80 (check CCA deliveries)
+    6. ./venv/bin/python3 main.py --graduation-status
+    7. cat ~/.claude/cross-chat/CCA_TO_POLYBOT.md | tail -80 (check CCA multivariate Kelly response)
+    8. Verify Dim 9 on first drift bet:
+       python3 -c "import sqlite3; c=sqlite3.connect('data/polybot.db'); print(c.execute('SELECT id, signal_features FROM trades WHERE is_paper=0 AND strategy LIKE \"%drift%\" ORDER BY id DESC LIMIT 1').fetchone())"
 
-## RESTART COMMAND (for future restarts — session 109):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session109.log 2>&1 &
+## RESTART COMMAND (for future restarts — session 111):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session111.log 2>&1 &
   Then verify: ps aux | grep "[m]ain.py" — exactly 1. Then check bot.pid.
 
-## STRATEGY STANDINGS (~00:45 UTC March 19)
-  expiry_sniper_v1:  PRIMARY ENGINE — 734 settled, 95.8% WR, +41.66 USD all-time
+## STRATEGY STANDINGS (~01:45 UTC March 19 — S110 wrap)
+  expiry_sniper_v1:  PRIMARY ENGINE — ~750 settled, 95%+ WR (2 losses today), all-time recovering
                      SPRT lambda=+15.332 EDGE CONFIRMED | CUSUM S=2.025 stable
                      5 auto-guards: KXXRP NO@95c + KXSOL NO@93c + KXBTC YES@94c +
-                                    KXXRP NO@93c (NEW) + KXBTC NO@94c (NEW)
-  sol_drift_v1:      LIVE Stage 2 — T=1.290 (calibration BOOSTING Kelly)
+                                    KXXRP NO@93c + KXBTC NO@94c
+  sol_drift_v1:      LIVE Stage 1 — T=1.290 (calibration BOOSTING Kelly)
                      SPRT lambda=+2.886 EDGE CONFIRMED | Brier 0.198 | n=43
-                     READY FOR STAGE 3 evaluation (Matthew's call on bet cap increase)
   btc_drift_v1:      LIVE Stage 1 — T=0.500 (calibration REDUCING Kelly)
-                     CUSUM S=4.020 (improving from 4.480) | direction_filter="no"
+                     CUSUM S=4.020 (improving) | direction_filter="no"
   eth_drift_v1:      LIVE Stage 1 — T=0.500 (calibration REDUCING Kelly)
-                     CUSUM S=12.760 (improving from 14.140) | Bayesian self-corrects
-  xrp_drift_v1:      LIVE micro — T=0.500 | CUSUM S=2.820 stable | direction_filter="yes"
+                     CUSUM S=12.760 (improving) | Bayesian self-corrects | no edge per SPRT
+  xrp_drift_v1:      LIVE micro — T=0.500 | BLOCKED (4 consec) | direction_filter="yes"
   Bayesian posterior: n=311, override_active=TRUE, kelly_scale=0.952
-  Temperature calibration: ACTIVE (data/calibration.json, T values stable — few new bets)
+  Temperature calibration: ACTIVE (data/calibration.json, T values stable)
+  Dim 9 signal_features: WIRED, NOT YET VALIDATED (0 features logged — no drift bets since restart)
 
 ## GUARD STACK (IL-5 through IL-32 + floor 90c + ceiling 95c + 5 auto-guards)
   Active auto-guards:
