@@ -171,28 +171,21 @@
   - S108:   FLB theoretical grounding complete (research-only, no code build)
   - S109:   Dim 9 signal feature logger — trades.signal_features JSON column (8fbf56e)
 
-## PENDING FOR S113+:
-  #1 Meta-labeling data accumulation — Dim 9 VALIDATED (trade 3814 has signal_features).
-     n=2 bets with signal_features so far. Target n=1000 for meta-classifier.
-     Currently ~315 total drift bets. At ~60/day: ~11 more days.
-  #2 Multivariate Kelly — RESOLVED. CCA: 1/N conservative scaling. Current sizing handles this.
-  #3 Guard stack — CLEAN. All 19 negative buckets guarded. 5 auto-guards active.
-     Auto-guard thresholds upgraded (S112): MIN_BETS=10, p<0.20 required. Prevents future trauma.
-  #4 Monitor new guards (KXXRP NO@93c, KXBTC NO@94c) — post-guard: 6/6 wins. Healthy.
-  #5 sol_drift Stage 3 check — bankroll needs 250 USD+. Currently ~88 USD. Natural growth.
-  #6 BTC very_high edge_pct guard: n still below 30 — monitor passively
-  #7 Monitor temperature calibration T values (too few new bets to see shift yet)
-  #8 Guard retirement — Dim 5 needs 50+ paper bets per bucket (~3+ more weeks)
-  #9 Political markets Pillar 3 — CCA request filed (2026-03-19). Await CCA response.
-     Sports near-expiry (Le b=1.74) = DEAD END: KXNBAGAME/KXNHLGAME/KXMLBGAME all vol=0.
-     Finance markets (KXFED/KXCPI/KXGDP) = DEAD END: all vol=0.
-     Political = open lead, CCA investigating. Only viable non-crypto direction so far.
-  #10 FLB weakening monitor — sniper_monthly_wr.py tracks rolling 30-day WR.
-      Current: 2026-03 at 95.8%. No degradation signal.
-  #11 R-score ranking (OctagonAI idea from CCA) = DEAD END: only 1.9% of windows have 2+ bets.
-      Not worth implementing — almost never have to choose between opportunities.
-  #12 WARMING BUCKETS (new, S112): KXBTC YES@93c and KXETH YES@93c both at 88.9% WR, n=9 each.
-      Not statistically significant yet (Wilson CI wide). Monitor at n>=20.
+## PENDING FOR S115+ (updated S114 research wrap):
+  #1 XRP SNIPER ANALYSIS — HIGHEST PRIORITY (S114 finding):
+     BTC+ETH+SOL = +163 USD. XRP = -107 USD. XRP bad hours (21-08 UTC): n=106, EV=-1.251/bet.
+     CCA REQUEST 8 filed: formal SPRT + structural mechanism + academic backing.
+     Action when CCA responds: if SPRT confirms + structural basis found → build XRP time-guard.
+     Do NOT guard preemptively — need all 4 conditions met first.
+  #2 CCA REQUEST 4 (overnight drift academic) — check CCA_TO_POLYBOT.md for response.
+  #3 CCA REQUEST 9 (market conditions non-stationarity) — regime detection research pending.
+  #4 btc_drift CUSUM: was 4.100/5.0. If S>=5.0 at session start: disable (min_drift_pct=9.99).
+     SPRT lambda=-1.082. If crosses -2.251: also disable.
+  #5 KXETH YES@93c warming bucket: n=9, check if n>=10 (auto-guard gate threshold).
+  #6 Meta-labeling Dim 9: n=10+ bets with signal_features. Target n=1000. Passive.
+  #7 Guard retirement (Dim 5): needs 50+ paper bets per guarded bucket. Passive.
+  #8 sol_drift Stage 3: bankroll needs 250 USD. Currently ~90 USD. Natural growth.
+  #9 MARKET CONDITIONS NON-STATIONARITY: Dim 10 seed. CCA researching. Future build.
 
   CONFIRMED DEAD ENDS (cumulative):
   CPI/GDP/FOMC/UNRATE speed-plays, UCL/NCAA live sports sniper (no WR data),
