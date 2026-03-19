@@ -24,6 +24,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import datetime
 import math
 import sqlite3
 import sys
@@ -347,6 +348,124 @@ def analyze_strategy(name: str, bets: list[dict], min_bets: int = MIN_BETS_DEFAU
         print(f"  *** CUSUM: win rate has shifted downward — review recent bets ***")
 
 
+def load_sniper_detail(db_path: Path) -> list[dict]:
+    """Load sniper bets with ticker and timestamp for per-coin and monthly analysis."""
+    conn = sqlite3.connect(str(db_path))
+    rows = conn.execute(
+        """
+        SELECT ticker, price_cents, side, result, pnl_cents, settled_at
+        FROM trades
+        WHERE is_paper = 0 AND strategy = 'expiry_sniper_v1' AND result IS NOT NULL
+        ORDER BY settled_at ASC
+        """
+    ).fetchall()
+    conn.close()
+    return [
+        {
+            "ticker": row[0],
+            "price_cents": row[1],
+            "side": row[2],
+            "result": row[3],
+            "won": row[2] == row[3],
+            "pnl_cents": row[4] or 0,
+            "settled_at": row[5],
+        }
+        for row in rows
+    ]
+
+
+# Coin prefix → display label
+_COIN_PREFIXES = {
+    "KXBTC": "BTC",
+    "KXETH": "ETH",
+    "KXSOL": "SOL",
+    "KXXRP": "XRP",
+}
+
+
+def analyze_sniper_coins(bets: list[dict]) -> None:
+    """Per-coin sniper breakdown — Wilson CI + SPRT per coin (S115)."""
+    from collections import defaultdict
+
+    coins: dict[str, list[dict]] = defaultdict(list)
+    for b in bets:
+        for prefix, label in _COIN_PREFIXES.items():
+            if b["ticker"].startswith(prefix):
+                coins[label].append(b)
+                break
+
+    if not coins:
+        return
+
+    print(f"\n{'─'*55}")
+    print("  SNIPER PER-COIN BREAKDOWN (S115)")
+    print(f"{'─'*55}")
+    cfg = STRATEGY_CONFIG["expiry_sniper_v1"]
+    p0, p1 = cfg["p0"], cfg["p1"]
+
+    for label in ["BTC", "ETH", "SOL", "XRP"]:
+        cbets = coins.get(label, [])
+        n = len(cbets)
+        if n == 0:
+            print(f"  {label}: no bets")
+            continue
+        k = sum(1 for b in cbets if b["won"])
+        pnl = sum(b["pnl_cents"] for b in cbets) / 100
+        wr = k / n
+        ci_lo, ci_hi = wilson_ci(n, k)
+        print(
+            f"  {label}: n={n} WR={wr*100:.1f}% CI=[{ci_lo*100:.1f}%,{ci_hi*100:.1f}%]"
+            f" P&L={pnl:+.2f} USD"
+        )
+        if n >= MIN_BETS_DEFAULT:
+            outcomes = [1 if b["won"] else 0 for b in cbets]
+            sprt = run_sprt(outcomes, p0, p1)
+            print(f"  SPRT lambda={sprt.lambda_val:+.3f} [{sprt.verdict}]")
+            # Flag if lambda crossed the no-edge boundary
+            # (frozen verdict may be stale if coin underperformed after initial confirmation)
+            if sprt.lambda_val < -2.251:
+                print(
+                    f"  *** {label}: lambda crossed no-edge boundary (-2.251)"
+                    f" — underperforms sniper edge claim ***"
+                )
+
+
+def analyze_sniper_monthly(bets: list[dict]) -> None:
+    """Rolling monthly WR for FLB weakening detection (CCA S115 — Whelan VoxEU)."""
+    from collections import defaultdict
+
+    months: dict[str, list[int]] = defaultdict(list)  # key → [won, ...]
+    month_pnl: dict[str, float] = defaultdict(float)
+    for b in bets:
+        if b["settled_at"] is None:
+            continue
+        dt = datetime.datetime.fromtimestamp(b["settled_at"], tz=datetime.timezone.utc)
+        key = dt.strftime("%Y-%m")
+        months[key].append(1 if b["won"] else 0)
+        month_pnl[key] += b["pnl_cents"] / 100
+
+    if not months:
+        return
+
+    print(f"\n{'─'*55}")
+    print("  SNIPER MONTHLY WR — FLB weakening detection")
+    print("  (Whelan VoxEU March 2026: some evidence of FLB weakening in 2025)")
+    print(f"{'─'*55}")
+    for m in sorted(months.keys()):
+        outcomes = months[m]
+        n = len(outcomes)
+        k = sum(outcomes)
+        wr = k / n
+        ci_lo, ci_hi = wilson_ci(n, k)
+        pnl = month_pnl[m]
+        print(
+            f"  {m}: n={n:4d} WR={wr*100:.1f}% CI=[{ci_lo*100:.1f}%,{ci_hi*100:.1f}%]"
+            f" P&L={pnl:+.2f} USD"
+        )
+    if len(months) < 2:
+        print("  (Only 1 month of data — trend detection requires 2+ months)")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Universal bet analytics — SPRT, Wilson CI, Brier, CUSUM"
@@ -382,6 +501,12 @@ def main() -> int:
     for name, bets in all_bets.items():
         if name not in shown:
             analyze_strategy(name, bets, args.min_bets)
+
+    # ── Per-coin sniper breakdown + monthly WR (S115) ─────────────────────────
+    sniper_detail = load_sniper_detail(db_path)
+    if sniper_detail:
+        analyze_sniper_coins(sniper_detail)
+        analyze_sniper_monthly(sniper_detail)
 
     # ── Le (2026) calibration analysis — sniper context ──────────────────────
     print(f"\n{'─'*55}")

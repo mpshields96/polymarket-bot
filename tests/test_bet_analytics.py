@@ -242,3 +242,105 @@ class TestCalibrationAdjustedEdge:
         """edge_pp should be in percentage points (0-100 scale), not fraction."""
         _, edge_pp = calibration_adjusted_edge(0.90, b=1.83)
         assert edge_pp > 1.0  # 4pp in % scale, not 0.04
+
+
+# ── Per-coin sniper breakdown (S115) ─────────────────────────────────────────
+
+from scripts.bet_analytics import analyze_sniper_coins, analyze_sniper_monthly
+
+
+class TestSniperCoinBreakdown:
+    """Tests for per-coin SPRT analysis added S115 (XRP drag investigation)."""
+
+    def _make_bets(self, ticker: str, n_wins: int, n_losses: int) -> list[dict]:
+        bets = []
+        for _ in range(n_wins):
+            bets.append({"ticker": ticker, "side": "yes", "result": "yes",
+                         "won": True, "pnl_cents": 100, "settled_at": 1700000000})
+        for _ in range(n_losses):
+            bets.append({"ticker": ticker, "side": "yes", "result": "no",
+                         "won": False, "pnl_cents": -2000, "settled_at": 1700000000})
+        return bets
+
+    def test_coin_breakdown_prints_four_coins(self, capsys):
+        bets = (
+            self._make_bets("KXBTC15M-abc", 95, 5) +
+            self._make_bets("KXETH15M-abc", 90, 10) +
+            self._make_bets("KXSOL15M-abc", 85, 15) +
+            self._make_bets("KXXRP15M-abc", 80, 20)
+        )
+        analyze_sniper_coins(bets)
+        out = capsys.readouterr().out
+        assert "BTC" in out
+        assert "ETH" in out
+        assert "SOL" in out
+        assert "XRP" in out
+
+    def test_coin_breakdown_shows_pnl(self, capsys):
+        bets = self._make_bets("KXBTC15M-abc", 10, 0)
+        analyze_sniper_coins(bets)
+        out = capsys.readouterr().out
+        assert "P&L=" in out
+
+    def test_xrp_below_no_edge_boundary_flagged(self, capsys):
+        """XRP at 93% WR with n=185 should trigger the no-edge boundary warning."""
+        # 185 bets at 93% WR = 172 wins, 13 losses
+        bets = self._make_bets("KXXRP15M-abc", 172, 13)
+        analyze_sniper_coins(bets)
+        out = capsys.readouterr().out
+        assert "crossed no-edge boundary" in out
+
+    def test_btc_above_edge_boundary_no_warning(self, capsys):
+        """BTC at 97.5% WR should NOT trigger the no-edge warning."""
+        bets = self._make_bets("KXBTC15M-abc", 195, 5)
+        analyze_sniper_coins(bets)
+        out = capsys.readouterr().out
+        assert "crossed no-edge boundary" not in out
+
+    def test_empty_bets_no_crash(self, capsys):
+        analyze_sniper_coins([])
+        # Should not raise
+        capsys.readouterr()
+
+
+class TestSniperMonthlyWR:
+    """Tests for monthly rolling WR added S115 (FLB weakening detection)."""
+
+    def _make_bet(self, won: bool, ts: int) -> dict:
+        return {"ticker": "KXBTC15M-abc", "side": "yes",
+                "result": "yes" if won else "no", "won": won,
+                "pnl_cents": 100 if won else -2000, "settled_at": ts}
+
+    def test_monthly_groups_by_month(self, capsys):
+        import datetime
+        # Two bets in March 2026, one in April 2026
+        mar_ts = int(datetime.datetime(2026, 3, 15, tzinfo=datetime.timezone.utc).timestamp())
+        apr_ts = int(datetime.datetime(2026, 4, 1, tzinfo=datetime.timezone.utc).timestamp())
+        bets = [self._make_bet(True, mar_ts), self._make_bet(True, mar_ts),
+                self._make_bet(False, apr_ts)]
+        analyze_sniper_monthly(bets)
+        out = capsys.readouterr().out
+        assert "2026-03" in out
+        assert "2026-04" in out
+
+    def test_single_month_shows_warning(self, capsys):
+        import datetime
+        ts = int(datetime.datetime(2026, 3, 15, tzinfo=datetime.timezone.utc).timestamp())
+        bets = [self._make_bet(True, ts)] * 10
+        analyze_sniper_monthly(bets)
+        out = capsys.readouterr().out
+        assert "Only 1 month" in out
+
+    def test_monthly_shows_wr_and_pnl(self, capsys):
+        import datetime
+        ts = int(datetime.datetime(2026, 3, 15, tzinfo=datetime.timezone.utc).timestamp())
+        bets = [self._make_bet(True, ts)] * 9 + [self._make_bet(False, ts)]
+        analyze_sniper_monthly(bets)
+        out = capsys.readouterr().out
+        assert "WR=90.0%" in out
+        assert "P&L=" in out
+
+    def test_none_settled_at_skipped(self, capsys):
+        bets = [{"ticker": "KXBTC15M", "won": True, "pnl_cents": 100, "settled_at": None}]
+        analyze_sniper_monthly(bets)
+        # Should not crash
