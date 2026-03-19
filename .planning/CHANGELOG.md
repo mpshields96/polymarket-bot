@@ -8,6 +8,38 @@
 #          ### Lessons learned (optional)
 # ══════════════════════════════════════════════════════════════
 
+## Session 115 (monitoring wrap) — 2026-03-19 — Bot dead at startup, XRP SPRT no-edge confirmed, all-time +11.35 USD
+### Changed
+- SESSION_HANDOFF.md — S115 monitoring findings, BOT STOPPED, all-time +11.35 USD
+- ~/.claude/commands/polybot-init.md — MAIN CHAT updated to Session 118
+- ~/.claude/commands/polybot-auto.md — SESSION STATE updated to Session 118
+
+### Strategy Performance
+- expiry_sniper_v1: 786 bets, 95.8% WR, +68.16 USD sniper-only. EDGE CONFIRMED lambda=+16.670.
+- sol_drift_v1: 43 bets, 70% WR, +4.89 USD EDGE CONFIRMED.
+- btc_drift_v1: 75 bets, ~50% WR, CUSUM S=4.260/5.0 APPROACHING. March 17 crash driver (not structural).
+- xrp_drift_v1: 50 bets, UNBLOCKED, direction_filter="yes".
+- eth_drift_v1: DISABLED — confirmed 0 bets all session.
+- All-time P&L: +11.35 USD (was -10.36 at S112 wrap — +21.71 USD recovered)
+
+### Key Events
+- Bot dead at startup (PID 87658). Restarted as PID 1860, /tmp/polybot_session115.log.
+- 5 auto-guards loaded on restart. Bayesian n=324 override_active=True. eth_drift silent.
+- XRP SPRT: lambda=-2.769 crossed no-edge boundary (-2.251). CCA REQUEST 8 updated.
+- S116 research (research chat) confirmed: XRP FORWARD SPRT lambda=-0.558 — guards SUFFICIENT.
+- btc_drift CUSUM 4.260/5.0 — below threshold. S116 confirmed crash event, not structural.
+- Dim 9 signal_features: n=10 to 13 (3 new drift bets logged features).
+- Bot stopped per Matthew directive at session end.
+
+### Self-Rating: B+
+WINS: Bot dead fixed <30s, XRP SPRT no-edge finding, all-time recovered -10.36 to +11.35 USD.
+LOSSES: Bot had unknown downtime before session. Today P&L -11.93 USD (overnight drift losses).
+ONE THING next chat must do: Restart bot — it is STOPPED. Check btc_drift CUSUM first.
+
+### Goal Progress
+- All-time: +11.35 USD | Remaining to +125: 113.65 USD | At 30 USD/day: ~3.8 days
+
+
 ## Session 104 (monitoring wrap) — 2026-03-18 — Bot dead on arrival, restarted clean, UCL confirmed, +10.83 USD
 ### Changed
 - SESSION_HANDOFF.md — updated with S104 monitoring results, S105 startup sequence
