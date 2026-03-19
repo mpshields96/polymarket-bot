@@ -713,12 +713,31 @@ These are individual player performance markets. Settle after each game.
 
 ═══════════════════════════════════════════════════════════════
 
-## CATEGORY 10 — Politics / Geopolitical Events (Polymarket.COM only)
+## CATEGORY 10 — Politics / Geopolitical Events
 
-These appear in predicting.top whale signal logs but are on **polymarket.COM only**, not Kalshi.
-Our account is polymarket.US (sports-only). Not currently targetable on Kalshi.
+⚠️ CORRECTION (Session 111): Prior documentation was WRONG. Political markets DO exist on Kalshi.
 
-**Status:** Not buildable on our accounts. Documented for context only.
+Kalshi political/election series: ~12,335 total (25% of all 44,735 Kalshi series).
+Election-specific: ~2,140 series. Examples: "Will X win UK election?", "Mamdani for President?".
+
+**Key difference from crypto:** Political markets use event-based tickers (CONTROLS, SENATEGA,
+SENATEOR, etc) rather than systematic KX-prefixed series. They are seasonal (election cycles),
+not continuously available like crypto 15-min markets.
+
+**Calibration data (Le 2026 arXiv:2602.19520):** b=1.83 near-expiry for politics.
+At 90c: true_prob = 98.2% (8.2pp edge). At 70c: true_prob = 83% (13pp edge).
+Theoretical edge is 20-43x larger than crypto 15-min edge.
+
+**Open questions before building:**
+  1. Volume: are political markets liquid enough for algorithmic trading?
+  2. Near-expiry structure: do 1-24h political markets exist near resolution?
+  3. Settlement patterns: reliable binary YES/NO or multi-outcome?
+  4. Fill quality: can we get consistent fills at market price?
+
+**Status:** OPEN LEAD — Pillar 3 expansion candidate. Theoretical basis confirmed.
+Needs: API probe for liquidity + paper-trading 30+ bets before any live strategy.
+CCA request written 2026-03-19 for deeper investigation.
+DO NOT BUILD until DB backtest + p-value available (PRINCIPLES.md standard).
 
 ═══════════════════════════════════════════════════════════════
 
