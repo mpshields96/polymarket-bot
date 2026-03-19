@@ -162,3 +162,30 @@ Status at S113: n still ~9-10 (not enough new bets since guards + restart).
 The new p-value gate (n>=10, p<0.20) means auto_guard_discovery.py won't fire yet.
 Monitor at n>=20.
 
+
+═══════════════════════════════════════════════════════════════
+SECTION 5 — BTC_DRIFT CUSUM DEEP ANALYSIS
+═══════════════════════════════════════════════════════════════
+
+## CUSUM Trend: Stabilizing
+
+Ran CUSUM reconstruction across all 71 btc_drift bets.
+
+First 35 bets WR: 48.6%
+Last 36 bets WR: 50.0% — IMPROVING
+
+Last 10-bet CUSUM trend: -0.367 (CUSUM declining, not converging to 5.0)
+Last 20-bet CUSUM trend: -0.238 (also declining)
+
+Recent 15 bets show mixed results with no clear losing streak. Strategy is at
+approximately 50% WR in recent window — near the p0=0.5 null hypothesis value.
+
+INTERPRETATION: btc_drift is not deteriorating further. The CUSUM score of 4.100
+in bet_analytics.py reflects accumulated drift from earlier bets, but the recent
+trajectory (last 20-36 bets) shows recovery toward break-even.
+
+VERDICT: Do NOT disable btc_drift yet. SPRT boundary not crossed (lambda=-1.082).
+Monitor at each session start. If SPRT crosses -2.251: disable immediately.
+If last 30 bets stay at 50%+: CUSUM may start declining in the official formula too.
+
+Direction filter "no" is the correct one (set Session 43). All 71 bets are NO side.
