@@ -1,15 +1,16 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-19 ~06:20 UTC (Session 112 monitoring wrap — overnight, eth_drift disabled, xrp unblocked)
+# Last updated: 2026-03-19 ~12:30 UTC (Session 114 research+monitoring wrap — XRP sniper analysis, CCA REQUEST 8+9 filed)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
   Bot RUNNING PID 87658 → /tmp/polybot_session114.log
-  All-time live P&L: -10.36 USD | Today: -33.27 USD live (37 settled, 70% WR — bad sniper day)
+  All-time live P&L: -4.59 USD (recovering — was -13.08 mid-session after overnight losses)
+  Today: 59+ settled, ~78% WR, -27.5 USD (two big overnight losses dominate today)
   Tests: 1668 passing. Last commit: 83400ee (docs: S113 btc_drift CUSUM trend analysis)
-  eth_drift: DISABLED — took effect at ~05:23 UTC restart (PID 57412→87658). config.yaml min_drift_pct=9.99.
-  xrp_drift: UNBLOCKED — streak cleared to 0 during S112 monitoring (was 5 consecutive losses)
-  S112 MONITORING COMPLETE: 21 cycles, overnight run, bot restarted clean at 05:23 UTC
+  eth_drift: DISABLED — confirmed 0 post-restart bets over 83+ monitoring cycles (min_drift_pct=9.99)
+  xrp_drift: UNBLOCKED (0 consecutive losses since restart)
+  S114 COMPLETE: overnight+daytime monitoring + comprehensive multi-parameter sniper analysis
 
 ## S112 MONITORING KEY EVENTS (2026-03-19 ~21:08 UTC → 06:20 UTC)
 

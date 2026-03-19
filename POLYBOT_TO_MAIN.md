@@ -90,3 +90,74 @@ BET ANALYTICS STATE:
   eth_drift: CUSUM improved 14.140 → 12.760 (still in DRIFT ALERT, Bayesian handles)
 
 No code changes this session.
+
+---
+
+## S109 Research Summary (2026-03-19 ~20:35 UTC) — RESEARCH CHAT
+
+THREE-CHAT SIZING DECISION (autonomous):
+
+SNIPER HARD_MAX — KEEP AT $20
+  $15-20 range shows 94.2% WR (-$54 on 451 bets) vs $10-15 at 98.6% (+$86, 208 bets).
+  Contamination: the underperformers are buckets NOW guarded (KXXRP NO@93c, KXBTC NO@94c, etc.)
+  These were unguarded during the $15-20 period. With 5 guards active, active buckets should
+  recover to ~98% WR. Decision: keep $20. Monitor next 30 post-S108 bets.
+  If post-guard WR stays below 96% at $15-20: structural case to reduce to $15.
+
+SOL DRIFT — NO CHANGE
+  Kelly(WR=69.8%, avg price=59c) = 6.5% of bankroll = $5.72 at current bankroll.
+  Stage 1 cap ($5) is binding, not Kelly. Natural scaling as bankroll grows. Keep.
+
+ETH/BTC/XRP DRIFT — KEEP MICRO-LIVE
+  ETH: SPRT no edge. BTC: CUSUM improving. XRP: neutral. $0.39/bet = negligible cost.
+  These are data instruments. Keep collecting.
+
+ALL-TIME P&L NOTE: DB shows -$11.20 live (SESSION_HANDOFF said +$22.91 — different date ranges).
+  Today sniper: 2 losses × $20 = -$40 from today, all-time slipped to -$11.20.
+  Bot restarted PID 48350 → /tmp/polybot_session109.log
+
+S109 BUILD: Dim 9 signal feature logger (commit 8fbf56e)
+  Every drift live bet now logs JSON features to trades.signal_features.
+  Features: pct_from_open, minutes_remaining, time_factor, raw_prob, prob_yes_calibrated,
+  edge_pct, win_prob_final, price_cents, side, minutes_late, late_penalty, bayesian_active.
+  Target: 1000+ labeled examples for meta-labeling classifier (Pillar 1 self-improvement).
+  At 60-70 drift bets/day: ~15 days to 1000. Then can train signal-level filter.
+
+GUARD ANTICIPATION ANALYSIS:
+  Q: Is it worth anticipating future guards before statistical threshold?
+  A: No. Auto-guard catches bad buckets in ~3 bets at $19/bet = max $57 before block.
+  Pre-emptive blocking = speculation with high false-positive cost.
+  The signal_features logger IS the future guard system: at n=1000, train meta-classifier
+  to block individual bad signals (not whole buckets). More precise, less collateral damage.
+  Warming bucket watchlist (n>=2, negative P&L, not yet guarded): worth building next session.
+
+Tests: 1631 passing. Last commit: 8fbf56e (feat: Dim 9 signal feature logger)
+
+---
+## S114 RESEARCH FINDING — XRP SNIPER IS DESTROYING P&L (2026-03-19)
+Priority: HIGH — monitor XRP sniper performance closely
+
+**CRITICAL FINDING from S114 comprehensive multi-parameter analysis (776 live sniper bets):**
+
+WITHOUT XRP: BTC+ETH+SOL sniper = +163.16 USD all-time, 96.6% WR
+WITH XRP: Total sniper ~+56 USD (XRP alone = -107.27 USD)
+
+XRP split by time:
+  GOOD hours (09-20 UTC): n=79  WR=97.5%  EV=+0.321/bet  PnL=+25.35 USD
+  BAD hours (21-08 UTC):  n=106 WR=89.6%  EV=-1.251/bet  PnL=-132.62 USD
+
+This is NOT a trauma reaction. n=106 at EV=-1.251/bet is statistically robust.
+CCA REQUEST 8 has been filed for formal SPRT analysis + academic backing.
+
+**WHAT MAIN CHAT SHOULD DO:**
+1. Monitor XRP sniper performance each cycle — report WR separately for XRP vs others
+2. Do NOT add a guard yet — wait for CCA formal analysis (REQUEST 8)
+3. If XRP sniper has 3+ consecutive losses at any point: flag immediately
+4. 08:xx UTC XRP has Wilson CI below break-even (formally bad) — note any XRP losses at this hour
+
+Also flagged: SOL YES sniper EV=-0.172/bet (-19.98 USD). The YES direction on SOL may be weak.
+
+**CONTEXT:**
+  All these findings + POLYBOT_TO_CCA REQUEST 8+9 filed.
+  CCA is researching: XRP structural mechanism, formal SPRT, market conditions non-stationarity.
+  The bot is NOT being stopped or guarded yet — this is data collection + academic backing first.

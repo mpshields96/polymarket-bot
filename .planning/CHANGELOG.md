@@ -6616,3 +6616,45 @@ SESSION 113 — RESEARCH (2026-03-19 ~04:00-07:00 UTC)
   4. Check CCA_TO_POLYBOT.md (time-of-day academic backing requested S113, political markets probe requested S112)
   5. Monitor xrp_drift post-unblock (streak=0, direction_filter="yes")
   6. Dim 9 accumulation count (need 1000 for meta-classifier)
+
+---
+## Session 114 — 2026-03-19 (research+monitoring hybrid)
+Research focus: Overnight monitoring + comprehensive multi-parameter sniper analysis
+Bot: RUNNING PID 87658. All-time at wrap: -4.59 USD.
+
+### Key events:
+1. eth_drift disable confirmed working — 0 post-restart bets across 83+ monitoring cycles
+2. Two overnight losses: KXETH -19.32 at 05:30 UTC (old bot), KXSOL -19.53 at 09:15 UTC
+3. Post-09:30 UTC: 21 consecutive wins, 100% WR (daytime sniper healthy)
+
+### Research findings:
+1. XRP SNIPER IS PRIMARY P&L DRAG (comprehensive DB analysis, 776 bets):
+   BTC: +96.72 USD | ETH: +71.10 USD | SOL: -4.66 USD | XRP: -107.27 USD
+   BTC+ETH+SOL = +163.16 USD all-time without XRP
+   XRP in bad hours (21-08 UTC): n=106, WR=89.6%, EV=-1.251/bet, PnL=-132.62 USD
+   XRP in good hours (09-20 UTC): n=79, WR=97.5%, EV=+0.321/bet — fine
+
+2. 08:xx UTC is worst single hour:
+   XRP @ 08:xx: Wilson CI=[25%,84.2%] — formally below break-even
+   BTC/ETH @ 08:xx: CI includes break-even (likely crash-event dominated)
+
+3. SOL YES EV=-0.172/bet vs SOL NO EV=+0.182/bet — direction asymmetry noted
+
+4. Market conditions non-stationarity identified as major open research direction
+
+### CCA requests filed:
+  REQUEST 8: Multi-parameter sniper loss analysis — XRP structural mechanism + formal SPRT
+  REQUEST 9: Market conditions dynamics + non-stationarity (regime detection, FLB stability)
+
+### No new code built (session was monitoring-focused)
+
+### Grade: C — monitoring solid, breakthrough analytical finding on XRP drag, but no new tools
+
+### Dead ends confirmed: none new this session
+
+### Priority stack for S115:
+  1. HIGHEST: Check CCA_TO_POLYBOT.md — REQUEST 4 (overnight academic), REQUEST 8 (XRP analysis)
+  2. XRP sniper formal SPRT analysis — if CCA confirms formal significance, build XRP time-guard
+  3. btc_drift CUSUM: was 4.100/5.0 — check current level at S115 start
+  4. KXETH YES@93c warming bucket: check if n>=10 at S115 start
+  5. Dim 9 meta-labeling accumulation (passive)
