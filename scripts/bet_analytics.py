@@ -584,6 +584,62 @@ def analyze_sniper_monthly(bets: list[dict]) -> None:
         print("  (Only 1 month of data — trend detection requires 2+ months)")
 
 
+def analyze_sniper_rolling_wr(bets: list[dict], window_size: int = 50) -> None:
+    """Rolling window WR analysis for early FLB weakening detection (S118).
+
+    Academic basis: Burgi, Deng & Whelan (GWU 2026-001) report 'some evidence that
+    the FLB bias is getting smaller over time'. Monthly tracker (S115) catches this
+    at 30+ day lag. Rolling windows give intra-month early warning.
+
+    Splits bets (sorted by created_at) into consecutive windows of window_size.
+    Flags ALERT when the most recent window WR drops below 94% (below historical
+    expected WR for unguarded in-zone sniper bets).
+    """
+    if not bets:
+        return
+
+    sorted_bets = sorted(bets, key=lambda b: b.get("created_at", 0))
+    n_total = len(sorted_bets)
+
+    windows: list[list[dict]] = []
+    for i in range(0, n_total, window_size):
+        chunk = sorted_bets[i: i + window_size]
+        if chunk:
+            windows.append(chunk)
+
+    if not windows:
+        return
+
+    print(f"\n{'─'*55}")
+    print(f"  SNIPER ROLLING {window_size}-BET WR — FLB weakening early signal")
+    print("  (Burgi/Deng/Whelan GWU 2026-001: FLB shrinking in 2025 data)")
+    print(f"{'─'*55}")
+
+    alert_threshold = 0.94  # Below this WR in the most recent window = ALERT
+
+    for idx, window in enumerate(windows, start=1):
+        n = len(window)
+        k = sum(1 for b in window if b.get("won"))
+        wr = k / n
+        ci_lo, ci_hi = wilson_ci(n, k)
+        pnl = sum(b.get("pnl_cents", 0) for b in window) / 100
+        label = f"W{idx}" if n == window_size else f"W{idx}*"  # * = partial
+        is_latest = idx == len(windows)
+        alert = "  ← ALERT: WR below 94% threshold" if (is_latest and wr < alert_threshold) else ""
+        print(
+            f"  {label}: n={n:3d}  WR={wr*100:.1f}%  CI=[{ci_lo*100:.1f}%,{ci_hi*100:.1f}%]"
+            f"  P&L={pnl:+.2f} USD{alert}"
+        )
+
+    if len(windows) >= 2:
+        first_wr = sum(1 for b in windows[0] if b.get("won")) / len(windows[0])
+        last_wr = sum(1 for b in windows[-1] if b.get("won")) / len(windows[-1])
+        trend = last_wr - first_wr
+        if abs(trend) >= 0.03:
+            direction = "declining" if trend < 0 else "improving"
+            print(f"  Trend: WR {direction} {abs(trend)*100:.1f}pp (W1→W{len(windows)})")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Universal bet analytics — SPRT, Wilson CI, Brier, CUSUM"
@@ -620,11 +676,12 @@ def main() -> int:
         if name not in shown:
             analyze_strategy(name, bets, args.min_bets)
 
-    # ── Per-coin sniper breakdown + monthly WR (S115) ─────────────────────────
+    # ── Per-coin sniper breakdown + monthly WR (S115) + rolling WR (S118) ────
     sniper_detail = load_sniper_detail(db_path)
     if sniper_detail:
         analyze_sniper_coins(sniper_detail)
         analyze_sniper_monthly(sniper_detail)
+        analyze_sniper_rolling_wr(sniper_detail)
 
     # ── Forward edge (post-guard, in-zone) — S116 ─────────────────────────────
     _guards_path = db_path.parent / "auto_guards.json"

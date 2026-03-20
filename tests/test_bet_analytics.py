@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from scripts.bet_analytics import (
     wilson_ci, run_sprt, brier_score, run_cusum, SPRTResult,
     calibration_adjusted_edge, analyze_sniper_coins, analyze_sniper_monthly,
-    analyze_sniper_forward_edge,
+    analyze_sniper_forward_edge, analyze_sniper_rolling_wr,
 )
 
 
@@ -422,3 +422,83 @@ class TestSniperForwardEdge:
         out = capsys.readouterr().out
         assert "ETH" in out
         assert "n=20" in out
+
+
+class TestSniperRollingWR:
+    """Tests for rolling 50-bet WR windows for early FLB weakening detection (S118).
+
+    Academic basis: Burgi, Deng & Whelan (GWU 2026-001) report 'some evidence that
+    the bias is getting smaller over time'. Monthly tracker detects this at 30+ day lag.
+    Rolling windows detect trends within a month.
+    """
+
+    def _make_bet(self, won: bool, ts: int, pnl_cents: int = 100) -> dict:
+        return {
+            "ticker": "KXBTC15M-abc", "side": "yes",
+            "result": "yes" if won else "no", "won": won,
+            "pnl_cents": pnl_cents if won else -2000,
+            "created_at": ts,
+        }
+
+    def test_empty_no_crash(self, capsys):
+        analyze_sniper_rolling_wr([])
+        capsys.readouterr()  # no assertion — just must not raise
+
+    def test_one_full_window_shown(self, capsys):
+        """50 bets → exactly 1 window labelled."""
+        bets = [self._make_bet(True, 1773000000 + i * 60) for i in range(50)]
+        analyze_sniper_rolling_wr(bets)
+        out = capsys.readouterr().out
+        assert "W1" in out or "window 1" in out.lower() or "#1" in out
+
+    def test_two_full_windows_shown(self, capsys):
+        """100 bets → 2 windows."""
+        bets = [self._make_bet(True, 1773000000 + i * 60) for i in range(100)]
+        analyze_sniper_rolling_wr(bets)
+        out = capsys.readouterr().out
+        assert "W1" in out and "W2" in out
+
+    def test_correct_wr_per_window(self, capsys):
+        """First 50 all wins, next 50 all losses → W1=100%, W2=0%."""
+        wins = [self._make_bet(True, 1773000000 + i * 60) for i in range(50)]
+        losses = [self._make_bet(False, 1773003000 + i * 60) for i in range(50)]
+        analyze_sniper_rolling_wr(wins + losses)
+        out = capsys.readouterr().out
+        assert "100.0%" in out
+        assert "0.0%" in out
+
+    def test_declining_wr_alert_shown(self, capsys):
+        """If most recent window WR < 94%, ALERT should appear in output."""
+        # 50 historical wins, then 45 wins + 5 losses (90% WR in recent window)
+        wins = [self._make_bet(True, 1773000000 + i * 60) for i in range(50)]
+        recent = [self._make_bet(True, 1773003000 + i * 60) for i in range(45)]
+        recent += [self._make_bet(False, 1773006000 + i * 60) for i in range(5)]
+        analyze_sniper_rolling_wr(wins + recent)
+        out = capsys.readouterr().out
+        assert "ALERT" in out or "alert" in out.lower() or "⚠" in out
+
+    def test_stable_wr_no_alert(self, capsys):
+        """If recent window WR is healthy (>=96%), no ALERT shown."""
+        bets = [self._make_bet(True, 1773000000 + i * 60) for i in range(100)]
+        # 98 wins, 2 losses spread across both windows
+        bets[25] = self._make_bet(False, 1773000000 + 25 * 60)
+        bets[75] = self._make_bet(False, 1773000000 + 75 * 60)
+        analyze_sniper_rolling_wr(bets)
+        out = capsys.readouterr().out
+        assert "ALERT" not in out
+
+    def test_partial_last_window_included(self, capsys):
+        """75 bets → full W1 (50 bets) + partial W2 (25 bets) both shown."""
+        bets = [self._make_bet(True, 1773000000 + i * 60) for i in range(75)]
+        analyze_sniper_rolling_wr(bets)
+        out = capsys.readouterr().out
+        # Should show 2 windows (partial last is still shown)
+        assert "W1" in out and "W2" in out
+        assert "50" in out and "25" in out
+
+    def test_output_has_pnl(self, capsys):
+        """Each window should show P&L."""
+        bets = [self._make_bet(True, 1773000000 + i * 60) for i in range(60)]
+        analyze_sniper_rolling_wr(bets)
+        out = capsys.readouterr().out
+        assert "P&L" in out or "pnl" in out.lower()
