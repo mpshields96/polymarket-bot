@@ -1478,10 +1478,11 @@ async def expiry_sniper_loop(
     await asyncio.sleep(initial_delay_sec)
     logger.info("[expiry_sniper] Started — %s BTC/ETH/SOL/XRP 15M 90c+ sniping", _mode_label)
 
-    # UTC hours with statistically poor WR (objective, not trauma-based):
-    # 08:xx — WR=82.1% n=39 z=-4.30 (European open + Asia close crossover volatility)
-    # 13:xx — WR=90.5% n=21 both YES+NO below break-even (US market open at 13:30 UTC)
-    _BLOCKED_HOURS_UTC = frozenset({8, 13})
+    # S119 research: both blocks were crash-contaminated. Post-crash-strip analysis:
+    # 08:xx ex-crash: n=26 WR=92.3% z=+0.06 (not significant). Non-XRP: n=20 WR=100%.
+    # 13:xx post-existing-guards: n=20 WR=100%.
+    # Cost of blocks: ~5-6 USD/day in missed winning bets. Reverted S119 monitoring wrap.
+    _BLOCKED_HOURS_UTC = frozenset()
 
     while True:
         try:
