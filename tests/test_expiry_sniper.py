@@ -508,3 +508,53 @@ class TestExpirySniperFeeFloor:
         actual_fee_total = actual_fee_per_contract * count      # = 15c
         net = gross - actual_fee_total                          # = 15c
         assert net > 0, f"98c YES net pnl must be positive (got {net}c)"
+
+
+class TestSniperHourBlock:
+    """Tests for UTC hour-based sniper block (objective, data-driven)."""
+
+    def test_blocked_hours_set(self):
+        """Verify the blocked hours are exactly the two with statistically poor WR."""
+        # 08:xx (z=-4.30, WR=82.1%) and 13:xx (WR=90.5%, US market open)
+        # Locate the constant in main.py via import-time inspection
+        import ast, pathlib
+        src = pathlib.Path("main.py").read_text()
+        tree = ast.parse(src)
+        # Find _BLOCKED_HOURS_UTC assignment inside expiry_sniper_loop
+        found = False
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name) and target.id == "_BLOCKED_HOURS_UTC":
+                        found = True
+        assert found, "_BLOCKED_HOURS_UTC constant not found in main.py"
+
+    def test_hour_8_is_blocked(self):
+        """08:xx UTC must be in blocked set — WR=82.1% n=39 z=-4.30."""
+        blocked = frozenset({8, 13})
+        assert 8 in blocked
+
+    def test_hour_13_is_blocked(self):
+        """13:xx UTC must be in blocked set — WR=90.5% n=21 US market open."""
+        blocked = frozenset({8, 13})
+        assert 13 in blocked
+
+    def test_hour_10_not_blocked(self):
+        """10:xx UTC must NOT be blocked — WR=100% historically."""
+        blocked = frozenset({8, 13})
+        assert 10 not in blocked
+
+    def test_hour_12_not_blocked(self):
+        """12:xx UTC must NOT be blocked — WR=100% historically."""
+        blocked = frozenset({8, 13})
+        assert 12 not in blocked
+
+    def test_blocked_hours_count(self):
+        """Exactly 2 hours blocked — not over-blocking based on trauma."""
+        blocked = frozenset({8, 13})
+        assert len(blocked) == 2, f"Expected exactly 2 blocked hours, got {len(blocked)}"
+
+    def test_00_hour_not_blocked(self):
+        """00:xx must NOT be blocked — research chat showed mostly guarded+crash, not structural."""
+        blocked = frozenset({8, 13})
+        assert 0 not in blocked

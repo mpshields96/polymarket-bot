@@ -1478,11 +1478,25 @@ async def expiry_sniper_loop(
     await asyncio.sleep(initial_delay_sec)
     logger.info("[expiry_sniper] Started — %s BTC/ETH/SOL/XRP 15M 90c+ sniping", _mode_label)
 
+    # UTC hours with statistically poor WR (objective, not trauma-based):
+    # 08:xx — WR=82.1% n=39 z=-4.30 (European open + Asia close crossover volatility)
+    # 13:xx — WR=90.5% n=21 both YES+NO below break-even (US market open at 13:30 UTC)
+    _BLOCKED_HOURS_UTC = frozenset({8, 13})
+
     while True:
         try:
             if kill_switch.is_hard_stopped:
                 logger.debug("[expiry_sniper] Hard stop active — skipping poll")
                 await asyncio.sleep(10)
+                continue
+
+            _utc_hour = datetime.now(timezone.utc).hour
+            if _utc_hour in _BLOCKED_HOURS_UTC:
+                logger.info(
+                    "[expiry_sniper] Hour block: %02d:xx UTC — skipping poll (WR<91%% historically)",
+                    _utc_hour,
+                )
+                await asyncio.sleep(60)
                 continue
 
             current_bankroll = db.latest_bankroll() or 50.0
