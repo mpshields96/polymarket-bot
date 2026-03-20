@@ -8,6 +8,58 @@
 #          ### Lessons learned (optional)
 # ══════════════════════════════════════════════════════════════
 
+## Session 119 (monitoring wrap) — 2026-03-20 — Hour block REVERTED, crash-pause dead end confirmed, +5.88 USD session recovery
+
+### Changed
+- main.py: _BLOCKED_HOURS_UTC = frozenset() — REVERTED from frozenset({8, 13})
+  - REASON: S119 research proved both blocks were crash-contaminated (March 17 event)
+  - 08:xx ex-crash: n=26 WR=92.3% z=+0.06 (not significant). Non-XRP at 08:xx ex-crash: n=20 WR=100%
+  - 13:xx post-existing-guards: n=20 WR=100%
+  - Cost of keeping blocks: ~5-6 USD/day in missed winning bets
+  - Bot restarted with PID 70051 → /tmp/polybot_session119.log
+- SESSION_HANDOFF.md — updated to S119 monitoring wrap state
+- ~/.claude/commands/polybot-init.md — MAIN CHAT updated to Session 120
+- ~/.claude/commands/polybot-auto.md — SESSION STATE updated to Session 120
+
+### Why
+S119 research chat (separate session) audited both hour blocks and found crash contamination.
+Without March 17 crash bets, 08:xx has z=+0.06 (not significant, WR=92.3% above break-even).
+13:xx losses = 2 already-guarded KXXRP buckets that will no longer fire. Post-guard: WR=100%.
+Keeping blocks costs ~5-6 USD/day. No statistical or structural basis remains. Reverted.
+
+### S119 Monitoring Findings (not code changes)
+- Crash-pause mechanism: DEAD END (closed) — only ever-trigger was March 17 08:00 UTC (now
+  also covered by prior hour block, and hour block itself reverted). p=0.095 insufficient.
+  ZERO simultaneous 3+ loss windows in 349 windows. Logged to POLYBOT_TO_CCA.md.
+- 00:xx NO decomposition confirmed: 4 losses = 2 already-guarded + 2 unguarded (n=1 each).
+  Residual n=3 after guards — way below threshold. S118 research conclusion confirmed valid.
+- KXETH YES@93c: n=9, WR=88.9%, P&L=-10.83 USD. Next bet triggers auto_guard regardless of outcome.
+- btc_drift CUSUM: S=4.260/5.0 — stable, no action taken.
+
+### Strategy Analyzer Insights (--brief output)
+  All-time: +12.28 USD (82% WR, 1148 bets)
+  Today: -1.05 USD (93% WR, 15 bets)
+  SNIPER: Profitable buckets: 95, 90-94c | Guarded (historical): 96, 97, 98c
+  btc_drift_v1: UNDERPERFORMING 49% WR, Trend=IMPROVING (direction_filter="no" helping)
+  eth_drift_v1: UNDERPERFORMING 46% WR, Trend=DECLINING (disabled — irrelevant)
+  sol_drift_v1: HEALTHY 43 bets, 70% WR, +4.89 USD
+
+### Self-Rating
+  GRADE: B+
+  WINS: Crash-pause dead end proven + closed. 00:xx NO decomposition confirmed. Hour blocks
+    reverted (research justified) saving ~5-6 USD/day. P&L recovery +5.88 USD this session.
+  LOSSES: Short session (Matthew leaving). No new builds — pure monitoring + analysis.
+  ONE THING next chat must do better: Check KXETH YES@93c immediately — it will hit n=10
+    and trigger a new auto-guard. Run auto_guard_discovery.py early in session.
+  ONE THING that would have made more money earlier: Reverting hour blocks sooner (S119
+    research found the flaw; if main chat had caught this before S118 deployment, no loss).
+
+### Goal Progress
+  All-time P&L: +12.28 USD | Distance to +125 USD: 112.72 USD
+  At ~7-10 USD/day sniper + ~5-6 USD/day recovered from hour block revert: ~11-16 USD/day
+  At 11-16 USD/day rate: 7-10 days to +125 USD milestone
+  Highest-leverage action: Monitor hour block revert performance at 08:xx + 13:xx today
+
 ## Session 118 (monitoring wrap) — 2026-03-20 — UTC hour block deployed, objective WR analysis, -4.95 USD session net
 
 ### Changed
@@ -6934,3 +6986,60 @@ No new edges found because the landscape genuinely doesn't have them right now.
   1. Main chat: verify 08:xx block (crash-contaminated?) + consider suspending xrp/sol drift
   2. CCA: crash-pause DB analysis + phone notification
   3. btc_drift CUSUM 4.260/5.0 — check at every session start
+
+---
+
+## Session 119 — Research (2026-03-20 ~21:00 UTC)
+
+**Research focus:** Hour block audit, crash-pause analysis, drift strategy decision audit
+
+**Tools built:** None (pure DB analysis session)
+
+**Key findings (with data):**
+
+1. CRASH-PAUSE — DEAD END
+   787 sniper windows, max per-window losses = 1, windows with 3+ simultaneous = ZERO.
+   The scenario crash-pause was designed to prevent has never occurred.
+   March 17 losses were consecutive single-asset losses across different windows.
+   Added to confirmed dead ends permanently.
+
+2. 08:xx HOUR BLOCK — CRASH CONTAMINATED, RECOMMEND REVERT
+   Raw z=-4.30 (n=37, WR=81.1%) used to justify block.
+   Without March 17: n=26, WR=92.3%, z=+0.06 (NOT significant).
+   Non-XRP at 08:xx (ex March 17): n=20, WR=100%, P&L=+19.75 USD.
+   2 non-crash losses = both XRP YES@90-95c (n=4, below auto-guard threshold).
+   RECOMMENDATION: Remove 8 from _BLOCKED_HOURS_UTC. Costs ~3-4 USD/day to keep.
+
+3. 13:xx HOUR BLOCK — GUARDED BUCKET CONTAMINATED, RECOMMEND REVERT
+   Both losses = KXXRP NO@91c (now-guarded bucket). Post-guard 13:xx = 100% WR (n=20).
+   Research z=-0.46 confirmed — not significant.
+   RECOMMENDATION: Remove 13 from _BLOCKED_HOURS_UTC. Costs ~2 USD/day to keep.
+
+4. SOL_DRIFT — DO NOT SUSPEND (reverses S118 research vote)
+   S118 voted suspend based on 7-day variance (-8.59 USD). WRONG CALL.
+   CUSUM=0.560 (stable), SPRT EDGE CONFIRMED. Last 10 bets WR=60%, P&L=+1.85 USD.
+   The S118 vote was made without checking CUSUM. Never suspend without formal trigger.
+
+5. XRP_DRIFT — APPROACHING THRESHOLD (not crossed)
+   YES WR=51.3%, CUSUM S=3.440/5.0, last 7 days WR=43.8%.
+   No formal disable yet. Watch for CUSUM>=5.0 or next 10 bets <50% WR.
+
+6. BTC_DRIFT — SLIGHT RECOVERY
+   Last 7 days WR=52.4%, P&L=+0.82 USD. CUSUM=4.260/5.0 stable (not risen).
+
+**Dead ends confirmed:**
+  - Crash-pause mechanism: PERMANENT DEAD END (0 simultaneous multi-sniper windows ever)
+  - 08:xx structural weakness: NOT CONFIRMED (crash-contaminated data)
+  - 13:xx structural weakness: NOT CONFIRMED (guarded-bucket contaminated data)
+
+**Self-rating:** B+
+  Found actionable evidence to revert both hour blocks (5-6 USD/day recovery potential).
+  Reversed a wrong S118 suspension vote for sol_drift with CUSUM evidence.
+  Confirmed crash-pause dead end directly from DB (CCA REQUEST 13 closed).
+  No code built — pure analysis session, which was the right scope given time constraints.
+  Would be A if the main chat actually reverts the blocks this session.
+
+**Next research session priority:**
+  1. CCA REQUEST 12: Earnings Mentions scan (SDATA budget now 2000, April earnings approaching)
+  2. XRP YES@08:xx watch — auto-guard candidate (n=4 of 10 needed)
+  3. If main chat reverts hour blocks: monitor 08:xx+13:xx WR post-revert for 1 week
