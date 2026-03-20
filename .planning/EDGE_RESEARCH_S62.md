@@ -4400,3 +4400,72 @@ Post-guard BTC negative P&L (-9.64 USD) explained entirely by 3 transition bets:
 - 1 x KXBTC YES@94c same transition period
 All other BTC post-guard buckets at 90-93c and 95c: 100% WR.
 Guards are working correctly. Post-guard dip is a March 17 transition artifact.
+
+
+## S118 CONTINUATION — Market Landscape + CCA Deliveries (2026-03-20)
+
+### CCA REQUEST 4 Response: Le (2026) Calibration Formula
+**Status: IMPLEMENTED**
+
+Le (2026) arXiv:2602.19520 — "Decomposing Crowd Wisdom: Domain-Specific Calibration
+Dynamics in Prediction Markets" — verified by CCA S111 (real paper, 292M trades, 327K contracts).
+
+Recalibration formula: true_prob = p^θ / (p^θ + (1-p)^θ)
+
+Domain slopes (θ):
+  Crypto 15M: θ=1.03 — near-perfect calibration, edge = 0.3-0.5pp at 90-95c
+  Finance: θ=1.10 — slight favorite underpricing
+  Politics long: θ=1.31 — large underpricing
+  Politics near-expiry: θ=1.83 — MASSIVE underpricing (8-10pp at 90-95c)
+  Sports long: θ=1.74 — large underpricing
+  Weather <48h: θ=0.75 — favorites OVERPRICED (avoid)
+
+Key insight: The sniper's edge is NOT from calibration mispricing (crypto θ≈1.03 = tiny).
+Sniper edge = structural FLB + liquidity premium. This confirms the edge is robust to
+calibration theory. When crypto market becomes better calibrated, sniper edge may shrink.
+
+Politics near-expiry: 8-10pp edge vs sniper 0.3pp = ~20-30x calibration leverage.
+BUT: politics markets currently empty (between elections). Revisit Q4 2026.
+
+**Implementation**: calibration_adjusted_edge() in bet_analytics.py + CALIBRATION_B_* constants.
+Runs every session showing crypto vs politics edge comparison.
+
+### Monitoring Cross-Chat: 00:xx UTC NO-Side Anomaly
+
+Monitoring chat reported: n=16 00:xx NO bets, WR=75%, z=-4.698.
+
+Research chat decomposed this:
+  Guarded buckets at 00:xx: n=4, WR=50%, P&L=-37.17 — already blocked going forward
+  Unguarded buckets: n=12, WR=83.3%, P&L=-27.77
+  Of 2 unguarded losses: 1=March 17 crash (global), 1=KXBTC NO@92c March 20
+
+CONCLUSION: The 75% WR at 00:xx is largely explained by pre-existing guard infrastructure.
+Forward-looking unguarded 00:xx NO risk is smaller than the aggregate suggests.
+Do NOT implement time-of-day NO guard until:
+  (a) CCA REQUEST 11 confirms Asian session structural mechanism
+  (b) n>=30 unguarded 00:xx NO bets with consistent WR<92%
+
+### Pillar 3 Market Landscape — Full Scan (S118 cont)
+
+Ran full Kalshi market probe: 11,000+ open markets.
+
+FINDING: The non-crypto market landscape is structurally weak in March 2026:
+  KXMVE* sports (11K markets): avg vol ~40/market — useless
+  Politics (115 open events): LOW volume, between elections — 0 viable contracts
+  High-conf (90-95c, vol>=1K) non-crypto: ZERO found
+  Science/Tech, Companies: 0 open markets for listed series
+  Earnings Mentions (KXEARNINGSMENTIONX*): 0 currently open (off-cycle)
+
+CONFIRMS dead end: "CRYPTO 15M EXPANSION COMPLETE — BTC/ETH/SOL/XRP are the full viable set"
+applies to continuously-available high-volume markets.
+
+POTENTIAL FUTURE DIRECTION: Earnings Mentions markets
+  - Open ~1-2 weeks before quarterly earnings
+  - "Will [Company] say [word] in Q1 2026 earnings?"
+  - Potentially high certainty for predictable phrases
+  - Q1 earnings season = March-April 2026 (starting soon)
+  - CCA REQUEST 12 filed to evaluate volume + edge potential
+
+PRIORITY: LOW (seasonal, requires infrastructure, volume unvalidated)
+Current recommendation: sniper + drift IS the full live engine for now. No Pillar 3 expansion
+until political markets (Q4 2026) or Earnings Mentions volume confirmed by CCA.
