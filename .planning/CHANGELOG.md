@@ -8,6 +8,56 @@
 #          ### Lessons learned (optional)
 # ══════════════════════════════════════════════════════════════
 
+## Session 118 (monitoring wrap) — 2026-03-20 — UTC hour block deployed, objective WR analysis, -4.95 USD session net
+
+### Changed
+- main.py: Added _BLOCKED_HOURS_UTC = frozenset({8, 13}) to expiry_sniper_loop()
+  - 08:xx UTC: WR=82.1% n=39 z=-4.30 — European open + Asia close crossover (structural daily)
+  - 13:xx UTC: WR=90.5% n=21 — US market open at 13:30 UTC (structural daily)
+  - Sleeps 60s per blocked iteration, skips poll. Does NOT affect drift strategies.
+  - 00:xx excluded: decomposed losses = already-guarded buckets + March 17 crash (not structural daily)
+- tests/test_expiry_sniper.py: Added TestSniperHourBlock (7 tests) — all passing
+- SESSION_HANDOFF.md — updated to S118 monitoring wrap state
+- ~/.claude/commands/polybot-init.md — MAIN CHAT updated to Session 119
+- ~/.claude/commands/polybot-auto.md — SESSION STATE updated to Session 119
+- Commits: 8008c17 (feat: block sniper bets UTC hours 08 and 13)
+
+### Strategy Analyzer Insights (strategy_analyzer.py --brief)
+- SNIPER: Profitable buckets: 95, 90-94c | Guarded (historical losses blocked): 98, 97, 96c
+- btc_drift_v1: UNDERPERFORMING — 49% WR below break-even. Trend=IMPROVING. Filter="no" active.
+- eth_drift_v1: UNDERPERFORMING — 46% WR below break-even. Trend=DECLINING. DISABLED (min_drift_pct=9.99).
+- sol_drift_v1: HEALTHY — 43 live bets, 70% WR, +4.89 USD EDGE CONFIRMED.
+
+### Strategy Performance
+- expiry_sniper_v1: 797 bets, 95.7% WR all-time, +63.21 USD sniper-only
+  Hour block now active: 08:xx + 13:xx UTC blocked going forward
+- sol_drift_v1: 43 bets, 70% WR, +4.89 USD EDGE CONFIRMED
+- btc_drift_v1: 75 bets, 49% WR, CUSUM S=4.260/5.0 — monitoring
+- xrp_drift_v1: 50 bets, UNBLOCKED, direction_filter="yes"
+- eth_drift_v1: DISABLED — 0 live bets confirmed this session
+- All-time P&L: +6.40 USD (was +11.35 at S115 — -4.95 session net; losses before hour block deployed)
+
+### Session Self-Rating
+WINS:
+  - Built and deployed objective UTC hour block. Structural basis: European open (08:xx z=-4.30),
+    US market open (13:xx WR=90.5%). Statistical test met. Not trauma-based. Tests pass.
+  - Correctly excluded 00:xx: decomposed analysis showed guarded buckets + crash, not structural.
+  - Bot restarted cleanly with 5 guards loaded, Bayesian n=326 override_active=True.
+LOSSES:
+  - Session net -4.95 USD. Losses occurred BEFORE hour block was active.
+  - Context compression mid-session added friction and required summary-restart recovery.
+GRADE: B — correct objective build, clean deployment, but session ran at a loss before block went live.
+ONE THING NEXT CHAT MUST DO BETTER: Verify hour block is firing in log at startup.
+ONE THING THAT WOULD HAVE MADE MORE MONEY EARLIER: Deploy hour block one session sooner.
+
+### Goal Progress
+- All-time P&L: +6.40 USD | Distance to +125 USD: 118.60 USD
+- Sniper-only: +63.21 USD (bot all-time dragged by early pre-guard drift losses)
+- At ~7-10 USD/day sniper rate + hour block compound improvement: on track
+- Highest-leverage next action: Keep bot alive + confirm hour block fires at 08:xx/13:xx UTC
+
+---
+
 ## Session 115 (monitoring wrap) — 2026-03-19 — Bot dead at startup, XRP SPRT no-edge confirmed, all-time +11.35 USD
 ### Changed
 - SESSION_HANDOFF.md — S115 monitoring findings, BOT STOPPED, all-time +11.35 USD
