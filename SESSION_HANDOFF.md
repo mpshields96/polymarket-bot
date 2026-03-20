@@ -1,16 +1,48 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-20 ~00:30 UTC (Session 118 research wrap — FLB weakening analysis + rolling WR build)
+# Last updated: 2026-03-20 ~03:00 UTC (Session 118 cont — market landscape scan + calibration + 00:xx decomposition)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
   Bot RUNNING PID 26746 → /tmp/polybot_session118.log
   All-time live P&L: +11.35 USD (recovering — sniper positive session today)
   Bankroll: 179.76 USD (Stage 2 sizing: max 10 USD/bet for drift)
-  Tests: 1691 passing. Last commit: 36334d0 (feat(analytics): rolling 50-bet WR windows for FLB weakening early detection)
+  Tests: 1691 passing. Last commit: 52d8b31 (research: S118 cont — market landscape scan + calibration context + 00:xx decomposition)
   eth_drift: DISABLED (min_drift_pct=9.99) — confirmed 0 bets
   xrp_drift: UNBLOCKED (direction_filter="yes")
-  S118 COMPLETE: FLB weakening academic research + rolling WR analysis built
+  S118 RESEARCH COMPLETE (full session + continuation)
+
+## S118 CONTINUATION KEY FINDINGS (2026-03-20 ~03:00 UTC)
+
+  1. CCA DELIVERED: Le (2026) arXiv:2602.19520 — VERIFIED calibration slopes
+     Crypto b=1.03: sniper edge is structural FLB, NOT calibration (0.3-0.5pp calibration only)
+     Politics b=1.83: 8-10pp edge at 90-95c — but 0 open markets (revisit Q4 2026)
+     Weather b=0.75: favorites OVERPRICED — avoid
+     Implementation: calibration_adjusted_edge() already in bet_analytics.py + CALIBRATION_B_* constants
+
+  2. 00:xx UTC NO ANOMALY DECOMPOSED (monitoring chat finding — resolved)
+     Raw: n=16 00:xx NO bets, WR=75%. Looks alarming.
+     After decomposition: 4/16 are already-guarded buckets (-37.17 USD) → won't fire again.
+     Remaining 12 unguarded: WR=83.3%, 2 losses = March 17 crash + 1 new KXBTC NO@92c.
+     CONCLUSION: Do NOT add time-of-day guard. Wait for CCA REQUEST 11 + n>=30 unguarded.
+
+  3. FULL KALSHI MARKET SCAN — 11,000+ open markets — CONFIRMED DEAD END
+     Non-crypto markets: KXMVE* sports (~40 vol/market) + politics (0 open) = zero viable
+     High-conf (90-95c, vol>=1K) non-crypto: ZERO found
+     Earnings Mentions (KXEARNINGSMENTIONX*): 0 currently open (off earnings season)
+     CONFIRMS: "CRYPTO 15M — BTC/ETH/SOL/XRP are the full viable set" dead end still valid
+
+  4. EARNINGS MENTIONS — POTENTIAL PILLAR 3 (quarterly, seasonal)
+     Earnings call prediction markets (will company say [word] in Q1 earnings?)
+     Q1 earnings season = April-May 2026 (starting soon)
+     CCA REQUEST 12 filed: need volume data + structural edge validation before building
+     Infrastructure needed: earnings calendar + series scanner. NOT built yet.
+
+  5. CCA CROSS-CHAT STATE
+     REQUEST 4 response: Le (2026) calibration formula — DELIVERED + IMPLEMENTED
+     REQUEST 10 response: FLB weakening (Whelan VoxEU March 2026 confirmed — rolling WR built)
+     REQUEST 11: 00:xx UTC Asian session mechanism — PENDING
+     REQUEST 12: Earnings Mentions volume + edge — NEW REQUEST
 
 ## S118 RESEARCH KEY FINDINGS (2026-03-20 ~00:30 UTC)
 
@@ -306,7 +338,7 @@
   #10 SNIPER POST-GUARD SAMPLE: need n>=200 post-guard bets (est March 24-25) before
       any HARD_MAX raise analysis. At ~38 bets/day, 5 more days needed.
 
-  CONFIRMED DEAD ENDS (cumulative):
+  CONFIRMED DEAD ENDS (cumulative — S118 cont adds):
   CPI/GDP/FOMC/UNRATE speed-plays, UCL/NCAA live sports sniper (no WR data),
   BALLDONTLIE, weather, NBA/NHL/tennis sniper, KXBTCD near-expiry, sniper maker mode,
   time-of-day filtering, non-crypto 90c+ markets, annual BTC range markets,
@@ -319,7 +351,10 @@
   KXBNB15M sniper = too thin (~400 contracts/market vs XRP's 6,400; max fill ~7 USD/bet),
   KXDOGE15M sniper = too thin (vol=745, even thinner than BNB),
   All other crypto 15M series = do not exist on Kalshi (LTC/MATIC/AVAX/LINK/ADA/DOT etc all 404),
-  Crypto 15M expansion COMPLETE: BTC/ETH/SOL/XRP are the ONLY viable series on Kalshi
+  Crypto 15M expansion COMPLETE: BTC/ETH/SOL/XRP are the ONLY viable series on Kalshi,
+  00:xx UTC general NO-side block (S118 cont) = NOT justified; guarded buckets + crash explained losses,
+  Full Kalshi non-crypto market scan (S118 cont) = 11K markets at avg 40 vol/market = not viable,
+  Tech/Science/Companies non-crypto series = 0 open markets in March 2026 off-cycle
 
 ## S111 MONITORING KEY EVENTS (2026-03-19 21:08–04:06 UTC)
   1. ALL-TIME P&L TURNED POSITIVE (+3.07 USD) — started session at -7.44 USD, +10.93 USD session gain

@@ -6805,3 +6805,50 @@ Found academically important FLB weakening evidence and built the early warning 
 (-) Could not verify GWU paper directly (PDF binary). Sent to CCA.
 (-) No Pillar 3 expansion this session (political markets dead current cycle, no new market types).
 
+
+## Session 118 Continuation (2026-03-20 ~01:00-03:00 UTC) — Research
+
+### Focus
+Market landscape scan (Pillar 3), CCA calibration delivery analysis, 00:xx NO anomaly decomposition.
+
+### Key Findings (S118 cont)
+
+1. CCA Le (2026) arXiv:2602.19520 VERIFIED + IMPLEMENTED
+   Calibration slopes: crypto b=1.03 (tiny edge), politics b=1.83 (massive edge at 90-95c).
+   Confirms: sniper edge is structural FLB, not calibration mispricing.
+   Implementation: calibration_adjusted_edge() + CALIBRATION_B_* already in bet_analytics.py.
+   Runs every session. No further work needed.
+
+2. 00:xx UTC NO anomaly DECOMPOSED (monitoring chat REQUEST resolved)
+   Raw: n=16 WR=75% (z=-4.698). After decomposition: 4 guarded buckets + March 17 crash = 86% of losses.
+   Forward unguarded 00:xx NO: n=12, WR=83.3% (2 losses: crash + 1 new). Below break-even but n<30.
+   DECISION: No time-of-day guard. Wait for CCA REQUEST 11 Asian session mechanism + n>=30.
+
+3. Full Kalshi market scan — DEAD END CONFIRMED
+   11,000+ open markets: KXMVE* sports (~40 vol/market) dominates.
+   HIGH-CONF (90-95c, vol>=1K) non-crypto: ZERO found.
+   Confirms: crypto 15M is the full viable continuously-available set.
+
+4. Earnings Mentions — POTENTIAL Pillar 3 (CCA REQUEST 12 filed)
+   Quarterly earnings call prediction markets ("Will company say X?")
+   Currently 0 open (off-cycle). Q1 season = April-May 2026.
+   Need CCA to validate: volume, structural edge, base rate data before building.
+
+### Tools Built
+None (calibration formula was already in place from S118 part 1).
+
+### Dead Ends Confirmed
+- 00:xx UTC general NO-side time filter: not justified (guarded buckets explain losses)
+- Non-crypto market expansion in March 2026: 0 viable contracts (confirmed empirically)
+- Tech/Science/Companies series: 0 open markets off-cycle
+
+### Self-Rating: B
+Good analysis work — decomposed the 00:xx anomaly correctly (saving premature guard implementation),
+confirmed the full Kalshi market dead-end with real API data, implemented CCA calibration delivery.
+No new edges found because the landscape genuinely doesn't have them right now.
+
+### Next Research Session Top Priority
+1. btc_drift CUSUM: 4.260/5.0. Check at startup. Disable if S>=5.0.
+2. CCA REQUEST 11 response: Asian session mechanism for 00:xx NO (read CCA_TO_POLYBOT.md)
+3. CCA REQUEST 12 response: Earnings Mentions volume (April earnings season approaching)
+4. KXETH YES@93c warming bucket: run auto_guard_discovery.py
