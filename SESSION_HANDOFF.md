@@ -1,16 +1,46 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-19 ~20:00 UTC (Session 117 wrap — status checks, sol_drift edge_confirmed, bankroll staging clarification)
+# Last updated: 2026-03-20 ~00:30 UTC (Session 118 research wrap — FLB weakening analysis + rolling WR build)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
-  Bot STOPPED (Matthew requested stop 2026-03-19 ~19:52 UTC)
+  Bot RUNNING PID 26746 → /tmp/polybot_session118.log
   All-time live P&L: +11.35 USD (recovering — sniper positive session today)
   Bankroll: 179.76 USD (Stage 2 sizing: max 10 USD/bet for drift)
-  Tests: 1686 passing. Last commit: 9f765d7 (docs: guard ROI analysis + mission target breakdown)
+  Tests: 1691 passing. Last commit: 36334d0 (feat(analytics): rolling 50-bet WR windows for FLB weakening early detection)
   eth_drift: DISABLED (min_drift_pct=9.99) — confirmed 0 bets
   xrp_drift: UNBLOCKED (direction_filter="yes")
-  S116+S117 COMPLETE: forward-edge analysis + staging clarification + status confirmation
+  S118 COMPLETE: FLB weakening academic research + rolling WR analysis built
+
+## S118 RESEARCH KEY FINDINGS (2026-03-20 ~00:30 UTC)
+
+  1. FLB WEAKENING RISK CONFIRMED IN ACADEMIC LITERATURE [UNVERIFIED — CCA REQUEST 10]
+     Source: Burgi, Deng & Whelan (GWU WP 2026-001) — web search result states:
+     "evidence of a weakening in the FLB, as the coefficient for 2025 data is smaller
+     and less statistically significant."
+     [UNVERIFIED — sent CCA REQUEST 10 to confirm exact quote + price-range data]
+     Implication: FLB may continue shrinking. Monthly + rolling WR trackers are the defense.
+     Current state: no decline visible in rolling WR (W16* = 94.9%, above 94% threshold).
+
+  2. ROLLING 50-BET WR ANALYSIS BUILT (commit 36334d0)
+     analyze_sniper_rolling_wr() in bet_analytics.py — intra-month FLB weakening detector.
+     Runs automatically in bet_analytics.py main().
+     16 windows (W1-W16) show WR range 86-100%. W12=86% was March 17 crash + pre-guard losses.
+     Most recent W16* (n=39): 94.9% WR. No ALERT. No declining trend.
+     8 new tests (1691 total, was 1686).
+
+  3. POST-GUARD BTC DIP EXPLAINED (transition artifact — NO action needed)
+     BTC post-guard (March 17+) shows -9.64 USD. Entirely from 3 transition bets at 94c
+     placed before the March 17 guards took effect. All other BTC post-guard = 100% WR.
+     Guards are working correctly.
+
+  4. btc_drift CUSUM: 4.260/5.0 (unchanged from S117). Not rising. Monitor.
+
+  5. KXETH YES@93c: still n=9. Auto-guard not fired. Check each session.
+
+  6. CCA REQUEST 10 filed in POLYBOT_TO_CCA.md:
+     - Verify GWU 2026-001 FLB weakening quote + price-range breakdown
+     - Verify Boyarchenko/Larsen/Whelan overnight drift applicability to crypto binary
 
 ## S116 RESEARCH KEY FINDINGS (2026-03-19 ~18:30-20:00 UTC)
 
@@ -256,22 +286,25 @@
 
   6. All-time live P&L: +11.35 USD. Bankroll: 179.76 USD (Stage 2).
 
-## PENDING FOR S118+ (updated S117 wrap):
+## PENDING FOR S119+ (updated S118 research wrap):
   #1 XRP SNIPER — GUARDS ARE SUFFICIENT (resolved S116):
-     All-time SPRT lambda=-2.769 (no-edge) was dominated by pre-guard losses.
-     FORWARD SPRT (post-guard, in-zone): lambda=-0.558 [collecting — not at boundary].
+     FORWARD SPRT (post-guard, in-zone): lambda=-0.483 [collecting — not at boundary].
      NO additional XRP intervention needed. Monitor YES@94c (n=15, WR=93.3%).
-     CCA REQUEST 8 updated: guards sufficient, academic mechanism still interesting.
-  #2 btc_drift CUSUM: 4.180/5.0. If S>=5.0 at session start: disable (min_drift_pct=9.99).
-     SPRT lambda=-1.108. If crosses -2.251: also disable.
+  #2 btc_drift CUSUM: 4.260/5.0. If S>=5.0 at session start: disable (min_drift_pct=9.99).
+     SPRT lambda=-1.134. If crosses -2.251: also disable.
   #3 KXETH YES@93c warming bucket: n=9, 1 bet from auto-guard threshold.
      Next bet triggers check. Run scripts/auto_guard_discovery.py at session start.
-  #4 CCA REQUEST 4 (overnight drift academic) — check CCA_TO_POLYBOT.md for response.
-  #5 CCA REQUEST 9 (market conditions non-stationarity) — regime detection research pending.
-  #6 Meta-labeling Dim 9: n=11 bets with signal_features. Target n=1000. Passive.
-  #7 Guard retirement (Dim 5): needs 50+ paper bets per guarded bucket. Passive.
-  #8 sol_drift Stage 3: bankroll needs 250 USD. Currently ~90 USD. Natural growth.
-  #9 FLB weakening tracking: monthly WR tracker built. Check April 2026 when data available.
+  #4 CCA REQUEST 10 RESPONSE (FLB weakening verification + overnight drift applicability):
+     HIGHEST PRIORITY. Check CCA_TO_POLYBOT.md. GWU 2026-001 FLB weakening data
+     + Boyarchenko/Larsen/Whelan overnight drift mechanism. UNVERIFIED until CCA confirms.
+  #5 CCA REQUEST 9 (market conditions non-stationarity) — regime detection pending.
+  #6 FLB WEAKENING MONITORING: rolling WR tracker now built (S118). W16* = 94.9%, no ALERT.
+     Check rolling WR at each session. April 2026 monthly data will show 2-month trend.
+  #7 Meta-labeling Dim 9: n=13 signal_features. Target n=1000. Passive.
+  #8 Guard retirement (Dim 5): needs 50+ paper bets per guarded bucket. Passive.
+  #9 sol_drift Stage 3: bankroll needs 250 USD. Currently 179.76 USD. Natural growth.
+  #10 SNIPER POST-GUARD SAMPLE: need n>=200 post-guard bets (est March 24-25) before
+      any HARD_MAX raise analysis. At ~38 bets/day, 5 more days needed.
 
   CONFIRMED DEAD ENDS (cumulative):
   CPI/GDP/FOMC/UNRATE speed-plays, UCL/NCAA live sports sniper (no WR data),

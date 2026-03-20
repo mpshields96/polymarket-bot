@@ -4340,3 +4340,63 @@ NEXT SESSION TOP PRIORITY:
   All-time P&L: -20.89 USD
   OOS: 10/20 bets (YES 67% WR, NO 25% WR)
   Last commit: 391d06a
+
+---
+## S118 Research — FLB Weakening Risk + Rolling WR Early Warning System
+
+**Session:** 2026-03-19 ~22:00-01:00 UTC
+**Focus:** Academic validation of FLB longevity risk + build early detection tool
+
+### Key Academic Finding: FLB IS Weakening (UNVERIFIED — sent to CCA for confirmation)
+
+Source found via WebSearch: Burgi, Deng & Whelan (2026) GWU Working Paper 2026-001
+URL: https://www2.gwu.edu/~forcpgm/2026-001.pdf
+[UNVERIFIED — CCA REQUEST 10 filed to confirm exact quote and price-range data]
+
+Web search summary states: "evidence of a weakening in the favourite-longshot bias, as the
+coefficient for the 2025 data is smaller and less statistically significant."
+
+If confirmed: this is the primary long-term risk to the sniper's structural edge.
+The monthly WR tracker (S115) and rolling WR windows (S118) are the monitoring tools.
+
+### Implications for the Sniper
+
+If FLB is shrinking:
+1. The 95.8% WR in March 2026 may be higher than April-onward WR
+2. Monthly tracker (S115) will show it 30+ days after it starts
+3. Rolling WR windows (S118) will show it within the same month
+4. CUSUM (already in bet_analytics.py) will detect it as a changepoint
+
+Current state: W16* (most recent 39 bets) = 94.9% WR. No decline yet. ALERT threshold = 94%.
+
+### Additional Finding: Near-Expiry Contracts ARE Nearly Perfectly Calibrated
+
+Confirmed by VoxEU article (Burgi/Deng/Whelan): "95 cent contract wins 98% of the time,
+which gives its investors a small positive profit rate." This matches our 95c YES WR = 98.3%.
+The sniper's edge = structural FLB + liquidity premium, NOT calibration mispricing (b=0.99 near-expiry).
+
+### What Was Built (S118)
+
+1. analyze_sniper_rolling_wr() in scripts/bet_analytics.py (S118, commit 36334d0)
+   - 50-bet consecutive windows, sorted by created_at
+   - Wilson CI + P&L per window
+   - ALERT when most recent window WR < 94%
+   - Trend line if W1→Wn shift exceeds 3pp
+   - 8 new tests (1691 total)
+
+2. CCA REQUEST 10 filed (POLYBOT_TO_CCA.md) requesting:
+   - Verification of GWU 2026-001 FLB weakening quote
+   - Overnight Drift (Boyarchenko/Larsen/Whelan 2020) mechanism verification for crypto binary applicability
+
+### Live Rolling WR Analysis (S118 run on 787 sniper bets)
+
+W1-W16: WR range 86-100%. W12 was the worst (86% = March 17 crash + pre-guard losses).
+Most recent W16* (39 bets): 94.9% WR. No ALERT. No declining trend (W1=96% vs W16=94.9% = -1.1pp, below 3pp flag threshold).
+
+### Post-Guard BTC Analysis (S118 finding)
+
+Post-guard BTC negative P&L (-9.64 USD) explained entirely by 3 transition bets:
+- 2 x KXBTC NO@94c placed March 17 BEFORE guards activated (guard was activated that session)
+- 1 x KXBTC YES@94c same transition period
+All other BTC post-guard buckets at 90-93c and 95c: 100% WR.
+Guards are working correctly. Post-guard dip is a March 17 transition artifact.

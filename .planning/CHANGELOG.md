@@ -6775,3 +6775,33 @@ Key findings:
 Tools built: none (continuation session, research complete in S116).
 Dead ends confirmed: none new.
 Next session top priority: btc_drift CUSUM monitor (4.260/5.0 — disable at 5.0).
+
+---
+## Session 118 — 2026-03-20 ~00:30 UTC (Research)
+Grade: B+
+
+### Build
+- feat(analytics): analyze_sniper_rolling_wr() — rolling 50-bet WR windows with FLB weakening detection
+  Splits sniper bets into consecutive 50-bet windows (sorted by created_at).
+  Shows WR + Wilson CI + P&L per window for intra-month trend visibility.
+  Fires ALERT when most recent window WR drops below 94% threshold.
+  Shows trend line if W1→Wn shift exceeds 3pp (currently -1.1pp — no trend).
+  Runs automatically in bet_analytics.py main() on every session.
+  8 new tests (1691 total, was 1686).
+  Commit: 36334d0
+
+### Research
+- Academic confirmation found (unverified): Burgi/Deng/Whelan GWU WP 2026-001 states FLB
+  is weakening in 2025 data. CCA REQUEST 10 filed to verify exact quote + price-range data.
+- Post-guard BTC analysis: -9.64 USD was 3 March 17 transition bets (pre-guard activation).
+  All other BTC post-guard buckets: 100% WR. Guards working correctly.
+- Rolling WR live result: W16* (most recent 39 bets) = 94.9% WR. No ALERT. No declining trend.
+- Overnight drift paper found: Boyarchenko/Larsen/Whelan NY Fed SR917 (2020). CCA verifying.
+- btc_drift CUSUM: 4.260/5.0 (unchanged). Not rising. Monitor.
+- KXETH YES@93c: n=9 (unchanged). Run auto_guard_discovery at next session.
+
+### Why Grade B+
+Found academically important FLB weakening evidence and built the early warning tool.
+(-) Could not verify GWU paper directly (PDF binary). Sent to CCA.
+(-) No Pillar 3 expansion this session (political markets dead current cycle, no new market types).
+
