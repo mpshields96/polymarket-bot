@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-20 ~01:15 UTC (Session 118 monitoring wrap — hour block deployed)
+# Last updated: 2026-03-20 ~04:00 UTC (Session 118 research wrap — overnight P&L decomposition)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
@@ -11,6 +11,34 @@
   Tests: 1698 passing. Last commit: 8008c17 (feat: block sniper bets UTC hours 08 and 13)
   eth_drift: DISABLED (min_drift_pct=9.99) — confirmed 0 bets
   xrp_drift: UNBLOCKED (direction_filter="yes")
+
+## S118 RESEARCH WRAP KEY FINDINGS (2026-03-20 ~04:00 UTC)
+
+  OVERNIGHT P&L DECOMPOSITION — THE "WAKING UP TO LOSSES" PROBLEM:
+  Root cause identified: eth_drift was losing -31.55 USD overnight (10PM-8AM UTC).
+  eth_drift is NOW DISABLED. The systematic overnight bleed is gone.
+  Sniper overnight without crash events: profitable. With crash (March 17): -9.37 USD/month.
+  THREE-CHAT DECISION DOCUMENTED: POLYBOT_TO_MAIN.md (all three decisions written explicitly).
+  DECISION.md created at project root — unmissable summary for Matthew.
+
+  THREE OBJECTIVE DECISIONS (research chat votes — main chat + CCA to confirm):
+  1. RUN OVERNIGHT: YES. Sniper works overnight. Stopping loses ~87 USD/month.
+  2. SUSPEND xrp_drift + sol_drift: YES (research chat recommendation).
+     xrp_drift -2.27 USD, sol_drift -8.59 USD last 7 days. Not formally triggered but directional.
+     Main chat: set min_drift_pct=9.99 for both to suspend. Await main chat decision.
+  3. CRASH-PAUSE MECHANISM: PENDING CCA ANALYSIS. CCA REQUEST 13 filed.
+     Concept: if 3+ of 4 crypto markets lose in same 15-min window, pause 60 min.
+     Needs CCA to confirm false-positive rate before building.
+
+  HOUR BLOCK DISCREPANCY (flag for main chat):
+  Main chat deployed {8, 13} UTC sniper block (commit 8008c17, z=-4.30 for 08:xx).
+  Research chat finds 08:xx block may be crash-contaminated: 5/7 losses were March 17.
+  Non-crash 08:xx WR = 93.75% (above break-even). Flagged in POLYBOT_TO_MAIN.md.
+  Main chat should verify their z=-4.30 calculation and confirm or revert.
+
+  SELF-LEARNING LOGGED: 4 entries to CCA journal (2 wins, 2 pains).
+  Key win: strategy×hour decomposition prevents wrong time blocks.
+  Key pain: chats acting on same data with different conclusions (need sync protocol).
 
 ## S118 MONITORING WRAP KEY EVENTS (2026-03-20 ~01:15 UTC)
 

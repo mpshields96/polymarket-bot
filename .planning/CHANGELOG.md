@@ -6902,3 +6902,35 @@ No new edges found because the landscape genuinely doesn't have them right now.
 2. CCA REQUEST 11 response: Asian session mechanism for 00:xx NO (read CCA_TO_POLYBOT.md)
 3. CCA REQUEST 12 response: Earnings Mentions volume (April earnings season approaching)
 4. KXETH YES@93c warming bucket: run auto_guard_discovery.py
+
+---
+
+## Session 118 Research Continuation — 2026-03-20 ~04:00 UTC
+
+**Focus:** Overnight P&L decomposition in response to Matthew's "waking up to losses" frustration
+
+**What was investigated:**
+  - Day vs overnight P&L split by strategy (30 days, live bets)
+  - Time-of-day analysis for both sniper and drift strategies
+  - Identified eth_drift as the systematic overnight bleeder (-31.55 USD overnight)
+  - Verified main chat's 08:xx UTC hour block — found potential crash contamination (5/7 losses = March 17)
+  - All three decisions documented in POLYBOT_TO_MAIN.md and DECISION.md
+
+**Tools built:** None (analysis only)
+
+**Key findings:**
+  - Overnight net without eth_drift: sniper -9.37, xrp_drift -1.39, sol_drift +5.62, btc_drift -0.02 = -5.16 USD/month
+  - The "fight all day to earn back" pattern = eth_drift. Now disabled. Problem should be gone.
+  - 08:xx UTC hour block may over-block profitable sniper hours (crash-contaminated statistic)
+  - sol_drift is actually POSITIVE overnight (+5.62 USD) — do not block it
+
+**Dead ends:**
+  - Time-of-day sniper block: not justified structurally (08:xx = crash, 13:xx = not significant)
+  - Stopping overnight running: would lose ~87 USD/month of sniper revenue
+
+**Self-rating:** B — Found the real answer to Matthew's frustration with data. No new code, but the overnight P&L decomposition is actionable. Three decisions documented for three-chat alignment.
+
+**Next session top priority:** 
+  1. Main chat: verify 08:xx block (crash-contaminated?) + consider suspending xrp/sol drift
+  2. CCA: crash-pause DB analysis + phone notification
+  3. btc_drift CUSUM 4.260/5.0 — check at every session start
