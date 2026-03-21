@@ -337,6 +337,82 @@ def write_guards(guards: list[dict], output_path: Path = OUTPUT_PATH) -> None:
         json.dump(payload, f, indent=2)
 
 
+def discover_warming_buckets(db_path: Path = DB_PATH, min_n: int = 5, min_loss: float = 2.0) -> list[dict]:
+    """
+    Return buckets that are accumulating losses but haven't crossed the formal guard threshold.
+    These are early-warning signals — not yet actionable, but worth watching.
+
+    Criteria:
+    - n >= min_n (default 5 — enough to be meaningful)
+    - total_pnl_usd < -min_loss USD
+    - WR below break-even
+    - NOT already guarded (checks both hardcoded IL guards AND auto_guards.json)
+    - Does NOT meet statistical threshold (otherwise it would be a new guard)
+    """
+    conn = sqlite3.connect(str(db_path))
+    rows = conn.execute("""
+        SELECT ticker, side, price_cents, result, pnl_cents
+        FROM trades
+        WHERE strategy = 'expiry_sniper_v1'
+          AND is_paper = 0
+          AND result IS NOT NULL
+    """).fetchall()
+    conn.close()
+
+    # Load auto-discovered guards to exclude already-guarded buckets
+    auto_guarded: set[tuple] = {
+        (g["ticker_contains"], g["price_cents"], g["side"])
+        for g in load_existing_auto_guards()
+    }
+
+    buckets: dict[tuple, dict] = {}
+    for ticker, side, price_cents, result, pnl_cents in rows:
+        prefix = ticker_prefix(ticker)
+        key = (prefix, price_cents, side)
+        if key not in buckets:
+            buckets[key] = {"n": 0, "wins": 0, "pnl": 0}
+        buckets[key]["n"] += 1
+        buckets[key]["wins"] += 1 if side == result else 0
+        buckets[key]["pnl"] += pnl_cents or 0
+
+    warming = []
+    for (prefix, price_cents, side), stats in buckets.items():
+        n = stats["n"]
+        wins = stats["wins"]
+        total_pnl_usd = stats["pnl"] / 100.0
+        wr = wins / n if n > 0 else 0.0
+        be_wr = break_even_wr(price_cents)
+
+        if n < min_n:
+            continue
+        if total_pnl_usd >= -min_loss:
+            continue
+        if wr >= be_wr:
+            continue
+        if is_already_guarded(prefix, price_cents, side):
+            continue
+        if (prefix, price_cents, side) in auto_guarded:
+            continue
+        # Only show buckets that haven't yet crossed formal threshold
+        if meets_statistical_threshold(n, wins, be_wr):
+            continue
+
+        p_val = binomial_pvalue_below(k=wins, n=n, p0=be_wr)
+        warming.append({
+            "ticker_contains": prefix,
+            "price_cents": price_cents,
+            "side": side,
+            "n_bets": n,
+            "win_rate": round(wr, 4),
+            "break_even_wr": round(be_wr, 4),
+            "total_loss_usd": round(total_pnl_usd, 2),
+            "p_value": round(p_val, 3),
+        })
+
+    warming.sort(key=lambda w: w["total_loss_usd"])
+    return warming
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Auto-discover sniper guards from live bet history")
     parser.add_argument("--dry-run", action="store_true", help="Print guards without writing file")
@@ -357,27 +433,41 @@ def main() -> int:
 
     if not new_guards:
         print("No new guards found — all negative-EV buckets already covered.")
-        return 0
+    else:
+        print(f"\nFound {len(new_guards)} new guard(s):")
+        for g in new_guards:
+            be_pct = round(g['break_even_wr'] * 100, 1)
+            wr_pct = round(g['win_rate'] * 100, 1)
+            print(
+                f"  AUTO: {g['ticker_contains']} {g['side'].upper()}@{g['price_cents']}c "
+                f"— {g['n_bets']} bets, {wr_pct}% WR (need {be_pct}%), "
+                f"{g['total_loss_usd']} USD"
+            )
 
-    print(f"\nFound {len(new_guards)} new guard(s):")
-    for g in new_guards:
-        be_pct = round(g['break_even_wr'] * 100, 1)
-        wr_pct = round(g['win_rate'] * 100, 1)
-        print(
-            f"  AUTO: {g['ticker_contains']} {g['side'].upper()}@{g['price_cents']}c "
-            f"— {g['n_bets']} bets, {wr_pct}% WR (need {be_pct}%), "
-            f"{g['total_loss_usd']} USD"
-        )
+    # Always show warming buckets (early warning, not actionable yet)
+    warming = discover_warming_buckets(db_path)
+    if warming:
+        print(f"\nWarming buckets (n>=5, below BE, not yet significant — watch only):")
+        for w in warming:
+            be_pct = round(w['break_even_wr'] * 100, 1)
+            wr_pct = round(w['win_rate'] * 100, 1)
+            print(
+                f"  WATCH: {w['ticker_contains']} {w['side'].upper()}@{w['price_cents']}c "
+                f"— n={w['n_bets']}, {wr_pct}% WR (need {be_pct}%), "
+                f"{w['total_loss_usd']} USD, p={w['p_value']}"
+            )
+    else:
+        print("No warming buckets — all sub-threshold buckets are profitable or low-sample.")
 
-    if args.dry_run:
+    if new_guards and not args.dry_run:
+        existing = load_existing_auto_guards()
+        merged, added = merge_guards(existing, new_guards)
+        write_guards(merged)
+        print(f"\nWrote {len(merged)} total guards ({added} new) to {OUTPUT_PATH}")
+        print("Restart bot to activate new guards.")
+    elif new_guards and args.dry_run:
         print("\n[dry-run] Not writing to file.")
-        return 0
 
-    existing = load_existing_auto_guards()
-    merged, added = merge_guards(existing, new_guards)
-    write_guards(merged)
-    print(f"\nWrote {len(merged)} total guards ({added} new) to {OUTPUT_PATH}")
-    print("Restart bot to activate new guards.")
     return 0
 
 
