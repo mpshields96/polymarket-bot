@@ -230,6 +230,20 @@ class ExpirySniperStrategy(BaseStrategy):
             side.upper(), entry_price_cents, reason,
         )
 
+        # ── 8. Meta-labeling features (Dim 9) ─────────────────────────
+        # Populate features for future meta-classifier. CCA feature list 2026-03-21.
+        # coin extraction: "KXBTC15M-26MAR..." → split on "15M" → "KXBTC" → strip "KX" → "BTC"
+        _now_utc = datetime.now(timezone.utc)
+        _coin_parts = market.ticker.split("15M")
+        _coin = _coin_parts[0][2:] if len(_coin_parts) > 1 and len(_coin_parts[0]) > 2 else "UNK"
+        features = {
+            "utc_hour": _now_utc.hour,
+            "utc_day_of_week": _now_utc.weekday(),
+            "coin": _coin,
+            "seconds_remaining": round(seconds_remaining, 1),
+            "drift_pct": coin_drift_pct,
+        }
+
         return Signal(
             side=side,
             edge_pct=round(edge_pct, 4),
@@ -238,6 +252,7 @@ class ExpirySniperStrategy(BaseStrategy):
             ticker=market.ticker,
             price_cents=int(price_cents),
             reason=reason,
+            features=features,
         )
 
     # ── Helpers ───────────────────────────────────────────────────────

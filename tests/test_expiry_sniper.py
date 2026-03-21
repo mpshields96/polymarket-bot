@@ -603,3 +603,110 @@ class TestSniperHourBlock:
         """00:xx must NOT be blocked — research chat showed mostly guarded+crash, not structural."""
         blocked = frozenset()
         assert 0 not in blocked
+
+
+# ── TestExpirySniperSignalFeatures — meta-labeling data for Dim 9 ─────────
+
+
+class TestExpirySniperSignalFeatures:
+    """
+    Signal.features must be populated for every sniper signal.
+
+    Dim 9 meta-labeling (S120): sniper is primary engine with 800+ bets.
+    These features enable future meta-classifier to predict which sniper
+    signals are more likely to win (time-of-day, coin, momentum context).
+
+    CCA features list (2026-03-21): utc_hour, day_of_week, coin,
+    seconds_remaining, drift_pct, price_cents, side, win_prob, edge_pct.
+    """
+
+    def test_signal_has_features_dict(self):
+        """Signal must have non-None features field."""
+        strategy = _default_strategy()
+        market = _make_market(ticker="KXBTC15M-TEST", yes_price=92, no_price=8, seconds_remaining=300)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.003)
+        assert signal is not None
+        assert signal.features is not None
+        assert isinstance(signal.features, dict)
+
+    def test_features_has_required_keys(self):
+        """features dict must contain all required meta-labeling keys."""
+        strategy = _default_strategy()
+        market = _make_market(ticker="KXBTC15M-TEST", yes_price=92, no_price=8, seconds_remaining=300)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.003)
+        assert signal is not None
+        required = {"utc_hour", "utc_day_of_week", "coin", "seconds_remaining", "drift_pct"}
+        for key in required:
+            assert key in signal.features, f"Missing key: {key}"
+
+    def test_features_utc_hour_valid_range(self):
+        """utc_hour must be 0-23."""
+        strategy = _default_strategy()
+        market = _make_market(ticker="KXBTC15M-TEST", yes_price=90, no_price=10, seconds_remaining=600)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.002)
+        assert signal is not None
+        assert 0 <= signal.features["utc_hour"] <= 23
+
+    def test_features_day_of_week_valid_range(self):
+        """utc_day_of_week must be 0-6 (0=Monday, 6=Sunday)."""
+        strategy = _default_strategy()
+        market = _make_market(ticker="KXETH15M-TEST", yes_price=91, no_price=9, seconds_remaining=400)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.002)
+        assert signal is not None
+        assert 0 <= signal.features["utc_day_of_week"] <= 6
+
+    def test_features_coin_btc_extracted(self):
+        """KXBTC15M ticker → coin='BTC'."""
+        strategy = _default_strategy()
+        market = _make_market(ticker="KXBTC15M-TEST", yes_price=93, no_price=7, seconds_remaining=300)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.003)
+        assert signal is not None
+        assert signal.features["coin"] == "BTC"
+
+    def test_features_coin_eth_extracted(self):
+        """KXETH15M ticker → coin='ETH'."""
+        strategy = _default_strategy()
+        market = _make_market(ticker="KXETH15M-TEST", yes_price=93, no_price=7, seconds_remaining=300)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.003)
+        assert signal is not None
+        assert signal.features["coin"] == "ETH"
+
+    def test_features_coin_sol_extracted(self):
+        """KXSOL15M ticker → coin='SOL'."""
+        strategy = _default_strategy()
+        market = _make_market(ticker="KXSOL15M-TEST", yes_price=92, no_price=8, seconds_remaining=300)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.002)
+        assert signal is not None
+        assert signal.features["coin"] == "SOL"
+
+    def test_features_coin_xrp_extracted(self):
+        """KXXRP15M ticker → coin='XRP'."""
+        strategy = _default_strategy()
+        market = _make_market(ticker="KXXRP15M-TEST", yes_price=91, no_price=9, seconds_remaining=300)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.002)
+        assert signal is not None
+        assert signal.features["coin"] == "XRP"
+
+    def test_features_drift_pct_matches_input(self):
+        """features drift_pct must match coin_drift_pct input."""
+        strategy = _default_strategy()
+        market = _make_market(ticker="KXBTC15M-TEST", yes_price=94, no_price=6, seconds_remaining=300)
+        drift = 0.00423
+        signal = strategy.generate_signal(market=market, coin_drift_pct=drift)
+        assert signal is not None
+        assert abs(signal.features["drift_pct"] - drift) < 1e-9
+
+    def test_features_seconds_remaining_positive(self):
+        """features seconds_remaining must be positive for a valid signal."""
+        strategy = _default_strategy()
+        market = _make_market(ticker="KXBTC15M-TEST", yes_price=92, no_price=8, seconds_remaining=180)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.003)
+        assert signal is not None
+        assert signal.features["seconds_remaining"] > 0
+
+    def test_no_signal_has_no_features(self):
+        """When no signal fires (e.g. too much time), features are irrelevant (None returned)."""
+        strategy = _default_strategy()
+        market = _make_market(ticker="KXBTC15M-TEST", yes_price=92, no_price=8, seconds_remaining=3600)
+        signal = strategy.generate_signal(market=market, coin_drift_pct=0.003)
+        assert signal is None  # No signal, so no features question arises
