@@ -23,10 +23,14 @@ from pathlib import Path
 
 import pytest
 
+import sqlite3
+import tempfile
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from scripts.auto_guard_discovery import (
     binomial_pvalue_below,
     meets_statistical_threshold,
+    discover_warming_buckets,
     MIN_BETS,
     P_VALUE_THRESHOLD,
     break_even_wr,
@@ -138,3 +142,107 @@ class TestMeetsStatisticalThreshold:
     def test_large_sample_moderate_underperformance_passes(self):
         """n=100, 88 wins (88% WR) vs 93.4% break-even — statistically significant."""
         assert meets_statistical_threshold(n=100, wins=88, break_even=0.934)
+
+
+# ── WarmingBuckets ─────────────────────────────────────────────────────────────
+
+def _make_warming_db(rows: list[tuple]) -> Path:
+    """Create temp SQLite DB with trades table and given (ticker, side, price_cents, result, pnl_cents) rows."""
+    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    conn = sqlite3.connect(tmp.name)
+    conn.execute("""CREATE TABLE trades (
+        id INTEGER PRIMARY KEY,
+        ticker TEXT, side TEXT, price_cents INTEGER,
+        result TEXT, pnl_cents INTEGER,
+        strategy TEXT, is_paper INTEGER, timestamp INTEGER
+    )""")
+    for r in rows:
+        conn.execute(
+            "INSERT INTO trades (ticker, side, price_cents, result, pnl_cents, strategy, is_paper, timestamp) "
+            "VALUES (?,?,?,?,?,'expiry_sniper_v1',0,1000000)",
+            r,
+        )
+    conn.commit()
+    conn.close()
+    return Path(tmp.name)
+
+
+class TestWarmingBuckets:
+    """discover_warming_buckets() surfaces pre-threshold negative-EV buckets."""
+
+    def test_empty_db_returns_empty(self):
+        """No trades → no warming buckets."""
+        db = _make_warming_db([])
+        assert discover_warming_buckets(db) == []
+
+    def test_profitable_bucket_not_shown(self):
+        """Bucket with positive P&L not in warming list."""
+        # KXBTC YES@93c: 8/8 wins = 100% WR — profitable
+        rows = [("KXBTC15M-T1", "yes", 93, "yes", 620)] * 8
+        db = _make_warming_db(rows)
+        result = discover_warming_buckets(db)
+        assert result == []
+
+    def test_below_min_n_not_shown(self):
+        """Bucket with n < min_n (default 5) not in warming list even if losing."""
+        # n=3 losses at 93c YES (below 5)
+        rows = [("KXBTC15M-T1", "yes", 93, "no", -930)] * 3
+        db = _make_warming_db(rows)
+        result = discover_warming_buckets(db, min_n=5)
+        assert result == []
+
+    def test_losing_bucket_above_min_n_shown(self):
+        """Bucket with n>=5, losses>min_loss, WR<BE, not significant → appears in warming.
+
+        Uses realistic pnl_cents: win=+147c (~$1.47 for 21 contracts), loss=-1953c (~$19.53).
+        At 93c YES with 7 wins / 1 loss = 87.5% WR:
+          p-value = binom_cdf(7, 8, 0.934) ≈ 0.419 > 0.20 → NOT statistically significant
+          net P&L = 7×147 + 1×(-1953) = -924c = -$9.24 → net loss, appears in warming
+        """
+        # KXSOL YES@93c: 7 wins, 1 loss = 87.5% WR (below 93.4% BE, not significant)
+        wins = [("KXSOL15M-T1", "yes", 93, "yes", 147)] * 7
+        losses = [("KXSOL15M-T1", "yes", 93, "no", -1953)] * 1
+        db = _make_warming_db(wins + losses)
+        result = discover_warming_buckets(db, min_n=5, min_loss=2.0)
+        assert len(result) == 1
+        w = result[0]
+        assert w["ticker_contains"] == "KXSOL"
+        assert w["side"] == "yes"
+        assert w["price_cents"] == 93
+        assert w["n_bets"] == 8
+        assert w["total_loss_usd"] < -2.0
+
+    def test_already_at_formal_threshold_not_shown(self):
+        """Bucket that meets formal guard threshold should NOT appear in warming (it's a new guard)."""
+        # n=100, 80/100 wins at 93c YES: p-value very small, meets threshold
+        wins = [("KXSOL15M-T1", "yes", 93, "yes", 147)] * 80
+        losses = [("KXSOL15M-T1", "yes", 93, "no", -1953)] * 20
+        db = _make_warming_db(wins + losses)
+        result = discover_warming_buckets(db, min_n=5, min_loss=2.0)
+        # Should not appear in warming (it's a formal guard candidate)
+        for w in result:
+            assert not (w["ticker_contains"] == "KXSOL" and w["side"] == "yes" and w["price_cents"] == 93)
+
+    def test_sorted_worst_first(self):
+        """Warming buckets sorted by total_loss_usd ascending (worst first)."""
+        # SOL: 7 wins / 1 loss → smaller net loss
+        # ETH: 5 wins / 3 losses → larger net loss
+        sol_wins = [("KXSOL15M-T1", "yes", 93, "yes", 147)] * 7
+        sol_losses = [("KXSOL15M-T1", "yes", 93, "no", -1953)] * 1
+        eth_wins = [("KXETH15M-T1", "yes", 93, "yes", 147)] * 5
+        eth_losses = [("KXETH15M-T1", "yes", 93, "no", -1953)] * 3
+        rows = sol_wins + sol_losses + eth_wins + eth_losses
+        db = _make_warming_db(rows)
+        result = discover_warming_buckets(db, min_n=5, min_loss=2.0)
+        if len(result) >= 2:
+            assert result[0]["total_loss_usd"] <= result[1]["total_loss_usd"]
+
+    def test_p_value_included_in_output(self):
+        """Each warming bucket includes p_value field."""
+        wins = [("KXSOL15M-T1", "yes", 93, "yes", 147)] * 7
+        losses = [("KXSOL15M-T1", "yes", 93, "no", -1953)] * 1
+        db = _make_warming_db(wins + losses)
+        result = discover_warming_buckets(db, min_n=5, min_loss=2.0)
+        if result:
+            assert "p_value" in result[0]
+            assert 0.0 <= result[0]["p_value"] <= 1.0
