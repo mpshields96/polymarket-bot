@@ -1,16 +1,52 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-20 ~02:10 UTC (Session 119 monitoring — hour block reverted, crash-pause closed)
+# Last updated: 2026-03-21 ~16:35 UTC (Session 120 monitoring — sniper signal_features, warming buckets, TestSniperHourBlock fix)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
-  Bot RUNNING PID 70051 → /tmp/polybot_session119.log
-  All-time live P&L: +12.28 USD (session net: +5.88 USD from +6.40 at S118 monitoring wrap)
-  Today P&L: -3.99 USD live (13 settled, 12/13 wins — 1 KXBTC NO@92c loss at 00:24 UTC)
-  Bankroll: ~179.76 USD
-  Tests: 1698 passing. Last commit: see below
-  eth_drift: DISABLED (min_drift_pct=9.99) — confirmed 0 bets this session
+  Bot RUNNING PID 29204 → /tmp/polybot_session120.log
+  All-time live P&L: +20.05 USD (session net: +7.77 USD from +12.28 at S119 monitoring wrap)
+  Today P&L: +6.93 USD live (5/5 = 100% WR, sniper only)
+  Bankroll: ~131 USD (starting $100 + cumulative profits)
+  Tests: 1716 passing. Last commit: fddc0b4 (feat: sniper signal_features for Dim 9 meta-labeling)
+  eth_drift: DISABLED (min_drift_pct=9.99) — confirmed 0 bets
   xrp_drift: LIVE (direction_filter="yes")
+
+## S120 MONITORING KEY FACTS (2026-03-21 ~16:35 UTC)
+
+  BUILDS:
+  - commit 3e889eb: TestSniperHourBlock tests now read _BLOCKED_HOURS_UTC from main.py via AST
+    (was trivially self-validating — hardcoded frozenset({8,13}) testing against itself)
+  - commit 1df7dcc: discover_warming_buckets() fixed to check auto_guards.json (not just hardcoded IL guards)
+    + added to main() output so every auto_guard run shows warming bucket watchlist
+  - commit c4edbfd: TestWarmingBuckets — 7 new tests covering all warming bucket scenarios
+  - commit fddc0b4: Sniper signal_features — utc_hour, day_of_week, coin, seconds_remaining, drift_pct
+    now logged to trades.signal_features for every live sniper bet (Dim 9 meta-labeling)
+    11 new tests. All 1716 passing.
+
+  RESOLVED:
+  - KXETH YES@93c: Already blocked as IL-30 in live.py line 369. No pending action.
+  - "Stage 2 cap: $10.00" in btc_drift SIZE log: Not a promotion — bankroll-driven (131 USD = Stage 2)
+  - CCA ACTION REQUIRED (2026-03-19): All 3 items resolved (sniper sizing OK, eth disabled, btc no-change)
+  - CCA REQUEST 8 (XRP bad hours): p=0.084, gate NOT met. No guard. Collect 50+ more bets.
+  - Hour block: Confirmed frozenset() in main.py — no hours blocked. Verified at restart.
+
+  CUSUM STATUS (critical monitoring):
+  - btc_drift: CUSUM S=4.260/5.0 — CRITICAL. Disable at S>=5.0 (min_drift_pct=9.99)
+  - xrp_drift: CUSUM S=3.440/5.0 — WATCH. Disable if S>=5.0 or next 10 bets <50% WR
+  - eth_drift: CUSUM S=15.000 (expected — disabled strategy, historical data only)
+  - sol_drift: CUSUM S=0.560 — stable, SPRT EDGE CONFIRMED
+
+  GUARD INTEGRITY:
+  - 5 auto-guards loaded: KXXRP NO@95c, KXSOL NO@93c, KXBTC YES@94c, KXXRP NO@93c, KXBTC NO@94c
+  - IL-30: KXETH YES@93c ALREADY BLOCKED in live.py (not just auto-guard)
+  - Hour block: frozenset() — ALL HOURS ACTIVE
+  - Signal_features: now logging on every sniper signal (verify in DB on next live bet)
+
+  CCA PENDING:
+  - REQUEST 11: 00:xx Asian session mechanism — still collecting (need n>=30)
+  - REQUEST 12: Earnings Mentions scan — SDATA 462/500 (HIGH), resets 2026-04-01
+  - REQUEST 14: XRP YES@91c at 08:xx UTC pattern (n=2, too early)
 
 ## S119 RESEARCH WRAP KEY FINDINGS (2026-03-20 ~21:00 UTC)
 

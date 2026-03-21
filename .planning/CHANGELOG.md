@@ -7043,3 +7043,98 @@ No new edges found because the landscape genuinely doesn't have them right now.
   1. CCA REQUEST 12: Earnings Mentions scan (SDATA budget now 2000, April earnings approaching)
   2. XRP YES@08:xx watch — auto-guard candidate (n=4 of 10 needed)
   3. If main chat reverts hour blocks: monitor 08:xx+13:xx WR post-revert for 1 week
+
+---
+
+## Session 120 — Monitoring Wrap (2026-03-21 ~16:35 UTC)
+
+### Session Summary
+Autonomous 2-hour monitoring session. Bot was STOPPED at session start (Matthew paused S119).
+Restarted, monitored, built improvements during market downtime, wrapped cleanly.
+
+### Bot State at Wrap
+  Bot PID: 29204 | Log: /tmp/polybot_session120.log
+  All-time P&L: +20.05 USD | Today: +6.93 USD (5/5 = 100% WR sniper)
+  Session net: +7.77 USD (from +12.28 at session start)
+  Tests: 1716 passing (+18 from session start)
+  Last commit: fddc0b4
+
+### Builds This Session
+
+1. TestSniperHourBlock tests fixed (commit 3e889eb)
+   WHY: Tests were trivially self-validating — hardcoded frozenset({8,13}) testing against
+   their own value. Now read _BLOCKED_HOURS_UTC from main.py via AST and assert frozenset().
+   Tests now correctly verify the revert is in source.
+
+2. discover_warming_buckets() auto-guarded fix (commit 1df7dcc)
+   WHY: discover_warming_buckets was checking _EXISTING_HARDCODED_GUARDS but not auto_guards.json.
+   Already-guarded buckets appeared in warming list. Fixed to load load_existing_auto_guards()
+   and check both guard sources before showing in warming.
+
+3. TestWarmingBuckets — 7 new tests (commit c4edbfd)
+   WHY: No tests for warming bucket discovery. Key finding: pnl_cents must be realistic
+   (win=+147c, loss=-1953c at 93c YES for 21 contracts) not arbitrary values.
+
+4. Sniper signal_features for Dim 9 meta-labeling (commit fddc0b4)
+   WHY: Expiry sniper (808 bets) had features=None — 808 bets of missed context data.
+   Added utc_hour, utc_day_of_week, coin (from ticker), seconds_remaining, drift_pct.
+   Persisted via existing signal_features JSON column. 11 new tests.
+   CCA feature list (Lopez de Prado meta-labeling framework) delivered 2026-03-21.
+
+### Investigations/Findings
+
+- KXETH YES@93c: Already blocked as IL-30 in live.py line 369. SESSION_HANDOFF note
+  "next bet fires auto_guard" was describing future state that already happened.
+  No pending action.
+
+- "Stage 2 cap: $10.00" in btc_drift SIZE log: Not a promotion. Sizing is bankroll-driven.
+  Starting bankroll $100 + ~$31 profits = ~$131, which puts Stage system into Stage 2 (100-250 range).
+  btc_drift correctly placing Kelly-sized bets up to $10 cap. Expected behavior.
+
+- CCA ACTION REQUIRED (2026-03-19) resolved:
+  Sniper max/bet: already using 15% bankroll (~$19.50 at $131 bankroll). No change needed.
+  eth_drift cap: already disabled (min_drift_pct=9.99). No change needed.
+  btc_drift 0.01 cap: p≈0.45 (gate NOT met), CUSUM 4.260/5.0 (threshold not hit). NO-TRAUMA RULE applies.
+
+- CCA REQUEST 8 (XRP bad hours): p=0.084, SPRT lambda=1.1225 not crossing boundary.
+  4-condition gate NOT met (p<0.05 = NO). No guard implemented. Collect 50+ more bets.
+
+### Strategy Analyzer Insights
+  All-time: +20.05 USD (82% WR, 1154 bets)
+  Today: +6.93 USD (100% WR, 5 bets)
+  SNIPER: Profitable buckets: 95, 90-94c
+  SNIPER: Guarded buckets (historical losses blocked): 98, 97, 96c
+  btc_drift: UNDERPERFORMING — 49% WR, Trend=IMPROVING, direction_filter="no"
+  eth_drift: UNDERPERFORMING — 46% WR, Trend=DECLINING (disabled)
+  sol_drift: HEALTHY — 43 bets, 70% WR, +4.89 USD, SPRT EDGE CONFIRMED
+
+### CUSUM Status (bet_analytics.py)
+  expiry_sniper: EDGE CONFIRMED lambda=+17.038, CUSUM stable S=0.215
+  sol_drift: EDGE CONFIRMED lambda=+2.886, CUSUM stable S=0.560
+  btc_drift: collecting lambda=-1.134, CUSUM CRITICAL S=4.260/5.0
+  xrp_drift: collecting lambda=-0.971, CUSUM stable S=3.440/5.0
+  eth_drift: NO EDGE lambda=-3.985, CUSUM DRIFT ALERT S=15.000 (disabled — expected)
+
+### Self-Rating
+  GRADE: B
+  WINS: Resolved all SESSION_HANDOFF pending items correctly; built 4 meaningful improvements
+    with TDD; 18 new tests; identified sizing/guard anomalies without false alarms;
+    correctly applied NO-TRAUMA RULE (no unjustified parameter changes).
+  LOSSES: Bot died during session monitoring and was not detected until wrap — context
+    compaction broke the monitoring cycle chain; bot was down for unknown duration.
+  ONE THING next chat must do differently: immediately after each context compaction event,
+    verify bot is still alive (ps aux check) before continuing work.
+  ONE THING that would have made more money earlier: none this session — market was in
+    mid-range (35-65c drift zone) most of session, sniper correctly firing at 90-95c windows.
+
+### Goal Progress
+  All-time P&L: +20.05 USD | Distance to +125 USD goal: 104.95 USD
+  At ~7 USD/day current rate: ~15 days to goal
+  Highest-leverage action: monitor btc_drift CUSUM (4.260/5.0) — disable at S>=5.0;
+    continue accumulating signal_features for Dim 9 meta-classifier (n still tiny, need 1000)
+
+### Next Session Priority
+  1. Monitor btc_drift CUSUM — disable immediately if S>=5.0 (min_drift_pct=9.99)
+  2. Monitor xrp_drift CUSUM — disable if S>=5.0 or next 10 bets <50% WR
+  3. Verify signal_features logging on next live sniper bet (check trade.signal_features in DB)
+  4. CCA REQUESTs 11, 12, 14 still pending response
