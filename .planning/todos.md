@@ -935,3 +935,30 @@ TODO: strategy_analyzer.py shows '98c: Losing buckets (guards recommended)' as f
   GATE: Do NOT remove filter or add tracking until Matthew explicitly signs off.
   If shadow tracking is built (Option A), it must be is_paper=1 only, zero live capital risk.
   REVISIT: When sol_drift_v1 has 30+ historical YES bets OR at next research session.
+
+## TODO: XRP Sniper Time-Guard — PENDING MORE DATA (CCA REQUEST 8 delivered S120)
+  Added: 2026-03-19 | CCA responded: 2026-03-21
+  FINDING: Per-coin SPRT analysis (bet_analytics.py S115):
+    XRP: n=185, 93.0% WR, -107.27 USD, lambda=-2.769 (crossed no-edge boundary -2.251)
+    BTC: +100.50 USD, ETH: +71.94 USD — XRP is the SOLE drag on sniper profitability
+  CCA RESPONSE (2026-03-21 12:30 UTC):
+    Bad hours (21-08 UTC): n=106, WR=89.6%, p=0.084 (10% sig — NOT p<0.05)
+    SPRT lambda=1.1225, boundary=-1.609 — NOT crossed (using H0=0.935 break-even)
+    Wilson CI includes break-even (0.8237, 0.9411)
+    CCA verdict: "Soft guard justified, hard guard NOT yet justified"
+    Structural basis: PARTIAL (crypto intraday vol + thin liquidity at 00-08 UTC)
+  CURRENT STATE (S120):
+    Forward-looking XRP (post-guard, in-zone): n=98, WR=93.9%, P&L=-16.25 USD
+    SPRT forward lambda=-0.333 [collecting] — existing 43 guards absorbing bad buckets
+  4-CONDITION GATE STATUS:
+    1. Structural basis: PARTIAL
+    2. Math: p=0.084 (does NOT meet p<0.05 standard)
+    3. DB backtest: YES (-132.62 USD bad hours)
+    4. p-value < 0.05: NO — GATE NOT MET
+  OPTIONS (unchanged):
+    A) Full XRP sniper block (loses good-hours +0.321/bet edge)
+    B) Time-guard: block XRP 21:00-08:59 UTC only (surgical)
+  NEXT STEP: Collect ~50 more post-guard XRP bad-hour bets. Re-run SPRT.
+    If lambda crosses -1.609 at n=150+: upgrade to hard time-guard.
+    Do NOT implement until p<0.05 formally confirmed.
+  Research chat: consider XRP bad-hour tracking in next session.
