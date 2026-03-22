@@ -13,11 +13,11 @@ USAGE:
 
 RATE:   h2h games: ~1 credit/call.
         Championship outrights: ~1 credit per bookmaker per event.
-        Budget: hard cap 500 credits/month for this bot.
+        Budget: hard cap 4000 credits/month for this bot (sub limit 20K/month).
         Cache TTL: 900s (15 min) for games, 21,600s (6 hr) for championships.
 
 KEYS:   SDATA_KEY in .env
-        Quota persisted to data/sdata_quota.json — hard block at 500 credits/month.
+        Quota persisted to data/sdata_quota.json — hard block at 4000 credits/month.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ import aiohttp
 logger = logging.getLogger(__name__)
 
 _BASE = "https://api.the-odds-api.com/v4/sports"
-_MONTHLY_CREDIT_CAP = 500          # hard cap for this bot
+_MONTHLY_CREDIT_CAP = 4000         # raised S123 — Matthew directive (sub limit 20K/month)
 _QUOTA_FILE = "data/sdata_quota.json"
 
 # Preferred bookmakers in priority order (sharpest lines first)
@@ -236,7 +236,7 @@ class SportsFeed:
         return await self._fetch_outrights("basketball_ncaab_championship_winner")
 
     def quota_status(self) -> str:
-        """Returns current monthly credit usage, e.g. '12/500'."""
+        """Returns current monthly credit usage, e.g. '12/4000'."""
         return self._quota.status()
 
     # ── Internal ────────────────────────────────────────────────────
