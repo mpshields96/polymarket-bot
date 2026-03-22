@@ -529,9 +529,10 @@ class TestSniperHourBlock:
                         found = True
         assert found, "_BLOCKED_HOURS_UTC constant not found in main.py"
 
-    def test_hour_8_is_NOT_blocked(self):
-        """08:xx UTC must NOT be blocked — S119 research proved crash contamination.
-        Ex-crash WR=92.3% (z=+0.06, not significant). Block reverted S119 saving ~3-4 USD/day."""
+    def test_hour_8_IS_blocked(self):
+        """08:xx UTC must be blocked — S123 all-time analysis: n=39, WR=82.1%, -106.63 USD, p=0.012.
+        Non-XRP 08:xx: n=32, WR=87.5%, -52.70 USD. S119 crash-strip conclusion was wrong.
+        08:xx is the #1 worst hour all-time. Block reinstated S123."""
         import ast, pathlib
         src = pathlib.Path("main.py").read_text()
         tree = ast.parse(src)
@@ -545,10 +546,10 @@ class TestSniperHourBlock:
                             if node.value.args:
                                 elt = node.value.args[0]
                                 if isinstance(elt, ast.Set):
-                                    blocked = frozenset(e.n for e in elt.elts)
+                                    blocked = frozenset(e.value for e in elt.elts)
                             else:
                                 blocked = frozenset()
-        assert 8 not in blocked, f"Hour 8 is blocked but should be unblocked (crash contamination proved)"
+        assert 8 in blocked, f"Hour 8 must be blocked — all-time p=0.012, -106.63 USD"
 
     def test_hour_13_is_NOT_blocked(self):
         """13:xx UTC must NOT be blocked — S119 proved both 13:xx losses were now-guarded XRP buckets.
@@ -581,7 +582,7 @@ class TestSniperHourBlock:
         assert 12 not in blocked
 
     def test_blocked_hours_count(self):
-        """Zero hours blocked — S119 reverted both blocks (crash contamination proved)."""
+        """One hour blocked (08:xx) — S123 reinstated after all-time analysis showed p=0.012."""
         import ast, pathlib
         src = pathlib.Path("main.py").read_text()
         tree = ast.parse(src)
@@ -594,10 +595,11 @@ class TestSniperHourBlock:
                             if node.value.args:
                                 elt = node.value.args[0]
                                 if isinstance(elt, ast.Set):
-                                    blocked = frozenset(e.n for e in elt.elts)
+                                    blocked = frozenset(e.value for e in elt.elts)
                             else:
                                 blocked = frozenset()
-        assert len(blocked) == 0, f"Expected 0 blocked hours (reverted), got {len(blocked)}: {blocked}"
+        assert len(blocked) == 1, f"Expected 1 blocked hour (08:xx), got {len(blocked)}: {blocked}"
+        assert 8 in blocked
 
     def test_00_hour_not_blocked(self):
         """00:xx must NOT be blocked — research chat showed mostly guarded+crash, not structural."""
