@@ -7247,3 +7247,78 @@ Restarted, monitored, built improvements during market downtime, wrapped cleanly
   2. Monitor xrp_drift CUSUM — disable if S>=5.0 or next 10 bets <50% WR
   3. Verify signal_features logging on next live sniper bet (check trade.signal_features in DB)
   4. CCA REQUESTs 11, 12, 14 still pending response
+
+---
+
+## Session 123 — Monitoring Wrap (2026-03-22 ~05:05 UTC) — Bot STOPPED per Matthew directive
+
+### Changes This Session
+  - No new code commits this session (3 already committed earlier in S123)
+  - Monitoring only: 4 cycles, all healthy
+  - Bot stopping per Matthew (sleep)
+
+### Bot State at Wrap
+  - Bot: STOPPING (Matthew directive — sleep)
+  - PID 41576 → /tmp/polybot_session123.log
+  - All-time P&L (live): -1.18 USD (improved from -3.70 at session start, +2.52 from sniper wins)
+  - Session net: +2.52 USD from 2 sniper settlements
+  - Tests: 1716 passing, 3 skipped
+
+### S123 Prior Commits (earlier in session, before this monitoring run)
+  - e118581: disable sol_drift (Matthew directive, -18.97 USD from 2 losses today, 66.7% WR)
+  - b0302a7: raise SDATA cap 500 → 4000 (sub allows 20K/month, now at 484/4000 = 12%)
+  - 4a9190b: reinstate 08:xx hour block (all-time n=39, WR=82.1%, p=0.012 — statistically significant)
+
+### Active Strategies at Wrap
+  - expiry_sniper: LIVE | 839 bets, 95.7% WR, CUSUM 1.155/5.0 stable, 08:xx blocked
+  - btc_drift: LIVE | 78 bets, 50% WR, CUSUM 3.880/5.0 (improving from 4.260)
+  - eth_drift: DISABLED (min_drift_pct=9.99) — CUSUM 15.0, SPRT NO EDGE
+  - sol_drift: DISABLED (min_drift_pct=9.99) — Matthew directive S123
+  - xrp_drift: DISABLED (min_drift_pct=9.99) — last 10 WR=30%, CUSUM 3.980/5.0
+
+### Key Finding This Session: XRP Sniper Global Block
+  XRP live sniper all-time: 189 bets, 93.1% WR, -100.67 USD
+  BTC: 96.8% WR, +79.68 USD | ETH: 97.3% WR, +82.11 USD | SOL: 95.3% WR, +13.28 USD
+  XRP is destroying 57% of sniper gains. ALL individual price buckets negative.
+  SPRT lambda=-0.258 (not crossed -1.609 boundary) — structural basis pending from CCA.
+  REQUEST 15 filed to CCA at 03:30 UTC — XRP structural analysis + global block recommendation.
+
+### CUSUM Status
+  expiry_sniper: EDGE CONFIRMED, CUSUM stable S=1.155
+  btc_drift: collecting lambda=-1.011, CUSUM S=3.880/5.0 (IMPROVING — was 4.260)
+  xrp_drift: disabled, CUSUM frozen S=3.980/5.0
+  sol_drift: disabled, CUSUM frozen S=1.680/5.0
+  eth_drift: disabled, CUSUM DRIFT ALERT S=15.000
+
+### Strategy Analyzer Insights
+  All-time: -1.18 USD (82% WR, 1191 bets)
+  Today: -25.22 USD (82% WR, 34 bets) — mostly pre-session sol_drift+sniper losses
+  Target: 126.18 USD to +125 USD goal
+  SNIPER: Profitable buckets: 90-95c (ex XRP). XRP all-time -100.67 USD — global block pending.
+  btc_drift: NEUTRAL — 78 bets, 50% WR, CUSUM improving
+  sol_drift: DISABLED — was HEALTHY by SPRT but Kelly oversizing caused large losses
+
+### Self-Rating
+  GRADE: B
+  WINS: Clean monitoring — bot never died, no freezes, no duplicate processes; all-time P&L
+    improved +2.52 USD; correctly identified XRP global block opportunity via analysis;
+    btc_drift CUSUM improved 4.260→3.880 (no action needed); SDATA cap raised to 4000
+    means research chat now unblocked; correctly deferred XRP global block pending CCA response.
+  LOSSES: Monitoring only — no code built, no new edges created; btc_drift still losing;
+    XRP block not yet implemented (pending CCA structural basis).
+  ONE THING next chat must do differently: check CCA_TO_POLYBOT.md FIRST — REQUEST 15
+    (XRP global block) may have a response that warrants immediate implementation.
+  ONE THING that would have made more money: implement XRP global block sooner (saves ~40-50
+    USD/month based on trajectory — but needed structural basis first).
+
+### Goal Progress
+  All-time P&L: -1.18 USD | Distance to +125 USD goal: 126.18 USD
+  Sniper-only all-time: +71.88 USD — sniper is profitable, XRP drag is the primary issue
+  Highest-leverage action: implement XRP global sniper block once CCA confirms structural basis
+  Without XRP: all-time sniper would be +172.55 USD — that's the size of the XRP drag
+
+### Next Session Priority
+  1. Check CCA_TO_POLYBOT.md for REQUEST 15 response — implement XRP global sniper block if confirmed
+  2. Monitor btc_drift CUSUM — disable immediately if S>=5.0
+  3. KXETH NO@94c warming bucket — run auto_guard_discovery.py (n=15, p=0.581, watch for p<0.20)
+  4. CCA REQUESTs 11, 12, 14 still pending (12 now viable — SDATA 484/4000)
