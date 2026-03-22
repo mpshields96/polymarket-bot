@@ -8,6 +8,55 @@
 #          ### Lessons learned (optional)
 # ══════════════════════════════════════════════════════════════
 
+## Session 122 (monitoring wrap) — 2026-03-22 — xrp_drift DISABLED, session net -16.14 USD, sniper +78.93 USD all-time
+
+### Changed
+- config.yaml: xrp_drift min_drift_pct 0.10 → 9.99 (DISABLED S122)
+- tests/test_xrp_strategy.py: test_xrp_drift_fires_above_threshold now uses explicit BTCDriftStrategy(min_drift_pct=0.10, sensitivity=800.0) instead of load_xrp_drift_from_config() — tests mechanism independent of operational config state
+
+### Why
+- xrp_drift last 10 bets WR=30% (3/10) — below 50% auto-disable threshold
+- CUSUM S=3.980/5.0 simultaneously approaching threshold
+- Both exceptions triggered: "if xrp_drift CUSUM S>=5.0 OR next 10 bets <50% WR, disable"
+- Test fix: original test relied on config sensitivity=800; with config disabled, explicit params required
+
+### Key Events
+- xrp_drift disabled correctly and autonomously (no Matthew input)
+- sol_drift 2 Stage 2 losses: NO@46c (-9.66) + NO@49c (-9.31) = -18.97 USD total (high variance at 10 USD/bet)
+- Sniper 1 loss: ETH NO@94c → result=yes → -19.74 USD
+- KXETH NO@94c identified as WARMING BUCKET: n=15, WR=93.3%, p=0.581 (not yet significant for guard)
+- Bot stable all session — PID 73663 running cleanly, no crashes
+
+### Strategy Analyzer Insights (--brief, S122 wrap)
+  All-time: +2.87 USD (82% WR, 1176 settled bets)
+  Today: -21.17 USD (74% WR, 19 live bets) — sol_drift 2 losses + sniper 1 loss
+  - SNIPER: Profitable buckets: 95c and 90-94c | Guarded: 98c, 97c, 96c (blocked)
+  - SNIPER: KXETH NO@94c = WARMING bucket (n=15, WR=93.3%, p=0.581 — watch only)
+  - btc_drift: UNDERPERFORMING — 49% WR, below break-even | Trend: IMPROVING | CUSUM 4.260/5.0 CRITICAL
+  - eth_drift: DISABLED | UNDERPERFORMING — 46% WR | Trend: DECLINING | CUSUM 15.0 (historical)
+  - sol_drift: HEALTHY — 45 bets, 67% WR, SPRT EDGE CONFIRMED | CUSUM 1.680/5.0 WATCH
+  - xrp_drift: DISABLED | CUSUM 3.980/5.0 | last 10 WR=30%
+  Sniper all-time: 825 settled, 790/825 wins (96% WR), +78.93 USD sniper-only
+
+### Self-Rating: C+
+  WINS: xrp_drift disable executed correctly and fast; warming bucket KXETH NO@94c identified early;
+        test fixed cleanly (explicit params); guard stack confirmed clean; 100% sniper streak for 10 bets before loss
+  LOSSES: sol_drift 2 Stage 2 losses totaling -18.97 USD hurt badly; sniper loss at warming bucket
+          (-19.74 USD); session net -16.14 USD despite bot working correctly
+  GRADE REASON: Bot functioned correctly and improvements were made, but high variance from Stage 2
+                drift sizing caused a painful session financially.
+  NEXT CHAT: Watch KXETH NO@94c warming bucket every cycle — if WR drops below 91% or n>=20 with
+             losses, run auto_guard_discovery.py immediately.
+  HIGHER LEVERAGE: Earlier disable of xrp_drift would have saved -0.41 USD (minor). The real lever is
+                   the sniper warming bucket guard — adding it after n=10 would have saved -19.74 USD.
+
+### Goal Progress
+  All-time P&L: +2.87 USD | Distance to +125 USD goal: 122.13 USD
+  Sniper rate: ~78 USD all-time over ~12 days = ~6.5 USD/day sniper-only
+  Drift losses: -76 USD accumulated from drift strategies (high variance Stage 2 sizing)
+  Highest-leverage: Guard the KXETH NO@94c bucket once n>=20 or p<0.20; keep sol_drift active (SPRT EDGE CONFIRMED)
+  Note: at 6.5 USD/day sniper, without drift losses: ~19 days to +125 USD. Drift is the main drag.
+
 ## Session 122 (monitoring) — 2026-03-22 — xrp_drift DISABLED (last 10 WR=30%), 1716/1716 tests
 
 ### Changed

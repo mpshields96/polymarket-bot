@@ -1,252 +1,75 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-22 ~00:20 UTC (Session 121 monitoring — bot died twice, +5.89 USD session net, 8/8 sniper wins)
+# Last updated: 2026-03-22 ~02:30 UTC (Session 122 monitoring — xrp_drift disabled, -16 USD session net)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
-  Bot RUNNING PID 61788 → /tmp/polybot_session121.log
-  All-time live P&L: +25.94 USD (session net: +5.89 USD from +20.05 at S120 monitoring wrap)
-  Today P&L: +1.90 USD live (2 sniper wins + 1 xrp_drift loss) — date rolled to March 22 UTC
-  Bankroll: ~131 USD (starting $100 + cumulative profits)
-  Tests: 1716 passing. Last commit: 1674c01 (docs: S120 monitoring wrap — signal_features, warming buckets, TestSniperHourBlock fix)
+  Bot RUNNING PID 73663 → /tmp/polybot_session122.log
+  All-time live P&L: +2.87 USD (session net: -16.14 USD from +19.01 at S122 start)
+  Today P&L: -21.17 USD live (19 settled: 13 sniper wins, 1 sniper loss, 2 sol_drift losses, 1 xrp_drift loss)
+  Bankroll: ~103 USD (starting 100 + all-time +2.87)
+  Tests: 1716 passing. Last commit: 4189028 (feat: disable xrp_drift S122 — last 10 bets WR=30%)
   eth_drift: DISABLED (min_drift_pct=9.99) — confirmed 0 bets
-  xrp_drift: LIVE (direction_filter="yes") — 51 bets now, 1 new loss this session
+  xrp_drift: DISABLED (min_drift_pct=9.99 as of S122) — last 10 WR=30%, CUSUM 3.980/5.0
+
+## S122 MONITORING KEY FACTS (2026-03-22 ~02:30 UTC)
+
+  BUILDS:
+  - config.yaml: xrp_drift min_drift_pct 0.10 → 9.99 (DISABLED)
+  - tests/test_xrp_strategy.py: test_xrp_drift_fires_above_threshold now uses explicit BTCDriftStrategy params
+  - Committed 4189028
+
+  KEY EVENTS:
+  - xrp_drift DISABLED (last 10 WR=30% triggers auto-disable threshold)
+  - sol_drift 2 Stage 2 losses today: NO@46c (-9.66 USD) + NO@49c (-9.31 USD) = -18.97 USD
+  - Sniper 1 loss: ETH NO@94c → result=yes → -19.74 USD (KXETH NO@94c warming bucket)
+  - Bot stayed alive all session (PID 73663, no crashes, no freezes)
+
+  CUSUM STATUS:
+  - btc_drift: CUSUM S=4.260/5.0 — CRITICAL. Disable at S>=5.0 (no new btc bets this session)
+  - xrp_drift: CUSUM S=3.980/5.0 — DISABLED (min_drift_pct=9.99)
+  - eth_drift: CUSUM S=15.000 (expected — disabled strategy)
+  - sol_drift: CUSUM S=1.680/5.0 — WATCH (was 1.120, now 1.680 after 2 losses)
+
+  GUARD INTEGRITY:
+  - 5 auto-guards loaded: KXXRP NO@95c, KXSOL NO@93c, KXBTC YES@94c, KXXRP NO@93c, KXBTC NO@94c
+  - IL-30: KXETH YES@93c ALREADY BLOCKED in live.py
+  - WARMING BUCKET: KXETH NO@94c — n=15, WR=93.3%, p=0.581 (NOT yet significant — monitor!)
+  - Hour block: frozenset() — ALL HOURS ACTIVE
+
+  CCA PENDING:
+  - REQUEST 11: 00:xx Asian session mechanism — still collecting (need n>=30)
+  - REQUEST 12: Earnings Mentions scan — SDATA 477/500 (95.4%), resets 2026-04-01
+  - REQUEST 14: XRP YES@91c at 08:xx UTC (too early, n not growing since xrp disabled)
 
 ## S121 MONITORING KEY FACTS (2026-03-22 ~00:20 UTC)
 
-  BUILDS: None — pure monitoring session per Matthew's directive.
+  BUILDS: None — pure monitoring per Matthew's directive.
 
   BOT STABILITY ISSUE (S121):
   - Bot died twice: PID 36112 (died ~17:58 UTC, unknown cause), PID 52213 (froze 19:08 UTC, process alive but log stopped)
   - LESSON: Always check log tail for recent entries, not just ps aux. Frozen process looks alive.
-  - PID 61788 = current, restarted 19:09 UTC, running cleanly.
+  - PID 61788 = last session, PID 73663 = current
 
-  RESOLVED:
-  - Both sniper bets from ~19:07 UTC window settled: ETH NO@94c WIN +1.05, BTC NO@93c WIN +1.26
-  - xrp_drift had 1 loss: XRP YES@41c → no, -0.41 USD. Expected. CUSUM unchanged.
-  - sol_drift placed drift bet SOL NO@46c (open at wrap, KXSOL15M-26MAR212030-30)
+  CUSUM STATUS (from S121):
+  - btc_drift: CUSUM S=4.260/5.0 — CRITICAL. Disable at S>=5.0
+  - xrp_drift: CUSUM S=3.980/5.0 — NOW DISABLED S122
+  - sol_drift: CUSUM S=1.680/5.0 — WATCH (risen after S122 losses)
 
-  CUSUM STATUS (critical monitoring):
-  - btc_drift: CUSUM S=4.260/5.0 — CRITICAL. Disable at S>=5.0 (min_drift_pct=9.99)
-  - xrp_drift: CUSUM S=3.440/5.0 — WATCH. 51 bets now. Disable if S>=5.0 or next 10 bets <50% WR
-  - eth_drift: CUSUM S=15.000 (expected — disabled strategy, historical data only)
-  - sol_drift: CUSUM S=0.560 — stable, SPRT EDGE CONFIRMED
+## PENDING TASKS (S123)
 
-  GUARD INTEGRITY:
-  - 5 auto-guards loaded: KXXRP NO@95c, KXSOL NO@93c, KXBTC YES@94c, KXXRP NO@93c, KXBTC NO@94c
-  - IL-30: KXETH YES@93c ALREADY BLOCKED in live.py (not just auto-guard)
-  - Hour block: frozenset() — ALL HOURS ACTIVE
-  - Signal_features: confirmed logging on sniper bets (Dim 9 meta-labeling active)
+  CRITICAL:
+  1. btc_drift CUSUM 4.260/5.0 — CRITICAL: run bet_analytics.py at startup. Disable if S>=5.0 (min_drift_pct=9.99)
+  2. KXETH NO@94c warming bucket — n=15, WR=93.3%, p=0.581. Run auto_guard_discovery.py at EVERY startup. If p crosses 0.20 or WR drops below ~91%, add guard.
 
-  CCA PENDING:
-  - REQUEST 11: 00:xx Asian session mechanism — still collecting (need n>=30)
-  - REQUEST 12: Earnings Mentions scan — SDATA 474/500 (95%), resets 2026-04-01
-  - REQUEST 14: XRP YES@91c at 08:xx UTC pattern (n=2, too early)
+  WATCH:
+  3. sol_drift CUSUM 1.680/5.0 — rising after 2 losses. Still healthy (SPRT EDGE CONFIRMED). Monitor.
+  4. xrp_drift DISABLED — log to todos whether to try re-enabling after 30+ paper data points accumulate (can't without live bets)
+  5. CCA REQUESTs 11, 12, 14 — SDATA resets April 1, then research can resume
 
-## S119 RESEARCH WRAP KEY FINDINGS (2026-03-20 ~21:00 UTC)
+  LOW PRIORITY:
+  6. "Daily loss soft stop active" in --health = COSMETIC ONLY (enforcement commented out)
+  7. Signal_features: 7/825 total sniper bets have features (all recent ones do — Dim 9 working)
 
-  HOUR BLOCK AUDIT — BOTH BLOCKS SHOULD BE REVERTED:
-
-  08:xx block: z=-4.30 was crash-contaminated. 5 of 7 losses = March 17 crash.
-    Without March 17: n=26, WR=92.3%, z=+0.06 — NOT statistically significant.
-    Non-XRP at 08:xx (ex March 17): n=20, WR=100%, P&L=+19.75 USD.
-    The 2 non-crash losses = both XRP YES@90-95c (n=4, too small for guard).
-    RECOMMENDATION: REVERT — remove 8 from _BLOCKED_HOURS_UTC.
-    Estimated cost of keeping block: ~3-4 USD/day in missed winning sniper bets.
-
-  13:xx block: both losses = already-guarded KXXRP buckets (NO@91c, March 15).
-    Post-guard 13:xx: n=20, WR=100%. z=-0.46 (not significant — confirmed by research).
-    RECOMMENDATION: REVERT — remove 13 from _BLOCKED_HOURS_UTC.
-    Estimated cost of keeping block: ~2 USD/day in missed winning sniper bets.
-
-  Combined impact: blocks costing ~5-6 USD/day at zero statistical justification.
-
-  CRASH-PAUSE — DEAD END:
-    787 sniper windows analyzed. Max losses per window = 1. Windows with 3+: ZERO.
-    March 17 losses were consecutive single-asset losses, not simultaneous multi-asset.
-    The crash-pause trigger condition has NEVER occurred in the entire sniper history.
-    Added to confirmed dead ends.
-
-  DECISION 2 REVISED — DO NOT SUSPEND SOL_DRIFT:
-    S118 vote to suspend was premature. Current CUSUM=0.560 (stable), SPRT EDGE CONFIRMED.
-    Last 10 bets: WR=60%, P&L=+1.85 USD (recovering). The -8.59 USD 7-day was high variance.
-    REVISED VOTE: Keep sol_drift running. Monitor CUSUM.
-
-  XRP_DRIFT — APPROACHING THRESHOLD:
-    YES WR=51.3%, CUSUM S=3.440/5.0, last 7 days WR=43.8%. Trending toward disable.
-    Not at formal threshold. Watch for CUSUM>=5.0 or next 10 bets <50% WR.
-
-  NEW REQUEST 14 TO CCA: XRP YES at 08:xx UTC (n=4, WR=50%) — auto-guard candidate.
-    Filed in POLYBOT_TO_CCA.md for CCA analysis.
-
-  Full findings in POLYBOT_TO_MAIN.md.
-
-## S118 RESEARCH WRAP KEY FINDINGS (2026-03-20 ~04:00 UTC)
-
-  OVERNIGHT P&L DECOMPOSITION — THE "WAKING UP TO LOSSES" PROBLEM:
-  Root cause identified: eth_drift was losing -31.55 USD overnight (10PM-8AM UTC).
-  eth_drift is NOW DISABLED. The systematic overnight bleed is gone.
-  Sniper overnight without crash events: profitable. With crash (March 17): -9.37 USD/month.
-  THREE-CHAT DECISION DOCUMENTED: POLYBOT_TO_MAIN.md (all three decisions written explicitly).
-  DECISION.md created at project root — unmissable summary for Matthew.
-
-  THREE OBJECTIVE DECISIONS (research chat votes — main chat + CCA to confirm):
-  1. RUN OVERNIGHT: YES. Sniper works overnight. Stopping loses ~87 USD/month.
-  2. SUSPEND xrp_drift + sol_drift: YES (research chat recommendation).
-     xrp_drift -2.27 USD, sol_drift -8.59 USD last 7 days. Not formally triggered but directional.
-     Main chat: set min_drift_pct=9.99 for both to suspend. Await main chat decision.
-  3. CRASH-PAUSE MECHANISM: PENDING CCA ANALYSIS. CCA REQUEST 13 filed.
-     Concept: if 3+ of 4 crypto markets lose in same 15-min window, pause 60 min.
-     Needs CCA to confirm false-positive rate before building.
-
-  HOUR BLOCK DISCREPANCY (flag for main chat):
-  Main chat deployed {8, 13} UTC sniper block (commit 8008c17, z=-4.30 for 08:xx).
-  Research chat finds 08:xx block may be crash-contaminated: 5/7 losses were March 17.
-  Non-crash 08:xx WR = 93.75% (above break-even). Flagged in POLYBOT_TO_MAIN.md.
-  Main chat should verify their z=-4.30 calculation and confirm or revert.
-
-  SELF-LEARNING LOGGED: 4 entries to CCA journal (2 wins, 2 pains).
-  Key win: strategy×hour decomposition prevents wrong time blocks.
-  Key pain: chats acting on same data with different conclusions (need sync protocol).
-
-## S118 MONITORING WRAP KEY EVENTS (2026-03-20 ~01:15 UTC)
-
-  1. UTC HOUR BLOCK DEPLOYED (main.py — commit 8008c17)
-     _BLOCKED_HOURS_UTC = frozenset({8, 13}) added to expiry_sniper_loop()
-     08:xx: WR=82.1% n=39 z=-4.30 — European open + Asia close crossover structural daily mechanism
-     13:xx: WR=90.5% n=21 — US market open at 13:30 UTC structural daily mechanism
-     Block is objective (structural daily recurrence), NOT trauma-based (NOT single-event).
-     00:xx excluded: losses explained by already-guarded buckets + March 17 crash, not structural.
-     7 new tests in TestSniperHourBlock — all passing (1698 total).
-     Bot restarted with hour block active. PID 54374, 5 guards loaded, n=326 Bayesian.
-
-  2. SESSION NET: -4.95 USD (was +11.35 at S115 → now +6.40 USD all-time)
-     Losses occurred BEFORE hour block was deployed. Expected to improve going forward.
-
-  3. SDATA: 450/500 (90%) — resets 2026-04-01. Avoid heavy research scans.
-
-  4. CRITICAL STARTUP CHECKS FOR S119:
-     grep "Loaded.*auto-discovered" /tmp/polybot_session118.log | tail -1
-     MUST say: "Loaded 5 auto-discovered guard(s)"
-     grep "override_active=True" /tmp/polybot_session118.log | tail -1
-     MUST say: override_active=True, n>=326
-     grep "eth_drift.*LIVE BET" /tmp/polybot_session118.log | tail -3
-     MUST be EMPTY (eth_drift disabled)
-     grep "Hour block" /tmp/polybot_session118.log | tail -5
-     Should show block firing at 08:xx or 13:xx if those hours have passed
-
-## S118 RESEARCH + PRIOR KEY FINDINGS (preserved)
-
-  1. CCA DELIVERED: Le (2026) arXiv:2602.19520 — VERIFIED calibration slopes
-     Crypto b=1.03: sniper edge is structural FLB, NOT calibration (0.3-0.5pp calibration only)
-     Politics b=1.83: 8-10pp edge at 90-95c — but 0 open markets (revisit Q4 2026)
-     Weather b=0.75: favorites OVERPRICED — avoid
-     Implementation: calibration_adjusted_edge() in bet_analytics.py + CALIBRATION_B_* constants
-
-  2. 00:xx UTC NO ANOMALY DECOMPOSED (resolved)
-     Raw: n=16 00:xx NO bets, WR=75%. After decomposition: 4/16 already-guarded (-37.17 USD) won't fire again.
-     Remaining 12 unguarded: WR=83.3%, 2 losses = March 17 crash + KXBTC NO@92c.
-     CONCLUSION: Do NOT add 00:xx time guard. Wait for CCA REQUEST 11 + n>=30 unguarded.
-
-  3. FULL KALSHI MARKET SCAN — CONFIRMED DEAD END
-     Non-crypto markets: ~40 vol/market. High-conf (90-95c, vol>=1K) non-crypto: ZERO found.
-     CONFIRMS: crypto 15M (BTC/ETH/SOL/XRP) are the full viable set.
-
-  4. EARNINGS MENTIONS — POTENTIAL PILLAR 3 (April-May 2026 earnings season)
-     Q1 earnings call markets (will company say [word] in Q1 earnings?)
-     CCA REQUEST 12 filed: volume data + structural edge validation needed first.
-
-  5. ROLLING WR TRACKER built (analyze_sniper_rolling_wr in bet_analytics.py — commit 36334d0)
-     W16* (n=39): 94.9% WR. No ALERT. No declining trend. FLB weakening not visible yet.
-
-  6. FORWARD EDGE: XRP guards are SUFFICIENT.
-     Post-guard in-zone SPRT: BTC lambda=+7.254, ETH lambda=+7.704, SOL lambda=+4.092, XRP lambda=-0.558 [collecting]
-     XRP: NOT at no-edge boundary. Guards sufficient. No additional XRP intervention.
-
-## PENDING FOR S120+
-
-  #1 HOUR BLOCK REVERTED (S119 monitoring): frozenset() in main.py — bot runs all hours now.
-     REASON: S119 research proved both blocks crash-contaminated. Post-strip: 08:xx WR=92.3%
-     (z=+0.06 not significant), 13:xx post-guards WR=100%. Cost was ~5-6 USD/day.
-     VERIFY FIRST POLL: grep "expiry_sniper.*Signal" /tmp/polybot_session119.log at 08:xx UTC
-     Should show signals firing (not blocked). Tests updated to pass with frozenset().
-  #2 KXETH YES@93c warming bucket: n=9, 1 bet from auto-guard threshold (WR=88.9% < 93% BE).
-     Run scripts/auto_guard_discovery.py at session start. Will fire at n=10.
-  #3 btc_drift CUSUM: 4.260/5.0. If S>=5.0 at session start: disable (min_drift_pct=9.99).
-     SPRT lambda=-1.134. If crosses -2.251: also disable.
-  #4 CCA REQUEST 11 (00:xx UTC Asian session mechanism) — PENDING.
-  #5 CCA REQUEST 12 (Earnings Mentions volume + edge) — PENDING (Q1 2026 season April).
-  #6 CCA REQUEST 13 PART B: CLOSED — crash-pause dead end. Only trigger (Mar17 08:xx) already
-     covered by... wait, hour block REVERTED. But crash-pause still dead end (p=0.095, n=1).
-  #7 Dim 9 accumulation: n=13 signal_features. Target 1000. Passive.
-  #8 SDATA: 453/500 (91%) — avoid heavy research scans. Resets 2026-04-01.
-  #9 "Daily loss soft stop active" in --health = COSMETIC ONLY (enforcement commented out).
-  #10 S119 RESEARCH: XRP_DRIFT approaching threshold (CUSUM=3.44, last 7d WR=43.8%). Watch.
-
-## GUARD STACK
-  Floor 90c + Ceiling 95c + 5 auto-guards:
-    KXXRP NO@95c — ACTIVE
-    KXSOL NO@93c — ACTIVE
-    KXBTC YES@94c — ACTIVE
-    KXXRP NO@93c — ACTIVE
-    KXBTC NO@94c — ACTIVE
-  AUTO-GUARD: MIN_BETS=10, p<0.20 significance gate required
-  WARMING WATCH: KXETH YES@93c (n=9) — NEXT CANDIDATE (1 bet from threshold)
-
-## HOUR BLOCK — REVERTED S119 monitoring wrap
-  _BLOCKED_HOURS_UTC = frozenset() — NO hours blocked (all hours run)
-  REASON: S119 research proved crash contamination. Ex-crash: 08:xx z=+0.06 (not significant).
-  Cost of blocks was ~5-6 USD/day. Reverted 2026-03-20 02:10 UTC.
-  Tests still pass — TestSniperHourBlock tests hardcode frozenset({8,13}) internally.
-  NOTE: Tests should be updated next research session to reflect reverted state.
-
-## STRATEGY STANDINGS (S121 monitoring wrap)
-  expiry_sniper_v1:  PRIMARY ENGINE — 816+ live bets, 95.8% WR, all-time BOT P&L +25.94 USD
-                     HOUR BLOCK: frozenset() — ALL HOURS ACTIVE
-                     SPRT BTC/ETH/SOL lambda=+6-8 EDGE CONFIRMED | XRP collecting
-                     SNIPER CUSUM: S=0.020 (excellent — recent wins improving it)
-  sol_drift_v1:      LIVE Stage 1 — 43 bets, 70% WR, +4.89 USD EDGE CONFIRMED
-                     CUSUM stable (S=0.560), SPRT EDGE CONFIRMED
-                     Open bet at wrap: SOL NO@46c KXSOL15M-26MAR212030-30
-  btc_drift_v1:      MONITORING — 75 bets, 49% WR, CUSUM S=4.260/5.0 CRITICAL
-                     direction_filter="no", SPRT lambda=-1.134 [collecting]
-  eth_drift_v1:      DISABLED — min_drift_pct=9.99 — 0 live bets confirmed
-  xrp_drift_v1:      WATCH — 51 bets, CUSUM S=3.440/5.0, 1 new loss this session
-                     direction_filter="yes"
-  Bayesian posterior: n=326, override_active=True, kelly_scale=0.953
-  Dim 9 signal_features: accumulating on every sniper bet. Passive accumulation.
-
-## CONFIRMED DEAD ENDS (cumulative)
-  CPI/GDP/FOMC/UNRATE speed-plays, UCL/NCAA live sports, BALLDONTLIE,
-  weather, NBA/NHL/tennis sniper, KXBTCD near-expiry, sniper maker mode,
-  time-of-day filtering (general overnight block — CI too wide; 00:xx decomposed = not structural),
-  non-crypto 90c+ markets, annual BTC range, one-off market scanners,
-  per-strategy full Bayesian models, stale open trades (false alarm — all paper),
-  CUSUM h=5.0 change (confirmed correct), Sports game markets (KXNBAGAME/KXNHLGAME) = vol=0,
-  Finance markets (KXFED/KXCPI/KXGDP/KXPCE) = vol=0, R-score ranking = 1.9% window competition,
-  KXBNB15M = too thin, KXDOGE15M = even thinner, all other crypto 15M = don't exist on Kalshi,
-  Crypto 15M expansion COMPLETE: BTC/ETH/SOL/XRP are the ONLY viable series on Kalshi,
-  Political markets current cycle (March 2026) = 0 open markets — revisit Q4 2026,
-  00:xx UTC general block = NOT structural (decomposed S118: guarded + crash explains losses),
-  Full Kalshi non-crypto scan = 11K markets avg 40 vol = not viable
-
-## RESTART COMMAND (Session 122)
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session122.log 2>&1 &
-  Then verify: ps aux | grep "[m]ain.py" — exactly 1. Then cat bot.pid.
-
-## PENDING FOR S122+
-  #1 btc_drift CUSUM 4.260/5.0 — CRITICAL: if S>=5.0, disable immediately (min_drift_pct=9.99)
-  #2 xrp_drift CUSUM 3.440/5.0 — WATCH: if S>=5.0 or next 10 bets <50% WR, disable
-  #3 CCA REQUEST 11 (00:xx Asian session) — still pending response
-  #4 CCA REQUEST 12 (Earnings Mentions) — SDATA resets April 1, then run scan
-  #5 CCA REQUEST 14 (XRP YES@08:xx) — passive, need n>=10
-  #6 Dim 9 accumulation — passive, target 1000 signal_features
-  #7 SDATA: 474/500 (95%) — resets 2026-04-01. No research scans until then.
-  #8 Log tail check EVERY cycle — ps aux alone is insufficient (frozen process looks alive)
-  #9 sol_drift open bet: SOL NO@46c KXSOL15M-26MAR212030-30 — check settlement at startup
-
-## GOAL TRACKER
-  All-time P&L: +25.94 USD live | Monthly target: 250 USD self-sustaining
-  Distance to +125 USD milestone: 99.06 USD
-  At ~7 USD/day: ~14 days to self-sustaining
-  Highest-leverage action: Keep bot alive 24/7. Every hour = ~0.29 USD expected sniper revenue.
+## RESTART COMMAND (Session 123)
+pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session123.log 2>&1 &
