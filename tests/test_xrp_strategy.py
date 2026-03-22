@@ -147,8 +147,11 @@ class TestXrpDriftSignals:
         assert signal is None, "First call must return None (reference-setting phase)"
 
     def test_xrp_drift_fires_above_threshold(self):
-        """With +0.25% XRP drift from reference, strategy should fire (2.5x threshold)."""
-        strategy = load_xrp_drift_from_config()
+        """With +0.25% XRP drift from reference, strategy fires at 0.10% threshold.
+        Uses explicit min_drift_pct=0.10 (not config) to test mechanism independent of
+        current operational state (config may set 9.99 to disable the strategy).
+        """
+        strategy = BTCDriftStrategy(name_override="xrp_drift_v1", min_drift_pct=0.10, sensitivity=800.0)
         market = _make_near50_market(price_cents=50)
         # Seed reference at base price
         _seed_xrp_reference(strategy, market, ref_price=0.55)

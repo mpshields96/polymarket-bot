@@ -8,6 +8,22 @@
 #          ### Lessons learned (optional)
 # ══════════════════════════════════════════════════════════════
 
+## Session 122 (monitoring) — 2026-03-22 — xrp_drift DISABLED (last 10 WR=30%), 1716/1716 tests
+
+### Changed
+- config.yaml: xrp_drift min_drift_pct 0.10 → 9.99 (DISABLED S122)
+- tests/test_xrp_strategy.py: test_xrp_drift_fires_above_threshold now uses explicit BTCDriftStrategy(min_drift_pct=0.10, sensitivity=800) instead of load_xrp_drift_from_config() — tests mechanism not operational config
+
+### Why
+- xrp_drift CUSUM S=3.980/5.0 (rising from 3.440 at S120 wrap) + last 10 bets WR=30% (3/10) = both disable criteria triggered simultaneously
+- Standing exception: "if xrp_drift CUSUM S>=5.0 OR next 10 bets <50% WR, disable (min_drift_pct=9.99)"
+- 30% WR is well below the 50% threshold — automatic action, no Matthew input needed
+- Test fix: the original test relied on loading sensitivity=800 from config; with config disabled, explicit params required to test the underlying mechanism
+
+### Restart
+- Bot restarted PID 73663 → /tmp/polybot_session122.log
+- Confirmed: "xrp_drift_v1 KXXRP15M: drift -0.021% from open (need ±9.990%)" in first evaluation
+
 ## Session 121 (monitoring wrap) — 2026-03-22 — Bot died twice, kept profitable: +5.89 USD session net, 8/8 sniper wins
 
 ### Changed

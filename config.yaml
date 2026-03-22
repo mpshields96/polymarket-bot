@@ -119,8 +119,9 @@ strategy:
     # to maintain same signal quality bar (similar edge_pct distribution to btc_drift).
     # At 0.10% XRP drift + sensitivity=800: raw_prob≈0.599, edge≈8.1% (same as btc_drift at 0.05%).
     # KXXRP15M series. 1 contract/bet ~$0.35-0.65. Do NOT lower min_drift_pct without 30+ live bets.
+    # DISABLED S122 — last 10 bets WR=30% (<50% threshold), CUSUM S=3.980/5.0. Re-enable when WR recovers.
     sensitivity: 800.0
-    min_drift_pct: 0.10      # 2x btc_drift (XRP ~2x more volatile than BTC)
+    min_drift_pct: 9.99      # DISABLED S122 — last 10 bets WR=30% (<50% threshold)
     min_minutes_remaining: 3.0
     min_edge_pct: 0.05
     time_weight: 0.7
