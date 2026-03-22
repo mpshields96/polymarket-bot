@@ -108,7 +108,7 @@ strategy:
     # At 0.15% SOL drift + sensitivity=800: raw_prob≈0.599, edge≈8.1% (same as btc_drift at 0.05%).
     # KXSOL15M series. 1 contract/bet ~$0.35-0.65. Do NOT lower min_drift_pct without 30+ live bets.
     sensitivity: 800.0
-    min_drift_pct: 0.15      # 3x btc_drift (SOL 3x more volatile)
+    min_drift_pct: 9.99      # DISABLED S123 — Matthew directive: 0/2 today -18.97 USD, WR 66.7% declining
     min_minutes_remaining: 3.0
     min_edge_pct: 0.05
     time_weight: 0.7
