@@ -8,6 +8,50 @@
 #          ### Lessons learned (optional)
 # ══════════════════════════════════════════════════════════════
 
+## Session 121 (monitoring wrap) — 2026-03-22 — Bot died twice, kept profitable: +5.89 USD session net, 8/8 sniper wins
+
+### Changed
+- No code changes this session (pure monitoring per Matthew's directive)
+- Bot restarted twice: PID 36112 died at ~17:58 UTC (no crash log), PID 52213 froze at 19:08 UTC (process alive, log stopped for 5+ hours), PID 61788 current
+
+### Why
+- Bot death 1 (PID 36112): unknown cause, no log entries. Detected via ps aux check at Cycle I.
+- Bot freeze (PID 52213): process alive in ps aux but log stopped at 19:08 UTC. The settlement_loop for the 20:15 UTC bets never ran during the freeze. Detected by checking log tail vs expected activity at Cycle W.
+- Both were caught and restarted cleanly. No bets lost due to downtime.
+
+### Investigations/Findings
+- xrp_drift: 1 new loss (-0.41 USD). Now 51 bets, WR ~47%. CUSUM 3.440/5.0 WATCH unchanged.
+- btc_drift CUSUM: 4.260/5.0 still CRITICAL — no new btc_drift bets this session (threshold not hit).
+- CCA: no new deliveries. REQUESTs 11, 12, 14 still pending. SDATA resets 2026-04-01.
+- SDATA: 474/500 (95%) — do not run research scans until after April 1.
+- SOL_DRIFT: 1 new drift bet placed (NO@46c, open at wrap). 43 live bets total.
+
+### Strategy Analyzer Insights
+  All-time: +25.94 USD (82% WR, 1160 settled bets)
+  Session net: +5.89 USD (from +20.05 at session start)
+  SNIPER: Profitable buckets: 95, 90-94c | Guarded: 98, 97, 96c
+  btc_drift: UNDERPERFORMING — 49% WR, Trend=IMPROVING, direction_filter="no"
+  eth_drift: DISABLED — 46% WR, Trend=DECLINING (min_drift_pct=9.99)
+  sol_drift: HEALTHY — 43 live bets, 70% WR, +4.89 USD, SPRT EDGE CONFIRMED
+
+### Self-Rating
+  GRADE: B
+  WINS: 8/8 sniper wins March 21 (100% WR); ETH NO@94c + BTC NO@93c both hit;
+    caught bot death and freeze and restarted cleanly each time; session net +5.89 USD.
+  LOSSES: Bot died once and froze once without early detection — only caught at Cycle I and
+    Cycle W respectively. Frozen process looks alive in ps aux; need log tail checks every cycle.
+    xrp_drift 1 loss (-0.41 USD). No code improvements made.
+  ONE THING next chat must do differently: Every cycle, check tail of log for recent activity
+    (not just ps aux). A frozen process shows alive in ps but log will be hours stale.
+  ONE THING that would have made more money earlier: Nothing specific — markets were mid-range
+    for most of the session; sniper correctly sat out.
+
+### Goal Progress
+  All-time P&L: +25.94 USD | Distance to +125 USD goal: 99.06 USD
+  At ~7 USD/day: ~14 days to self-sustaining
+  Highest-leverage action: Keep bot alive 24/7. Every hour it runs = ~0.29 USD expected sniper revenue.
+  Session CUSUM watch: btc_drift 4.260/5.0 CRITICAL — disable at S>=5.0; xrp_drift 3.440/5.0 WATCH.
+
 ## Session 119 (monitoring wrap) — 2026-03-20 — Hour block REVERTED, crash-pause dead end confirmed, +5.88 USD session recovery
 
 ### Changed
