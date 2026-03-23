@@ -311,7 +311,7 @@ async def execute(
     # Loss math: win=5c, lose=95c per contract. EV = 0.929×5 - 0.071×95 = 4.645 - 6.745 = -2.1c/contract.
     # BTC has historically been profitable at 95c NO, but accumulated 2 large losses (each -19.95 USD).
     # With n=28 and WR 2.4% below break-even, structural pattern matches IL-24 (SOL NO@95c).
-    # ETH NO@95c remains 100% WR (22/22, +17.48 USD) and is NOT blocked.
+    # NOTE (S128): ETH NO@95c also turned negative — see IL-36 below.
     if "KXBTC" in signal.ticker and price_cents == 95 and signal.side == "no":
         logger.info(
             "[live] KXBTC NO@95c -- structurally negative EV "
@@ -332,9 +332,22 @@ async def execute(
         )
         return None
 
+    # IL-36: ETH NO@95c — 23 bets, 95.7% WR, need 95.0% break-even, -2.47 USD (S128)
+    # Was 22/22 = 100% WR (+17.48 USD) until S128 when one reversal loss cost -19.95 USD.
+    # Pattern matches IL-34 (BTC) and IL-24 (SOL): all NO@95c buckets net negative despite high WR.
+    # YES@95c remains profitable across all assets (72 bets, 98.6% WR, +31.89 USD) — asymmetry confirmed.
+    # Structural basis: near-expiry bearish reversals at 95c NO are slightly more likely than priced.
+    # Kelly over-sizing at 95c (22% bankroll per bet) amplifies each loss vs 5c/contract win.
+    if "KXETH" in signal.ticker and price_cents == 95 and signal.side == "no":
+        logger.info(
+            "[live] KXETH NO@95c -- IL-36 structurally negative EV "
+            "(S128: 23 bets, 95.7%% WR, -2.47 USD, same pattern as BTC/SOL NO@95c) -- skip",
+        )
+        return None
+
     # IL-24: SOL NO@95c — 16 bets, 93.8% WR, need 95.0% break-even, -31.50 USD
     # SOL has higher intra-window volatility than BTC/ETH — same break-even WR but lower actual WR.
-    # ETH NO@95c: 22/22 = 100% WR, profitable. BTC NO@95c: blocked by IL-34 above.
+    # ETH NO@95c: see IL-36 above. BTC NO@95c: blocked by IL-34 above.
     # Loss math: win=5c, lose=95c per contract. EV = 0.938×5 - 0.063×95 = 4.69 - 5.985 = -1.3c/contract.
     # On 20 USD max bet at 95c: EV ≈ -0.27 USD per bet. Cumulative: -31.50 USD over 16 bets.
     # Confirmed S95 2026-03-17 04:05 UTC: loss at KXSOL15M-26MAR170000-00 (-19.95 USD) triggered analysis.

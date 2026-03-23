@@ -1686,8 +1686,10 @@ class TestPerAssetStructuralLossGuards:
         assert result is None
         kalshi.create_order.assert_not_called()
 
-    async def test_eth_no_at_95c_not_blocked_by_il24(self, live_env, bypass_first_run):
-        """KXETH NO@95c is NOT blocked -- IL-24 targets KXSOL only. ETH NO@95c is 100% WR (10 bets)."""
+    async def test_eth_no_at_95c_blocked_by_il36(self, live_env, bypass_first_run):
+        """KXETH NO@95c is blocked by IL-36 (S128). All NO@95c buckets are net negative:
+        BTC -20.58 USD (IL-34), SOL -11.55 USD (IL-24), ETH -2.47 USD (IL-36 added S128).
+        YES@95c remains profitable (72 bets, 98.6% WR, +31.89 USD) -- asymmetry confirmed."""
         ob = make_orderbook(yes_bid=5)  # yes_bid=5 -> no_ask=95c
         signal = make_signal(side="no", price_cents=94, ticker="KXETH15M-26MAR170015-15")
         kalshi = make_kalshi_mock()
@@ -1703,8 +1705,8 @@ class TestPerAssetStructuralLossGuards:
             price_guard_min=1,
             price_guard_max=99,
         )
-        assert result is not None
-        kalshi.create_order.assert_called_once()
+        assert result is None  # blocked by IL-36
+        kalshi.create_order.assert_not_called()
 
     async def test_sol_sniper_blocked_at_05xx_utc_by_il35(self, live_env, bypass_first_run, monkeypatch):
         """IL-35: KXSOL sniper at 05:xx UTC blocked -- 85.7% WR (14 bets), need 94.4%, -28.94 USD."""
