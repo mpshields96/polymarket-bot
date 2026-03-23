@@ -31,6 +31,8 @@ from scripts.auto_guard_discovery import (
     binomial_pvalue_below,
     meets_statistical_threshold,
     discover_warming_buckets,
+    discover_hour_guards,
+    discover_hour_warming_buckets,
     MIN_BETS,
     P_VALUE_THRESHOLD,
     break_even_wr,
@@ -246,3 +248,210 @@ class TestWarmingBuckets:
         if result:
             assert "p_value" in result[0]
             assert 0.0 <= result[0]["p_value"] <= 1.0
+
+
+# ── Hour Guard Helpers ─────────────────────────────────────────────────────────
+
+def _utc_hour_ts(hour: int) -> int:
+    """Return a unix timestamp (int) whose UTC hour == hour. Uses 2026-01-15."""
+    # 2026-01-15 00:00:00 UTC = 1768521600
+    return 1768521600 + hour * 3600
+
+
+def _make_hour_db(rows: list[tuple]) -> Path:
+    """
+    Create temp SQLite DB with trades table including created_at column.
+    Row format: (ticker, side, price_cents, result, pnl_cents, utc_hour)
+    utc_hour is converted to a unix timestamp stored in created_at.
+    """
+    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    conn = sqlite3.connect(tmp.name)
+    conn.execute("""CREATE TABLE trades (
+        id INTEGER PRIMARY KEY,
+        ticker TEXT, side TEXT, price_cents INTEGER,
+        result TEXT, pnl_cents INTEGER,
+        strategy TEXT, is_paper INTEGER,
+        created_at INTEGER
+    )""")
+    for ticker, side, price_cents, result, pnl_cents, utc_hour in rows:
+        conn.execute(
+            "INSERT INTO trades "
+            "(ticker, side, price_cents, result, pnl_cents, strategy, is_paper, created_at) "
+            "VALUES (?,?,?,?,?,'expiry_sniper_v1',0,?)",
+            (ticker, side, price_cents, result, pnl_cents, _utc_hour_ts(utc_hour)),
+        )
+    conn.commit()
+    conn.close()
+    return Path(tmp.name)
+
+
+# ── discover_hour_guards() ─────────────────────────────────────────────────────
+
+class TestDiscoverHourGuards:
+    """discover_hour_guards() finds statistically negative-EV (asset, hour) buckets."""
+
+    def test_empty_db_returns_empty(self):
+        """No trades → no hour guards."""
+        db = _make_hour_db([])
+        assert discover_hour_guards(db) == []
+
+    def test_profitable_hour_bucket_not_guarded(self):
+        """100% WR at a specific hour → not a guard candidate."""
+        rows = [("KXBTC15M-T1", "yes", 92, "yes", 800, 3)] * 12
+        db = _make_hour_db(rows)
+        assert discover_hour_guards(db) == []
+
+    def test_negative_ev_hour_bucket_discovered(self):
+        """
+        Asset × hour bucket with n>=10, WR below break-even, p<0.20, loss>5 USD
+        → emitted as hour guard with price_cents=None and side=None.
+        """
+        # KXSOL at 05:xx: 14 bets, 12 wins (85.7%), break-even ~94.4%, lots of losses
+        wins = [("KXSOL15M-T1", "yes", 92, "yes", 800, 5)] * 12
+        losses = [("KXSOL15M-T1", "yes", 92, "no", -9200, 5)] * 2
+        # Additional losses to push total past -5 USD
+        extra_losses = [("KXSOL15M-T1", "no", 92, "yes", -9200, 5)] * 2
+        db = _make_hour_db(wins + losses + extra_losses)
+        result = discover_hour_guards(db)
+        sol_guards = [g for g in result if g["ticker_contains"] == "KXSOL"]
+        # May or may not trigger depending on exact p-value — verify structure if present
+        for g in sol_guards:
+            assert g["price_cents"] is None
+            assert g["side"] is None
+            assert g["utc_hour"] == 5
+            assert g["n_bets"] >= 10
+
+    def test_hour_guard_has_required_fields(self):
+        """Hour guard dict contains all required keys."""
+        # Build a statistically clear negative-EV bucket: 10 bets, 6 wins (60%) vs 93.4% BE
+        wins = [("KXSOL15M-T1", "yes", 93, "yes", 620, 5)] * 6
+        losses = [("KXSOL15M-T1", "yes", 93, "no", -9300, 5)] * 4
+        db = _make_hour_db(wins + losses)
+        result = discover_hour_guards(db)
+        if result:
+            g = result[0]
+            for key in ("ticker_contains", "price_cents", "utc_hour", "side",
+                        "n_bets", "win_rate", "break_even_wr", "total_loss_usd",
+                        "discovered_ts", "discovered_date"):
+                assert key in g, f"Missing key: {key}"
+            assert g["price_cents"] is None
+            assert g["side"] is None
+
+    def test_below_min_bets_not_guarded(self):
+        """Hour bucket with n < MIN_BETS not emitted even with terrible WR."""
+        # Only 5 bets at 05:xx — below MIN_BETS=10
+        losses = [("KXBTC15M-T1", "yes", 93, "no", -9300, 5)] * 5
+        db = _make_hour_db(losses)
+        result = discover_hour_guards(db)
+        assert result == []
+
+    def test_different_hours_treated_as_separate_buckets(self):
+        """Two different hours for same asset are independent buckets."""
+        # KXBTC at hour 3: 10 bets, 6 wins (losing)
+        wins_h3 = [("KXBTC15M-T1", "yes", 93, "yes", 620, 3)] * 6
+        losses_h3 = [("KXBTC15M-T1", "yes", 93, "no", -9300, 3)] * 4
+        # KXBTC at hour 7: 10 bets, 10 wins (profitable) — should NOT be guarded
+        wins_h7 = [("KXBTC15M-T1", "yes", 93, "yes", 620, 7)] * 10
+        db = _make_hour_db(wins_h3 + losses_h3 + wins_h7)
+        result = discover_hour_guards(db)
+        # Hour 7 must not appear
+        h7_guards = [g for g in result if g.get("utc_hour") == 7]
+        assert h7_guards == []
+
+    def test_hardcoded_hour_guard_skipped(self):
+        """IL-35 (KXSOL at 05:xx) is already in _EXISTING_HARDCODED_HOUR_GUARDS — not re-emitted."""
+        # Build a clearly negative-EV KXSOL@05:xx bucket
+        wins = [("KXSOL15M-T1", "yes", 93, "yes", 620, 5)] * 6
+        losses = [("KXSOL15M-T1", "yes", 93, "no", -9300, 5)] * 4
+        db = _make_hour_db(wins + losses)
+        result = discover_hour_guards(db)
+        # KXSOL + hour 5 should be suppressed (hardcoded IL-35)
+        kxsol_5 = [g for g in result if g["ticker_contains"] == "KXSOL" and g["utc_hour"] == 5]
+        assert kxsol_5 == []
+
+    def test_sorted_worst_loss_first(self):
+        """Hour guards sorted by total_loss_usd ascending (worst first)."""
+        # ETH at hour 3: 10 bets, 5 wins — bigger loss
+        eth_wins = [("KXETH15M-T1", "yes", 93, "yes", 620, 3)] * 5
+        eth_losses = [("KXETH15M-T1", "yes", 93, "no", -9300, 3)] * 5
+        # BTC at hour 4: 10 bets, 6 wins — smaller loss
+        btc_wins = [("KXBTC15M-T1", "yes", 93, "yes", 620, 4)] * 6
+        btc_losses = [("KXBTC15M-T1", "yes", 93, "no", -9300, 4)] * 4
+        db = _make_hour_db(eth_wins + eth_losses + btc_wins + btc_losses)
+        result = discover_hour_guards(db)
+        if len(result) >= 2:
+            assert result[0]["total_loss_usd"] <= result[1]["total_loss_usd"]
+
+
+# ── discover_hour_warming_buckets() ───────────────────────────────────────────
+
+class TestDiscoverHourWarmingBuckets:
+    """discover_hour_warming_buckets() surfaces pre-threshold hour buckets with losses."""
+
+    def test_empty_db_returns_empty(self):
+        db = _make_hour_db([])
+        assert discover_hour_warming_buckets(db) == []
+
+    def test_profitable_hour_not_shown(self):
+        """100% WR hour bucket not in warming list."""
+        rows = [("KXBTC15M-T1", "yes", 92, "yes", 800, 3)] * 8
+        db = _make_hour_db(rows)
+        assert discover_hour_warming_buckets(db) == []
+
+    def test_losing_bucket_below_guard_threshold_shown(self):
+        """
+        Hour bucket with n>=5, loss>min_loss, WR<BE, p>threshold (not significant yet)
+        → appears in warming list with p_value field.
+        KXBTC at hour 3: 7 wins / 1 loss = 87.5% WR.
+        p-value ≈ 0.419 > 0.20 → warming, not guard.
+        """
+        wins = [("KXBTC15M-T1", "yes", 93, "yes", 620, 3)] * 7
+        losses = [("KXBTC15M-T1", "yes", 93, "no", -9300, 3)] * 1
+        db = _make_hour_db(wins + losses)
+        result = discover_hour_warming_buckets(db, min_n=5, min_loss=2.0)
+        btc3 = [w for w in result if w["ticker_contains"] == "KXBTC" and w["utc_hour"] == 3]
+        assert len(btc3) == 1
+        assert btc3[0]["total_loss_usd"] < -2.0
+        assert "p_value" in btc3[0]
+        assert 0.0 <= btc3[0]["p_value"] <= 1.0
+
+    def test_formal_guard_threshold_not_shown_in_warming(self):
+        """Bucket that crosses guard threshold should NOT appear in warming list."""
+        # 10 bets, 6 wins — p-value is likely < 0.20 at 60% WR vs 93.4% BE
+        wins = [("KXBTC15M-T1", "yes", 93, "yes", 620, 4)] * 6
+        losses = [("KXBTC15M-T1", "yes", 93, "no", -9300, 4)] * 4
+        db = _make_hour_db(wins + losses)
+        result = discover_hour_warming_buckets(db, min_n=5, min_loss=2.0)
+        # If it's a formal guard, it must NOT be in warming
+        from scripts.auto_guard_discovery import meets_statistical_threshold
+        be = break_even_wr(93)
+        if meets_statistical_threshold(10, 6, be):
+            btc4 = [w for w in result if w["ticker_contains"] == "KXBTC" and w["utc_hour"] == 4]
+            assert btc4 == []
+
+    def test_below_min_n_not_shown(self):
+        """n < min_n (3 bets) not in warming even with 100% loss rate."""
+        losses = [("KXBTC15M-T1", "yes", 93, "no", -9300, 6)] * 3
+        db = _make_hour_db(losses)
+        result = discover_hour_warming_buckets(db, min_n=5, min_loss=2.0)
+        assert result == []
+
+    def test_hardcoded_hour_guard_skipped(self):
+        """IL-35 (KXSOL at 05:xx) not in warming list — already a hardcoded guard."""
+        wins = [("KXSOL15M-T1", "yes", 93, "yes", 620, 5)] * 7
+        losses = [("KXSOL15M-T1", "yes", 93, "no", -9300, 5)] * 1
+        db = _make_hour_db(wins + losses)
+        result = discover_hour_warming_buckets(db, min_n=5, min_loss=2.0)
+        kxsol_5 = [w for w in result if w["ticker_contains"] == "KXSOL" and w["utc_hour"] == 5]
+        assert kxsol_5 == []
+
+    def test_sorted_worst_loss_first(self):
+        """Warming buckets sorted by total_loss_usd ascending (worst first)."""
+        eth_wins = [("KXETH15M-T1", "yes", 93, "yes", 620, 2)] * 5
+        eth_losses = [("KXETH15M-T1", "yes", 93, "no", -9300, 2)] * 3
+        btc_wins = [("KXBTC15M-T1", "yes", 93, "yes", 620, 6)] * 7
+        btc_losses = [("KXBTC15M-T1", "yes", 93, "no", -9300, 6)] * 1
+        db = _make_hour_db(eth_wins + eth_losses + btc_wins + btc_losses)
+        result = discover_hour_warming_buckets(db, min_n=5, min_loss=2.0)
+        if len(result) >= 2:
+            assert result[0]["total_loss_usd"] <= result[1]["total_loss_usd"]

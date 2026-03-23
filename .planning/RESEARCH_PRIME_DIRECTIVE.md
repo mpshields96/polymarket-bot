@@ -113,9 +113,26 @@ MAIN MONITORING CHAT (polybot-auto):
   from research chat. Read EDGE_RESEARCH files and advance Pillar 1 infrastructure.
 
 CCA CHAT (ClaudeCodeAdvancements):
-  Self-improving agent infrastructure directly serves this mission.
-  Persistent memory, monitoring loops, autonomous decision-making = all relevant.
-  CCA work that advances autonomous agents serves polybot's long-term compounding.
+  CCA is a research partner and resource for the Kalshi chats — not just a separate project.
+  Its specialized tools are available via cross-chat request:
+    paper_scanner.py — Semantic Scholar + arXiv systematic academic paper search
+    reddit_reader.py — r/kalshi, r/PredictionMarkets, trading subreddits, structured JSON
+    github_scanner.py — open-source prediction market bots and strategies
+    autonomous_scanner.py — deep community post reading, strategy extraction
+  MT-0 "Kalshi Bot Self-Learning Integration" is CCA's highest priority task — already aligned.
+  CCA dedicates 1 of its 3 work sessions per chat to processing Kalshi requests from the inbox.
+  CCA scope boundary exception: ~/.claude/cross-chat/ is an approved cross-project channel.
+
+CROSS-CHAT INBOX/OUTBOX SYSTEM:
+  Location: ~/.claude/cross-chat/
+  POLYBOT_TO_CCA.md — Kalshi chats write requests (research, papers, GitHub search)
+  CCA_TO_POLYBOT.md — CCA writes findings and built tools back to Kalshi chats
+  README.md — system documentation and format conventions
+  All three chats check their inbox at session start.
+
+ADVANCED CROSS-CHAT SYSTEM (logged for CCA to build — see below):
+  The MD file inbox is the starting point. CCA is being asked to build a more capable version.
+  See "CCA TASK REQUESTS" section below.
 
 ANY FUTURE CHAT:
   Read this file. The mission is: smarter and more profitable.

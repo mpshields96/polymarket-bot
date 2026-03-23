@@ -563,3 +563,54 @@ NEVER mandatory: gsd:discuss-phase, gsd:verify-work (agent), superpowers:brainst
 superpowers:dispatching-parallel-agents — use only when explicitly justified by complexity.
 
 Full reference: ~/.claude/rules/gsd-framework.md and ~/.claude/rules/mandatory-skills-workflow.md
+
+## ══════════════════════════════════════════════════════════════
+## CROSS-CHAT BRIDGE — CCA ↔ KALSHI COMMUNICATION (Session 45)
+## ══════════════════════════════════════════════════════════════
+##
+## CCA (ClaudeCodeAdvancements) and Kalshi chats communicate via shared files.
+## This is NOT optional. Check these files at session start.
+
+## SESSION START — READ THESE (after normal startup):
+## 1. CCA_TO_POLYBOT.md — CCA's research deliveries (academic frameworks, tools, papers)
+## 2. KALSHI_PRIME_DIRECTIVE.md — Permanent mission: SMARTER AND MORE PROFITABLE
+## 3. CROSS_CHAT_INBOX.md — Shared inbox (any chat can write)
+
+## ⚠️ MID-SESSION MANDATORY (every 3rd monitoring cycle, ~15 min cadence):
+##   cat ~/.claude/cross-chat/CCA_TO_POLYBOT.md | tail -100
+##   → New delivery since last check? Implement NOW. Log in CHANGELOG.md.
+##   → Delivery >48hr old? Write follow-up to POLYBOT_TO_CCA.md.
+##   → Open guard candidate, CUSUM alert, or edge signal? Write REQUEST proactively.
+##   ./venv/bin/python3 scripts/auto_guard_discovery.py  (new guards → add + restart)
+##   ./venv/bin/python3 scripts/bet_analytics.py | grep "CUSUM\|DRIFT ALERT"  (act on findings)
+
+## ⚠️ CCA HAS AUTHORITY TO EDIT THIS PROJECT (Matthew standing directive, S125):
+## CCA (ClaudeCodeAdvancements) is authorized to:
+##   - Write to ~/.claude/cross-chat/CCA_TO_POLYBOT.md (primary delivery channel)
+##   - Write to this project's .planning/ directory (research findings, roadmap updates)
+##   - Propose code changes via POLYBOT_TO_MAIN.md (monitoring chat implements after review)
+## When CCA delivers code/scripts/findings: treat as authoritative, implement same session.
+## Actively look for CCA deliveries. CCA helps this bot grow and self-improve.
+
+## TO SEND REQUESTS TO CCA:
+## Write to POLYBOT_TO_CCA.md or append to CROSS_CHAT_INBOX.md
+## CCA reads these at its session start and responds via CCA_TO_POLYBOT.md
+
+## COMMUNICATION PROTOCOL:
+## - CCA provides: academic papers, statistical frameworks, tool research, scan findings
+## - Kalshi Research provides: bet data analysis needs, strategy questions, outcome reports
+## - Kalshi Main provides: live performance data, guard triggers, edge observations
+## - All chats: maintain their normal roles AND communicate through these files
+
+## PRIME DIRECTIVE (read KALSHI_PRIME_DIRECTIVE.md for full version):
+## Three pillars: (1) Perfect current engine (2) Deep research (3) Expand beyond
+## Objective: SMARTER AND MORE PROFITABLE. Self-sustaining at 250 USD/month.
+
+## CURRENT DELIVERY (2026-03-18):
+## CCA_TO_POLYBOT.md contains a complete universal bet analytics framework:
+## - SPRT (Wald 1945) — edge detection
+## - Wilson CI (Wilson 1927) — win rate confidence intervals
+## - Brier Score (Brier 1950) — calibration check
+## - CUSUM (Page 1954) — changepoint/drift detection
+## - FLB analysis (Whelan 2024) — structural edge documentation
+## All citations verified. Script scaffold included. Implement bet_analytics.py from it.

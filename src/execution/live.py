@@ -146,6 +146,9 @@ async def execute(
         _FIRST_RUN_CONFIRMED = True
         logger.info("Live trading confirmed by operator")
 
+    # ── Capture current UTC hour (used by time-based IL guards + auto-guards) ──
+    _current_utc_hour = datetime.now(timezone.utc).hour
+
     # ── Determine fill price ──────────────────────────────────────────
     price_cents = _determine_limit_price(signal.side, market, orderbook)
     if price_cents is None:
@@ -322,7 +325,6 @@ async def execute(
     # p=0.183 (one-sided binomial vs break-even WR) — statistically justified at p<0.20 threshold.
     # KXBTC 05:xx: 14/14 = 100% WR (+12.52 USD) — NOT blocked. KXETH 05:xx: p=0.572 — NOT blocked.
     # SOL 05:xx is the structural outlier. KXSOL 03:xx (p=0.243) still accumulating — watch.
-    _current_utc_hour = datetime.now(timezone.utc).hour
     if "KXSOL" in signal.ticker and _current_utc_hour == 5 and strategy_name == "expiry_sniper_v1":
         logger.info(
             "[live] KXSOL sniper at 05:xx UTC -- structurally negative EV "
@@ -438,6 +440,7 @@ async def execute(
     # Loaded at module import from scripts/auto_guard_discovery.py output.
     # Each guard: {ticker_contains, price_cents, side, n_bets, win_rate,
     #              break_even_wr, total_loss_usd, discovered_date}
+    # Hour guards use: {ticker_contains, price_cents: null, utc_hour: N, side: null}
     # These fire AFTER hardcoded IL guards to catch newly discovered negative-EV buckets.
     if strategy_name == "expiry_sniper_v1" and _AUTO_GUARDS:
         for _ag in _AUTO_GUARDS:
@@ -445,10 +448,14 @@ async def execute(
                 _ag["ticker_contains"] is None
                 or _ag["ticker_contains"] in signal.ticker
             )
+            _price_match = _ag.get("price_cents") is None or price_cents == _ag["price_cents"]
+            _side_match = _ag.get("side") is None or signal.side == _ag["side"]
+            _hour_match = _ag.get("utc_hour") is None or _current_utc_hour == _ag["utc_hour"]
             if (
                 _ticker_match
-                and price_cents == _ag["price_cents"]
-                and signal.side == _ag["side"]
+                and _price_match
+                and _side_match
+                and _hour_match
             ):
                 logger.info(
                     "[live] AUTO-GUARD: %s %s@%dc — %.1f%% WR (need %.1f%% to break even), "

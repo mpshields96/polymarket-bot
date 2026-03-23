@@ -187,6 +187,141 @@ def is_already_guarded(asset_prefix: str, price_cents: int, side: str) -> bool:
     return False
 
 
+# Hardcoded hour guards already in live.py — skip these to avoid duplicates.
+# Format: (ticker_contains_or_None, utc_hour)
+_EXISTING_HARDCODED_HOUR_GUARDS: set[tuple] = {
+    # IL-35: KXSOL sniper at 05:xx UTC (S127)
+    ("KXSOL", 5),
+    # Blanket 08:xx block is in main.py (not live.py execute) — not tracked here
+}
+
+
+def discover_hour_guards(db_path: Path = DB_PATH) -> list[dict]:
+    """
+    Scan sniper bet history grouped by (asset_prefix, utc_hour) for negative-EV time slots.
+
+    Uses average price in each bucket to compute break-even WR.
+    Same statistical criteria as price guards: n>=10, p<0.20, loss > MIN_LOSS_USD.
+    Guards output with price_cents=null, utc_hour=N, side=null (blocks all bets for that
+    asset × hour regardless of price or side).
+    """
+    conn = sqlite3.connect(str(db_path))
+    rows = conn.execute("""
+        SELECT ticker, side, price_cents, result, pnl_cents,
+               CAST(strftime('%H', datetime(created_at, 'unixepoch')) AS INTEGER) as utc_hour
+        FROM trades
+        WHERE strategy = 'expiry_sniper_v1'
+          AND is_paper = 0
+          AND result IS NOT NULL
+    """).fetchall()
+    conn.close()
+
+    # Bucket: (asset_prefix, utc_hour) → {n, wins, total_pnl, price_sum}
+    buckets: dict[tuple, dict] = {}
+    for ticker, side, price_cents, result, pnl_cents, utc_hour in rows:
+        prefix = ticker_prefix(ticker)
+        key = (prefix, utc_hour)
+        if key not in buckets:
+            buckets[key] = {"n": 0, "wins": 0, "pnl": 0, "price_sum": 0}
+        buckets[key]["n"] += 1
+        buckets[key]["wins"] += 1 if side == result else 0
+        buckets[key]["pnl"] += pnl_cents or 0
+        buckets[key]["price_sum"] += price_cents or 0
+
+    guards = []
+    now_ts = datetime.now(timezone.utc).timestamp()
+
+    for (prefix, utc_hour), stats in buckets.items():
+        n = stats["n"]
+        wins = stats["wins"]
+        total_pnl_usd = stats["pnl"] / 100.0
+        avg_price = stats["price_sum"] / n if n > 0 else 92.0
+        be_wr = break_even_wr(int(round(avg_price)))
+
+        if (prefix, utc_hour) in _EXISTING_HARDCODED_HOUR_GUARDS:
+            continue
+        if not meets_statistical_threshold(n, wins, be_wr):
+            continue
+        if total_pnl_usd >= -MIN_LOSS_USD:
+            continue
+
+        guards.append({
+            "ticker_contains": prefix,
+            "price_cents": None,
+            "utc_hour": utc_hour,
+            "side": None,
+            "n_bets": n,
+            "win_rate": round(wins / n, 4),
+            "break_even_wr": round(be_wr, 4),
+            "avg_price_cents": round(avg_price, 1),
+            "total_loss_usd": round(total_pnl_usd, 2),
+            "discovered_ts": now_ts,
+            "discovered_date": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        })
+
+    guards.sort(key=lambda g: g["total_loss_usd"])
+    return guards
+
+
+def discover_hour_warming_buckets(db_path: Path = DB_PATH, min_n: int = 5, min_loss: float = 2.0) -> list[dict]:
+    """Return hour buckets accumulating losses but not yet at formal guard threshold."""
+    conn = sqlite3.connect(str(db_path))
+    rows = conn.execute("""
+        SELECT ticker, side, price_cents, result, pnl_cents,
+               CAST(strftime('%H', datetime(created_at, 'unixepoch')) AS INTEGER) as utc_hour
+        FROM trades
+        WHERE strategy = 'expiry_sniper_v1'
+          AND is_paper = 0
+          AND result IS NOT NULL
+    """).fetchall()
+    conn.close()
+
+    buckets: dict[tuple, dict] = {}
+    for ticker, side, price_cents, result, pnl_cents, utc_hour in rows:
+        prefix = ticker_prefix(ticker)
+        key = (prefix, utc_hour)
+        if key not in buckets:
+            buckets[key] = {"n": 0, "wins": 0, "pnl": 0, "price_sum": 0}
+        buckets[key]["n"] += 1
+        buckets[key]["wins"] += 1 if side == result else 0
+        buckets[key]["pnl"] += pnl_cents or 0
+        buckets[key]["price_sum"] += price_cents or 0
+
+    warming = []
+    for (prefix, utc_hour), stats in buckets.items():
+        n = stats["n"]
+        wins = stats["wins"]
+        total_pnl_usd = stats["pnl"] / 100.0
+        avg_price = stats["price_sum"] / n if n > 0 else 92.0
+        be_wr = break_even_wr(int(round(avg_price)))
+
+        if (prefix, utc_hour) in _EXISTING_HARDCODED_HOUR_GUARDS:
+            continue
+        if n < min_n:
+            continue
+        if total_pnl_usd >= -min_loss:
+            continue
+        if wins / n >= be_wr:
+            continue
+        if meets_statistical_threshold(n, wins, be_wr):
+            continue  # already qualifies as full guard
+
+        p_val = binomial_pvalue_below(k=wins, n=n, p0=be_wr)
+        warming.append({
+            "ticker_contains": prefix,
+            "utc_hour": utc_hour,
+            "n_bets": n,
+            "win_rate": round(wins / n, 4),
+            "break_even_wr": round(be_wr, 4),
+            "avg_price_cents": round(avg_price, 1),
+            "total_loss_usd": round(total_pnl_usd, 2),
+            "p_value": round(p_val, 3),
+        })
+
+    warming.sort(key=lambda w: w["total_loss_usd"])
+    return warming
+
+
 def discover_guards(db_path: Path = DB_PATH) -> list[dict]:
     """
     Query sniper bet history, return list of new auto-guard dicts.
@@ -444,10 +579,26 @@ def main() -> int:
                 f"{g['total_loss_usd']} USD"
             )
 
+    # Hour-based guards (new dimension: asset × UTC hour)
+    new_hour_guards = discover_hour_guards(db_path)
+    if not new_hour_guards:
+        print("No new hour guards — all negative-EV time slots already covered.")
+    else:
+        print(f"\nFound {len(new_hour_guards)} new HOUR guard(s):")
+        for g in new_hour_guards:
+            be_pct = round(g['break_even_wr'] * 100, 1)
+            wr_pct = round(g['win_rate'] * 100, 1)
+            print(
+                f"  HOUR: {g['ticker_contains']} at {g['utc_hour']:02d}:xx UTC "
+                f"— {g['n_bets']} bets, {wr_pct}% WR (need {be_pct}%, avg {g['avg_price_cents']}c), "
+                f"{g['total_loss_usd']} USD"
+            )
+
     # Always show warming buckets (early warning, not actionable yet)
     warming = discover_warming_buckets(db_path)
+    hour_warming = discover_hour_warming_buckets(db_path)
     if warming:
-        print(f"\nWarming buckets (n>=5, below BE, not yet significant — watch only):")
+        print(f"\nWarming price buckets (n>=5, below BE, not yet significant — watch only):")
         for w in warming:
             be_pct = round(w['break_even_wr'] * 100, 1)
             wr_pct = round(w['win_rate'] * 100, 1)
@@ -457,15 +608,27 @@ def main() -> int:
                 f"{w['total_loss_usd']} USD, p={w['p_value']}"
             )
     else:
-        print("No warming buckets — all sub-threshold buckets are profitable or low-sample.")
+        print("No warming price buckets.")
 
-    if new_guards and not args.dry_run:
+    if hour_warming:
+        print(f"\nWarming hour buckets (n>=5, below BE, not yet significant — watch only):")
+        for w in hour_warming:
+            be_pct = round(w['break_even_wr'] * 100, 1)
+            wr_pct = round(w['win_rate'] * 100, 1)
+            print(
+                f"  WATCH HOUR: {w['ticker_contains']} at {w['utc_hour']:02d}:xx UTC "
+                f"— n={w['n_bets']}, {wr_pct}% WR (need {be_pct}%, avg {w['avg_price_cents']}c), "
+                f"{w['total_loss_usd']} USD, p={w['p_value']}"
+            )
+
+    all_new = new_guards + new_hour_guards
+    if all_new and not args.dry_run:
         existing = load_existing_auto_guards()
-        merged, added = merge_guards(existing, new_guards)
+        merged, added = merge_guards(existing, all_new)
         write_guards(merged)
         print(f"\nWrote {len(merged)} total guards ({added} new) to {OUTPUT_PATH}")
         print("Restart bot to activate new guards.")
-    elif new_guards and args.dry_run:
+    elif all_new and args.dry_run:
         print("\n[dry-run] Not writing to file.")
 
     return 0
