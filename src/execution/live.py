@@ -316,6 +316,20 @@ async def execute(
         )
         return None
 
+    # IL-35: KXSOL sniper at 05:xx UTC — 14 bets, 85.7% WR, need 94.4%, -28.94 USD (S127)
+    # SOL is ~3x more volatile than BTC/ETH. At 05:xx UTC (late Asia/early Europe transition)
+    # thin liquidity makes SOL's near-expiry certainty unreliable.
+    # p=0.183 (one-sided binomial vs break-even WR) — statistically justified at p<0.20 threshold.
+    # KXBTC 05:xx: 14/14 = 100% WR (+12.52 USD) — NOT blocked. KXETH 05:xx: p=0.572 — NOT blocked.
+    # SOL 05:xx is the structural outlier. KXSOL 03:xx (p=0.243) still accumulating — watch.
+    _current_utc_hour = datetime.now(timezone.utc).hour
+    if "KXSOL" in signal.ticker and _current_utc_hour == 5 and strategy_name == "expiry_sniper_v1":
+        logger.info(
+            "[live] KXSOL sniper at 05:xx UTC -- structurally negative EV "
+            "(85.7%% WR at 14 bets, needs 94.4%% to break even, p=0.183) -- skip",
+        )
+        return None
+
     # IL-24: SOL NO@95c — 16 bets, 93.8% WR, need 95.0% break-even, -31.50 USD
     # SOL has higher intra-window volatility than BTC/ETH — same break-even WR but lower actual WR.
     # ETH NO@95c: 22/22 = 100% WR, profitable. BTC NO@95c: blocked by IL-34 above.

@@ -1706,6 +1706,54 @@ class TestPerAssetStructuralLossGuards:
         assert result is not None
         kalshi.create_order.assert_called_once()
 
+    async def test_sol_sniper_blocked_at_05xx_utc_by_il35(self, live_env, bypass_first_run, monkeypatch):
+        """IL-35: KXSOL sniper at 05:xx UTC blocked -- 85.7% WR (14 bets), need 94.4%, -28.94 USD."""
+        mock_dt = MagicMock()
+        mock_dt.now.return_value.hour = 5
+        monkeypatch.setattr(live_module, "datetime", mock_dt)
+        ob = make_orderbook(yes_bid=92)
+        signal = make_signal(side="yes", price_cents=92, ticker="KXSOL15M-26MAR050015-15")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal, make_market(yes_price=92, no_price=8), ob, 5.0, kalshi,
+            make_db_mock(), live_confirmed=True, strategy_name="expiry_sniper_v1",
+            price_guard_min=80, price_guard_max=99,
+        )
+        assert result is None
+        kalshi.create_order.assert_not_called()
+
+    async def test_btc_sniper_not_blocked_at_05xx_utc(self, live_env, bypass_first_run, monkeypatch):
+        """IL-35 targets KXSOL only. KXBTC at 05:xx UTC is 100% WR -- NOT blocked."""
+        mock_dt = MagicMock()
+        mock_dt.now.return_value.hour = 5
+        monkeypatch.setattr(live_module, "datetime", mock_dt)
+        ob = make_orderbook(yes_bid=92)
+        signal = make_signal(side="yes", price_cents=92, ticker="KXBTC15M-26MAR050015-15")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal, make_market(yes_price=92, no_price=8), ob, 5.0, kalshi,
+            make_db_mock(), live_confirmed=True, strategy_name="expiry_sniper_v1",
+            price_guard_min=80, price_guard_max=99,
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
+    async def test_sol_sniper_not_blocked_at_06xx_utc(self, live_env, bypass_first_run, monkeypatch):
+        """IL-35 only blocks 05:xx. KXSOL at 06:xx UTC is allowed."""
+        mock_dt = MagicMock()
+        mock_dt.now.return_value.hour = 6
+        monkeypatch.setattr(live_module, "datetime", mock_dt)
+        ob = make_orderbook(yes_bid=92)
+        signal = make_signal(side="yes", price_cents=92, ticker="KXSOL15M-26MAR060015-15")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal, make_market(yes_price=92, no_price=8), ob, 5.0, kalshi,
+            make_db_mock(), live_confirmed=True, strategy_name="expiry_sniper_v1",
+            price_guard_min=80, price_guard_max=99,
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
     async def test_btc_yes_at_88c_blocked(self, live_env, bypass_first_run):
         """IL-29: KXBTC YES@88c blocked -- 50% WR at 2 bets, need 88% break-even, -17.93 USD."""
         ob = make_orderbook(yes_bid=88)
