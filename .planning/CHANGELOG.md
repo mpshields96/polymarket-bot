@@ -8,6 +8,57 @@
 #          ### Lessons learned (optional)
 # ══════════════════════════════════════════════════════════════
 
+## Session 126 (monitoring wrap) — 2026-03-23 — IL-33 bug discovered + fixed, bot restarted with XRP protection active
+
+### Changed
+- No code changes — monitoring + research + bug fix session
+
+### Critical Fix: IL-33 not active in running bot
+- IL-33 was committed at 04:08 UTC March 23 (commit 38a0d4f)
+- Bot PID 25880 started at 04:07 UTC March 23 — ONE MINUTE BEFORE the commit
+- Python loads modules at startup: PID 25880 had old live.py WITHOUT IL-33 in memory
+- Result: 2 XRP sniper bets fired today (02:21 and 03:04 UTC) — one lost -19.32 USD
+- Fix: bot restarted as PID 77025 at 07:22 UTC — IL-33 now active in memory
+- LESSON: Always restart bot after committing live.py changes. Code on disk != running code.
+
+### P&L
+- Session net: -12.86 USD (all-time: -1.09 → -13.95 USD)
+- Today UTC: 22/25 = 88% WR, -12.77 USD live
+- Losses: XRP -19.32 USD (pre-IL-33 fix) + BTC NO@95c -19.95 USD (normal variance)
+- 20 wins totaling ~+5.5 USD vs 2 losses totaling ~-39.27 USD — asymmetric at 15% bankroll sizing
+- Bankroll: ~85 USD (was ~99 USD at S125 wrap)
+
+### Strategy Analyzer Insights (--brief)
+- SNIPER: Profitable buckets: 95c, 90-94c. Guarded: 96c, 97c NO, 98c NO.
+- btc_drift: NEUTRAL — 80 live bets, 50% WR, -9.53 USD [direction filter "no" active, 27% spread btw sides]
+- eth_drift: UNDERPERFORMING — 46% WR below 50c break-even. Trend DECLINING. Disabled (9.99%).
+- sol_drift: HEALTHY — 45 live bets, 67% WR, -14.08 USD (disabled per Matthew S123, Kelly oversize issue)
+
+### Research Completed
+- 08:xx hour block: Leave in place. Non-XRP non-crash = 22/22 100% but crash cost ~= opp cost at current sizing.
+- btc_drift recovering: last 20 bets = 60% WR, CUSUM improved 3.880 → 3.420
+- 00:xx NO-side: 16/18 = 88.9%, p=0.260. Not at guard threshold. March 22 = 4/4 wins.
+- KXEARNINGSMENTIONX: 127 series exist. No open markets now. Q1 earnings opens April 2026.
+- Hybrid chat confirmed: this chat is now the only Kalshi chat (monitoring + research combined)
+
+### Todos Added
+- .planning/todos/pending/2026-03-23-build-generalized-rat-poison-bucket-scanner-with-multi-dimensional-slices.md
+  Extend auto_guard_discovery to scan arbitrary dimension slices with Bonferroni correction.
+
+### Self-Rating: B-
+- WINS: Caught and fixed critical IL-33 bug. Good research work in downtime (4 topics covered).
+  btc_drift CUSUM improvement noted. Bot kept alive all session (12 cycles).
+- LOSSES: Session net -12.86 USD due to pre-existing IL-33 bug. XRP loss was preventable
+  if restart had been verified after IL-33 commit in S125.
+- WHAT NEXT CHAT MUST DO DIFFERENTLY: After any live.py commit, verify IL-33 is firing:
+  grep "KXXRP global sniper block" /tmp/polybot_session*.log | tail -3 — must show recent entries.
+- HIGHEST LEVERAGE ACTION: Verify IL-33 is blocking at session start. One XRP loss = 10+ sessions of sniper wins.
+
+### Goal Tracker
+- All-time P&L: -13.95 USD | Distance to +125 USD goal: 138.95 USD
+- Sniper rate: ~8 USD/day (non-XRP-loss days) | Estimated days to +125 goal: ~17 days
+- Highest-leverage action: Keep IL-33 active and bot running clean. Every day without XRP loss = ~8 USD gain.
+
 ## Session 125 (monitoring wrap) — 2026-03-23 — IL-33 XRP global block, +12.18 USD session recovery, CCA hardwired
 
 ### Changed
