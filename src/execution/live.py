@@ -213,6 +213,19 @@ async def execute(
         )
         return None
 
+    # ── IL-33: KXXRP GLOBAL SNIPER BLOCK (S125 — Matthew directive 2026-03-23) ──
+    # SPRT lambda=-3.598 (far past -2.251 no-edge boundary). n=191 bets, WR=92.7%.
+    # All-time XRP sniper P&L: -118.52 USD. BTC/ETH/SOL sniper: +172 USD combined.
+    # XRP worst hours WR=62-67% vs BTC/ETH worst hours 80-87% — categorically different.
+    # Matthew explicit directive: "block that XRP bet that's fucking ridiculous / Fuck XRP"
+    # Auto-guards already cover most buckets; this consolidates into one clean block.
+    if "KXXRP" in signal.ticker:
+        logger.info(
+            "[live] KXXRP global sniper block (IL-33, S125) — SPRT lambda=-3.598, "
+            "n=191 bets, WR=92.7%%, -118.52 USD all-time — skip",
+        )
+        return None
+
     # ── Per-asset structural loss guards (S81) ────────────────────────────
     # XRP and SOL have higher intra-window volatility than BTC/ETH, causing
     # specific price buckets to fall structurally below break-even WR.
