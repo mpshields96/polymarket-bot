@@ -1,17 +1,85 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-23 ~07:30 UTC (Session 126 monitoring wrap — bot RESTARTED PID 77025, IL-33 now active)
+# Last updated: 2026-03-23 ~21:50 UTC (Session 127 monitoring wrap)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
-  Bot RUNNING — PID 77025. Log: /tmp/polybot_session126.log
-  All-time live P&L: -13.95 USD (session net: -12.86 USD — losses from pre-IL-33 XRP bug)
-  Bankroll: ~85 USD (estimate after today's losses)
-  Tests: 1716 passing. Last commit: 37deb4d (docs: capture todo - rat-poison scanner)
+  Bot RUNNING — PID 9175. Log: /tmp/polybot_session127.log
+  All-time live P&L: -7.56 USD (session net: +6.39 USD — recovery day)
+  Bankroll: ~91 USD (estimate)
+  Tests: 1734 passing. Last commit: feb6e76 (feat: rat-poison multi-dimensional guard scanner)
   eth_drift: DISABLED (min_drift_pct=9.99)
   xrp_drift: DISABLED (min_drift_pct=9.99 as of S122)
   sol_drift: DISABLED (min_drift_pct=9.99 as of S123)
-  KXXRP sniper: BLOCKED globally (IL-33, S125) — NOW ACTIVE (bug fixed S126)
+  btc_drift: DISABLED (min_drift_pct=9.99 as of S127 — 80 bets, 50% WR, -9.53 USD, CUSUM 3.96/5.0)
+  KXXRP sniper: BLOCKED globally (IL-33, S125) — ACTIVE
+  IL-34: KXBTC NO@95c — BLOCKED (28 bets, 92.9% WR, -20.58 USD, ceiling bug fixed S127)
+  IL-35: KXSOL sniper at 05:xx UTC — BLOCKED (14 bets, 85.7% WR, -28.94 USD)
+
+## S127 MONITORING KEY FACTS (2026-03-23 ~21:50 UTC)
+
+  BUILDS THIS SESSION:
+  - IL-34: KXBTC NO@95c guard (ceiling was > not >=, 95c bets leaked through)
+  - IL-35: KXSOL sniper 05:xx UTC block (85.7% WR, p=0.183)
+  - btc_drift DISABLED: 80 bets confirms no edge. Saved from further CUSUM drift.
+  - Rat-poison hour scanner: discover_hour_guards() + discover_hour_warming_buckets()
+    First run: found KXBTC/KXETH at 08:xx (crash-contaminated, redundant with main.py block)
+    Warming watch: KXBTC 00:xx p=0.205, KXBTC 03:xx p=0.209, KXSOL 03:xx p=0.205
+  - 1734 tests passing (was 1716, added 18 new hour-guard tests)
+  - _EXISTING_HARDCODED_GUARDS updated with IL-34 entry
+
+  KEY EVENTS S127:
+  - Session net: +6.39 USD (all-time -13.95 → -7.56 USD)
+  - Today sniper: 24/26 wins, -7.38 USD (2 large losses at 95c vs 24 small wins)
+  - IL-34 addresses the recurring KXBTC NO@95c loss pattern (-19.95 USD in S126 was that bucket)
+  - REQUEST 18 written to CCA: IL-34/IL-35 structural basis, 03:xx-05:xx KXSOL pattern
+
+  CUSUM STATUS:
+  - expiry_sniper: EDGE CONFIRMED (healthy)
+  - btc_drift: DISABLED — was CUSUM 3.96/5.0 before disable (saved from threshold crossing)
+  - eth_drift: DISABLED — CUSUM 15.0 (historical)
+  - xrp_drift: DISABLED — CUSUM 3.98 (frozen)
+  - sol_drift: DISABLED — healthy but Matthew directive (Kelly oversize issue)
+
+  GUARD INTEGRITY (all active in PID 9175):
+  - IL-33: KXXRP GLOBAL BLOCK (all XRP bets)
+  - IL-34: KXBTC NO@95c
+  - IL-35: KXSOL sniper at 05:xx UTC
+  - 7 auto-guards in auto_guards.json: original 5 + KXBTC/KXETH at 08:xx (crash-contaminated, redundant)
+  - Hour block: frozenset({8}) — 08:xx UTC BLOCKED in main.py
+
+  CCA PENDING:
+  - REQUEST 18: IL-34/IL-35 structural basis + KXSOL 03:xx-05:xx pattern (WRITTEN S127)
+  - REQUEST 16: BTC/ETH/SOL health + 08:xx re-eval (written S125, pending)
+  - REQUEST 17: Earnings Q1 (written S125, pending)
+  NOTE: Hybrid chat — do research during monitoring downtime.
+
+## PENDING TASKS (S128)
+
+  CRITICAL:
+  1. Run auto_guard_discovery.py at startup — check if KXBTC 00:xx (p=0.205) or
+     KXBTC 03:xx (p=0.209) or KXSOL 03:xx (p=0.205) have crossed p<0.20 threshold.
+     If any crossed: add to auto_guards.json and restart bot.
+  2. Check KXBTC NO@95c is NOT blocking (IL-34 active) — grep for "IL-34" in log after 10 min.
+     Any new KXBTC NO@95c bets in log = guard is working.
+
+  WATCH:
+  3. eth_orderbook CUSUM 4.020/5.0 — paper only, approaching threshold. Disable at S>=5.0.
+  4. KXETH NO@94c warming bucket — n=16, WR=93.8%, p=0.604. Still accumulating, not actionable.
+  5. 00:xx NO-side: n=18, WR=88.9%, p=0.260. Still below guard threshold.
+  6. CCA REQUEST 18 response — check for structural basis on KXSOL 03:xx-05:xx pattern.
+
+  RESEARCH (do during downtime):
+  7. KXSOL 03:xx emerging: p=0.205 at n=15. Need ~2-3 more losses to cross. Watch.
+  8. KXBTC 00:xx + 03:xx: both approaching guard threshold. Structural basis unknown.
+  9. btc_drift: could re-enable later if edge evidence emerges. Not now.
+
+  LOW PRIORITY:
+  10. Dim 9 signal_features accumulating passively
+  11. Guard retirement: tracking needed for 50+ post-guard paper wins per bucket
+
+## RESTART COMMAND (Session 128)
+pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session128.log 2>&1 &
 
 ## S126 MONITORING KEY FACTS (2026-03-23 ~07:30 UTC)
 

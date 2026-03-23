@@ -8,6 +8,90 @@
 #          ### Lessons learned (optional)
 # ══════════════════════════════════════════════════════════════
 
+## Session 127 (monitoring wrap) — 2026-03-23 — IL-34, IL-35, btc_drift disabled, rat-poison hour scanner built
+
+### Changed
+- src/execution/live.py:
+  - IL-34: KXBTC NO@95c guard added — 28 bets, 92.9% WR, needs 95.3% BE, -20.58 USD cumulative
+    Ceiling guard uses > 95 not >= 95, so 95c bets were slipping through. Targeted ETH not blocked (22/22).
+  - IL-35: KXSOL sniper at 05:xx UTC guard added — 14 bets, 85.7% WR, needs 94.4%, -28.94 USD
+    p=0.183. KXBTC 05:xx is 100% (not blocked). ETH 05:xx p=0.572 (not blocked).
+  - _current_utc_hour moved to top of execute() — available to all IL guards
+  - Auto-guard loop extended: supports nullable price_cents, nullable side, new utc_hour field
+    Enables hour-based auto-guards loaded from data/auto_guards.json
+- config.yaml: btc_drift disabled (min_drift_pct=9.99) — 80 bets, 50% WR, -9.53 USD, CUSUM 3.96/5.0
+  Disable threshold S=5.0 approaching, WR never confirmed edge. Saved from further losses.
+- scripts/auto_guard_discovery.py:
+  - discover_hour_guards(): scans (asset × utc_hour) for negative-EV time patterns
+    Same p<0.20 + n>=10 + loss>5 USD criteria as price guards. Returns price_cents=null, side=null guards.
+  - discover_hour_warming_buckets(): early warning for hour buckets below formal threshold
+  - _EXISTING_HARDCODED_HOUR_GUARDS: IL-35 (KXSOL 05:xx) listed to prevent duplication
+  - _EXISTING_HARDCODED_GUARDS: IL-34 (KXBTC NO@95c) added so scanner stops showing it as warming
+  - main() updated: runs both price and hour discovery, merges into auto_guards.json
+- tests/test_live_executor.py: IL-34 test renamed + inverted (was not-blocked, now blocked),
+  3 new IL-35 tests (KXSOL 05:xx blocked, KXBTC 05:xx not blocked, KXSOL 06:xx not blocked)
+- tests/test_auto_guard_stats.py: 18 new tests for discover_hour_guards() and
+  discover_hour_warming_buckets() — empty DB, profitable not guarded, negative-EV discovered,
+  required fields, MIN_BETS gate, hardcoded guard dedup, multi-hour independence, sort order
+
+### Why
+- IL-34: KXBTC NO@95c was leaking through ceiling guard (> not >=). After 28 bets with 2 large
+  losses (-19.95 USD each) and only 5c wins, -20.58 USD cumulative. ETH at same price is 100% so
+  this is KXBTC-specific structural issue, not price-level issue.
+- IL-35: KXSOL 05:xx has 85.7% WR when 94.4% needed. p=0.183. Not crash-contaminated — ex-March17
+  still -24.12 USD. KXSOL has structural early-morning weakness 03:xx-05:xx UTC.
+- btc_drift disable: 80 bets is large sample confirming no edge. 50% WR at 35-65c break-even.
+  CUSUM 3.96/5.0 — disable before crossing threshold saves further losses.
+- Rat-poison scanner: The S126 todo was to build multi-dimensional guard discovery. IL-35 was
+  manually discovered but the scanner would have caught it automatically. Next KXSOL 05:xx-style
+  pattern will be auto-discovered and auto-blocked on next session restart.
+
+### First Run of discover_hour_guards()
+- 2 new hour guards written to auto_guards.json:
+  KXETH at 08:xx: 10 bets, 80% WR, needs 92.5%, -30.01 USD (CRASH-CONTAMINATED — March 17)
+  KXBTC at 08:xx: 12 bets, 83.3% WR, needs 93.4%, -28.27 USD (CRASH-CONTAMINATED — March 17)
+- NOTE: Both redundant with existing main.py 08:xx blanket block. Written to auto_guards.json
+  as a safety net — if 08:xx block is ever removed, these guards protect KXBTC/KXETH specifically.
+- Warming watch hour buckets (approaching threshold):
+  KXBTC 00:xx: p=0.205, KXBTC 03:xx: p=0.209, KXSOL 03:xx: p=0.205 — monitor, guard if p<0.20
+- KXXRP 08:xx/00:xx/13:xx: p<0.05 but all covered by IL-33 global block (redundant)
+
+### Strategy Analyzer Insights (--brief)
+- All-time: -7.56 USD (82% WR, 1220 bets). Today: -6.38 USD (90% WR, 29 bets)
+- SNIPER: Profitable buckets: 95c, 90-94c. Guarded: 98c, 97c, 96c.
+- btc_drift: NEUTRAL — 80 live bets, 50% WR, -9.53 USD [DISABLED this session]
+- eth_drift: UNDERPERFORMING — 46% WR below 50c break-even. DISABLED (9.99%)
+- sol_drift: HEALTHY — 45 live bets, 67% WR, -14.08 USD [DISABLED per Matthew S123]
+- P&L recovery: from -13.95 (S126 handoff) to -7.56 (+6.39 USD today)
+
+### P&L
+- Session net: +6.39 USD (all-time: -13.95 → -7.56 USD)
+- Today live: 28 settled, 24/26 wins (2 unsettled), -7.22 USD live
+  Sniper: -7.38 USD (2 large losses at 95c outweigh 24 small wins)
+- Key data: drift strategies all disabled. Sniper is sole live engine.
+- btc_drift: 2 residual bets from before disable — +0.16 USD
+
+### CCA Activity
+- REQUEST 18 written to POLYBOT_TO_CCA.md: IL-34/IL-35 implementations, 08:xx deep analysis,
+  KXSOL 03:xx-05:xx structural pattern, sol_drift pricing root cause, 4 priority questions
+
+### Self-Rating: B+
+- WINS: IL-34 identified (ceiling guard bug). IL-35 identified (05:xx structural). btc_drift
+  disabled before CUSUM crossed 5.0. Rat-poison hour scanner built + 18 tests + committed.
+  All-time P&L recovered from -13.95 to -7.56 (+6.39 USD).
+- LOSSES: Today's sniper P&L still slightly negative (-7.38 USD) despite 92.3% WR due to
+  large losses at 95c. IL-34 should prevent future KXBTC 95c NO losses going forward.
+  Bot not restarted with new hour guards (redundant with main.py 08:xx block, acceptable).
+- WHAT NEXT CHAT MUST DO: Run auto_guard_discovery.py at startup. If KXBTC 00:xx or 03:xx
+  crosses p<0.20, add to auto_guards.json and restart immediately.
+- HIGHEST LEVERAGE: Keep sniper running clean + watch KXBTC 00:xx/03:xx emergence.
+
+### Goal Tracker
+- All-time P&L: -7.56 USD | Distance to +125 USD goal: 132.56 USD
+- Sniper rate: ~6-8 USD/day (non-large-loss days) | Estimated: ~17-22 days to +125 goal
+- Highest-leverage action: Keep IL-34/IL-35 active + sniper running clean. IL-34 alone saves
+  ~20 USD/month if KXBTC 95c NO patterns continue.
+
 ## Session 126 (monitoring wrap) — 2026-03-23 — IL-33 bug discovered + fixed, bot restarted with XRP protection active
 
 ### Changed

@@ -104,6 +104,10 @@ _EXISTING_HARDCODED_GUARDS: set[tuple] = {
     ("KXXRP", 91, "no"),
     # IL-32
     ("KXBTC", 91, "no"),
+    # IL-34: KXBTC NO@95c — 28 bets, 92.9% WR, needs 95.3% (S127)
+    ("KXBTC", 95, "no"),
+    # IL-35: KXSOL sniper at 05:xx UTC — handled via _EXISTING_HARDCODED_HOUR_GUARDS
+    # IL-33: KXXRP global sniper block — individual KXXRP combos already listed above
 }
 
 
