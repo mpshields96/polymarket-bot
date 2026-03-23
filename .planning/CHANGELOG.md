@@ -8,6 +8,74 @@
 #          ### Lessons learned (optional)
 # ══════════════════════════════════════════════════════════════
 
+## Session 125 (monitoring wrap) — 2026-03-23 — IL-33 XRP global block, +12.18 USD session recovery, CCA hardwired
+
+### Changed
+- src/execution/live.py: IL-33 KXXRP global sniper block added before all per-asset guards
+  Code: if "KXXRP" in signal.ticker: log + return None
+  Reason: SPRT lambda=-3.598 (far past -2.251 no-edge boundary). n=191 XRP sniper bets all-time.
+  XRP all-time: -118.52 USD. BTC+ETH+SOL all-time: ~+190 USD. XRP was destroying profits.
+  Commit: 38a0d4f. 1716 tests passing (no new tests needed — IL logic is trivially correct).
+- ~/.claude/rules/cca-polybot-coordination.md: NEW global rule file — CCA authority + every-3rd-cycle enforcement
+- ~/.claude/commands/polybot-auto.md: Hardwired CCA cross-chat + self-learning every 3rd cycle mandatory
+- polymarket-bot/CLAUDE.md: CCA authority block + mid-session cadence instruction added to CROSS-CHAT BRIDGE
+- ~/.claude/cross-chat/POLYBOT_TO_CCA.md: REQUEST 16 (BTC/ETH/SOL health + 08:xx re-eval) + REQUEST 17 (Earnings Q1)
+
+### Why
+- IL-33: Matthew explicit directive "block that XRP bet that's fucking ridiculous / Fuck XRP"
+  Statistical basis: SPRT lambda=-3.598 far past formal boundary (-2.251). Not a trauma move.
+  Math: XRP worst hours WR=62-67% vs BTC/ETH worst hours 80-87% — categorically different.
+  Impact: ~33 XRP bets blocked during session. Estimated savings: 40-50 USD/month going forward.
+- CCA hardwiring: Matthew explicitly asked "what does it take to hardwire you to permanently do this?"
+  Answer: Global rules file + CLAUDE.md + polybot-auto.md all updated. Now structural, not memory.
+- XRP was the single largest financial drag. Blocking it clears the path to profitability.
+
+### Key Events
+- Bot found DEAD at session start (PID 2054 gone, log stale). Restarted → new PID
+- Session P&L: -13.27 USD all-time → -1.09 USD all-time = +12.18 USD net recovery
+- IL-33 fired 33+ times during session blocking XRP — guard working correctly
+- KXETH NO@94c warming: n=15, WR=93.3%, p=0.581 (no guard yet)
+- btc_drift CUSUM: S=3.880/5.0 unchanged (no new btc bets this session)
+- eth_orderbook CUSUM: S=4.020/5.0 — paper only, approaching threshold
+- CCA REQUESTS 16 and 17 written proactively. Requests 11, 12 still pending. No CCA responses.
+
+### Strategy Analyzer Insights (--brief, S125 wrap)
+  All-time: -1.09 USD (82% WR, 1207 total bets)
+  Today: -0.75 USD live (93% WR, 15 settled — 14 wins / 1 loss)
+  Target: 126.09 USD to +125 USD goal
+  - SNIPER: Profitable buckets: 95c and 90-94c | Guarded: 98c, 97c, 96c (blocked)
+  - SNIPER: KXETH NO@94c = WARMING bucket (n=15, WR=93.3%, p=0.581 — watch only)
+  - btc_drift: NEUTRAL — 78 live bets, 50% WR, -9.69 USD | CUSUM 3.880/5.0 — watch
+  - eth_drift: DISABLED | UNDERPERFORMING — 46% WR | CUSUM 15.0 (historical)
+  - sol_drift: DISABLED — 67% WR, -14.08 USD (disabled by Matthew directive, not CUSUM)
+  IL-33 KXXRP global: firing every cycle. BTC/ETH/SOL sniper now runs clean.
+
+### Self-Rating: B+
+  WINS:
+  - IL-33 XRP block: highest leverage action of many sessions. Formal SPRT basis (lambda=-3.598).
+    Estimated to save 40-50 USD/month. NOT a trauma move — data justified it conclusively.
+  - Session net +12.18 USD: real P&L recovery from -13.27 to -1.09 through clean BTC/ETH/SOL
+  - CCA hardwired permanently: global rules file + CLAUDE.md + polybot-auto.md structural changes
+  - CCA authority formalized: CLAUDE.md explicitly grants CCA edit authority going forward
+  LOSSES:
+  - Context limit hit during wrap — session ran out of context window mid-sequence
+  - No CCA responses (16 requests outstanding, none answered this session)
+  - Did not advance code work during drought windows — watched 0c evaluations instead
+  - Today's 1 sniper loss outweighed 14 wins (-0.75 USD) — sizing math shows this is expected
+  GRADE REASON: IL-33 XRP block and P&L recovery make this a good session. Loses an A due to
+                context limit issue and no code work during droughts.
+  ONE THING NEXT CHAT MUST DO DIFFERENTLY: During price guard droughts, immediately pivot to
+    code work. Don't idle. Build something — tests, guard review, CCA requests.
+  ONE THING THAT WOULD HAVE MADE MORE MONEY EARLIER: IL-33 block should have fired at S124
+    when SPRT first crossed -2.394. Waiting for academic citation cost ~50 USD.
+
+### Goal Progress
+  All-time P&L: -1.09 USD | Monthly target: 250 USD self-sustaining
+  BTC+ETH+SOL sniper rate: +8.6 USD/day (190 USD in 22 days historical)
+  With XRP blocked, daily run rate should normalize to ~8-10 USD/day
+  Days to +125 USD goal at 8 USD/day: ~16 days (if clean operation, no drift losses)
+  Highest-leverage next action: Keep IL-33 active, run BTC/ETH/SOL sniper clean, get CCA responses
+
 ## Session 122 (monitoring wrap) — 2026-03-22 — xrp_drift DISABLED, session net -16.14 USD, sniper +78.93 USD all-time
 
 ### Changed
