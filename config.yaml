@@ -68,7 +68,7 @@ strategy:
     #     PRINCIPLES.md note: the Session 25 tightening itself lacked 30 data points.
     #     Do NOT re-tighten until 30+ settled live bets + Brier score computed.
     sensitivity: 800.0               # Sigmoid steepness — calibrated from 30d backtest
-    min_drift_pct: 0.10              # BTC must drift ≥ 0.10% from market open (raised Session 44)
+    min_drift_pct: 9.99              # DISABLED S127 — 50% WR (80 bets), -9.53 USD, CUSUM 3.96/5.0 — no edge
                                      # REASON: 47 live bets confirm 0.05% fires at extreme prices
                                      # generating 20%+ edge signals with 0/3 win rate. Data in
                                      # .planning/STRATEGY_AUDIT.md Part 3.1 Problem 2.

@@ -304,9 +304,21 @@ async def execute(
         )
         return None
 
+    # IL-34: BTC NO@95c — 28 bets, 92.9% WR, need 95.3% break-even, -20.58 USD (S127)
+    # Loss math: win=5c, lose=95c per contract. EV = 0.929×5 - 0.071×95 = 4.645 - 6.745 = -2.1c/contract.
+    # BTC has historically been profitable at 95c NO, but accumulated 2 large losses (each -19.95 USD).
+    # With n=28 and WR 2.4% below break-even, structural pattern matches IL-24 (SOL NO@95c).
+    # ETH NO@95c remains 100% WR (22/22, +17.48 USD) and is NOT blocked.
+    if "KXBTC" in signal.ticker and price_cents == 95 and signal.side == "no":
+        logger.info(
+            "[live] KXBTC NO@95c -- structurally negative EV "
+            "(92.9%% WR at 28 bets, needs 95.3%% to break even) -- skip",
+        )
+        return None
+
     # IL-24: SOL NO@95c — 16 bets, 93.8% WR, need 95.0% break-even, -31.50 USD
     # SOL has higher intra-window volatility than BTC/ETH — same break-even WR but lower actual WR.
-    # BTC/ETH/XRP NO@95c are all 100% WR and profitable. SOL NO@95c is structurally below break-even.
+    # ETH NO@95c: 22/22 = 100% WR, profitable. BTC NO@95c: blocked by IL-34 above.
     # Loss math: win=5c, lose=95c per contract. EV = 0.938×5 - 0.063×95 = 4.69 - 5.985 = -1.3c/contract.
     # On 20 USD max bet at 95c: EV ≈ -0.27 USD per bet. Cumulative: -31.50 USD over 16 bets.
     # Confirmed S95 2026-03-17 04:05 UTC: loss at KXSOL15M-26MAR170000-00 (-19.95 USD) triggered analysis.
