@@ -962,3 +962,14 @@ TODO: strategy_analyzer.py shows '98c: Losing buckets (guards recommended)' as f
     If lambda crosses -1.609 at n=150+: upgrade to hard time-guard.
     Do NOT implement until p<0.05 formally confirmed.
   Research chat: consider XRP bad-hour tracking in next session.
+
+## TODO: KXETH YES@93c analysis (S124) — DO NOT ADD GUARD
+  Added: 2026-03-23
+  FINDING: bucket appears negative-EV (n=9, WR=88.9%, -10.83 USD) but:
+    - ONLY loss was at 08:09 UTC on March 17 (-19.53 USD)
+    - The 08:xx UTC hour block (reinstated S123) already blocks this exact scenario
+    - Outside 08:xx: 8/8 wins (100%), +8.88 USD
+  CONCLUSION: The 08:xx block already solves this. Bucket is PROFITABLE outside that hour.
+  DO NOT add KXETH YES@93c to guards — the hour block covers it.
+  Monitor: as n grows beyond 10, verify P&L stays positive (outside 08:xx bets).
+  auto_guard_discovery.py correctly shows p=0.581 (not actionable) — trust this metric.

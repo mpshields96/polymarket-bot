@@ -7322,3 +7322,32 @@ Restarted, monitored, built improvements during market downtime, wrapped cleanly
   2. Monitor btc_drift CUSUM — disable immediately if S>=5.0
   3. KXETH NO@94c warming bucket — run auto_guard_discovery.py (n=15, p=0.581, watch for p<0.20)
   4. CCA REQUESTs 11, 12, 14 still pending (12 now viable — SDATA 484/4000)
+
+---
+
+## Session 124 — Monitoring (2026-03-23 ~21:17 UTC)
+
+### Changes This Session
+  - ff145f9: fix: strategy_analyzer now reads auto_guards.json to prevent false-positive guard alerts
+    _is_guarded() only checked hardcoded _KNOWN_GUARDS, missing auto-discovered guards.
+    KXBTC YES@94c (auto-guard #3) was flagged as UNGUARDED every session. Fixed by adding
+    _load_auto_guards() helper that reads data/auto_guards.json at runtime. 44/44 tests passing.
+
+### Bot State at Session Start
+  - Restarted from STOPPED (Matthew sleep directive). PID 2054 → /tmp/polybot_session124.log
+  - All-time P&L (live): -0.34 USD (up from -1.18 at S123 wrap — +0.84 from settling bets)
+  - Sniper: +75.24 USD all-time (840+ bets, 95.7% WR)
+  - Tests: 1716 passing
+
+### Startup Checks Passed
+  - 5 auto-guards loaded ✅
+  - Bayesian n=332 override_active=True ✅ (grew from 326 since S123)
+  - eth/sol/xrp drift all disabled (need ±9.990%) ✅
+  - btc_drift CUSUM: 3.880/5.0 STABLE (no change) ✅
+  - KXETH NO@94c warming: n=15, p=0.581 — not actionable ✅
+  - REQUEST 15: no CCA response yet (follow-up written to POLYBOT_TO_CCA.md) ✅
+
+### Active Live Bets (S124 start)
+  - Trade 4624: KXSOL15M YES @ 91c, 19.11 USD — pending 21:30 UTC
+  - Trade 4625: KXXRP15M YES @ 92c, 19.32 USD — pending 21:30 UTC
+
