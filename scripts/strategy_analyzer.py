@@ -69,9 +69,25 @@ _KNOWN_GUARDS: list[tuple] = [
 ]
 
 
+def _load_auto_guards() -> list[tuple]:
+    """Load auto-discovered guards from auto_guards.json."""
+    ag_path = Path(__file__).parent.parent / "data" / "auto_guards.json"
+    if not ag_path.exists():
+        return []
+    try:
+        data = json.loads(ag_path.read_text())
+        return [
+            (g["price_cents"], g["side"], g.get("ticker_contains"))
+            for g in data.get("guards", [])
+        ]
+    except Exception:
+        return []
+
+
 def _is_guarded(price_cents: int, side: str, ticker_prefix: str = "") -> bool:
-    """Return True if this price/side/ticker combination is already guarded in live.py."""
-    for gp, gs, gt in _KNOWN_GUARDS:
+    """Return True if this price/side/ticker combination is already guarded in live.py or auto_guards.json."""
+    all_guards = _KNOWN_GUARDS + _load_auto_guards()
+    for gp, gs, gt in all_guards:
         if gp == price_cents and gs == side:
             if gt is None or (ticker_prefix and gt in ticker_prefix):
                 return True
