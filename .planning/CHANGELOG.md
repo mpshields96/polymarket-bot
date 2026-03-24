@@ -7632,3 +7632,77 @@ amplifies losses vs +5c/contract wins.
   Requests pending: 16, 17, 18, 19 (SDATA-limited until April 1)
   Next action: SDATA resets April 1 — CCA will be able to research again then.
 
+
+---
+
+## Session 129 — 2026-03-24 ~03:10 UTC (monitoring wrap)
+
+### Summary
+Monitoring session. Key build: fixed merge_guards dedup bug that was silently
+dropping hour guards for the same ticker at different UTC hours. KXETH 02:xx was
+being dropped because KXETH 08:xx had already claimed key (ticker_contains, None, None).
+Fixed key to include utc_hour. KXETH 02:xx (12 bets, 83.3% WR vs 94.4% needed, -29.45 USD)
+now active. Bot restarted with 8 auto-guards (was 7).
+
+Also: continued from S129 context compaction — earlier session built kalshi_self_learning.py,
+self-learning definition directive, Terminal.app profile (~/Desktop/Polybot.terminal).
+
+### Builds This Session
+1. fix: merge_guards dedup key now includes utc_hour — hour guards for same ticker
+   at different UTC hours no longer collide (commit 04cf620)
+   - Regression test: 7 TestMergeGuards tests added
+   - KXETH 02:xx added to auto_guards.json, bot restarted with 8 guards active
+2. (From earlier in S129, pre-compaction): kalshi_self_learning.py built
+   p_lose / p_edge fix, SELF_LEARNING_DEFINITION.md, SELF_LEARNING_ARCHITECTURE.md
+3. Terminal.app Polybot profile written to ~/Desktop/Polybot.terminal
+
+### Strategy Analyzer Insights (--brief)
+  All-time: -15.69 USD (82% WR, 1246 bets)
+  Today: +0.81 USD (94% WR, 16 bets)
+  SNIPER: Profitable buckets 90-94c. Guarded: 95, 96, 97, 98c (blocked).
+  btc_drift_v1: NEUTRAL — 80 bets, 50% WR, direction_filter='no' [27% spread]
+  eth_drift_v1: UNDERPERFORMING — 46% WR. Trend=DECLINING.
+  sol_drift_v1: HEALTHY — 45 bets, 67% WR, -14.08 USD (drift disabled, Bayesian accumulating)
+
+### P&L
+  Today: -0.87 USD live (15 settled, 93% WR — sniper clean zone only)
+  All-time live: -15.69 USD
+  All-time paper: +221.13 USD
+
+### Auto-Guards
+  Before: 7 guards (missing KXETH 02:xx due to dedup bug)
+  After: 8 guards (KXETH 02:xx at 83.3% WR, -29.45 USD added)
+  KXSOL 03:xx p=0.205 — warming, not yet at threshold (p < 0.20 needed)
+  KXXRP 08:xx p=0.012 — very significant but n=8 (threshold requires n>=10)
+
+### Self-Rating
+  GRADE: B
+  WINS: merge_guards dedup fix was genuine self-learning — real guard was silently
+    missing, costing real money. Fixed root cause, not symptom. 7 regression tests added.
+  LOSSES: P&L flat today. kalshi_self_learning.py is still passive (not wired back
+    into bet decisions automatically — next step is CUSUM auto-guard wire).
+  ONE THING next chat must do differently: focus on the CUSUM->auto-guard wire as the
+    next actual self-learning build (CUSUM S>=5.0 in any bucket fires guard automatically).
+  ONE THING that would have made more money earlier: KXETH 02:xx guard should have been
+    caught earlier — the dedup bug was present since hour guards were added.
+
+### Guard Stack After S129
+  IL-33: KXXRP GLOBAL BLOCK
+  IL-34: KXBTC NO@95c
+  IL-35: KXSOL sniper 05:xx UTC
+  IL-36: KXETH NO@95c
+  IL-24: KXSOL NO@95c
+  8 auto-guards: original 5 + KXBTC/KXETH 08:xx (redundant with main.py block) + KXETH 02:xx (NEW)
+  HOUR BLOCK: frozenset({8})
+
+### Goal Progress
+  All-time P&L: -15.69 USD | Distance to +125 USD goal: 140.69 USD
+  Today: 94% WR sniper clean zone only, +0.81 USD
+  Rate: ~3-5 USD/day clean zone estimate
+  Highest-leverage: CUSUM->auto-guard wire. Converts reporting to actual self-learning.
+    Also: KXXRP 08:xx n=8 — one more week accumulates to threshold, auto-guard fires.
+
+### CCA Status
+  Last delivery: 2026-03-21 12:30 UTC (>48hr since last delivery)
+  Requests pending: 16, 17, 18, 19, 23, 24 (SDATA resets April 1)
+  April 1: CCA SDATA resets — expect responses to backlog then.

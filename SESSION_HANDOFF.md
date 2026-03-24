@@ -1,13 +1,13 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-23 ~23:50 UTC (Session 128 monitoring wrap)
+# Last updated: 2026-03-24 ~03:10 UTC (Session 129 monitoring wrap)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
-  Bot RUNNING — PID 73341. Log: /tmp/polybot_session129.log
-  All-time live P&L: -16.50 USD (S129 in progress)
+  Bot RUNNING — PID 87899. Log: /tmp/polybot_session129.log
+  All-time live P&L: -15.69 USD
   Bankroll: ~74 USD (estimate)
-  Tests: 1734 passing. Last commit: 1334d5d (feat: kalshi_self_learning.py — unified orchestrator)
+  Tests: 1740 passing. Last commit: 04cf620 (fix: merge_guards dedup key includes utc_hour)
   eth_drift: DISABLED (min_drift_pct=9.99)
   xrp_drift: DISABLED (min_drift_pct=9.99 as of S122)
   sol_drift: DISABLED (min_drift_pct=9.99 as of S123)
@@ -15,29 +15,26 @@
   KXXRP sniper: BLOCKED globally (IL-33, S125)
   IL-34: KXBTC NO@95c — BLOCKED (S127)
   IL-35: KXSOL sniper at 05:xx UTC — BLOCKED (S127)
-  IL-36: KXETH NO@95c — BLOCKED (S128) — NEW THIS SESSION
+  IL-36: KXETH NO@95c — BLOCKED (S128)
   IL-24: KXSOL NO@95c — BLOCKED (legacy)
   ALL NO@95c now blocked across all 4 assets. YES@95c remains open (+31.89 USD all-time).
 
-## S129 MONITORING KEY FACTS (2026-03-24 ~02:00 UTC)
+## S130 KEY FACTS
 
-  BUILDS THIS SESSION:
-  - S129 MAJOR BUILD: kalshi_self_learning.py — unified self-learning orchestrator
-    Uses CCA's calibration_bias.py + dynamic_kelly.py. Analyzes 256 buckets.
-    Runs --brief every 3rd cycle (passive). --save for full analysis.
-    FIRST RUN FINDINGS: sniper HEALTHY, 50-60c zone overpriced by 5% (confirms drift headwind)
-    Cross-session persistence: data/learning_state.json
-    Architecture documented: .planning/SELF_LEARNING_ARCHITECTURE.md
-  - TRUE_STAGNATION_ANALYSIS.md written (S128/129): DB-verified root causes
-  - CCA tools copied + win condition fixed: scripts/analysis/
-  - Bot frozen during session, restarted as session129 (PID 73341)
-  - S128 builds: IL-36 KXETH NO@95c, reports/3-23-kalshi-response.md
-  - KXSOL 03:xx: p=0.205 (still above guard threshold, watch)
+  BUILDS S129:
+  - fix: merge_guards dedup key now includes utc_hour (04cf620)
+    KXETH 02:xx guard was silently dropped — key (KXETH, None, None) collided with KXETH 08:xx.
+    Fixed: key is now (ticker_contains, price_cents, side, utc_hour). 7 regression tests added.
+    KXETH 02:xx: 12 bets, 83.3% WR vs 94.4% needed, -29.45 USD. Now active. 8 guards total.
+  - S129 (earlier, pre-compaction): kalshi_self_learning.py, SELF_LEARNING_DEFINITION.md,
+    SELF_LEARNING_ARCHITECTURE.md, Terminal.app profile (~/Desktop/Polybot.terminal)
 
   PENDING TASKS:
-  1. Run auto_guard_discovery.py at startup — KXSOL 03:xx approaching threshold
-  2. CCA REQUESTS 16-23 pending (SDATA resets April 1)
-  3. eth_orderbook CUSUM 4.020/5.0 — PAPER ONLY, approaching threshold
+  1. CUSUM → auto-guard wire: CUSUM S>=5.0 → auto_guard fires automatically (no human step)
+     This is the next real self-learning build per SELF_LEARNING_DEFINITION.md
+  2. CCA REQUESTS 16-24 pending (SDATA resets April 1 — expect responses then)
+  3. eth_orderbook CUSUM 4.020/5.0 — PAPER ONLY, approaching threshold. Disable at S>=5.0.
+  4. KXXRP 08:xx p=0.012, n=8 — very significant but below n=10 threshold. Watch.
 
   KEY EVENTS S128:
   - Session net: -8.94 USD (started -7.56, ended -16.50)
