@@ -1076,8 +1076,10 @@ class TestSniperNegativeEvBucketGuard:
         assert result is None
         kalshi.create_order.assert_not_called()
 
-    async def test_yes_at_95c_not_blocked(self, live_env, bypass_first_run):
-        """YES@95c is NOT blocked -- 35 bets, 100% WR, +18.32 USD (profitable)."""
+    async def test_yes_at_95c_blocked_by_ceiling(self, live_env, bypass_first_run):
+        """YES@95c IS blocked -- S130: ceiling lowered from 95c to 94c.
+        Data: 95c bets = 160 bets, 96.3% WR, -7.26 USD cumulative. Break-even ~95.2% with fee.
+        The 0.7pp edge over break-even creates unacceptable volatility for marginal gain."""
         ob = make_orderbook(no_bid=5)  # no_bid=5 -> yes_ask = 95c
         signal = make_signal(side="yes", price_cents=93)
         kalshi = make_kalshi_mock()
@@ -1089,8 +1091,8 @@ class TestSniperNegativeEvBucketGuard:
             price_guard_min=1, price_guard_max=99,
         )
 
-        assert result is not None
-        kalshi.create_order.assert_called_once()
+        assert result is None
+        kalshi.create_order.assert_not_called()
 
     async def test_yes_at_98c_blocked_by_ceiling(self, live_env, bypass_first_run):
         """YES@98c is BLOCKED by ceiling -- break-even WR 98.99% vs 98% observed (-9.06 USD)."""
@@ -1433,8 +1435,9 @@ class TestPerAssetStructuralLossGuards:
         )
         assert result is None
 
-    async def test_sol_yes_at_95c_not_blocked(self, live_env, bypass_first_run):
-        """KXSOL YES@95c is NOT blocked -- 100% WR, profitable. Only XRP is blocked at 95c."""
+    async def test_sol_yes_at_95c_blocked(self, live_env, bypass_first_run):
+        """KXSOL YES@95c is BLOCKED -- S130: global ceiling lowered to 94c.
+        All assets blocked at 95c regardless of per-asset historical WR."""
         ob = make_orderbook(no_bid=5)  # yes_ask = 95c
         signal = make_signal(side="yes", price_cents=93, ticker="KXSOL15M-26MAR160415-15")
         kalshi = make_kalshi_mock()
@@ -1450,11 +1453,12 @@ class TestPerAssetStructuralLossGuards:
             price_guard_min=1,
             price_guard_max=99,
         )
-        assert result is not None
-        kalshi.create_order.assert_called_once()
+        assert result is None
+        kalshi.create_order.assert_not_called()
 
-    async def test_btc_yes_at_95c_not_blocked(self, live_env, bypass_first_run):
-        """KXBTC YES@95c is NOT blocked -- 100% WR, profitable. Only XRP is blocked at 95c."""
+    async def test_btc_yes_at_95c_blocked(self, live_env, bypass_first_run):
+        """KXBTC YES@95c is BLOCKED -- S130: global ceiling lowered to 94c.
+        All assets blocked at 95c regardless of per-asset historical WR."""
         ob = make_orderbook(no_bid=5)  # yes_ask = 95c
         signal = make_signal(side="yes", price_cents=93, ticker="KXBTC15M-26MAR160415-15")
         kalshi = make_kalshi_mock()
@@ -1470,9 +1474,8 @@ class TestPerAssetStructuralLossGuards:
             price_guard_min=1,
             price_guard_max=99,
         )
-        assert result is not None
-        kalshi.create_order.assert_called_once()
-        kalshi.create_order.assert_called_once()
+        assert result is None
+        kalshi.create_order.assert_not_called()
 
     async def test_xrp_no_at_92c_blocked(self, live_env, bypass_first_run):
         """IL-21: KXXRP NO@92c blocked -- 75% WR needs 92% break-even, structurally unrecoverable."""
@@ -2189,14 +2192,15 @@ class TestSniperExecutionCeiling:
         assert result is None
         kalshi.create_order.assert_not_called()
 
-    async def test_sniper_allows_yes_at_95c_exactly(self, live_env, bypass_first_run):
-        """Sniper allows YES@95c — exactly at ceiling, profitable bucket."""
-        ob = make_orderbook(yes_bid=95)
-        signal = make_signal(side="yes", price_cents=95, ticker="KXBTC15M-26MAR170445-45")
+    async def test_sniper_allows_yes_at_94c_exactly(self, live_env, bypass_first_run):
+        """Sniper allows KXETH YES@94c — exactly at new ceiling (S130: lowered from 95c to 94c).
+        Uses ETH ticker because KXBTC YES@94c is auto-guarded (92.3% WR, -9.94 USD)."""
+        ob = make_orderbook(yes_bid=94)
+        signal = make_signal(side="yes", price_cents=94, ticker="KXETH15M-26MAR170445-45")
         kalshi = make_kalshi_mock()
         result = await execute(
             signal,
-            make_market(yes_price=95, no_price=5),
+            make_market(yes_price=94, no_price=6),
             ob,
             5.0,
             kalshi,

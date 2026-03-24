@@ -36,14 +36,14 @@ LOCK_FILE = PROJECT_ROOT / "kill_switch.lock"
 EVENT_LOG = PROJECT_ROOT / "KILL_SWITCH_EVENT.log"
 
 # ── Hard limits — these cannot be changed by config ──────────────
-HARD_MAX_TRADE_USD = 20.00        # Absolute ceiling per trade (restored S78: March 14 formula — guards block losers, larger bets on winners)
+HARD_MAX_TRADE_USD = 10.00        # Absolute ceiling per trade (S130: halved from 20 — data shows 90-94c zone yields +16 USD/day avg; at 20 USD/bet variance was ±67 USD/day, unworkable. 10 USD halves variance, still targets +8 USD/day = 240 USD/month from sniper alone)
 HARD_MIN_BANKROLL_USD = 20.00     # Below $20 = hard stop
 DAILY_LOSS_LIMIT_PCT = 0.20       # 20% daily loss = soft kill (resets midnight)
 CONSECUTIVE_LOSS_LIMIT = 8        # Losses before cooling period (raised Session 41: daily limit governs at Stage 1)
 COOLING_PERIOD_HOURS = 2          # Hours to pause after CONSECUTIVE_LOSS_LIMIT
 MAX_HOURLY_TRADES = 15            # Trades per hour before rate-limit pause
 MAX_AUTH_FAILURES = 3             # Consecutive auth failures before halt
-MAX_TRADE_PCT = 0.15              # 15% of bankroll per trade (restored S78: March 14 used 15% → avg 14-15 USD, +65 USD peak day)
+MAX_TRADE_PCT = 0.08              # 8% of bankroll per trade (S130: reduced from 15% — at 138 USD bankroll: 8%=11.04, capped at 10 HARD_MAX. Sniper sizes to round(bankroll*0.08,2)-0.01)
 
 
 class KillSwitchState:

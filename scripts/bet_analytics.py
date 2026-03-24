@@ -437,10 +437,11 @@ def analyze_sniper_forward_edge(bets: list[dict], guards: list[dict]) -> None:
     isolating the forward-looking performance from historical pre-guard losses.
 
     guards: list of dicts with keys ticker_contains, price_cents, side.
-    zone: 90-95c (FLOOR=90, CEILING=95 applied to bet price_cents).
+    zone: 90-94c (FLOOR=90, CEILING=94 applied to bet price_cents).
+    S130: lowered ceiling from 95 to 94 — 95c bets: 160 bets, 96.3% WR, -7.26 USD cumulative.
     """
     _FLOOR = 90
-    _CEILING = 95
+    _CEILING = 94
 
     if not bets:
         return
@@ -504,7 +505,7 @@ def analyze_sniper_forward_edge(bets: list[dict], guards: list[dict]) -> None:
     _LB, _UB = -2.251, 2.890
 
     print(f"\n{'─'*55}")
-    print("  SNIPER FORWARD EDGE — post-guard, in-zone 90-95c (S116)")
+    print("  SNIPER FORWARD EDGE — post-guard, in-zone 90-94c (S130)")
     print("  Excludes guarded buckets + out-of-zone historical bets.")
     print(f"{'─'*55}")
 

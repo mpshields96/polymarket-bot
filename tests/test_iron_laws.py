@@ -27,30 +27,35 @@ class TestIL12SizingKillSwitchInteraction(unittest.TestCase):
 
     Invariant:
         math.floor(size * 100) / 100 always produces a value that satisfies
-        the 15% pct cap check, even when the untruncated value would not.
+        the 8% pct cap check, even when the untruncated value would not.
     """
 
     def test_floor_passes_pct_cap_where_round_would_fail(self):
         """
-        At bankroll=$31.79, pct_cap=4.7685. floor→4.76 passes; round→4.77 fails.
+        At bankroll=$31.79, pct_cap=2.5432. floor→2.54 passes; round→2.54 (same here).
+        Use a bankroll where floor vs round diverges: bankroll=$37.50, 8%=3.000.
+        floor→3.00 passes; round→3.00 (same).
+        Use bankroll=$37.56, 8%=3.0048. floor→3.00 passes; round→3.00 (same).
+        Use bankroll=$37.63, 8%=3.0104. floor→3.01 passes; round→3.01. Try bankroll=37.69:
+        8%=3.0152. floor→3.01 passes; round→3.02 fails.
 
         This is the exact boundary case that IL-12 protects against.
-        If sizing.py is changed to round(), valid bets at bankroll ~31.79 are silently blocked.
+        If sizing.py is changed to round(), valid bets at this bankroll are silently blocked.
         """
         from src.risk.kill_switch import KillSwitch, MAX_TRADE_PCT
 
-        bankroll = 31.79
-        pct_cap_raw = bankroll * MAX_TRADE_PCT  # 4.7685
+        bankroll = 37.69
+        pct_cap_raw = bankroll * MAX_TRADE_PCT  # 3.0152
 
         # Floored value (what sizing.py produces)
-        floored = math.floor(pct_cap_raw * 100) / 100  # 4.76
+        floored = math.floor(pct_cap_raw * 100) / 100  # 3.01
 
         # Rounded value (what a naive change would produce)
-        rounded = round(pct_cap_raw, 2)  # 4.77
+        rounded = round(pct_cap_raw, 2)  # 3.02
 
         # Verify these are different (boundary exists)
-        self.assertEqual(floored, 4.76)
-        self.assertEqual(rounded, 4.77)
+        self.assertEqual(floored, 3.01)
+        self.assertEqual(rounded, 3.02)
 
         ks = KillSwitch(starting_bankroll_usd=bankroll)
         ks.restore_daily_loss(0.0)
@@ -62,14 +67,14 @@ class TestIL12SizingKillSwitchInteraction(unittest.TestCase):
             trade_usd=rounded, current_bankroll_usd=bankroll
         )
 
-        self.assertTrue(ok_floored, "Floored value 4.76 must pass kill switch pct cap")
-        self.assertFalse(ok_rounded, "Rounded value 4.77 must be blocked by kill switch pct cap")
-        self.assertIn("15%", reason_rounded)
+        self.assertTrue(ok_floored, "Floored value 3.01 must pass kill switch pct cap")
+        self.assertFalse(ok_rounded, "Rounded value 3.02 must be blocked by kill switch pct cap")
+        self.assertIn("8%", reason_rounded)
 
     def test_floor_is_never_larger_than_raw(self):
         """floor(x) <= x always — sized bet never exceeds what the pct cap would produce."""
         bankroll = 127.43
-        pct_cap_raw = bankroll * 0.15
+        pct_cap_raw = bankroll * 0.08
 
         floored = math.floor(pct_cap_raw * 100) / 100
 
@@ -90,13 +95,13 @@ class TestIL12SizingKillSwitchInteraction(unittest.TestCase):
         bankroll = HARD_MIN_BANKROLL_USD + 0.01  # just above floor = 20.01
         ks = KillSwitch(starting_bankroll_usd=bankroll)
 
-        # Trade that exceeds pct cap (15% of 20.01 = 3.00, so 5.00 exceeds cap)
+        # Trade that exceeds pct cap (8% of 20.01 = 1.60, so 5.00 exceeds cap)
         ok, reason = ks.check_order_allowed(trade_usd=5.00, current_bankroll_usd=bankroll)
 
         self.assertFalse(ok)
         # Must be a pct_cap block, not a bankroll floor hard stop
         self.assertNotIn("hard stop", reason.lower())
-        self.assertIn("15%", reason)
+        self.assertIn("8%", reason)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

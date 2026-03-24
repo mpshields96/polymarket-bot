@@ -1436,15 +1436,16 @@ async def expiry_sniper_loop(
 
     Live/paper mode controlled by live_executor_enabled + live_confirmed params.
     Live path uses price_guard_min=1, price_guard_max=99 (sniper operates at 87-99c).
-    Live sizing: HARD_MAX_TRADE_USD directly (Kelly not used — edge_pct ~0.37% at 90c,
-    Kelly fraction ~9.9% maps to ~$11, clips to $5 HARD_MAX anyway).
+    Live sizing: HARD_MAX_TRADE_USD directly (Kelly not used — full Kelly at 93c/93% WR
+    = 2.88% of bankroll = ~4 USD at 138 USD bankroll; using ~7.5% = 2.6x Kelly for income target).
+    S130: HARD_MAX_TRADE_USD = 10.00, MAX_TRADE_PCT = 8%. At 138 USD bankroll: ~9.99 USD/bet.
 
     kill_switch.check_paper_order_allowed() for paper; check_order_allowed() for live.
     minutes_remaining=None passed to kill switch (sniper has own 5s hard skip).
 
     Timing: Use market.close_time directly — NOT clock modulo arithmetic.
     Sizing: Paper = fixed PAPER_CALIBRATION_USD = 0.50.
-            Live = HARD_MAX_TRADE_USD ($5.00), no Kelly.
+            Live = HARD_MAX_TRADE_USD ($10.00), no Kelly.
     """
     from src.strategies.expiry_sniper import ExpirySniperStrategy
     from src.execution.paper import PaperExecutor
