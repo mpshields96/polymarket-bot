@@ -7706,3 +7706,74 @@ self-learning definition directive, Terminal.app profile (~/Desktop/Polybot.term
   Last delivery: 2026-03-21 12:30 UTC (>48hr since last delivery)
   Requests pending: 16, 17, 18, 19, 23, 24 (SDATA resets April 1)
   April 1: CCA SDATA resets — expect responses to backlog then.
+
+## Session 130 — 2026-03-24 ~04:45 UTC (monitoring wrap + research)
+
+### Changed
+- src/risk/kill_switch.py: HARD_MAX_TRADE_USD 20→10, MAX_TRADE_PCT 0.15→0.08
+  Commit: 0f68a5a
+- src/execution/live.py: _SNIPER_EXECUTION_CEILING_CENTS 95→94
+- scripts/bet_analytics.py: _CEILING 95→94
+- tests/test_kill_switch.py, test_iron_laws.py, test_live_executor.py: updated for new constants
+- ~/.claude/cross-chat/: BOT_STATUS.md, REQUEST_QUEUE.md, DELIVERY_ACK.md, CCA_STATUS.md (NEW)
+- ~/.claude/cross-chat/README.md: updated for new 4-file comms system + research chat gone
+- SESSION_HANDOFF.md, POLYBOT_INIT.md: updated for S130 permanent changes
+- Commit: 11dbb86 (docs: S130 monitoring wrap)
+
+### Why
+- Bet sizing halved: at 20 USD/bet, bad days -67 USD (March 17 crash). At 10 USD max,
+  variance halved. Full Kelly at 93c = ~4 USD/bet; new 8% PCT = 2.8x Kelly (was 5.2x).
+- Ceiling 95→94: 95c bets showed only +1.3pp margin after fee (BE=95.2%, WR=96.3%).
+  -7.26 USD cumulative at 95c. Not worth contributing to daily variance.
+- Research chat permanently gone: Matthew explicit directive S130. Main chat does both roles.
+  This eliminates chat overhead and simplifies the system.
+- Cross-chat comms infra: built to eliminate Matthew as messenger. CCA and monitoring chat
+  now communicate autonomously via structured files.
+
+### Strategy Analyzer Insights (strategy_analyzer.py --brief)
+- All-time: -7.12 USD (83% WR, 1254 live bets settled)
+- Today: +9.38 USD (96% WR, 24 bets) — clean zone performing well
+- Target: 132.12 USD to +125 USD goal
+- Sniper profitable buckets: 90-94c (clean zone confirmed)
+- Sniper guarded buckets: 98, 97, 96, 95c (all correctly blocked)
+- btc/eth/sol/xrp drift: all DISABLED, all below 50% WR historically
+- expiry_sniper_v1: 75 live bets, READY FOR LIVE, +306.69 USD sniper-only
+
+### Session P&L
+- Session start: -15.69 USD all-time
+- Session end: -7.12 USD all-time (+8.57 USD session net)
+- Today: +7.70 USD live (22/23 = 95.7% WR on sniper)
+- Forward clean zone EV: ~8 USD/day at new 10 USD sizing
+
+### Self-Rating: B+
+WINS:
+- Cross-chat comms infra built (4 new files, eliminates Matthew as messenger)
+- CCA briefed on all S130 changes + MT request written (Matthew's authorization given)
+- REQ-026 filed: KXBTCD near-expiry sniper — live probe found YES@92c, 12K vol, 30min to settle
+  Same FLB mechanism. Break-even 90.8% at 92c. Concrete second edge candidate.
+- Session net: +8.57 USD (bet sizing and ceiling working correctly)
+LOSSES:
+- No new live code shipped — all docs/infrastructure/research
+- Monitoring script had f-string syntax error (false alarm exit code 2)
+- Income gap still open: sniper alone ~8 USD/day, need 15-25 USD/day
+ONE THING next chat must do better: When CCA delivers REQ-025/026, implement paper trading
+of KXBTCD near-expiry sniper SAME SESSION — don't defer data collection.
+HIGHEST LEVERAGE: Start paper-trading KXBTCD near-expiry 90-94c slots NOW (each day = data)
+
+### Goal Progress
+- All-time: -7.12 USD | Goal: +125 USD | Distance: 132.12 USD
+- At ~8 USD/day clean zone: ~16.5 days (sniper only, no second edge)
+- At ~15 USD/day (if second edge found): ~8.8 days
+- Highest-leverage action: validate + build KXBTCD near-expiry paper sniper
+
+### Research Findings (S130 — during drought)
+- KXBTCD near-expiry sniper: live probe at 04:27 UTC found T70299.99 YES=92c, 12,341 vol,
+  30min to settlement. FLB should apply. Break-even at 92c with fee = ~90.8% WR needed.
+  Even at 94% WR (below 15M sniper's 97.4%), still +EV. Filed as REQ-026.
+- CCA S141 delivery reviewed: validated 94c ceiling change, weather paper-only confirmed.
+  DB discrepancy: CCA was reading paper+live combined (live-only = -7 USD).
+
+### Next Chat Priority
+1. Wait for CCA REQ-025/026 response (URGENT)
+2. When response arrives: build KXBTCD paper sniper immediately (same session)
+3. CUSUM → auto-guard wire (next build after second edge confirmed)
