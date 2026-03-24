@@ -7554,3 +7554,81 @@ Restarted, monitored, built improvements during market downtime, wrapped cleanly
   - Trade 4624: KXSOL15M YES @ 91c, 19.11 USD — pending 21:30 UTC
   - Trade 4625: KXXRP15M YES @ 92c, 19.32 USD — pending 21:30 UTC
 
+
+---
+
+## Session 128 — Monitoring Wrap (2026-03-23 ~23:50 UTC)
+
+### Summary
+Monitoring session that turned into a critical fix session. KXETH NO@95c loss (-19.95 USD)
+at 23:30 UTC triggered IL-36 guard deployment — closing the last remaining NO@95c gap.
+All NO@95c bets are now fully blocked across all 4 assets. This is the single biggest
+structural improvement since IL-33 (XRP global block).
+
+### Key Build: IL-36 — KXETH NO@95c Block
+**File:** src/execution/live.py
+**Reason:** After 22/22 = 100% WR (+17.48 USD), ETH NO@95c bet at 23:30 UTC lost -19.95 USD.
+Cumulative: 23 bets, 95.7% WR, -2.47 USD. Pattern identical to BTC (IL-34, -20.58 USD)
+and SOL (IL-24, -11.55 USD). Root cause: at 95c NO, break-even requires exactly 95% WR.
+Near-expiry bearish reversals occur slightly more than priced. Kelly over-sizing (22% bankroll)
+amplifies losses vs +5c/contract wins.
+**Evidence:**
+  ALL NO@95c: 85 bets, 94.1% WR, -41.67 USD total (all 4 assets negative)
+  YES@95c: 72 bets, 98.6% WR, +31.89 USD (asymmetry confirmed — keep YES@95c open)
+**Commit:** 6026d79
+**Tests:** 1734 passing (1 test updated: test_eth_no_at_95c_blocked_by_il36)
+
+### Strategy Analyzer Insights (--brief)
+  All-time: -16.50 USD (82% WR, 1230 bets)
+  Today:    -15.32 USD (90% WR, 39 bets)
+  Target:   141.50 USD to +125 USD goal
+  SNIPER: Profitable buckets: 90-94c (both sides) + YES@95c
+  SNIPER: Guarded buckets: 95c NO (all assets now blocked), 96c+
+  btc_drift_v1: NEUTRAL — 80 live bets, 50% WR, -9.53 USD (disabled)
+  eth_drift_v1: UNDERPERFORMING — 46% WR (disabled)
+  sol_drift_v1: HEALTHY — 45 live bets, 67% WR, -14.08 USD (disabled per Matthew directive)
+
+### Session P&L
+  All-time at start: -7.56 USD | All-time at end: -16.50 USD
+  Session net: -8.94 USD
+  Today settled: 39 bets, 35/39 wins (89.7% WR), -15.32 USD
+  Biggest loss: KXETH NO@95c -19.95 USD (the catalyst for IL-36)
+  Without that loss: +4.63 USD session (10 clean wins in range)
+
+### Core Analysis (Matthew's stagnation question — documented fully)
+  Report: reports/3-23-kalshi-response.md
+  Clean zone (YES@90-95c + NO@90-94c): +258.71 USD all-time
+  Toxic zone (NO@95c + 96-99c both sides): -188.18 USD all-time
+  Drift strategies: -69.29 USD all-time (all disabled, done)
+  With guards in place: forward bets operate exclusively in the clean zone.
+
+### Self-Rating
+  GRADE: B
+  WINS: IL-36 deployed immediately after loss. Full diagnostic report written.
+        Session recovered from -7.56 to +2.40 before the loss (10 clean wins).
+  LOSSES: Session ended -16.50 due to KXETH NO@95c loss. Should IL-36 have been
+          added BEFORE this session? In hindsight yes — the pattern was visible.
+  ONE THING next chat must do differently: check all <95c YES vs NO asymmetry at startup,
+    flag any bucket where YES vs NO have dramatically different outcomes at same price.
+  ONE THING that would have made more money: IL-36 deployed after S127 (before ETH had 23 bets).
+
+### Guard Stack After S128
+  IL-33: KXXRP GLOBAL BLOCK
+  IL-34: KXBTC NO@95c
+  IL-35: KXSOL sniper 05:xx UTC
+  IL-36: KXETH NO@95c (NEW)
+  IL-24: KXSOL NO@95c
+  7 auto-guards + hour block 08:xx
+
+### Goal Progress
+  All-time P&L: -16.50 USD | Distance to +125 USD goal: 141.50 USD
+  Sniper-only rate (clean zone): ~3-5 USD/day estimated
+  Days to goal at 3 USD/day: ~47 | At 5 USD/day: ~28
+  Highest-leverage next action: let the clean zone run undisturbed.
+    IL-36 removes the last major negative-EV source. Let data accumulate.
+
+### CCA Status
+  Last delivery: 2026-03-21 12:30 UTC (>48hr, follow-up written)
+  Requests pending: 16, 17, 18, 19 (SDATA-limited until April 1)
+  Next action: SDATA resets April 1 — CCA will be able to research again then.
+
