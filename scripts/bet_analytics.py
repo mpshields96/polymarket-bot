@@ -120,18 +120,21 @@ def run_sprt(outcomes: list[int], p0: float, p1: float,
 
 @dataclass
 class EValueResult:
-    e_value: float          # running product of likelihood ratios
-    edge_confirmed: bool    # E_n > 20
+    e_value: float          # running product of likelihood ratios (exp of log_e)
+    edge_confirmed: bool    # E_n > 20 (alpha=0.05)
+    edge_eroding: bool      # E_n < 1.0 — evidence against edge (Grunwald 2024)
     n_bets: int
     p0: float               # null hypothesis WR (break-even)
     p1: float               # alternative hypothesis WR
 
 
 class EValue:
-    """Running e-value for Bernoulli sequential testing.
+    """Running e-value for Bernoulli sequential testing (log-space).
 
-    Maintains a running product of per-bet likelihood ratios.
+    Maintains log of running product of per-bet likelihood ratios.
+    Uses log-space accumulation to avoid float overflow for large n.
     Unlike SPRT, can be checked after every bet without inflating alpha.
+    Per CCA K2 delivery: log_e < 0 = edge ERODING (not just declining).
 
     Args:
         p0: Null WR (break-even). For sniper bucket "KXBTC|93|yes", p0=0.93
@@ -144,19 +147,30 @@ class EValue:
         self.p0 = p0
         self.p1 = p1 if p1 is not None else min(p0 + 0.02, 0.999)
         self.threshold = threshold
-        self.e_value = 1.0
+        self._log_e = 0.0       # log-space running sum (avoids overflow)
         self.n_bets = 0
-        self._win_factor = self.p1 / self.p0
-        self._loss_factor = (1 - self.p1) / (1 - self.p0)
+        self._log_win = math.log(self.p1 / self.p0)
+        self._log_loss = math.log((1 - self.p1) / (1 - self.p0))
+        self._log_threshold = math.log(threshold)
 
     def update(self, won: bool) -> None:
-        """Update e-value with one bet outcome."""
-        self.e_value *= self._win_factor if won else self._loss_factor
+        """Update log e-value with one bet outcome."""
+        self._log_e += self._log_win if won else self._log_loss
         self.n_bets += 1
 
     @property
+    def e_value(self) -> float:
+        """Running e-value (exp of log accumulator). Returns inf if overflow."""
+        return math.exp(self._log_e) if self._log_e < 700 else float('inf')
+
+    @property
     def edge_confirmed(self) -> bool:
-        return self.e_value > self.threshold
+        return self._log_e > self._log_threshold
+
+    @property
+    def edge_eroding(self) -> bool:
+        """True when accumulated evidence is against the edge (per Grunwald 2024)."""
+        return self._log_e < 0
 
 
 def run_evalue(outcomes: list[int], p0: float, p1: float | None = None,
@@ -178,6 +192,7 @@ def run_evalue(outcomes: list[int], p0: float, p1: float | None = None,
     return EValueResult(
         e_value=round(ev.e_value, 4),
         edge_confirmed=ev.edge_confirmed,
+        edge_eroding=ev.edge_eroding,
         n_bets=ev.n_bets,
         p0=p0,
         p1=ev.p1,

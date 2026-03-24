@@ -86,6 +86,20 @@ class TestEValue:
         assert result.e_value == 1.0
         assert result.n_bets == 0
 
+    def test_edge_eroding_property(self):
+        ev = EValue(p0=0.93, p1=0.95)
+        # Feed many losses — log_e goes negative → edge eroding
+        for _ in range(30):
+            ev.update(won=False)
+        assert ev.edge_eroding
+        assert ev.e_value < 1.0
+
+    def test_edge_eroding_false_when_winning(self):
+        ev = EValue(p0=0.93, p1=0.95)
+        for _ in range(10):
+            ev.update(won=True)
+        assert not ev.edge_eroding
+
     def test_optional_stopping_property(self):
         """E-values support optional stopping: checking at N1 then N2 is valid.
         The e-value at N2 is always >= the e-value from an independent test."""
