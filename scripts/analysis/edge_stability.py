@@ -350,17 +350,24 @@ class EdgeStabilityAnalyzer:
     def run(self, bucket_filter: str = None) -> StabilityReport:
         """Run full edge stability analysis."""
         state = self.load_learning_state()
-        buckets_data = state.get("buckets", {})
+        # Support both schema variants:
+        # - "bucket_history" (current polybot schema): dict of bucket_key → list of session dicts
+        # - "buckets" (original CCA schema): dict of bucket_key → {"history": [...]}
+        raw = state.get("bucket_history") or state.get("buckets", {})
 
         report = StabilityReport(
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
         # Analyze each bucket
-        for bucket_key in sorted(buckets_data.keys()):
+        for bucket_key in sorted(raw.keys()):
             if bucket_filter and bucket_key != bucket_filter:
                 continue
-            history = buckets_data[bucket_key].get("history", [])
+            bucket_val = raw[bucket_key]
+            if isinstance(bucket_val, list):
+                history = bucket_val  # polybot schema: value IS the history list
+            else:
+                history = bucket_val.get("history", [])  # CCA schema
             stability = self.analyze_bucket(bucket_key, history)
             report.buckets.append(stability)
 
