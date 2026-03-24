@@ -4,10 +4,10 @@
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
-  Bot RUNNING — PID 40352. Log: /tmp/polybot_session128.log
-  All-time live P&L: -16.50 USD (session net: -8.94 USD — KXETH NO@95c loss triggered IL-36)
-  Bankroll: ~74 USD (estimate after losses)
-  Tests: 1734 passing. Last commit: 6026d79 (feat: IL-36 block KXETH NO@95c)
+  Bot RUNNING — PID 73341. Log: /tmp/polybot_session129.log
+  All-time live P&L: -16.50 USD (S129 in progress)
+  Bankroll: ~74 USD (estimate)
+  Tests: 1734 passing. Last commit: 1334d5d (feat: kalshi_self_learning.py — unified orchestrator)
   eth_drift: DISABLED (min_drift_pct=9.99)
   xrp_drift: DISABLED (min_drift_pct=9.99 as of S122)
   sol_drift: DISABLED (min_drift_pct=9.99 as of S123)
@@ -19,14 +19,25 @@
   IL-24: KXSOL NO@95c — BLOCKED (legacy)
   ALL NO@95c now blocked across all 4 assets. YES@95c remains open (+31.89 USD all-time).
 
-## S128 MONITORING KEY FACTS (2026-03-23 ~23:50 UTC)
+## S129 MONITORING KEY FACTS (2026-03-24 ~02:00 UTC)
 
   BUILDS THIS SESSION:
-  - IL-36: KXETH NO@95c BLOCKED (23 bets, 95.7% WR, -2.47 USD — same pattern as BTC/SOL)
-    All NO@95c now fully blocked across all 4 assets. Root cause of stagnation addressed.
-  - Comprehensive report written: reports/3-23-kalshi-response.md
+  - S129 MAJOR BUILD: kalshi_self_learning.py — unified self-learning orchestrator
+    Uses CCA's calibration_bias.py + dynamic_kelly.py. Analyzes 256 buckets.
+    Runs --brief every 3rd cycle (passive). --save for full analysis.
+    FIRST RUN FINDINGS: sniper HEALTHY, 50-60c zone overpriced by 5% (confirms drift headwind)
+    Cross-session persistence: data/learning_state.json
+    Architecture documented: .planning/SELF_LEARNING_ARCHITECTURE.md
+  - TRUE_STAGNATION_ANALYSIS.md written (S128/129): DB-verified root causes
+  - CCA tools copied + win condition fixed: scripts/analysis/
+  - Bot frozen during session, restarted as session129 (PID 73341)
+  - S128 builds: IL-36 KXETH NO@95c, reports/3-23-kalshi-response.md
   - KXSOL 03:xx: p=0.205 (still above guard threshold, watch)
-  - KXBTC 00:xx/03:xx dropped off warming list (improved with new data)
+
+  PENDING TASKS:
+  1. Run auto_guard_discovery.py at startup — KXSOL 03:xx approaching threshold
+  2. CCA REQUESTS 16-23 pending (SDATA resets April 1)
+  3. eth_orderbook CUSUM 4.020/5.0 — PAPER ONLY, approaching threshold
 
   KEY EVENTS S128:
   - Session net: -8.94 USD (started -7.56, ended -16.50)
