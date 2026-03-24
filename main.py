@@ -1126,6 +1126,170 @@ async def crypto_daily_loop(
         await asyncio.sleep(CRYPTO_DAILY_POLL_INTERVAL_SEC)
 
 
+# ── Daily sniper loop (KXBTCD near-expiry paper sniping) ──────────────
+
+_DAILY_SNIPER_POLL_SEC = 60   # 60s poll — needs to catch entry in 30-90min window
+
+
+async def daily_sniper_loop(
+    kalshi,
+    btc_feed,
+    db,
+    kill_switch,
+    initial_delay_sec: float = 60.0,
+    max_daily_bets: int = 10,
+):
+    """
+    KXBTCD near-expiry paper sniping loop.
+
+    Paper-only. Targets KXBTCD daily threshold markets when YES or NO price
+    is 90-94c AND settlement is within 90 minutes AND coin direction is consistent.
+
+    Academic basis: same favorite-longshot bias (FLB) as expiry_sniper_v1.
+    CCA REQ-026: academic validation pending. Paper data collection running.
+
+    Series: KXBTCD only (BTC daily threshold). KXETHD/KXSOLD can be added
+    after KXBTCD validates (same code, different series_ticker + feed).
+
+    Price ceiling: 94c (consistent with live sniper ceiling, S130).
+    Drift reference: session_open = BTC price at midnight UTC (same as crypto_daily_loop).
+    """
+    from src.strategies.daily_sniper import make_daily_sniper, DAILY_SNIPER_MAX_PRICE_CENTS
+    from src.execution.paper import PaperExecutor
+    from datetime import date as _date
+    import yaml as _yaml
+
+    strategy = make_daily_sniper()
+    paper_exec = PaperExecutor(
+        db=db,
+        strategy_name=strategy.name,
+        slippage_ticks=1,
+        fill_probability=1.0,
+    )
+
+    if initial_delay_sec > 0:
+        logger.info("[daily_sniper] Startup delay %.0fs (stagger)", initial_delay_sec)
+        await asyncio.sleep(initial_delay_sec)
+
+    logger.info("[daily_sniper] Started — paper-only KXBTCD 90-94c near-expiry sniping")
+
+    session_open: Optional[float] = None
+    session_open_date: Optional[_date] = None
+
+    while True:
+        try:
+            if kill_switch.is_hard_stopped:
+                logger.debug("[daily_sniper] Hard stop active — skipping poll")
+                await asyncio.sleep(60)
+                continue
+
+            # ── Current BTC spot price ────────────────────────────────
+            spot = btc_feed.current_price() if not btc_feed.is_stale else None
+            if spot is None or spot <= 0:
+                logger.debug("[daily_sniper] BTC feed stale — waiting")
+                await asyncio.sleep(_DAILY_SNIPER_POLL_SEC)
+                continue
+
+            # ── Session open tracking (reset at midnight UTC) ─────────
+            today_utc = datetime.now(timezone.utc).date()
+            if session_open is None or session_open_date != today_utc:
+                session_open = spot
+                session_open_date = today_utc
+                logger.info(
+                    "[daily_sniper] Session open reset: $%.2f (UTC date %s)",
+                    session_open, today_utc,
+                )
+
+            coin_drift_pct = (spot - session_open) / session_open if session_open > 0 else 0.0
+
+            # ── Fetch KXBTCD markets ──────────────────────────────────
+            try:
+                markets = await kalshi.get_markets(
+                    series_ticker="KXBTCD",
+                    status="open",
+                    limit=500,
+                )
+            except Exception as e:
+                logger.warning("[daily_sniper] Market fetch failed: %s", e)
+                await asyncio.sleep(_DAILY_SNIPER_POLL_SEC)
+                continue
+
+            if not markets:
+                logger.debug("[daily_sniper] No open KXBTCD markets found")
+                await asyncio.sleep(_DAILY_SNIPER_POLL_SEC)
+                continue
+
+            # ── Evaluate each market ──────────────────────────────────
+            for market in markets:
+                ticker = market.ticker
+
+                # Ceiling check: skip markets above 94c (loop responsibility)
+                if (market.yes_price > DAILY_SNIPER_MAX_PRICE_CENTS and
+                        market.no_price > DAILY_SNIPER_MAX_PRICE_CENTS):
+                    continue
+
+                # Generate signal (strategy handles time gate + floor + direction)
+                signal = strategy.generate_signal(
+                    market=market,
+                    coin_drift_pct=coin_drift_pct,
+                )
+                if signal is None:
+                    continue
+
+                # Dedup: skip if already have open position
+                if db.has_open_position(ticker=ticker, is_paper=True):
+                    logger.debug("[daily_sniper] Already have open position for %s — skip", ticker)
+                    continue
+
+                # Daily bet cap
+                if max_daily_bets > 0:
+                    today_count = db.count_trades_today(strategy=strategy.name, is_paper=True)
+                    if today_count >= max_daily_bets:
+                        logger.info(
+                            "[daily_sniper] Daily paper cap (%d/%d) reached",
+                            today_count, max_daily_bets,
+                        )
+                        break
+
+                # Kill switch (paper path)
+                current_bankroll = db.latest_bankroll() or 50.0
+                ok, block_reason = kill_switch.check_paper_order_allowed(
+                    trade_usd=strategy.PAPER_CALIBRATION_USD,
+                    current_bankroll_usd=current_bankroll,
+                )
+                if not ok:
+                    logger.info("[daily_sniper] Kill switch blocked paper order: %s", block_reason)
+                    continue
+
+                # Execute paper bet
+                result = paper_exec.execute(
+                    ticker=ticker,
+                    side=signal.side,
+                    price_cents=signal.price_cents,
+                    size_usd=strategy.PAPER_CALIBRATION_USD,
+                    reason=signal.reason,
+                )
+                if result:
+                    secs_left = strategy._seconds_remaining(market) or 0
+                    logger.info(
+                        "[daily_sniper] [paper] BUY %s %s @ %d¢ USD %.2f"
+                        " | drift=%+.3f%% | %ds left | trade_id=%s",
+                        ticker, signal.side.upper(), signal.price_cents,
+                        strategy.PAPER_CALIBRATION_USD,
+                        coin_drift_pct * 100,
+                        secs_left,
+                        result.get("trade_id", "?"),
+                    )
+
+        except asyncio.CancelledError:
+            logger.info("[daily_sniper] Loop cancelled — exiting")
+            break
+        except Exception as exc:
+            logger.warning("[daily_sniper] Unexpected error: %s", exc, exc_info=True)
+
+        await asyncio.sleep(_DAILY_SNIPER_POLL_SEC)
+
+
 # ── Bayesian drift model update helper ────────────────────────────────
 # Logic lives in src/models/bayesian_settlement.py for clean testability.
 from src.models.bayesian_settlement import (
@@ -3307,6 +3471,22 @@ async def main():
         name="sol_daily_loop",
     )
 
+    # ── Daily sniper loop (KXBTCD near-expiry paper sniping) ──────────
+    # Paper-only. Targets KXBTCD YES/NO at 90-94c within 90min of settlement.
+    # Same FLB mechanism as expiry_sniper_v1. CCA REQ-026 validation pending.
+    # Stagger 120s to spread from daily loops. Data collection starts immediately.
+    daily_sniper_task = asyncio.create_task(
+        daily_sniper_loop(
+            kalshi=kalshi,
+            btc_feed=btc_feed,
+            db=db,
+            kill_switch=kill_switch,
+            initial_delay_sec=120.0,
+            max_daily_bets=10,
+        ),
+        name="daily_sniper_loop",
+    )
+
     # ── Copy-trade loop (Polymarket PRIMARY strategy) ─────────────────
     # Paper-only. Polls top whale wallets every 5 min, applies decoy filters,
     # paper-executes genuine signals on api.polymarket.us markets.
@@ -3408,6 +3588,7 @@ async def main():
         copy_task.cancel()
         sports_futures_task.cancel()
         expiry_sniper_task.cancel()
+        daily_sniper_task.cancel()
 
     for _sig, _sname in ((_signal.SIGTERM, "SIGTERM"), (_signal.SIGHUP, "SIGHUP")):
         _loop.add_signal_handler(_sig, lambda n=_sname: _on_signal(n))
@@ -3421,6 +3602,7 @@ async def main():
             btc_daily_task, eth_daily_task, sol_daily_task, copy_task,
             sports_futures_task,
             expiry_sniper_task,
+            daily_sniper_task,
             return_exceptions=True,  # S90: prevent one task's exception from killing all others
         )
         # Log any tasks that died with unexpected exceptions (not CancelledError)
@@ -3429,7 +3611,7 @@ async def main():
             "xrp_drift", "btc_imbalance", "eth_imbalance", "weather", "fomc",
             "unemployment", "sol_lag", "settle",
             "btc_daily", "eth_daily", "sol_daily", "copy_trade",
-            "sports_futures", "expiry_sniper",
+            "sports_futures", "expiry_sniper", "daily_sniper",
         ]
         for _tname, _result in zip(_task_names, results):
             if isinstance(_result, Exception) and not isinstance(_result, asyncio.CancelledError):
@@ -3459,6 +3641,7 @@ async def main():
         copy_task.cancel()
         sports_futures_task.cancel()
         expiry_sniper_task.cancel()
+        daily_sniper_task.cancel()
         await asyncio.gather(
             btc_monitor_task,
             trade_task, eth_lag_task, drift_task, eth_drift_task, sol_drift_task,
@@ -3467,6 +3650,7 @@ async def main():
             btc_daily_task, eth_daily_task, sol_daily_task, copy_task,
             sports_futures_task,
             expiry_sniper_task,
+            daily_sniper_task,
             return_exceptions=True,
         )
         logger.info("Stopping feeds and connections...")
