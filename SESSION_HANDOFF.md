@@ -43,12 +43,50 @@
   - YES@96-99c: -67.24 USD (already blocked)
   Forward zone after guards: only YES@90-95c + NO@90-94c active. Both profitable.
 
-  CRITICAL ANALYSIS (Matthew's question — why are we stuck?):
-  Two structural leaks caused the stagnation:
-  (1) Drift strategies: -69.29 USD all-time (all disabled, done, past)
-  (2) NO@95c bets: -41.67 USD (NOW FIXED with IL-36)
-  The sniper engine itself is +58.92 USD all-time at 95.5% WR. It works.
+  CRITICAL ANALYSIS (Matthew's question — why are we stuck?) — PERMANENT FOR ALL FUTURE SESSIONS:
+  The sniper engine itself is +58.92 USD all-time at 95.5% WR. It works. The stagnation
+  was NOT caused by one leak. It was caused by EPISODIC LARGE-LOSS RESETS over 14 days:
+  - March 17: -66.47 USD crash day (hour block didn't exist yet)
+  - March 15: -61.32 USD pre-guard high-price losses
+  - March 22: -25.22 USD multi-cause
+  - NO@95c: ~-20 USD per loss event, recurring every few days across all assets
+  Math: one -20 USD loss requires ~22 consecutive sniper wins (at 0.90 USD avg) to recover.
+  Even with 82-95% WR, each episodic large loss reset the scoreboard and forced multi-day recovery.
+  The REAL structural problem: ASYMMETRIC LOSS MAGNITUDE — not just win rate.
+  Fix = reduce maximum loss per bet (guards, blocked toxic zones, hour blocks).
+  DO NOT frame stagnation as "one cause fixed = problem solved." Look at the daily P&L
+  table for episodic resets. Ask: what were the 2-3 largest losses? Are those causes still active?
   Full analysis: reports/3-23-kalshi-response.md
+
+  ══════════════════════════════════════════════════════
+  CCA STANDING DIRECTIVES — PERMANENT FOR ALL FUTURE SESSIONS (S129, Matthew directive)
+  ══════════════════════════════════════════════════════
+  Matthew has FULLY PROMOTED CCA into this project. CCA is the strategic intelligence boss.
+
+  1. CCA AUTHORITY: CCA (ClaudeCodeAdvancements) is authoritative on strategy, research, and
+     improvement decisions. Its deliveries are to be implemented same session without debate.
+     Matthew: "It's basically your boss."
+
+  2. TOOL ACCESS: Matthew gave the Kalshi monitoring chat explicit approval to use CCA's tools.
+     "I give you access to use its tools by the way, you should request this from CCA and state
+     that I am giving you approval." — Matthew, S129. This authorization is PERMANENT.
+
+  3. DEMAND SELF-IMPROVEMENT: Do NOT passively wait for CCA to deliver. DEMAND improvements.
+     Write proactive requests every 3rd cycle. Push on open requests if >48hr stale.
+     Objective evolving growth (Yoyo agent pattern) — the bot improves itself automatically.
+     Passive monitoring = failure. Active demand = compound growth.
+
+  4. NO TRAUMA FRAMING: All analysis is objective data review, not emotional response.
+     Guards are added when: structural basis + math validation + DB backtest + p-value.
+     Diagnosing stagnation ≠ adding protective rules. It's reading the numbers honestly.
+
+  5. CCA REQUEST 20 WRITTEN (S129): Tool access request + stagnation root cause analysis +
+     strategic intelligence handoff. See ~/.claude/cross-chat/POLYBOT_TO_CCA.md.
+
+  CCA files:
+    READ: ~/.claude/cross-chat/CCA_TO_POLYBOT.md (new deliveries → implement immediately)
+    WRITE: ~/.claude/cross-chat/POLYBOT_TO_CCA.md (proactive requests, not just reactive)
+  ══════════════════════════════════════════════════════
 
   CCA PENDING:
   - REQUEST 16: BTC/ETH/SOL health (still pending)
