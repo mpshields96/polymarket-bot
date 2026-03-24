@@ -7832,3 +7832,12 @@ Same FLB structural basis as live sniper. Each day without data = wasted learnin
 - Tests: 1773 passing
 - Today (March 24 UTC): 5 settled, 5 wins, +4.08 USD live
 - daily_sniper: 20 open paper bets (corrupted pre-fix), 0 clean bets yet
+
+### S131 Research (continued — hybrid chat inline)
+- Daily sniper DB cleanup: deleted 18 corrupted paper bets (placed at 96-99c before ceiling fix)
+  2 clean bets remain (91c, 93c YES). WR gate now starts from clean baseline.
+- 00:xx and 03:xx hourly analysis: both PROFITABLE post-guard simulation
+  00:xx: n=40, 97.5% WR, +21.41 USD (all losses from now-blocked buckets)
+  03:xx: n=39, 94.9% WR, +26.81 USD (all losses from now-blocked buckets)
+  Conclusion: no hour blocks needed for 00:xx or 03:xx. Guards are sufficient.
+  One remaining 00:xx loss: KXBTC NO@92c March 20 — isolated, not structural (n=1).
