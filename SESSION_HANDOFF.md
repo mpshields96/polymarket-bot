@@ -1,27 +1,67 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-24 ~04:20 UTC (Session 130 monitoring)
+# Last updated: 2026-03-24 ~06:15 UTC (Session 131 — ceiling fix, hybrid chat directive)
 # ═══════════════════════════════════════════════════════════════
 
+## ⚠️ HYBRID CHAT — PERMANENT ARCHITECTURE (Matthew standing directive, S131)
+## ═══════════════════════════════════════════════════════════════════════════
+## ONE CHAT DOES EVERYTHING. /kalshi-main is the ONLY Kalshi chat.
+## This chat does: live monitoring + CCA coordination + research + bug fixes + builds.
+## /kalshi-research is PERMANENTLY RETIRED. Never run it again.
+## During monitoring downtime/droughts: DO RESEARCH INLINE. Do not just watch cycles.
+## The research chat's functions are now MERGED into this chat's responsibilities.
+## Research work = DB analysis, ceiling/guard review, strategy analysis, CCA requests,
+##   academic context review, hourly pattern analysis, data integrity checks.
+## ═══════════════════════════════════════════════════════════════════════════
+
 ## BOT STATE
-  Bot RUNNING — PID 7527. Log: /tmp/polybot_session130.log
-  All-time live P&L: -9.22 USD (improving — was -15.69 at S130 start)
-  Today P&L: +5.60 USD live (19/20 sniper bets = 95% WR)
-  Tests: 1740 passing. Last commit: 0f68a5a (risk: S130 bet sizing)
+  Bot RUNNING — PID 64405. Log: /tmp/polybot_session131.log
+  All-time live P&L: ~-3.44 USD (improving) | Today: +4.08 USD (5 settled, 5 wins)
+  Tests: 1773 passing (1774 total — 1 pre-existing failure). Last commit: 0275625
+  daily_sniper_v1 DEPLOYED + CEILING BUG FIXED (commit 0275625 — see S131 BUILDS below)
   ALL DRIFTS DISABLED (min_drift_pct=9.99 for all four)
   KXXRP sniper: BLOCKED globally (IL-33)
   IL-34: KXBTC NO@95c — BLOCKED
   IL-35: KXSOL sniper at 05:xx UTC — BLOCKED
   IL-36: KXETH NO@95c — BLOCKED
   IL-24: KXSOL NO@95c — BLOCKED (legacy)
-  ALL NO@95c blocked. YES@95c capped out: ceiling now 94c (S130)
+  8 auto-guards: KXXRP NO@95c + KXSOL NO@93c + KXBTC YES@94c + KXXRP NO@93c + KXBTC NO@94c
+                 + KXBTC 08:xx + KXETH 08:xx + KXETH 02:xx
+  HOUR BLOCK: frozenset({8}) — 08:xx UTC blocked
+  YES@95c BTC/ETH/SOL: PROFITABLE, still firing (100% WR, +48.68 USD — see S131 research)
+  NO@95c: ALL BLOCKED by ILs. Only YES@95c for non-XRP still active.
 
 ## S130 KEY FACTS
 
-  PERMANENT CHANGE — RESEARCH CHAT GONE (S130, Matthew directive):
-  - Kalshi research chat PERMANENTLY ELIMINATED. Main chat does BOTH monitoring AND research.
-  - No separate research chat will ever exist again.
-  - During monitoring downtime/droughts: pivot to research work inline.
+  PERMANENT CHANGE — RESEARCH CHAT GONE (S130-S131, Matthew directive):
+  - Kalshi research chat PERMANENTLY ELIMINATED — S130 + reinforced S131 explicit directive.
+  - ONE CHAT, both roles. /kalshi-main is the only launcher.
+  - CRITICAL: During every monitoring session, always do research during downtime.
+    Never just watch cycles. Every drought = research window.
+  - Research tasks to do inline: DB analysis, hourly patterns, ceiling/guard review,
+    strategy analysis, CCA cross-chat, academic review, data integrity checks.
+
+  BUILDS S131:
+  - daily_sniper_v1 paper loop DEPLOYED (commit a68fb3f)
+    src/strategies/daily_sniper.py + tests/test_daily_sniper.py (22 tests) + main.py loop
+    KXBTCD near-expiry 90-94c, 90-min window, 30s hard skip, FLB mechanism = same as live sniper
+  - CEILING BUG FIXED (commit 0275625) — critical data integrity fix
+    Bug: daily_sniper ceiling check used AND logic → never fired → paper bets at 96-99c
+    Fix: max(yes_price, no_price) > ceiling → skip. 11 regression tests added.
+    20 corrupted open paper bets exist (placed before fix) — will settle at non-useful prices.
+    Clean data starts accumulating post-restart (PID 64405, 06:10 UTC).
+
+  S131 RESEARCH FINDINGS:
+  - YES@95c for BTC/ETH/SOL = PROFITABLE: 65 bets, 100% WR, +48.68 USD.
+    The "ceiling bug" for the live sniper is a FEATURE — ceiling only blocked NO@95c (via ILs)
+    while YES@95c kept firing. Current behavior net positive. Do NOT add live sniper ceiling.
+  - YES@96c = -13.35 USD (94.1% WR, BE=96.7%). YES@97c = -30.18 USD. These are negative.
+    Currently caught by 99c fee-floor guard at execution. No explicit 96c check needed (execution blocks).
+  - daily_sniper open bets: 20 open (14 from initial burst + 6 more), all pre-fix (corrupted data)
+    First clean paper bets will accumulate starting post-restart.
+  - Hourly sniper pattern (last 30 days): 08:xx worst (-104 USD, 82% WR, correctly blocked)
+    04:xx strongest (+43 USD, 99% WR), 11-12:xx clean (+100% WR combined)
+  - KXBTCD tickers seen historically: 30 distinct tickers.
 
   BUILDS S130:
   - Bet sizing halved: HARD_MAX_TRADE_USD 20→10, MAX_TRADE_PCT 0.15→0.08 (commit 0f68a5a)
@@ -47,10 +87,13 @@
   - ACKED in DELIVERY_ACK.md
 
   PENDING TASKS:
-  1. CUSUM → auto-guard wire: CUSUM S>=5.0 → guard fires automatically (no human step) — next build
-  2. REQ-025 URGENT: CCA to find second edge (>3% EV/bet, >5 bets/day)
-  3. REQ-011/REQ-012: CCA pending (SDATA resets April 1)
+  1. REQ-025 URGENT: CCA to find second edge (>3% EV/bet, >5 bets/day) — WRITTEN 04:35 UTC, await
+  2. daily_sniper_v1 paper validation: check WR once 30+ paper bets accumulate (KXBTCD near-expiry)
+     Strategy deployed commit a68fb3f. Paper bets = 0 as of 05:20 UTC (loop running, awaiting signals)
+  3. CUSUM → auto-guard wire: CUSUM S>=5.0 → guard fires automatically — next build after edge build
   4. eth_orderbook CUSUM 4.020/5.0 — paper only, approaching threshold. Disable at S>=5.0.
+  5. REQ-026: CCA to validate KXBTCD FLB at 90-min horizon (running in parallel with paper collection)
+  6. REQ-011/REQ-012: CCA pending (SDATA resets April 1)
 
   WARMING BUCKETS (watch only, no action yet):
   - KXETH NO@94c: n=17, 94.1% WR (need 94.4%), -4.59 USD, p=0.626 — marginal, watch

@@ -7777,3 +7777,58 @@ HIGHEST LEVERAGE: Start paper-trading KXBTCD near-expiry 90-94c slots NOW (each 
 1. Wait for CCA REQ-025/026 response (URGENT)
 2. When response arrives: build KXBTCD paper sniper immediately (same session)
 3. CUSUM → auto-guard wire (next build after second edge confirmed)
+
+---
+
+## Session 131 — 2026-03-24
+
+### Changes
+- **feat: KXBTCD near-expiry paper sniper (daily_sniper_v1)** — commit a68fb3f
+  - `src/strategies/daily_sniper.py`: `make_daily_sniper()` factory — `ExpirySniperStrategy`
+    with 90-min window (5400s), 30s hard skip, name="daily_sniper_v1"
+  - `tests/test_daily_sniper.py`: 22 tests passing (time gate, price gate, direction, properties)
+  - `main.py`: `daily_sniper_loop()` wired into asyncio.gather(). Paper-only, 94c ceiling.
+  - Bot restarted as PID 43435 → /tmp/polybot_session131.log. Daily sniper active.
+- CCA S141 delivery acknowledged. REQ-025/026 still pending (written 04:35 UTC, <1hr old at S131 start).
+- XRP global block confirmed correct: NO@93c (91.7% WR, -15.30 USD negative). No retirement candidates.
+
+### Why
+CHANGELOG noted "HIGHEST LEVERAGE: Start paper-trading KXBTCD near-expiry 90-94c slots NOW".
+CCA REQ-026 academic validation still pending but paper data collection has zero financial risk.
+Same FLB structural basis as live sniper. Each day without data = wasted learning opportunity.
+
+### Session P&L
+- Session start all-time: -6.02 USD live
+- Today live: +13.06 USD (29 settled, 28 wins = 96.6% WR) as of S131 start
+- Sniper total live bets: 905
+
+### Next Chat Priority
+1. Check daily_sniper_v1 paper bets — is it firing? Any signals in 90-94c KXBTCD zone?
+2. Wait for CCA REQ-025/026 response (URGENT — second edge)
+3. CUSUM → auto-guard wire (next build after second edge confirmed)
+
+## Session 131 — 2026-03-24 (monitoring + research hybrid)
+
+### Builds
+- daily_sniper_v1 DEPLOYED (commit a68fb3f): KXBTCD near-expiry paper sniper
+  src/strategies/daily_sniper.py + 22 tests + main.py loop. 90-min window, 30s hard skip.
+- CEILING BUG FIXED (commit 0275625): daily_sniper AND→max() ceiling check
+  Bug: (yes>94 AND no>94) never fires. Fix: max(yes,no)>94→skip. 11 regression tests.
+  Data integrity: 20 corrupted open paper bets exist (pre-fix). Clean data post-restart.
+
+### Research Findings (inline — hybrid chat)
+- YES@95c BTC/ETH/SOL: 65 bets, 100% WR, +48.68 USD. Live sniper ceiling bug = FEATURE.
+  NO@95c blocked by ILs. Current behavior is optimal. Do NOT add explicit 95c ceiling to live loop.
+- YES@96c = -13.35 USD (94.1% WR, below BE=96.7%). Caught by 99c fee-floor at execution.
+- Hourly pattern: 04:xx (+43 USD, 99% WR), 11-12:xx (100% WR) are strongest clean hours.
+- CCA S146 delivery: comms improvement + REQ-025 acknowledged. No code changes.
+
+### Architecture
+- HYBRID CHAT DIRECTIVE reinforced (S131, Matthew explicit): this session does both
+  monitoring AND research. /kalshi-research permanently retired. All research inline.
+
+### State at wrap
+- Bot PID 64405. Log: /tmp/polybot_session131.log
+- Tests: 1773 passing
+- Today (March 24 UTC): 5 settled, 5 wins, +4.08 USD live
+- daily_sniper: 20 open paper bets (corrupted pre-fix), 0 clean bets yet
