@@ -73,47 +73,77 @@ def _compute_loss_streak(outcomes: list[bool]) -> int:
 
 
 def _check_edge_convergence(bucket_key: str, history: list[dict]) -> str:
-    """Check if bucket edge has converged using ConvergenceDetector.
+    """Check if bucket edge has converged using cusum_s from latest snapshot.
 
-    Interprets bucket session history to detect:
-    - STABLE: WR consistently above break-even (healthy sniper bucket)
-    - OSCILLATING: WR alternates above/below break-even (unstable edge)
-    - CONVERGING: 3+ consecutive sessions below break-even (edge eroding)
-    - INSUFFICIENT: fewer than 3 sessions of history
+    Per CCA K2 delivery (2026-03-24): use cusum_s from learning_state.json
+    rather than win_rate history, since history entries are cumulative snapshots
+    (not per-session observations). cusum_s is computed per-bet sequentially.
 
-    Break-even WR is derived from the price in the bucket key:
-        "KXBTC|93|yes" → price=93 → BE WR = 93%
+    Signal thresholds (per CCA):
+    - cusum_s >= 4.0 → CONVERGING (approaching CUSUM alert)
+    - cusum_s < 0 → DIVERGING (edge weakening; rare at sniper prices)
+    - Else → STABLE
+    - INSUFFICIENT: fewer than 3 history entries (need baseline data)
+
+    Win-rate based oscillation detection (via ConvergenceDetector) is retained
+    but only fires when cusum_s is not informative (< 1.0).
 
     Args:
         bucket_key: Bucket identifier in format "ASSET|PRICE|SIDE"
-        history: List of session dicts, each containing "win_rate" float
+        history: List of snapshot dicts containing "win_rate", "cusum_s", etc.
 
     Returns:
-        "STABLE" | "OSCILLATING" | "CONVERGING" | "INSUFFICIENT"
+        "STABLE" | "CONVERGING" | "DIVERGING" | "OSCILLATING" | "INSUFFICIENT"
     """
     if len(history) < 3:
         return "INSUFFICIENT"
 
+    # Primary signal: cusum_s from latest snapshot (per-bet sequential stat)
+    latest = history[-1]
+    cusum_s = latest.get("cusum_s")
+    if cusum_s is not None:
+        if cusum_s >= 4.0:
+            return "CONVERGING"
+        if cusum_s < 0:
+            return "DIVERGING"
+        # cusum_s in [0, 4): use win_rate oscillation as secondary signal
+        try:
+            price = int(bucket_key.split("|")[1])
+        except (IndexError, ValueError):
+            return "STABLE"
+
+        be_wr = price / 100.0
+        detector = ConvergenceDetector(
+            plateau_threshold=0.5,
+            discard_streak_limit=3,
+            oscillation_window=5,
+        )
+        for h in history:
+            wr = h.get("win_rate", 0.0)
+            accepted = wr >= be_wr
+            detector.add_observation(metric_value=wr * 100, accepted=accepted)
+        signals = detector.check_convergence()
+        if any(s.signal_type == "oscillation" for s in signals):
+            return "OSCILLATING"
+        return "STABLE"
+
+    # Fallback: no cusum_s → pure ConvergenceDetector
     try:
         price = int(bucket_key.split("|")[1])
     except (IndexError, ValueError):
         return "INSUFFICIENT"
 
     be_wr = price / 100.0
-
     detector = ConvergenceDetector(
         plateau_threshold=0.5,
         discard_streak_limit=3,
         oscillation_window=5,
     )
-
     for h in history:
         wr = h.get("win_rate", 0.0)
         accepted = wr >= be_wr
         detector.add_observation(metric_value=wr * 100, accepted=accepted)
-
     signals = detector.check_convergence()
-
     if any(s.signal_type == "oscillation" for s in signals):
         return "OSCILLATING"
     if any(s.signal_type == "discard_streak" for s in signals):

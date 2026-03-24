@@ -15,9 +15,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts", "ana
 from strategy_health_scorer import _check_edge_convergence
 
 
-def _make_history(win_rates: list[float]) -> list[dict]:
+def _make_history(win_rates: list[float], cusum_s: float | None = None) -> list[dict]:
     """Build bucket history list from win rate sequence."""
-    return [{"win_rate": wr, "n": 10} for wr in win_rates]
+    entries = [{"win_rate": wr, "n": 10} for wr in win_rates]
+    if cusum_s is not None:
+        # Set cusum_s on latest entry only (reflects current state)
+        entries[-1]["cusum_s"] = cusum_s
+    return entries
 
 
 class TestCheckEdgeConvergence:
@@ -65,3 +69,27 @@ class TestCheckEdgeConvergence:
     def test_insufficient_empty(self):
         result = _check_edge_convergence("KXBTC|93|yes", [])
         assert result == "INSUFFICIENT"
+
+    def test_cusum_s_high_returns_converging(self):
+        # cusum_s >= 4.0 overrides win_rate history → CONVERGING
+        history = _make_history([0.96, 0.95, 0.97], cusum_s=4.5)
+        result = _check_edge_convergence("KXBTC|93|yes", history)
+        assert result == "CONVERGING"
+
+    def test_cusum_s_negative_returns_diverging(self):
+        # cusum_s < 0 → DIVERGING
+        history = _make_history([0.96, 0.95, 0.97], cusum_s=-0.5)
+        result = _check_edge_convergence("KXBTC|93|yes", history)
+        assert result == "DIVERGING"
+
+    def test_cusum_s_low_uses_win_rate_oscillation(self):
+        # cusum_s in [0, 4) → falls back to win_rate oscillation check
+        history = _make_history([0.90, 0.96, 0.89, 0.95, 0.88, 0.97], cusum_s=1.0)
+        result = _check_edge_convergence("KXBTC|93|yes", history)
+        assert result == "OSCILLATING"
+
+    def test_cusum_s_low_stable_bucket(self):
+        # cusum_s in [0, 4) + consistent WR → STABLE
+        history = _make_history([0.96, 0.95, 0.97, 0.94, 0.96], cusum_s=0.5)
+        result = _check_edge_convergence("KXBTC|93|yes", history)
+        assert result == "STABLE"
