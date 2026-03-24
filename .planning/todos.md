@@ -973,3 +973,32 @@ TODO: strategy_analyzer.py shows '98c: Losing buckets (guards recommended)' as f
   DO NOT add KXETH YES@93c to guards — the hour block covers it.
   Monitor: as n grows beyond 10, verify P&L stays positive (outside 08:xx bets).
   auto_guard_discovery.py correctly shows p=0.581 (not actionable) — trust this metric.
+
+## S133 — CCA K2 Research Delivery (2026-03-24) — HIGH PRIORITY
+
+### TODO: E-Value Testing (replace SPRT in bet_analytics.py)
+Priority: HIGH — fixes optional stopping problem in current SPRT
+Implementation:
+  pip install confseq (add to requirements.txt)
+  Per-bucket: maintain running e-value product E_n
+  Edge confirmed: E_n > 20 (alpha=0.05)
+  Edge erosion: E_n declining over last N bets
+  Drop-in: replace SPRT lambda in bet_analytics.py
+Papers: Grunwald 2024 JRSS-B, Ter Schure & Grunwald 2024 PNAS, Waudby-Smith 2024 JRSS-B
+NOTE: Current SPRT still valid. E-values are an upgrade, not an emergency fix.
+
+### TODO: Kelly with Correlation (aggregate BTC exposure cap)
+Priority: MEDIUM
+  1. Run lag-1 autocorrelation per bucket (using DB pnl_cents sequence)
+  2. Momentum (positive AC) → scale Kelly UP; Mean-reversion → scale DOWN
+  3. Cap total BTC notional: scale per-position by 1/sqrt(N) not 1/N when N simultaneous
+Paper: O'Brien et al (2020, IEEE CSL, arXiv:2003.02743)
+
+### TODO: FLB Political/Entertainment Markets Probe
+Priority: HIGH — per REQ-028 + now academically confirmed
+Burgi, Deng & Whelan (2026, CEPR DP20631): FLB confirmed in politics/entertainment
+  5c contracts win only ~2% (should be 5%) — strong structural bias
+Strategy: Target near-expiry YES@90-94c in politics/entertainment
+  Same sniper logic, different asset class
+  Need: market probe to find qualifying contracts + volume check
+Status: REQ-028 to CCA still pending political market scan

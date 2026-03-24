@@ -7983,3 +7983,49 @@ Same FLB structural basis as live sniper. Each day without data = wasted learnin
 
 ### Tests
 - 1778 passing, 1 pre-existing failure (test_security.py — scripts/analysis shebangs)
+
+## S133 — 2026-03-24 15:50 UTC (continued — convergence bridge)
+
+REQ-030 IMPLEMENTED: convergence_detector bridge added to strategy_health_scorer.py
+- convergence_detector.py copied from CCA self-learning module
+- _check_edge_convergence(bucket_key, history) function added
+- Returns STABLE/OSCILLATING/CONVERGING/INSUFFICIENT per bucket
+- BE WR derived from price field in bucket key
+- 8 new tests: all passing (1786/1787 total, 1 pre-existing failure)
+- Commit: 8b230fd
+
+REQ-030 next: wire _check_edge_convergence into score_strategy() verdict logic
+  OSCILLATING → escalate to MONITOR
+  CONVERGING → escalate to PAUSE
+(deferred — needs discussion of how to read bucket_history per strategy)
+
+Today live: 15/15 wins, +11.36 USD | All-time: ~+14.61 USD
+
+## S133 — 2026-03-24 17:10 UTC (continued — e-value + daily sniper milestone)
+
+DAILY SNIPER PAPER: 10/10 wins. KXBTCD-26MAR2412 NO@94c WON at 12:00 ET.
+Progress toward promotion: 10/30 paper bets (33%).
+All paper bets: 5 YES 07:00 UTC batch + 5 other batch = 10 total, 0 losses.
+
+E-VALUE UPGRADE (commit 6c3b184): Log-space accumulation, edge_eroding property.
+- EValue now uses log_e instead of e_value product multiplication (no overflow)
+- edge_eroding: log_e < 0 = evidence against edge (per Grunwald 2024 JRSS-B)
+- EValueResult includes edge_eroding field
+- 13/13 e-value tests passing
+
+KXBTCD PAPER FINDINGS:
+  Batch 1 (07:00 UTC YES@91-93c): 5/5 wins ✓
+  Batch 2 (12:00 ET NO@94c): 1/1 win ✓ (BTC below 70,699.99 at 12:00 ET)
+  Strategy: near-expiry FLB confirmed on daily BTC threshold contracts
+
+CCA RESPONSES RECEIVED + IMPLEMENTED:
+  K2 Academic Research (18:00 UTC): 10 papers, e-values, FLB in economics, Kelly correlation
+  E-value log-space fix (22:30 UTC): implemented in commit 6c3b184
+  cusum_s as CONVERGING signal: confirmed correct, deferred wiring to next session
+  Political FLB probe: no political markets open; KXCPI/KXGDP at 89-91c worth monitoring
+
+KXGDP-26APR30-T1.0 at YES=91c: future sniper candidate (April 30 settlement)
+KXCPI-26MAR-T0.6 at YES=89c: future sniper candidate (April 10 settlement)
+
+Commits this session: 353daa0, 4302b8f, 8b230fd, aafda95, 6c3b184
+Tests: 1799 passing (up from 1775 at session start = 24 new tests)
