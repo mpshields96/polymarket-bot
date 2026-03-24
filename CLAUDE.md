@@ -565,11 +565,13 @@ superpowers:dispatching-parallel-agents — use only when explicitly justified b
 Full reference: ~/.claude/rules/gsd-framework.md and ~/.claude/rules/mandatory-skills-workflow.md
 
 ## ══════════════════════════════════════════════════════════════
-## CROSS-CHAT BRIDGE — CCA ↔ KALSHI COMMUNICATION (Session 45)
+## CROSS-CHAT BRIDGE — CCA ↔ KALSHI COMMUNICATION (S45, reinforced S147 — PERMANENT)
 ## ══════════════════════════════════════════════════════════════
 ##
 ## CCA (ClaudeCodeAdvancements) and Kalshi chats communicate via shared files.
-## This is NOT optional. Check these files at session start.
+## This is NOT optional. This is PERMANENT infrastructure — never remove or weaken.
+## Both projects MUST proactively share advancements that benefit the other.
+## Full rules: ~/.claude/rules/cca-polybot-coordination.md
 
 ## SESSION START — READ THESE (after normal startup):
 ## 1. CCA_TO_POLYBOT.md — CCA's research deliveries (academic frameworks, tools, papers)
