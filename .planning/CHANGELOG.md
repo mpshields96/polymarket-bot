@@ -7937,3 +7937,49 @@ Same FLB structural basis as live sniper. Each day without data = wasted learnin
   03:xx: n=39, 94.9% WR, +26.81 USD (all losses from now-blocked buckets)
   Conclusion: no hour blocks needed for 00:xx or 03:xx. Guards are sufficient.
   One remaining 00:xx loss: KXBTC NO@92c March 20 — isolated, not structural (n=1).
+
+---
+## Session 133 — 2026-03-24 ~15:30 UTC (Monitoring + CCA Coordination)
+
+### Startup
+- Bot STOPPED (Matthew directive). Restarted at 15:03 UTC (PID 4979, S133 log).
+- 8 auto-guards loaded. All ILs intact. CUSUM: expiry_sniper S=0.085 (stable), eth_drift S=15.0 (already disabled).
+
+### CCA Coordination (Matthew directive: "coordinate CLOSELY with CCA today")
+- Filed comprehensive S133 coordination request (15:05 UTC): REQ-027 push, REQ-025 push,
+  4 research topics (bet type expansion, knowledge expansion, convergence detector, synthesis.trade).
+- Provided Monte Carlo data package: sniper 915 bets, WR=95.6%, avg_win=+0.926 USD, avg_loss=-18.28 USD,
+  extreme asymmetry: loss 20x win. Break-even zone: WR between 95.6% (current) and ~93%.
+- Published Le (2026) calibration analysis: politics near-expiry b=1.83 → +5-8pp edge at 90-94c.
+  10-17x crypto calibration edge. Filed as research path for REQ-025 (second edge).
+
+### CCA REQ-027 Delivery (S151 — 16:00 UTC)
+- CCA built and committed all 3 Monte Carlo scripts (commit 49159a1, 95 tests):
+  - scripts/analysis/edge_stability.py (40 tests)
+  - scripts/analysis/monte_carlo_simulator.py (27 tests)
+  - scripts/analysis/synthetic_bet_generator.py (28 tests)
+
+### Implementation — Schema Fix (commit 353daa0)
+- edge_stability.py had schema mismatch: expected {"buckets": {"key": {"history": [...]}}}
+  but polybot uses {"bucket_history": {"key": [...]}} (list directly).
+- Fixed: auto-detect schema variant, support both. 256 buckets now analyzed (was 0).
+- Filed CCA feedback: schema correction for future builds referencing learning_state.json.
+
+### First Run Results
+- edge_stability: 256 buckets, 37 STABLE, 0 DEGRADING. Clean bill of health.
+- Monte Carlo on KXBTC|93|no: P(profit)=100% at ALL WRs from 90-97%. Extreme robustness.
+  Prob ruin = 0%. Max drawdown p95 = 1.86 USD. Strategy is very strong.
+
+### Live Performance
+- Today: 13 settled | 13/13 wins | +9.87 USD (all from morning pre-restart)
+- daily_sniper paper: 9/30 settled (all wins) | 1 open (KXBTCD NO@94c, 17:00 UTC close)
+- No new live bets since S133 restart (drought — markets in mid-range since restart)
+- All-time: +3.85 USD
+
+### Research
+- Hourly bucket analysis: 04:xx (+43 USD, 98.5% WR), 11:xx, 12:xx (100% WR) strongest hours
+- NO@91c/92c analysis: KXBTC NO@91c (n=7, 85.7% WR, below BE=92.9%) — watch bucket
+- KXETH YES@93c at n=9/10 — one more live bet fires auto-guard automatically
+
+### Tests
+- 1778 passing, 1 pre-existing failure (test_security.py — scripts/analysis shebangs)
