@@ -30,6 +30,7 @@ import sys
 from dataclasses import dataclass, field
 
 from metric_config import get_metric
+from convergence_detector import ConvergenceDetector
 
 
 # ── Verdict Thresholds (loaded from metric_config, user-overridable) ─────────
@@ -69,6 +70,55 @@ def _compute_loss_streak(outcomes: list[bool]) -> int:
         else:
             current_streak = 0
     return max_streak
+
+
+def _check_edge_convergence(bucket_key: str, history: list[dict]) -> str:
+    """Check if bucket edge has converged using ConvergenceDetector.
+
+    Interprets bucket session history to detect:
+    - STABLE: WR consistently above break-even (healthy sniper bucket)
+    - OSCILLATING: WR alternates above/below break-even (unstable edge)
+    - CONVERGING: 3+ consecutive sessions below break-even (edge eroding)
+    - INSUFFICIENT: fewer than 3 sessions of history
+
+    Break-even WR is derived from the price in the bucket key:
+        "KXBTC|93|yes" → price=93 → BE WR = 93%
+
+    Args:
+        bucket_key: Bucket identifier in format "ASSET|PRICE|SIDE"
+        history: List of session dicts, each containing "win_rate" float
+
+    Returns:
+        "STABLE" | "OSCILLATING" | "CONVERGING" | "INSUFFICIENT"
+    """
+    if len(history) < 3:
+        return "INSUFFICIENT"
+
+    try:
+        price = int(bucket_key.split("|")[1])
+    except (IndexError, ValueError):
+        return "INSUFFICIENT"
+
+    be_wr = price / 100.0
+
+    detector = ConvergenceDetector(
+        plateau_threshold=0.5,
+        discard_streak_limit=3,
+        oscillation_window=5,
+    )
+
+    for h in history:
+        wr = h.get("win_rate", 0.0)
+        accepted = wr >= be_wr
+        detector.add_observation(metric_value=wr * 100, accepted=accepted)
+
+    signals = detector.check_convergence()
+
+    if any(s.signal_type == "oscillation" for s in signals):
+        return "OSCILLATING"
+    if any(s.signal_type == "discard_streak" for s in signals):
+        return "CONVERGING"
+    return "STABLE"
 
 
 def _compute_recent_win_rate(outcomes: list[bool], window: int = 20) -> float | None:
