@@ -15,10 +15,11 @@
 ## ═══════════════════════════════════════════════════════════════════════════
 
 ## BOT STATE
-  Bot RUNNING — PID 64405. Log: /tmp/polybot_session131.log
-  All-time live P&L: ~-3.44 USD (improving) | Today: +4.08 USD (5 settled, 5 wins)
-  Tests: 1773 passing (1774 total — 1 pre-existing failure). Last commit: 0275625
-  daily_sniper_v1 DEPLOYED + CEILING BUG FIXED (commit 0275625 — see S131 BUILDS below)
+  Bot STOPPED — Matthew directive at S132 session end. Kill bot for the night.
+  Restart for S133 using restart command below.
+  All-time live P&L: +3.25 USD | S132 net: +3.40 USD (12/12 live wins, slippage fix)
+  Tests: 1775 passing (1 pre-existing failure — scripts/analysis shebangs). Last commit: 718c0bd
+  daily_sniper_v1 CEILING BUG FIXED again (commit 718c0bd): > → >= for slippage accounting
   ALL DRIFTS DISABLED (min_drift_pct=9.99 for all four)
   KXXRP sniper: BLOCKED globally (IL-33)
   IL-34: KXBTC NO@95c — BLOCKED
@@ -87,13 +88,32 @@
   - ACKED in DELIVERY_ACK.md
 
   PENDING TASKS:
-  1. REQ-025 URGENT: CCA to find second edge (>3% EV/bet, >5 bets/day) — WRITTEN 04:35 UTC, await
-  2. daily_sniper_v1 paper validation: check WR once 30+ paper bets accumulate (KXBTCD near-expiry)
-     Strategy deployed commit a68fb3f. Paper bets = 0 as of 05:20 UTC (loop running, awaiting signals)
-  3. CUSUM → auto-guard wire: CUSUM S>=5.0 → guard fires automatically — next build after edge build
-  4. eth_orderbook CUSUM 4.020/5.0 — paper only, approaching threshold. Disable at S>=5.0.
-  5. REQ-026: CCA to validate KXBTCD FLB at 90-min horizon (running in parallel with paper collection)
-  6. REQ-011/REQ-012: CCA pending (SDATA resets April 1)
+  1. REQ-025 URGENT: CCA to find second edge (>3% EV/bet, >5 bets/day) — still pending
+  2. REQ-027 URGENT: CCA to build Monte Carlo + Synthetic Origination (Matthew standing directive S132)
+     Filed 07:06 UTC 2026-03-24. Three builds: monte_carlo_simulator.py, synthetic_bet_generator.py,
+     edge_stability_analyzer.py. Push CCA on this EVERY session. It is a hard standing directive.
+  3. daily_sniper_v1 paper validation: 3 settled wins (batch 1 2403 contracts).
+     5 open 2404 bets at wrap (close 08:00 UTC) — settlement pending. Need 30 clean total.
+     Currently: 3 settled wins. Need 27 more clean bets.
+  4. CUSUM → auto-guard wire: CUSUM S>=5.0 → guard fires automatically — next build
+  5. eth_orderbook CUSUM 4.020/5.0 — paper only, approaching threshold. Disable at S>=5.0.
+  6. KXETH YES@93c guard watch: n=9/10. 1 more live bet fires auto-guard (p<0.20 significance).
+  7. REQ-026: CCA to validate KXBTCD FLB at 90-min horizon (running with paper collection)
+  8. REQ-011/REQ-012: CCA pending (SDATA resets April 1)
+
+  S132 KEY CHANGES:
+  - daily_sniper ceiling slippage bug FIXED (commit 718c0bd): > → >= for 1-tick paper slippage
+    bid=94c was passing old check (94 not > 94), executing at 95c. Now correctly blocked.
+  - 1 corrupted 95c paper bet deleted. 2 new regression tests added (1773 → 1775 passing).
+  - CCA REQ-027 filed: Monte Carlo + Synthetic Origination as heavy-duty MT (Matthew directive)
+  - Memory files saved: simulation directive persistent across all future Kalshi sessions
+  - daily_sniper batch 1 (2403): 3/3 wins. FLB mechanism validated on KXBTCD daily contracts.
+  - All drifts still disabled. Live sniper: clean zone 90-94c YES, 90-94c NO (ILs on NO@95c)
+
+  CRITICAL STARTUP CHECKS (S133):
+  Bot is STOPPED. Restart using command below.
+  After restart: grep "Loaded.*auto-discovered" /tmp/polybot_session133.log | tail -1
+  MUST show "Loaded 8 auto-discovered guard(s)"
 
   WARMING BUCKETS (watch only, no action yet):
   - KXETH NO@94c: n=17, 94.1% WR (need 94.4%), -4.59 USD, p=0.626 — marginal, watch

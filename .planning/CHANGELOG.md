@@ -8,6 +8,102 @@
 #          ### Lessons learned (optional)
 # ══════════════════════════════════════════════════════════════
 
+## Session 132 — 2026-03-24 — daily_sniper slippage fix + simulation directive
+
+### Bot status at wrap
+Bot STOPPED (Matthew directive at session end). PID 78996 killed. /tmp/polybot_session132.log
+All-time live P&L: +3.25 USD (was -0.15 USD at S132 start → net session gain: +3.40 USD)
+Today live: 12/12 wins (100% WR) | 9.27 USD since midnight UTC
+Expiry sniper live bets: 914 total
+Tests: 1775 passing (1 pre-existing failure — scripts/analysis shebangs with /usr path)
+Last commit: see below
+
+### Changed
+
+#### fix: daily_sniper ceiling slippage (commit 718c0bd)
+File: main.py (daily_sniper_loop ceiling check)
+File: tests/test_daily_sniper.py (+2 tests)
+
+Bug: daily_sniper_loop used `max(yes_price, no_price) > DAILY_SNIPER_MAX_PRICE_CENTS`
+- When YES bid = 94c: check passed (94 is not > 94)
+- PaperExecutor then added 1-tick slippage → execution at 95c
+- Result: paper bets at 95c appearing in DB (signal_price=94, price_cents=95)
+
+Fix: Changed `>` to `>=`
+- bid=94c: 94 >= 94 = True → SKIP (correct)
+- bid=93c: 93 >= 94 = False → ALLOW → execution at 94c (at ceiling, correct)
+- 1 corrupted 95c paper bet deleted from DB
+- 2 new regression tests: test_yes_94c_is_skipped, test_yes_93c_is_allowed
+
+Why: Paper slippage is +1 tick by default in PaperExecutor. Ceiling check must account for this
+to prevent fill prices above the 94c ceiling. The old > check was insufficient.
+
+### Research findings
+
+daily_sniper paper validation batch 1 (2403 contracts, 07:00 UTC):
+- KXBTCD-26MAR2403-T69799.99 YES@93c → result=YES win (BTC ~$70,454 > $69,799)
+- KXBTCD-26MAR2403-T69899.99 YES@91c → result=YES win
+- KXBTCD-26MAR2403-T70199.99 YES@92c → result=YES win
+Batch 1: 3/3 wins (100% WR). FLB mechanism functioning on daily contracts.
+
+daily_sniper 2404 contracts (08:00 UTC close): 5 open at wrap, settlement pending.
+BTC reached $70,600+ during session — all 5 thresholds (T70199-T70599) should win.
+
+synthesis.trade correction (from CCA delivery): it's a Kalshi/Polymarket aggregator, NOT
+a CF Benchmarks data provider. Previous CCA entry was wrong. Not useful for settlement timing.
+
+CUSUM check: all stable. eth_orderbook still at S=4.020/5.0 (paper only, watching).
+Auto-guard: 8 guards total, 0 new. No buckets crossed p=0.20 significance gate.
+KXETH YES@93c: n=9/10 — 1 more bet to auto-guard threshold.
+
+### Standing directive: simulation/Monte Carlo (Matthew S132 explicit)
+Matthew: "how come we don't objectively dig deeper and utilize synthetic origination and
+simulations with our betting? Have CCA heavily involved. Add it as a heavy-duty MT."
+
+CCA REQ-027 FILED (POLYBOT_TO_CCA.md, 07:06 UTC):
+Three builds requested:
+1. scripts/monte_carlo_simulator.py — N=10K bankroll trajectories, Kelly optimization
+2. scripts/synthetic_bet_generator.py — bootstrap synthetic bets for fast param tuning
+3. scripts/edge_stability_analyzer.py — CI-based forward P&L projections
+
+Memory saved: project_simulation_research_directive.md + feedback_simulation_standing_directive.md
+PRIORITY: Push CCA on REQ-027 every session until delivered.
+
+### Strategy Analyzer Insights (--brief output)
+All-time: +3.25 USD (83% WR, 1268 bets)
+Today: +19.75 USD (97% WR, 38 bets — includes pre-midnight-UTC window)
+Target: 121.75 USD to +125 USD goal
+SNIPER: Profitable buckets: 90-94c
+SNIPER: Guarded buckets (historical losses blocked): 98, 97, 96, 95c
+btc_drift_v1: NEUTRAL — 80 live bets, 50% WR, -9.53 USD [direction_filter='no' active]
+eth_drift_v1: UNDERPERFORMING — 46% WR below break-even. Trend=DECLINING. (DISABLED, min_drift=9.99)
+sol_drift_v1: HEALTHY — 45 live bets, 67% WR, -14.08 USD
+
+### Self-rating
+GRADE: B+
+WINS:
+- Ceiling slippage bug found and fixed (was causing daily_sniper to file 95c paper bets)
+- daily_sniper batch 1: 3/3 wins. FLB mechanism validated on KXBTCD daily contracts.
+- Simulation strategy saved to persistent memory per Matthew's standing directive
+- CCA REQ-027 filed (heavy-duty MT for Monte Carlo + synthetic origination)
+- 12/12 live wins, 9.27 USD live today — strong session
+LOSSES:
+- Context compaction mid-session caused monitoring gap; stale cycle 1 checked old PID 73628
+- 2404 contract settlements not captured before wrap (still open at wrap time)
+- Did not check CCA inbox at every 3rd cycle cadence (context compaction disrupted cadence)
+ONE THING NEXT CHAT MUST DO DIFFERENTLY:
+Push CCA on REQ-027 status at first CCA check — this is now a standing directive.
+ONE THING THAT WOULD HAVE MADE MORE MONEY EARLIER:
+Restart was quick, but the ceiling slippage bug caused 1 corrupted bet in the 2404 window.
+Fix was same-session — no opportunity missed.
+
+### Goal progress
+All-time P&L: +3.25 USD | Target: +125 USD | Gap: 121.75 USD
+Session net: +3.40 USD (from -0.15 to +3.25)
+Forward EV: ~8-10 USD/day (sniper clean zone at 10 USD sizing)
+Estimated days to goal: ~12-15 days at current rate
+Highest-leverage action: CCA REQ-025 (second edge) + daily_sniper promotion to live (need 27 more clean bets)
+
 ## Session 127 (monitoring wrap) — 2026-03-23 — IL-34, IL-35, btc_drift disabled, rat-poison hour scanner built
 
 ### Changed
