@@ -112,6 +112,78 @@ def run_sprt(outcomes: list[int], p0: float, p1: float,
     )
 
 
+# ── E-Value Testing (Grunwald 2024, JRSS-B) ───────────────────────────────────
+# E-values solve SPRT's optional stopping problem: checking after every bet
+# does NOT inflate type-I error. Running e-value product = likelihood ratio.
+# Edge confirmed: E_n > 20 (alpha=0.05). Below 1.0 = evidence against edge.
+# Grunwald, de Heide & Koolen (2024) Safe, Anytime-Valid Inference. JRSS-B.
+
+@dataclass
+class EValueResult:
+    e_value: float          # running product of likelihood ratios
+    edge_confirmed: bool    # E_n > 20
+    n_bets: int
+    p0: float               # null hypothesis WR (break-even)
+    p1: float               # alternative hypothesis WR
+
+
+class EValue:
+    """Running e-value for Bernoulli sequential testing.
+
+    Maintains a running product of per-bet likelihood ratios.
+    Unlike SPRT, can be checked after every bet without inflating alpha.
+
+    Args:
+        p0: Null WR (break-even). For sniper bucket "KXBTC|93|yes", p0=0.93
+        p1: Alternative WR. Defaults to p0 + 0.02 (2pp edge hypothesis).
+        threshold: E_n threshold for edge_confirmed. 20.0 = alpha 0.05.
+    """
+
+    def __init__(self, p0: float, p1: float | None = None,
+                 threshold: float = 20.0):
+        self.p0 = p0
+        self.p1 = p1 if p1 is not None else min(p0 + 0.02, 0.999)
+        self.threshold = threshold
+        self.e_value = 1.0
+        self.n_bets = 0
+        self._win_factor = self.p1 / self.p0
+        self._loss_factor = (1 - self.p1) / (1 - self.p0)
+
+    def update(self, won: bool) -> None:
+        """Update e-value with one bet outcome."""
+        self.e_value *= self._win_factor if won else self._loss_factor
+        self.n_bets += 1
+
+    @property
+    def edge_confirmed(self) -> bool:
+        return self.e_value > self.threshold
+
+
+def run_evalue(outcomes: list[int], p0: float, p1: float | None = None,
+               threshold: float = 20.0) -> EValueResult:
+    """Run e-value test on a sequence of binary outcomes.
+
+    Args:
+        outcomes: List of 1 (win) or 0 (loss)
+        p0: Null WR (break-even)
+        p1: Alternative WR. Defaults to p0 + 0.02.
+        threshold: E_n threshold for edge confirmation (20.0 = alpha 0.05)
+
+    Returns:
+        EValueResult with running e-value and edge_confirmed flag
+    """
+    ev = EValue(p0=p0, p1=p1, threshold=threshold)
+    for outcome in outcomes:
+        ev.update(won=bool(outcome))
+    return EValueResult(
+        e_value=round(ev.e_value, 4),
+        edge_confirmed=ev.edge_confirmed,
+        n_bets=ev.n_bets,
+        p0=p0,
+        p1=ev.p1,
+    )
+
+
 # ── Brier Score + Murphy Decomposition (Brier 1950, Murphy 1973) ──────────────
 
 @dataclass
