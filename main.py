@@ -1223,9 +1223,10 @@ async def daily_sniper_loop(
             for market in markets:
                 ticker = market.ticker
 
-                # Ceiling check: skip markets above 94c (loop responsibility)
-                if (market.yes_price > DAILY_SNIPER_MAX_PRICE_CENTS and
-                        market.no_price > DAILY_SNIPER_MAX_PRICE_CENTS):
+                # Ceiling check: skip markets where the favored side exceeds 94c.
+                # Bug fixed: was AND (never fires — YES@96c has NO@4c which is not >94).
+                # Correct: max(yes, no) > ceiling → skip (covers YES@96c/NO@4c and mirror).
+                if max(market.yes_price, market.no_price) > DAILY_SNIPER_MAX_PRICE_CENTS:
                     continue
 
                 # Generate signal (strategy handles time gate + floor + direction)

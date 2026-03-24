@@ -249,3 +249,82 @@ class TestDailySniperSignalProperties:
         assert sig is not None
         assert sig.features is not None
         assert sig.features.get("coin") == "UNK"
+
+
+# ── Loop ceiling filter (tests the condition used in daily_sniper_loop) ────────
+#
+# The loop must enforce: max(yes_price, no_price) > DAILY_SNIPER_MAX_PRICE_CENTS → skip.
+# The incorrect AND logic (yes > 94 AND no > 94) never fires because when YES=96c, NO=4c.
+# These tests document the correct OR/max() logic that the loop must implement.
+
+
+def _ceiling_filter(market: Market, ceiling: int = DAILY_SNIPER_MAX_PRICE_CENTS) -> bool:
+    """Mirror of the ceiling check in daily_sniper_loop — returns True if market should be SKIPPED."""
+    return max(market.yes_price, market.no_price) > ceiling
+
+
+class TestDailySniperLoopCeilingFilter:
+    """Tests for the ceiling filter logic used in daily_sniper_loop.
+
+    The loop must skip markets where the favored side (90c+) exceeds 94c.
+    Bug fixed: AND logic → max() logic. YES@96c/NO@4c must be skipped.
+    """
+
+    def test_yes_96c_is_skipped(self):
+        """YES@96c market must be skipped — above 94c ceiling."""
+        mkt = _make_daily_market(yes_price=96, no_price=4, seconds_remaining=1800)
+        assert _ceiling_filter(mkt) is True
+
+    def test_yes_97c_is_skipped(self):
+        mkt = _make_daily_market(yes_price=97, no_price=3, seconds_remaining=1800)
+        assert _ceiling_filter(mkt) is True
+
+    def test_yes_98c_is_skipped(self):
+        mkt = _make_daily_market(yes_price=98, no_price=2, seconds_remaining=1800)
+        assert _ceiling_filter(mkt) is True
+
+    def test_yes_99c_is_skipped(self):
+        mkt = _make_daily_market(yes_price=99, no_price=1, seconds_remaining=1800)
+        assert _ceiling_filter(mkt) is True
+
+    def test_no_96c_is_skipped(self):
+        """NO@96c market must be skipped — above 94c ceiling."""
+        mkt = _make_daily_market(yes_price=4, no_price=96, seconds_remaining=1800)
+        assert _ceiling_filter(mkt) is True
+
+    def test_yes_94c_is_allowed(self):
+        """YES@94c is at ceiling — must be allowed."""
+        mkt = _make_daily_market(yes_price=94, no_price=6, seconds_remaining=1800)
+        assert _ceiling_filter(mkt) is False
+
+    def test_yes_92c_is_allowed(self):
+        """YES@92c is in clean zone — must be allowed."""
+        mkt = _make_daily_market(yes_price=92, no_price=8, seconds_remaining=1800)
+        assert _ceiling_filter(mkt) is False
+
+    def test_yes_90c_is_allowed(self):
+        """YES@90c is at floor — must be allowed."""
+        mkt = _make_daily_market(yes_price=90, no_price=10, seconds_remaining=1800)
+        assert _ceiling_filter(mkt) is False
+
+    def test_no_94c_is_allowed(self):
+        """NO@94c is at ceiling — must be allowed."""
+        mkt = _make_daily_market(yes_price=6, no_price=94, seconds_remaining=1800)
+        assert _ceiling_filter(mkt) is False
+
+    def test_neutral_50_50_is_allowed(self):
+        """50/50 neutral market is allowed (strategy will return None anyway)."""
+        mkt = _make_daily_market(yes_price=50, no_price=50, seconds_remaining=1800)
+        assert _ceiling_filter(mkt) is False
+
+    def test_and_logic_bug_would_miss_yes_96c(self):
+        """Document the AND bug: wrong logic passes YES@96c/NO@4c incorrectly."""
+        mkt = _make_daily_market(yes_price=96, no_price=4, seconds_remaining=1800)
+        # The old AND logic incorrectly passes this market
+        old_broken_logic = (
+            mkt.yes_price > DAILY_SNIPER_MAX_PRICE_CENTS
+            and mkt.no_price > DAILY_SNIPER_MAX_PRICE_CENTS
+        )
+        assert old_broken_logic is False  # Bug: should be True (skip), not False (allow)
+        # The new max() logic correctly skips it
+        assert _ceiling_filter(mkt) is True  # Fixed: correctly skips
