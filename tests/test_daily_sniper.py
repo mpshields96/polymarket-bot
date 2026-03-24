@@ -253,21 +253,32 @@ class TestDailySniperSignalProperties:
 
 # ── Loop ceiling filter (tests the condition used in daily_sniper_loop) ────────
 #
-# The loop must enforce: max(yes_price, no_price) > DAILY_SNIPER_MAX_PRICE_CENTS → skip.
-# The incorrect AND logic (yes > 94 AND no > 94) never fires because when YES=96c, NO=4c.
-# These tests document the correct OR/max() logic that the loop must implement.
+# The loop must enforce: max(yes_price, no_price) >= DAILY_SNIPER_MAX_PRICE_CENTS → skip.
+#
+# Slippage rationale: paper executor adds 1 tick slippage (fill = signal + 1).
+# Signal at 94c → execution at 95c (above 94c ceiling). Must block at bid=94c.
+# Signal at 93c → execution at 94c (at ceiling). Correct.
+# So the check is >= (not >) to account for 1-tick slippage.
+#
+# Bug history: S131 introduced AND logic bug (yes > 94 AND no > 94) — never fired.
+# S131 fix: max() logic (> ceiling). S132 fix: >= to account for slippage.
 
 
 def _ceiling_filter(market: Market, ceiling: int = DAILY_SNIPER_MAX_PRICE_CENTS) -> bool:
-    """Mirror of the ceiling check in daily_sniper_loop — returns True if market should be SKIPPED."""
-    return max(market.yes_price, market.no_price) > ceiling
+    """Mirror of the ceiling check in daily_sniper_loop — returns True if market should be SKIPPED.
+
+    Uses >= (not >) because paper slippage adds 1 tick:
+    bid=94c → execution=95c (above ceiling). Must be blocked.
+    bid=93c → execution=94c (at ceiling). Allowed.
+    """
+    return max(market.yes_price, market.no_price) >= ceiling
 
 
 class TestDailySniperLoopCeilingFilter:
     """Tests for the ceiling filter logic used in daily_sniper_loop.
 
-    The loop must skip markets where the favored side (90c+) exceeds 94c.
-    Bug fixed: AND logic → max() logic. YES@96c/NO@4c must be skipped.
+    The loop must skip markets where the favored side (90c+) is at or above 94c.
+    Slippage bug fixed S132: >= instead of > to prevent 94c bid → 95c execution.
     """
 
     def test_yes_96c_is_skipped(self):
@@ -292,9 +303,24 @@ class TestDailySniperLoopCeilingFilter:
         mkt = _make_daily_market(yes_price=4, no_price=96, seconds_remaining=1800)
         assert _ceiling_filter(mkt) is True
 
-    def test_yes_94c_is_allowed(self):
-        """YES@94c is at ceiling — must be allowed."""
+    def test_yes_95c_is_skipped(self):
+        """YES@95c bid skipped — would execute at 96c (slippage +1). Above ceiling."""
+        mkt = _make_daily_market(yes_price=95, no_price=5, seconds_remaining=1800)
+        assert _ceiling_filter(mkt) is True
+
+    def test_yes_94c_is_skipped(self):
+        """YES@94c bid skipped — would execute at 95c (slippage +1). Above ceiling."""
         mkt = _make_daily_market(yes_price=94, no_price=6, seconds_remaining=1800)
+        assert _ceiling_filter(mkt) is True
+
+    def test_no_94c_is_skipped(self):
+        """NO@94c bid skipped — would execute at 95c (slippage +1). Above ceiling."""
+        mkt = _make_daily_market(yes_price=6, no_price=94, seconds_remaining=1800)
+        assert _ceiling_filter(mkt) is True
+
+    def test_yes_93c_is_allowed(self):
+        """YES@93c bid allowed — executes at 94c (slippage +1). At ceiling. OK."""
+        mkt = _make_daily_market(yes_price=93, no_price=7, seconds_remaining=1800)
         assert _ceiling_filter(mkt) is False
 
     def test_yes_92c_is_allowed(self):
@@ -305,11 +331,6 @@ class TestDailySniperLoopCeilingFilter:
     def test_yes_90c_is_allowed(self):
         """YES@90c is at floor — must be allowed."""
         mkt = _make_daily_market(yes_price=90, no_price=10, seconds_remaining=1800)
-        assert _ceiling_filter(mkt) is False
-
-    def test_no_94c_is_allowed(self):
-        """NO@94c is at ceiling — must be allowed."""
-        mkt = _make_daily_market(yes_price=6, no_price=94, seconds_remaining=1800)
         assert _ceiling_filter(mkt) is False
 
     def test_neutral_50_50_is_allowed(self):
