@@ -1,40 +1,59 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-24 ~03:10 UTC (Session 129 monitoring wrap)
+# Last updated: 2026-03-24 ~04:20 UTC (Session 130 monitoring)
 # ═══════════════════════════════════════════════════════════════
 
 ## BOT STATE
-  Bot RUNNING — PID 87899. Log: /tmp/polybot_session129.log
-  All-time live P&L: -15.69 USD
-  Bankroll: ~74 USD (estimate)
-  Tests: 1740 passing. Last commit: 04cf620 (fix: merge_guards dedup key includes utc_hour)
-  eth_drift: DISABLED (min_drift_pct=9.99)
-  xrp_drift: DISABLED (min_drift_pct=9.99 as of S122)
-  sol_drift: DISABLED (min_drift_pct=9.99 as of S123)
-  btc_drift: DISABLED (min_drift_pct=9.99 as of S127 — 80 bets, 50% WR, -9.53 USD)
-  KXXRP sniper: BLOCKED globally (IL-33, S125)
-  IL-34: KXBTC NO@95c — BLOCKED (S127)
-  IL-35: KXSOL sniper at 05:xx UTC — BLOCKED (S127)
-  IL-36: KXETH NO@95c — BLOCKED (S128)
+  Bot RUNNING — PID 7527. Log: /tmp/polybot_session130.log
+  All-time live P&L: -9.22 USD (improving — was -15.69 at S130 start)
+  Today P&L: +5.60 USD live (19/20 sniper bets = 95% WR)
+  Tests: 1740 passing. Last commit: 0f68a5a (risk: S130 bet sizing)
+  ALL DRIFTS DISABLED (min_drift_pct=9.99 for all four)
+  KXXRP sniper: BLOCKED globally (IL-33)
+  IL-34: KXBTC NO@95c — BLOCKED
+  IL-35: KXSOL sniper at 05:xx UTC — BLOCKED
+  IL-36: KXETH NO@95c — BLOCKED
   IL-24: KXSOL NO@95c — BLOCKED (legacy)
-  ALL NO@95c now blocked across all 4 assets. YES@95c remains open (+31.89 USD all-time).
+  ALL NO@95c blocked. YES@95c capped out: ceiling now 94c (S130)
 
 ## S130 KEY FACTS
 
-  BUILDS S129:
-  - fix: merge_guards dedup key now includes utc_hour (04cf620)
-    KXETH 02:xx guard was silently dropped — key (KXETH, None, None) collided with KXETH 08:xx.
-    Fixed: key is now (ticker_contains, price_cents, side, utc_hour). 7 regression tests added.
-    KXETH 02:xx: 12 bets, 83.3% WR vs 94.4% needed, -29.45 USD. Now active. 8 guards total.
-  - S129 (earlier, pre-compaction): kalshi_self_learning.py, SELF_LEARNING_DEFINITION.md,
-    SELF_LEARNING_ARCHITECTURE.md, Terminal.app profile (~/Desktop/Polybot.terminal)
+  PERMANENT CHANGE — RESEARCH CHAT GONE (S130, Matthew directive):
+  - Kalshi research chat PERMANENTLY ELIMINATED. Main chat does BOTH monitoring AND research.
+  - No separate research chat will ever exist again.
+  - During monitoring downtime/droughts: pivot to research work inline.
+
+  BUILDS S130:
+  - Bet sizing halved: HARD_MAX_TRADE_USD 20→10, MAX_TRADE_PCT 0.15→0.08 (commit 0f68a5a)
+    Rationale: full Kelly at 93c = ~4 USD/bet. Old 15% PCT = 5.2x Kelly. New 8% = 2.8x Kelly.
+    At 10 USD max: worst-day variance ~-33 USD vs old ~-67 USD. Same EV direction, less blowup risk.
+  - Sniper ceiling lowered: 95c → 94c (commit 0f68a5a)
+    Data: 95c = 160 bets, 96.3% WR, -7.26 USD cumulative. Break-even ~95.2% with fee. Not worth it.
+  - Tests updated: test_kill_switch.py, test_iron_laws.py, test_live_executor.py (all 1740 passing)
+  - Cross-chat comms infra built: BOT_STATUS.md, REQUEST_QUEUE.md, DELIVERY_ACK.md, CCA_STATUS.md
+    (in ~/.claude/cross-chat/) — eliminates Matthew as messenger between chats
+
+  S130 INCOME MATH:
+  - Clean zone forward EV (90-94c ex-KXXRP): ~+8 USD/day at new 10 USD sizing (down from ~16)
+  - Matthew target: +15-25 USD/day minimum
+  - Gap: 7-17 USD/day must come from a SECOND VALIDATED EDGE
+  - REQ-025 (URGENT): CCA tasked with finding 2-3 market types with >3% EV/bet
+
+  CCA S141 DELIVERY (received ~00:00 UTC 2026-03-24):
+  - Validated 94c ceiling change (was planning to recommend it)
+  - Weather strategies (paper): MIA/CHI/DEN showing losses in paper DB — already paper-only, not live
+  - 90-93c is the sweet spot (+243 USD combined, 5-10pp margin) — confirms clean zone config
+  - CCA confirmed two-way comms readiness, has full DB access
+  - ACKED in DELIVERY_ACK.md
 
   PENDING TASKS:
-  1. CUSUM → auto-guard wire: CUSUM S>=5.0 → auto_guard fires automatically (no human step)
-     This is the next real self-learning build per SELF_LEARNING_DEFINITION.md
-  2. CCA REQUESTS 16-24 pending (SDATA resets April 1 — expect responses then)
-  3. eth_orderbook CUSUM 4.020/5.0 — PAPER ONLY, approaching threshold. Disable at S>=5.0.
-  4. KXXRP 08:xx p=0.012, n=8 — very significant but below n=10 threshold. Watch.
+  1. CUSUM → auto-guard wire: CUSUM S>=5.0 → guard fires automatically (no human step) — next build
+  2. REQ-025 URGENT: CCA to find second edge (>3% EV/bet, >5 bets/day)
+  3. REQ-011/REQ-012: CCA pending (SDATA resets April 1)
+  4. eth_orderbook CUSUM 4.020/5.0 — paper only, approaching threshold. Disable at S>=5.0.
+
+  WARMING BUCKETS (watch only, no action yet):
+  - KXETH NO@94c: n=17, 94.1% WR (need 94.4%), -4.59 USD, p=0.626 — marginal, watch
 
   KEY EVENTS S128:
   - Session net: -8.94 USD (started -7.56, ended -16.50)
@@ -131,8 +150,8 @@
   7. Dim 9 signal_features passively accumulating (n=13)
   8. Guard retirement: tracking 50+ post-guard wins per bucket
 
-## RESTART COMMAND (Session 129)
-pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session129.log 2>&1 &
+## RESTART COMMAND (Session 130)
+pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session130.log 2>&1 &
 
 ## S127 MONITORING KEY FACTS (2026-03-23 ~21:50 UTC)
 
