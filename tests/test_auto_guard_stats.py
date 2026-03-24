@@ -33,6 +33,7 @@ from scripts.auto_guard_discovery import (
     discover_warming_buckets,
     discover_hour_guards,
     discover_hour_warming_buckets,
+    merge_guards,
     MIN_BETS,
     P_VALUE_THRESHOLD,
     break_even_wr,
@@ -455,3 +456,82 @@ class TestDiscoverHourWarmingBuckets:
         result = discover_hour_warming_buckets(db, min_n=5, min_loss=2.0)
         if len(result) >= 2:
             assert result[0]["total_loss_usd"] <= result[1]["total_loss_usd"]
+
+
+# ── merge_guards regression tests ─────────────────────────────────────────────
+
+class TestMergeGuards:
+    """Regression tests for merge_guards() deduplication logic.
+
+    Bug fixed S129: hour guards for the same ticker but different hours
+    were colliding on key (ticker_contains, None, None), causing only the
+    first hour guard to be added and subsequent hours silently dropped.
+    Fix: key now includes utc_hour so different hours are distinct.
+    """
+
+    def _make_price_guard(self, ticker, price, side):
+        return {"ticker_contains": ticker, "price_cents": price, "side": side}
+
+    def _make_hour_guard(self, ticker, hour):
+        return {"ticker_contains": ticker, "price_cents": None, "side": None, "utc_hour": hour}
+
+    def test_price_guard_dedup_unchanged(self):
+        """Existing price guard with same (ticker, price, side) is not duplicated."""
+        existing = [self._make_price_guard("KXBTC", 94, "no")]
+        new = [self._make_price_guard("KXBTC", 94, "no")]
+        merged, added = merge_guards(existing, new)
+        assert added == 0
+        assert len(merged) == 1
+
+    def test_price_guard_different_side_added(self):
+        """Same ticker+price but different side is a distinct guard."""
+        existing = [self._make_price_guard("KXBTC", 94, "no")]
+        new = [self._make_price_guard("KXBTC", 94, "yes")]
+        merged, added = merge_guards(existing, new)
+        assert added == 1
+        assert len(merged) == 2
+
+    def test_hour_guards_same_ticker_different_hours_both_added(self):
+        """S129 regression: KXETH 08:xx and KXETH 02:xx must not collide."""
+        existing = [self._make_hour_guard("KXETH", 8)]
+        new = [self._make_hour_guard("KXETH", 2)]
+        merged, added = merge_guards(existing, new)
+        assert added == 1
+        assert len(merged) == 2
+        hours = {g.get("utc_hour") for g in merged}
+        assert hours == {8, 2}
+
+    def test_hour_guard_same_ticker_same_hour_not_duplicated(self):
+        """Same ticker + same hour is a duplicate and should not be re-added."""
+        existing = [self._make_hour_guard("KXETH", 8)]
+        new = [self._make_hour_guard("KXETH", 8)]
+        merged, added = merge_guards(existing, new)
+        assert added == 0
+        assert len(merged) == 1
+
+    def test_multiple_hour_guards_same_ticker_all_added(self):
+        """KXETH at 02:xx, 08:xx, and 22:xx are all distinct and must all be kept."""
+        existing = [self._make_hour_guard("KXETH", 8)]
+        new = [self._make_hour_guard("KXETH", 2), self._make_hour_guard("KXETH", 22)]
+        merged, added = merge_guards(existing, new)
+        assert added == 2
+        assert len(merged) == 3
+
+    def test_mix_of_price_and_hour_guards(self):
+        """Price guard and hour guard for same ticker do not collide."""
+        existing = [self._make_price_guard("KXBTC", 94, "no")]
+        new = [self._make_hour_guard("KXBTC", 8)]
+        merged, added = merge_guards(existing, new)
+        assert added == 1
+        assert len(merged) == 2
+
+    def test_empty_existing_adds_all_new(self):
+        """Starting from empty, all new guards are added."""
+        new = [
+            self._make_price_guard("KXBTC", 94, "no"),
+            self._make_hour_guard("KXETH", 2),
+            self._make_hour_guard("KXETH", 8),
+        ]
+        merged, added = merge_guards([], new)
+        assert added == 3
+        assert len(merged) == 3

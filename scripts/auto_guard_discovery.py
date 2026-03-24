@@ -445,17 +445,18 @@ def load_existing_auto_guards(output_path: Path = OUTPUT_PATH) -> list[dict]:
 
 def merge_guards(existing: list[dict], new_guards: list[dict]) -> list[dict]:
     """
-    Merge new guards into existing, deduplicating by (ticker_contains, price_cents, side).
+    Merge new guards into existing, deduplicating by (ticker_contains, price_cents, side, utc_hour).
+    Hour guards include utc_hour in the key so different hours for the same ticker don't collide.
     New guards take precedence (fresher stats).
     """
     existing_keys = {
-        (g["ticker_contains"], g["price_cents"], g["side"])
+        (g["ticker_contains"], g["price_cents"], g["side"], g.get("utc_hour"))
         for g in existing
     }
     merged = list(existing)
     added = 0
     for g in new_guards:
-        key = (g["ticker_contains"], g["price_cents"], g["side"])
+        key = (g["ticker_contains"], g["price_cents"], g["side"], g.get("utc_hour"))
         if key not in existing_keys:
             merged.append(g)
             existing_keys.add(key)
