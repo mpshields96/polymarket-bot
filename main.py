@@ -3354,7 +3354,7 @@ async def main():
     from src.strategies.btc_drift import load_from_config as drift_strategy_load
     from src.strategies.btc_drift import load_eth_drift_from_config as eth_drift_load
     from src.strategies.btc_drift import load_sol_drift_from_config as sol_drift_load
-    from src.strategies.btc_drift import load_xrp_drift_from_config as xrp_drift_load
+    # load_xrp_drift_from_config removed — XRP permanently banned (S141)
     from src.strategies.orderbook_imbalance import (
         load_btc_imbalance_from_config,
         load_eth_imbalance_from_config,
@@ -3491,14 +3491,13 @@ async def main():
     # calibration overconfidence. T_s shrinks overconfident win_probs toward 50%,
     # reducing Kelly bet size on strategies with no real edge.
     _calibrator = _StrategyCalibrator()
-    for _drift_strat in [drift_strategy, eth_drift_strategy, sol_drift_strategy, xrp_drift_strategy]:
+    for _drift_strat in [drift_strategy, eth_drift_strategy, sol_drift_strategy]:
         _drift_strat._calibrator = _calibrator
     logger.info(
-        "[startup] Temperature calibrator loaded — ETH T=%.3f  BTC T=%.3f  SOL T=%.3f  XRP T=%.3f",
+        "[startup] Temperature calibrator loaded — ETH T=%.3f  BTC T=%.3f  SOL T=%.3f  (XRP banned)",
         _calibrator.temperature("eth_drift_v1"),
         _calibrator.temperature("btc_drift_v1"),
         _calibrator.temperature("sol_drift_v1"),
-        _calibrator.temperature("xrp_drift_v1"),
     )
 
     btc_imbalance_strategy = load_btc_imbalance_from_config()
