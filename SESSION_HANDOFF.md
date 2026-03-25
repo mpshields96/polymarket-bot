@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-25 ~06:15 UTC (Session 136 — daily_sniper validated, bot killed for night)
+# Last updated: 2026-03-25 ~08:00 UTC (Session 137 — maker_sniper built + 5 bugs fixed, bot running)
 # ═══════════════════════════════════════════════════════════════
 
 ## ⚠️ HYBRID CHAT — PERMANENT ARCHITECTURE (Matthew standing directive, S131)
@@ -14,13 +14,17 @@
 ##   academic context review, hourly pattern analysis, data integrity checks.
 ## ═══════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S136 — updated 2026-03-25 ~06:15 UTC)
-  Bot STOPPED (killed per Matthew directive after S136 wrap)
-  All-time live P&L: +29.99 USD | S136 net: +4.41 USD (24 live settled, 16/16 expiry WR)
-  Tests: 1836 passing (1 pre-existing failure — test_security shebang). Last commit: ac107cb
-  S136 GRADE: B+ — daily_sniper validated (7/8 WR), background monitor fixed, REQ-039/040 filed
+## BOT STATE (S137 — updated 2026-03-25 ~08:00 UTC)
+  Bot RUNNING PID 5839 → /tmp/polybot_session137.log (restarted ~08:00 UTC after freeze)
+  All-time live P&L: +35.81 USD | S137 net: +9.93 USD (30/30 expiry settled today, 29/30 = 97% WR)
+  daily_sniper: 18/30 live settled (17/18 = 94.4% WR)
+  maker_sniper: 4 open paper bets (0 settled). 08:xx block active — resumes 09:xx UTC.
+  Tests: 1874 passing (1 pre-existing failure — test_security shebang). Last commit: f85e6df
+  S137 work: maker_sniper_loop 5 bugs fixed (is_stale, get_open_markets, session_open drift,
+             ceiling guard, log format). Strategy active and firing paper bets correctly.
 
-  ⚠️ BOT STOPPED — restart with: pkill -f "python3 main.py" 2>/dev/null; sleep 2; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session137.log 2>&1 &
+  RESTART COMMAND (S137):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session137.log 2>&1 &
 
   ALL DRIFTS DISABLED (min_drift_pct=9.99 for all four)
   KXXRP sniper: BLOCKED globally (IL-33)
@@ -51,21 +55,24 @@
      (false restart from 21:34 CDT → 26:34 UTC confusion — no bets lost)
 
 ## S137 PENDING TASKS (priority order)
-  1. STARTUP: Check daily_sniper 3 open bets (window 03) settled correctly overnight.
-     grep "[daily_sniper].*settle\|settle.*daily_sniper" logs to confirm. Daily cap resets at UTC midnight.
-  2. daily_sniper ramp-up: 8/30 live bets settled (7/8 WR, -0.39 USD net). Need 22 more.
-     After 30 confirmed: raise cap 1→5 USD.
-  3. CCA REQ-039: maker_sniper_v1 architecture design (filed S136). Await response.
-     When CCA responds: build MakerSniperStrategy paper trade, 30-bet gate before live.
+  1. maker_sniper paper calibration: 4 open paper bets (none settled yet). Need 30 clean fills at <=94c.
+     2 of the 4 were placed above ceiling (pre-fix) — do not count those. Valid fills only.
+     Watch for settlement — when 30 clean fills accumulate, evaluate for live gate.
+  2. daily_sniper ramp-up: 18/30 live bets settled (17/18 WR = 94.4%, +0.34 USD net). Need 12 more.
+     After 30 confirmed: evaluate raise cap 1→5 USD.
+  3. REQ-041 (fill rate monitoring): Requested CCA add fill-rate analysis to bet_analytics.py.
+     Need maker_sniper fills to accumulate in DB first. Currently 4 open paper, 0 settled.
   4. REQ-027 URGENT (Matthew standing directive, S132): Monte Carlo + Synthetic Origination.
-     Filed REQ-040 S136. Push CCA every session. Non-negotiable.
-  5. REQ-038: Cross-chat learning loop (outcome_report + research_priority message types).
-     Small build in polybot_comm.py. Do when bot stable.
-  6. economics sniper: first paper bets April 8 (KXCPI-26MAR-T0.6 enters 48h window).
-  7. sol_drift re-evaluation: SPRT edge confirmed (lambda=+2.337, AUC=0.8333) but disabled S123.
+     S137 Monte Carlo result: 97.9% target prob, 0.8% ruin (well under 5% alert). CCA REQ-040 active.
+     Push CCA every session for Synthetic Origination engine build.
+  5. economics sniper: first paper bets April 8 (KXCPI-26MAR-T0.6 enters 48h window).
+  6. sol_drift re-evaluation: SPRT edge confirmed (lambda=+2.337, AUC=0.8333) but disabled S123.
      Matthew directive required to re-enable.
-  8. Autoloop broken: consecutive_short_sessions (terminal auth issue). Investigate fix.
-  9. Fix polybot_wrap_helper.py --write flag (S136: --write flag silently did nothing, no CHANGELOG update).
+  7. Autoloop broken: consecutive_short_sessions (terminal auth issue). Investigate fix.
+  8. CCA comms: check CCA_TO_POLYBOT.md at each session start. File proactive requests every 2-3 cycles.
+     polybot_comm.py heartbeat runs every cycle — BOT_STATUS.md auto-updated.
+  DONE S137: REQ-039 (maker_sniper built — 5 bugs fixed), REQ-038 (send_outcome_report + 13 tests),
+             polybot_wrap_helper.py --write flag fixed (S136 commit 92ed2c9).
 
 ## S133 KEY BUILDS (for reference)
 
