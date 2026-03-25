@@ -1,5 +1,44 @@
 # POLYMARKET-BOT CHANGELOG
 
+## S139 — 2026-03-25 ~18:00 UTC
+
+### Session Summary
+- Grade: B+
+- Wins: CLV tracking infrastructure deployed (4 files, 3 DB tests, analytics function). polybot_wrap_helper --write end_marker bug fixed (silent wrap failures from S136 now eliminated). Monte Carlo --from-db confirmed working (98.7% target prob, 0.7% ruin, median 736 USD/60d). REQ-027 simulation suite confirmed complete (all 3 builds exist in scripts/analysis/). Bot freeze caught at 13-min mark and restarted before data loss. CCA cross-chat fully current.
+- Losses: Bot froze mid-PEAK (12:09-12:22 CDT = ~13 min gap, frozen not dead). Context compacted mid-session (managed cleanly). Price drought 17:07-18:00 UTC eliminated sniper opportunities; only 1 sniper bet in second half (-9.40 USD loss trade 8905).
+
+### Performance
+- Today: +3.81 USD (68 settled, 64 wins, 94% WR)
+- All-time live: +31.09 USD (1385 bets, 84% WR)
+- All-time sniper: +106.17 USD (1013 bets)
+- Sniper buckets: 90-94c profitable | 95-99c blocked/guarded
+- daily_sniper: 18/30 live settled (17/18 = 94.4% WR) — all YES wins, 1 NO loss
+- maker_sniper: 5/30 paper fills (5/5 wins) — 25 more needed for gate
+
+### Strategy Analyzer Insights (strategy_analyzer.py --brief)
+- All-time: +31.09 USD (84% WR, 1385 bets)
+- Today: +8.18 USD (94% WR, 89 bets — analyzer uses different date boundary)
+- SNIPER: Profitable buckets: 90-94c. Guarded: 98, 97, 96, 95c.
+- btc_drift_v1: NEUTRAL, 80 live bets, 50% WR, -9.53 USD. Direction filter "no" active.
+- eth_drift_v1: UNDERPERFORMING, 46% WR below 50c break-even, DECLINING trend. DISABLED (9.99 threshold).
+- sol_drift_v1: HEALTHY, 45 live bets, 67% WR, -14.08 USD. SPRT edge confirmed (lambda=+2.337). DISABLED pending Matthew directive.
+
+### Builds This Session (4 commits)
+1. d7d1aca — Monte Carlo --from-db: copied from CCA self-learning/, auto-resolves to polybot.db
+2. 06c310b — CLV tracking: close_price_cents column migration (db.py, paper.py, main.py, tests)
+3. d9cb58f — CLV analytics + None guard crash fix in bet_analytics.py
+4. df1249a — polybot_wrap_helper --write end_marker fix (critical: was silently dropping end_marker)
+
+### Goal Progress
+- All-time P&L: +31.09 USD | Target: +125 USD | Gap: 93.91 USD
+- At current ~13 USD/day rate: ~7 days to target
+- Highest-leverage action: Let sniper compound (drought ended ~18:00 UTC), daily_sniper cap raise at 30 bets
+
+### Next Session Focus
+- Let CLV accumulate (needs 30+ sniper bets post-restart, check bet_analytics clv_analysis)
+- maker_sniper 5→30 paper fills (passive, runs alongside sniper)
+- daily_sniper 18→30 live bets for cap raise (12 more needed)
+
 ## S138 — 2026-03-25 ~16:25 UTC
 
 ### Session Summary

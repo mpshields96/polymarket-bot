@@ -14,18 +14,24 @@
 ##   academic context review, hourly pattern analysis, data integrity checks.
 ## ═══════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S138 — updated 2026-03-25 ~16:25 UTC)
-  Bot RUNNING PID 5839 → /tmp/polybot_session137.log (stable all session)
-  All-time live P&L: +37.70 USD | S138 net: +1.89 USD (today 95.1% WR, +13.49 USD — daily counter)
-  expiry_sniper: 78/82 wins today (95.1% WR). All-time: 1381 live bets, +306.69 USD sniper-only.
-  daily_sniper: 18/30 live settled (17/18 = 94.4% WR) — unchanged since S137
-  maker_sniper: paper calibration ongoing. Valid fills: 2/30 (KXBTC@92c + KXETH@94c). 28 more needed.
-  Tests: 1874 passing. Last commit: e073d0e
-  S138 work: peak_budget_hook deployed from CCA (scripts/token_budget.py + peak_hours.py + peak_budget_hook.py)
-             wired as PreToolUse hook in .claude/settings.local.json. Monitoring only during PEAK hours.
+## BOT STATE (S139 — updated 2026-03-25 ~18:00 UTC)
+  Bot RUNNING PID 39150 → /tmp/polybot_session137.log
+  All-time live P&L: +31.09 USD (DB authoritative) | S139 net: ~+1.10 USD
+  expiry_sniper: 64/68 wins today (94% WR). All-time: 1385 live bets, +106.17 USD sniper-only.
+  daily_sniper: 18/30 live settled (17/18 = 94.4% WR)
+  maker_sniper: paper calibration ongoing. Valid paper fills: 5/30 (5/5 wins). 25 more needed.
+  Tests: 1880 passing. Last commit: df1249a
+  S139 work:
+    CLV tracking deployed: close_price_cents column (db.py migration + paper.py + main.py + tests)
+      Commits: 06c310b (CLV DB+paper+main), d9cb58f (CLV analytics + None guard crash fix)
+    Monte Carlo --from-db confirmed working (copied from CCA). Commit d7d1aca.
+    polybot_wrap_helper --write end_marker bug fixed (silent wrap failures). Commit df1249a.
+    REQ-027 CONFIRMED COMPLETE: synthetic_bet_generator.py + edge_stability.py already existed.
+    Bot froze at 12:09 CDT, restarted at 12:22 CDT (PID 5839 → 39150). 9 guards reloaded.
+    Loss: trade 8905 YES@94c settled NO = -9.40 USD (normal variance at 96% WR).
 
-  RESTART COMMAND (S137):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session137.log 2>&1 &
+  RESTART COMMAND (S139):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session139.log 2>&1 &
 
   ALL DRIFTS DISABLED (min_drift_pct=9.99 for all four)
   KXXRP sniper: BLOCKED globally (IL-33)
@@ -55,22 +61,22 @@
   5. CDT/UTC timezone fix: log timestamp comparison now uses local time correctly
      (false restart from 21:34 CDT → 26:34 UTC confusion — no bets lost)
 
-## S139 PENDING TASKS (priority order)
-  1. maker_sniper paper calibration: 2/30 valid fills. 28 more needed (all post-fix bets at ≤94c valid).
+## S140 PENDING TASKS (priority order)
+  1. maker_sniper paper calibration: 5/30 valid fills. 25 more needed.
      Track via DB — once 30 clean fills, evaluate live gate with fill_rate + WR check.
   2. daily_sniper cap raise: 18/30 live settled (17/18 WR = 94.4%). Need 12 more.
      After 30: Wilson CI lower bound must exceed 93% BE before raising 1→5 USD cap.
-  3. REQ-027 URGENT: Synthetic Origination engine — push CCA every session. Monte Carlo done (98.5% target prob).
+  3. CLV accumulation: close_price_cents column deployed. 0 rows post-restart (drought).
+     Next session: run bet_analytics CLV report once sniper bets fire.
   4. REQ-041 (fill rate monitoring): waiting for maker_sniper fills to accumulate first.
   5. REQ-042 (fill_probability simulation): awaiting CCA response.
   6. economics sniper: first paper bets April 8 (KXCPI-26MAR-T0.6 48h window).
-  7. sol_drift re-enable: SPRT edge confirmed but needs Matthew directive.
+  7. sol_drift re-enable: SPRT edge confirmed (lambda=+2.337) but needs Matthew directive.
   8. Autoloop broken: consecutive_short_sessions (terminal auth). Low priority.
-  9. 08:xx hour block: marginal weakness (WR=91.5% vs BE=91.6%, n=59). Matthew call to remove.
+  9. 08:xx hour block: marginal (WR=91.5% vs BE=91.6%, n=59). Matthew call to remove.
      To unblock: remove 8 from frozenset({8}) in main.py lines ~1572 + ~2063.
-  10. CLV tracking (REQ-036): future build — DB schema + settlement_loop capture.
-  DONE S138: peak_budget_hook + token_budget.py + peak_hours.py deployed from CCA.
-             PreToolUse hook wired in .claude/settings.local.json.
+  DONE S139: CLV tracking (3 commits) + Monte Carlo --from-db + polybot_wrap_helper fix
+             REQ-027 confirmed complete (all 3 simulation builds exist and working).
   ⚠️ MATTHEW DECISION NEEDED — 08:xx HOUR BLOCK ANALYSIS (S137, corrected):
      Data: 08:xx total: n=63, WR=92.1%, P&L=-15.28 USD (break-even is 91.6%)
      Crash analysis: Mar17 08:xx was FINE (n=4, 100% WR, +4.62 USD). Losses from non-crash days.
