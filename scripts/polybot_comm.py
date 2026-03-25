@@ -102,29 +102,59 @@ def cmd_heartbeat() -> None:
     # Count unacted CCA deliveries
     unacted = _count_unacted_deliveries(state)
 
+    # Determine session log path dynamically
+    import glob as _glob
+    log_files = sorted(_glob.glob("/tmp/polybot_session*.log"), key=lambda p: os.path.getmtime(p))
+    log_path = log_files[-1] if log_files else "/tmp/polybot_session?.log"
+
+    # Count auto-guards
+    auto_guards_path = PROJECT_DIR / "data" / "auto_guards.json"
+    try:
+        guards_data = json.loads(auto_guards_path.read_text()) if auto_guards_path.exists() else {}
+        guards_list = guards_data.get("guards", guards_data) if isinstance(guards_data, dict) else guards_data
+        n_guards = len(guards_list) if isinstance(guards_list, list) else 0
+    except Exception:
+        n_guards = "?"
+
+    # Paper strategy progress from DB
+    db_path = PROJECT_DIR / "data" / "polybot.db"
+    paper_info = ""
+    if db_path.exists():
+        try:
+            conn = sqlite3.connect(str(db_path))
+            daily_n = conn.execute(
+                "SELECT COUNT(*) FROM trades WHERE strategy='daily_sniper_v1' AND is_paper=0 AND result IS NOT NULL"
+            ).fetchone()[0]
+            maker_n = conn.execute(
+                "SELECT COUNT(*) FROM trades WHERE strategy='maker_sniper_v1' AND is_paper=1"
+            ).fetchone()[0]
+            conn.close()
+            paper_info = f"daily_sniper_v1 ({daily_n}/30 live bets), maker_sniper_v1 ({maker_n}/30 paper fills)"
+        except Exception:
+            paper_info = "DB query failed"
+
     content = f"""# BOT_STATUS.md — Live Monitoring Chat State
 # Auto-updated every monitoring cycle by polybot_comm.py heartbeat
-# Last updated: {_now_utc()} (S134)
+# Last updated: {_now_utc()} (S137)
 
 ## CURRENT STATE
-Bot: {bot_status} → /tmp/polybot_session134.log
+Bot: {bot_status} → {log_path}
 Today={stats.get('today_pnl', '?')} USD ({stats.get('today_wins', '?')}/{stats.get('today_settled', '?')} bets)
 All-time={stats.get('alltime_pnl', '?')} USD | Sniper live total={stats.get('sniper_live_total', '?')}
 Open live bets: {stats.get('open_bets', '?')}
 Unacted CCA deliveries: {unacted}
 Last CCA check: {state.get('last_cca_check_utc') or 'never'}
 
-## ACTIVE CONFIGURATION (S134)
+## ACTIVE CONFIGURATION (S137)
 Bet sizing: HARD_MAX=10 USD, PCT_CAP=8%
-Sniper: floor=90c, ceiling=94c | IL guards: KXXRP GLOBAL, KXBTC NO@95c, KXSOL 05:xx, KXETH NO@95c
-Hour blocks: 08:xx UTC
-Auto-guards: 8 active
-Live strategies: expiry_sniper_v1 ONLY (all drifts disabled)
-Paper strategies: daily_sniper_v1 (10/30), economics_sniper_v1 (0/30, fires April 8+)
+Sniper: floor=90c, ceiling=94c | HOUR BLOCK: 08:xx UTC
+Auto-guards: {n_guards} active (see data/auto_guards.json)
+Live strategies: expiry_sniper_v1 ONLY (all drifts disabled — min_drift_pct=9.99)
+Paper/calibrating: {paper_info}
 
-## OPEN CCA REQUESTS (unanswered)
-See POLYBOT_TO_CCA.md — REQ-033 (NO@91-92c analysis), REQ-034 (REQ-027 integration),
-REQ-035 (daily sniper interim), REQ-025 (second edge — STILL PENDING)
+## OPEN CCA REQUESTS (latest)
+See POLYBOT_TO_CCA.md — REQ-041 (maker fill rate monitoring in bet_analytics)
+CUSUM watch: btc_drift S~3.96/5.0, xrp_drift S~3.98/5.0 (both disabled already)
 """
     BOT_STATUS_FILE.write_text(content)
     print(f"BOT_STATUS.md updated ({_now_utc()})")
@@ -227,11 +257,144 @@ def cmd_pending() -> None:
         print()
 
 
+CROSS_CHAT_QUEUE = Path.home() / "Projects" / "ClaudeCodeAdvancements" / "cross_chat_queue.jsonl"
+
+
+def send_outcome_report(
+    delivery_id: str,
+    status: str,
+    profit_cents: int | None = None,
+    bet_count: int | None = None,
+    notes: str | None = None,
+) -> str:
+    """Write an outcome_report message to cross_chat_queue.jsonl.
+
+    Called by Kalshi monitoring chat after implementing a CCA recommendation
+    and getting enough bets to evaluate. CCA's learning_loop.py reads these.
+
+    Args:
+        delivery_id: CCA delivery ID (e.g. "UPDATE-33")
+        status: "profitable", "unprofitable", "rejected", or "pending"
+        profit_cents: Total P&L in cents from bets after implementing this delivery
+        bet_count: Number of bets placed after implementation
+        notes: Optional human-readable context
+
+    Returns:
+        Message ID of the queued message.
+    """
+    import uuid
+
+    valid_statuses = {"profitable", "unprofitable", "rejected", "pending"}
+    if status not in valid_statuses:
+        raise ValueError(f"status must be one of {valid_statuses}, got '{status}'")
+
+    body = {
+        "delivery_id": delivery_id,
+        "status": status,
+    }
+    if profit_cents is not None:
+        body["profit_cents"] = profit_cents
+    if bet_count is not None:
+        body["bet_count"] = bet_count
+    if notes:
+        body["notes"] = notes
+
+    msg_id = f"msg_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+    msg = {
+        "id": msg_id,
+        "sender": "km",
+        "target": "cca",
+        "subject": f"Outcome report for {delivery_id}",
+        "body": json.dumps(body),
+        "priority": "normal",
+        "category": "outcome_report",
+        "status": "unread",
+        "created_at": datetime.now(timezone.utc).isoformat() + "Z",
+    }
+
+    with open(CROSS_CHAT_QUEUE, "a", encoding="utf-8") as f:
+        f.write(json.dumps(msg, separators=(",", ":")) + "\n")
+
+    return msg_id
+
+
+def parse_research_priorities() -> list[dict]:
+    """Read research_priority messages from cross_chat_queue.jsonl.
+
+    CCA writes these to signal what categories of research have the highest
+    historical ROI. Kalshi monitoring chat reads them to prioritize requests.
+
+    Returns:
+        List of priority dicts sorted by score descending. Each has:
+        category, score, recommendation, total_deliveries, profitable_count.
+    """
+    if not CROSS_CHAT_QUEUE.exists():
+        return []
+
+    priorities = []
+    with open(CROSS_CHAT_QUEUE, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                msg = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if (msg.get("category") == "research_priority"
+                    and msg.get("sender") == "cca"
+                    and msg.get("target") == "km"):
+                try:
+                    body = json.loads(msg.get("body", "{}"))
+                    priorities.append(body)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+
+    # Keep only latest per category
+    by_category: dict[str, dict] = {}
+    for p in priorities:
+        cat = p.get("category")
+        if cat:
+            by_category[cat] = p
+
+    result = list(by_category.values())
+    result.sort(key=lambda x: x.get("score", 0), reverse=True)
+    return result
+
+
+def cmd_outcome(args: list[str]) -> None:
+    """CLI: send_outcome_report wrapper."""
+    if len(args) < 2:
+        print("Usage: polybot_comm.py outcome <delivery_id> <status> [profit_cents] [bet_count] [notes]")
+        sys.exit(1)
+    delivery_id = args[0]
+    status = args[1]
+    profit_cents = int(args[2]) if len(args) > 2 else None
+    bet_count = int(args[3]) if len(args) > 3 else None
+    notes = args[4] if len(args) > 4 else None
+    msg_id = send_outcome_report(delivery_id, status, profit_cents, bet_count, notes)
+    print(f"Outcome report queued: {msg_id}")
+
+
+def cmd_priorities() -> None:
+    """CLI: show research priorities from CCA."""
+    priorities = parse_research_priorities()
+    if not priorities:
+        print("No research priorities from CCA yet.")
+        return
+    print("Research Priorities (from CCA learning loop):")
+    for p in priorities:
+        rec = p.get("recommendation", f"{p.get('category', '?')}: score {p.get('score', '?')}")
+        print(f"  {rec}")
+
+
 COMMANDS = {
     "heartbeat": cmd_heartbeat,
     "status": cmd_status,
     "unread": cmd_unread,
     "pending": cmd_pending,
+    "outcome": lambda: cmd_outcome(sys.argv[2:]),
+    "priorities": cmd_priorities,
 }
 
 
@@ -243,6 +406,8 @@ def main() -> None:
     cmd = sys.argv[1]
     if cmd == "ack" and len(sys.argv) >= 3:
         cmd_ack(sys.argv[2])
+    elif cmd == "outcome":
+        cmd_outcome(sys.argv[2:])
     else:
         COMMANDS[cmd]()
 
