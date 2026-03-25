@@ -1509,6 +1509,182 @@ async def economics_sniper_loop(
         await asyncio.sleep(_ECONOMICS_SNIPER_POLL_SEC)
 
 
+async def maker_sniper_loop(
+    kalshi,
+    btc_feed,
+    eth_feed,
+    sol_feed,
+    xrp_feed,
+    db,
+    kill_switch,
+    initial_delay_sec: float = 135.0,
+    max_daily_bets: int = 5,
+):
+    """
+    Maker-side FLB sniping loop — paper-only calibration phase.
+
+    Same signal selection as expiry_sniper_v1 (FLB at 90-94c, last 14 min,
+    coin drift confirmed), but places orders at (ask - 1c) as POST-ONLY limit.
+
+    Academic basis: Becker (2026) — Kalshi makers earn +1.12% structural vs
+    takers -1.12%. At 30 sniper bets/day, 1c maker improvement = ~45 USD/month
+    pure fee capture even before spread improvement.
+
+    Paper-only (30 fills required before live gate evaluation).
+    Orderbook is fetched for EVERY signal to compute maker price and spread check.
+    Paper executor fills at maker_price (not ask) to simulate realistic entry.
+
+    CCA REQ-039 implementation: MakerSniperStrategy spec from 2026-03-26.
+    Live promotion gate: 30 fills + fill_rate >= 40% + WR within expiry_sniper CI.
+    """
+    from src.strategies.maker_sniper import MakerSniperStrategy
+    from src.execution.paper import PaperExecutor
+
+    strategy = MakerSniperStrategy()
+    paper_exec = PaperExecutor(
+        db=db,
+        strategy_name=strategy.name,
+        slippage_ticks=0,          # Paper fills AT maker_price (no additional slippage)
+        fill_probability=1.0,      # Paper always fills — real fill rate tracked separately
+    )
+
+    _POLL_SEC = 10
+    _series_feeds = {
+        "KXBTC15M": btc_feed,
+        "KXETH15M": eth_feed,
+        "KXSOL15M": sol_feed,
+        "KXXRP15M": xrp_feed,
+    }
+    _window_open_price: dict = {}
+
+    logger.info("[maker_sniper] Startup — waiting %.0fs before first poll", initial_delay_sec)
+    await asyncio.sleep(initial_delay_sec)
+    logger.info(
+        "[maker_sniper] Started — paper-only BTC/ETH/SOL/XRP 15M 90-94c maker sniping "
+        "(offset=1c, min_spread=2c, expiry=300s)"
+    )
+
+    # Same hour block as expiry_sniper — structural weakness at 08:xx UTC
+    _BLOCKED_HOURS_UTC = frozenset({8})
+
+    while True:
+        try:
+            _now_utc_hour = __import__("datetime").datetime.now(
+                __import__("datetime").timezone.utc
+            ).hour
+            if _now_utc_hour in _BLOCKED_HOURS_UTC:
+                logger.debug(
+                    "[maker_sniper] Hour block: %02d:xx UTC — skipping poll",
+                    _now_utc_hour,
+                )
+                await asyncio.sleep(_POLL_SEC)
+                continue
+
+            today_paper_count = db.count_trades_today(strategy.name, is_paper=True)
+            if today_paper_count >= max_daily_bets:
+                logger.debug(
+                    "[maker_sniper] Daily paper cap (%d/%d) — skipping until midnight UTC",
+                    today_paper_count, max_daily_bets,
+                )
+                await asyncio.sleep(_POLL_SEC)
+                continue
+
+            for series_ticker, feed in _series_feeds.items():
+                if feed.is_stale():
+                    logger.debug("[maker_sniper] %s feed stale — skip series", series_ticker)
+                    continue
+
+                try:
+                    markets = await kalshi.get_open_markets(series_ticker)
+                except Exception as exc:
+                    logger.warning("[maker_sniper] Market fetch failed for %s: %s", series_ticker, exc)
+                    continue
+
+                if not markets:
+                    continue
+
+                current_price = feed.current_price()
+                for market in markets:
+                    ticker = market.ticker
+
+                    # Track window open price for drift calculation
+                    if ticker not in _window_open_price:
+                        _window_open_price[ticker] = current_price
+                    window_open = _window_open_price[ticker]
+                    if window_open and window_open > 0:
+                        coin_drift_pct = (current_price - window_open) / window_open
+                    else:
+                        continue
+
+                    # Generate signal (FLB + ceiling + time + drift checks)
+                    signal = strategy.generate_signal(market, coin_drift_pct)
+                    if signal is None:
+                        continue
+
+                    # Skip if we already have an open paper position in this window
+                    if db.has_open_position(ticker, is_paper=True):
+                        logger.debug("[maker_sniper] Already have open paper position for %s — skip", ticker)
+                        continue
+
+                    # Fetch orderbook to compute maker price
+                    try:
+                        orderbook = await kalshi.get_orderbook(ticker)
+                    except Exception as ob_exc:
+                        logger.warning("[maker_sniper] Orderbook fetch failed for %s: %s", ticker, ob_exc)
+                        continue
+
+                    # Compute maker price from orderbook
+                    maker_price, skip_reason = strategy.compute_maker_adjustment(signal, orderbook)
+                    if maker_price is None:
+                        logger.debug(
+                            "[maker_sniper] %s %s: maker adjustment skipped — %s",
+                            ticker, signal.side, skip_reason,
+                        )
+                        continue
+
+                    # Paper execute at maker_price (simulates 1c price improvement)
+                    _current_bankroll = db.latest_bankroll() or 50.0
+                    ok, block_reason = kill_switch.check_paper_order_allowed(
+                        trade_usd=strategy.PAPER_CALIBRATION_USD,
+                        current_bankroll_usd=_current_bankroll,
+                    )
+                    if not ok:
+                        logger.info("[maker_sniper] Kill switch blocked paper order: %s", block_reason)
+                        continue
+
+                    result = paper_exec.execute(
+                        ticker=ticker,
+                        side=signal.side,
+                        price_cents=maker_price,     # maker price (ask - 1c), NOT ask
+                        size_usd=strategy.PAPER_CALIBRATION_USD,
+                        reason=signal.reason + f" | maker_price={maker_price}c",
+                    )
+                    if result:
+                        logger.info(
+                            "[maker_sniper] [paper] BUY %s %s @ %dc (maker, ask=%dc) "
+                            "USD %.2f | drift=%+.3f%% | trade_id=%s",
+                            series_ticker, signal.side.upper(),
+                            maker_price, signal.price_cents,
+                            strategy.PAPER_CALIBRATION_USD,
+                            coin_drift_pct * 100,
+                            result.get("trade_id", "?"),
+                        )
+
+            # Prune stale window tracking entries
+            _window_open_price = {
+                k: v for k, v in _window_open_price.items()
+                if k in {m.ticker for series_ticker in _series_feeds for m in []}
+            }
+
+        except asyncio.CancelledError:
+            logger.info("[maker_sniper] Loop cancelled — exiting")
+            break
+        except Exception as exc:
+            logger.warning("[maker_sniper] Unexpected error: %s", exc, exc_info=True)
+
+        await asyncio.sleep(_POLL_SEC)
+
+
 # ── Bayesian drift model update helper ────────────────────────────────
 # Logic lives in src/models/bayesian_settlement.py for clean testability.
 from src.models.bayesian_settlement import (
@@ -3725,6 +3901,27 @@ async def main():
     )
     logger.info("Economics sniper loop started (paper-only, KXCPI/KXGDP, 88-93c, 48h window)")
 
+    # ── Maker sniper loop (paper-only — 30 fills before live gate) ────────
+    # Same FLB signal as expiry_sniper_v1, but places maker limit orders 1c below ask.
+    # Academic basis: Becker (2026) — makers earn +1.12% structural vs takers -1.12%.
+    # Paper phase: 30 fills needed. Fill rate, WR, and time-to-fill tracked vs expiry_sniper.
+    # CCA REQ-039 implementation. Live gate: fill_rate >= 40% AND WR within expiry_sniper CI.
+    maker_sniper_task = asyncio.create_task(
+        maker_sniper_loop(
+            kalshi=kalshi,
+            btc_feed=btc_feed,
+            eth_feed=eth_feed,
+            sol_feed=sol_feed,
+            xrp_feed=xrp_feed,
+            db=db,
+            kill_switch=kill_switch,
+            initial_delay_sec=135.0,   # stagger: between daily_sniper (120s) and economics_sniper (180s)
+            max_daily_bets=5,
+        ),
+        name="maker_sniper_loop",
+    )
+    logger.info("Maker sniper loop started (paper-only, 90-94c FLB, 1c offset, 30-fill gate)")
+
     # ── Copy-trade loop (Polymarket PRIMARY strategy) ─────────────────
     # Paper-only. Polls top whale wallets every 5 min, applies decoy filters,
     # paper-executes genuine signals on api.polymarket.us markets.
@@ -3828,6 +4025,7 @@ async def main():
         expiry_sniper_task.cancel()
         daily_sniper_task.cancel()
         economics_sniper_task.cancel()
+        maker_sniper_task.cancel()
 
     for _sig, _sname in ((_signal.SIGTERM, "SIGTERM"), (_signal.SIGHUP, "SIGHUP")):
         _loop.add_signal_handler(_sig, lambda n=_sname: _on_signal(n))
@@ -3843,6 +4041,7 @@ async def main():
             expiry_sniper_task,
             daily_sniper_task,
             economics_sniper_task,
+            maker_sniper_task,
             return_exceptions=True,  # S90: prevent one task's exception from killing all others
         )
         # Log any tasks that died with unexpected exceptions (not CancelledError)
@@ -3852,6 +4051,7 @@ async def main():
             "unemployment", "sol_lag", "settle",
             "btc_daily", "eth_daily", "sol_daily", "copy_trade",
             "sports_futures", "expiry_sniper", "daily_sniper", "economics_sniper",
+            "maker_sniper",
         ]
         for _tname, _result in zip(_task_names, results):
             if isinstance(_result, Exception) and not isinstance(_result, asyncio.CancelledError):
@@ -3883,6 +4083,7 @@ async def main():
         expiry_sniper_task.cancel()
         daily_sniper_task.cancel()
         economics_sniper_task.cancel()
+        maker_sniper_task.cancel()
         await asyncio.gather(
             btc_monitor_task,
             trade_task, eth_lag_task, drift_task, eth_drift_task, sol_drift_task,
@@ -3893,6 +4094,7 @@ async def main():
             expiry_sniper_task,
             daily_sniper_task,
             economics_sniper_task,
+            maker_sniper_task,
             return_exceptions=True,
         )
         logger.info("Stopping feeds and connections...")
