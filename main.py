@@ -1129,6 +1129,7 @@ async def crypto_daily_loop(
 # ── Daily sniper loop (KXBTCD near-expiry paper sniping) ──────────────
 
 _DAILY_SNIPER_POLL_SEC = 60   # 60s poll — needs to catch entry in 30-90min window
+_DAILY_SNIPER_LIVE_CAP_USD = 1.0  # Conservative live cap for initial ramp-up (CCA REQ-035)
 _ECONOMICS_SNIPER_POLL_SEC = 300  # 5-min poll — 48h window, no urgency
 
 
@@ -1139,26 +1140,31 @@ async def daily_sniper_loop(
     kill_switch,
     initial_delay_sec: float = 60.0,
     max_daily_bets: int = 10,
+    live_executor_enabled: bool = False,
+    live_confirmed: bool = False,
+    trade_lock: Optional[asyncio.Lock] = None,
 ):
     """
-    KXBTCD near-expiry paper sniping loop.
+    KXBTCD near-expiry sniping loop.
 
-    Paper-only. Targets KXBTCD daily threshold markets when YES or NO price
-    is 90-94c AND settlement is within 90 minutes AND coin direction is consistent.
+    Targets KXBTCD daily threshold markets when YES or NO price is 90-94c
+    AND settlement is within 90 minutes AND coin direction is consistent.
 
     Academic basis: same favorite-longshot bias (FLB) as expiry_sniper_v1.
-    CCA REQ-026: academic validation pending. Paper data collection running.
+    CCA REQ-026: academic validation. 10/30 paper bets settled. Now live with 1 USD cap.
 
     Series: KXBTCD only (BTC daily threshold). KXETHD/KXSOLD can be added
     after KXBTCD validates (same code, different series_ticker + feed).
 
     Price ceiling: 94c (consistent with live sniper ceiling, S130).
     Drift reference: session_open = BTC price at midnight UTC (same as crypto_daily_loop).
+    Live sizing: _DAILY_SNIPER_LIVE_CAP_USD (1 USD hard cap, conservative ramp-up).
     """
     from src.strategies.daily_sniper import make_daily_sniper, DAILY_SNIPER_MAX_PRICE_CENTS
     from src.execution.paper import PaperExecutor
     from datetime import date as _date
     import yaml as _yaml
+    import contextlib
 
     strategy = make_daily_sniper()
     paper_exec = PaperExecutor(
@@ -1172,7 +1178,12 @@ async def daily_sniper_loop(
         logger.info("[daily_sniper] Startup delay %.0fs (stagger)", initial_delay_sec)
         await asyncio.sleep(initial_delay_sec)
 
-    logger.info("[daily_sniper] Started — paper-only KXBTCD 90-94c near-expiry sniping")
+    is_paper_mode = not (live_executor_enabled and live_confirmed)
+    _mode_label = "paper" if is_paper_mode else "LIVE"
+    logger.info(
+        "[daily_sniper] Started — %s KXBTCD 90-94c near-expiry sniping (cap=%.2f USD)",
+        _mode_label, _DAILY_SNIPER_LIVE_CAP_USD if not is_paper_mode else strategy.PAPER_CALIBRATION_USD,
+    )
 
     session_open: Optional[float] = None
     session_open_date: Optional[_date] = None
@@ -1241,49 +1252,125 @@ async def daily_sniper_loop(
                     continue
 
                 # Dedup: skip if already have open position
-                if db.has_open_position(ticker=ticker, is_paper=True):
+                if db.has_open_position(ticker=ticker, is_paper=is_paper_mode):
                     logger.debug("[daily_sniper] Already have open position for %s — skip", ticker)
                     continue
 
                 # Daily bet cap
                 if max_daily_bets > 0:
-                    today_count = db.count_trades_today(strategy=strategy.name, is_paper=True)
+                    today_count = db.count_trades_today(
+                        strategy=strategy.name, is_paper=is_paper_mode
+                    )
                     if today_count >= max_daily_bets:
                         logger.info(
-                            "[daily_sniper] Daily paper cap (%d/%d) reached",
-                            today_count, max_daily_bets,
+                            "[daily_sniper] Daily %s cap (%d/%d) reached",
+                            _mode_label, today_count, max_daily_bets,
                         )
                         break
 
-                # Kill switch (paper path)
                 current_bankroll = db.latest_bankroll() or 50.0
-                ok, block_reason = kill_switch.check_paper_order_allowed(
-                    trade_usd=strategy.PAPER_CALIBRATION_USD,
-                    current_bankroll_usd=current_bankroll,
-                )
-                if not ok:
-                    logger.info("[daily_sniper] Kill switch blocked paper order: %s", block_reason)
-                    continue
 
-                # Execute paper bet
-                result = paper_exec.execute(
-                    ticker=ticker,
-                    side=signal.side,
-                    price_cents=signal.price_cents,
-                    size_usd=strategy.PAPER_CALIBRATION_USD,
-                    reason=signal.reason,
-                )
-                if result:
-                    secs_left = strategy._seconds_remaining(market) or 0
-                    logger.info(
-                        "[daily_sniper] [paper] BUY %s %s @ %d¢ USD %.2f"
-                        " | drift=%+.3f%% | %ds left | trade_id=%s",
-                        ticker, signal.side.upper(), signal.price_cents,
-                        strategy.PAPER_CALIBRATION_USD,
-                        coin_drift_pct * 100,
-                        secs_left,
-                        result.get("trade_id", "?"),
+                if not is_paper_mode:
+                    # ═══ LIVE PATH ═══════════════════════════════════════
+                    # Price slippage guard — skip if price drifted 3c+ from signal
+                    _live_price = market.yes_price if signal.side == "yes" else market.no_price
+                    _MAX_SLIPPAGE_CENTS = 3
+                    if _live_price < signal.price_cents - _MAX_SLIPPAGE_CENTS:
+                        logger.warning(
+                            "[daily_sniper] %s %s: price slipped %dc (signal=%dc, now=%dc) — skip",
+                            ticker, signal.side.upper(),
+                            signal.price_cents - _live_price, signal.price_cents, _live_price,
+                        )
+                        continue
+
+                    # Fee floor: skip if execution price ≥ 99c (0 net per contract)
+                    if _live_price >= 99:
+                        logger.info(
+                            "[daily_sniper] %s %s: price at %dc — skip (99c+ = 0 net)",
+                            ticker, signal.side.upper(), _live_price,
+                        )
+                        continue
+
+                    # Fetch orderbook
+                    try:
+                        orderbook = await kalshi.get_orderbook(ticker)
+                    except Exception as ob_exc:
+                        logger.warning("[daily_sniper] Orderbook fetch failed for %s: %s", ticker, ob_exc)
+                        continue
+
+                    # Sizing: conservative 1 USD cap for daily sniper ramp-up
+                    from src.risk.kill_switch import MAX_TRADE_PCT as _MAX_PCT
+                    _pct_max = round(current_bankroll * _MAX_PCT, 2) - 0.01
+                    trade_usd = min(_DAILY_SNIPER_LIVE_CAP_USD, max(0.01, _pct_max))
+
+                    # Atomic: lock → kill_switch → execute → record_trade
+                    _lock_ctx = trade_lock if trade_lock is not None else contextlib.nullcontext()
+                    async with _lock_ctx:
+                        ok, block_reason = kill_switch.check_order_allowed(
+                            trade_usd=trade_usd,
+                            current_bankroll_usd=current_bankroll,
+                            minutes_remaining=None,
+                        )
+                        if not ok:
+                            logger.info("[daily_sniper] Kill switch blocked live order: %s", block_reason)
+                            continue
+
+                        from src.execution import live as live_mod
+                        result = await live_mod.execute(
+                            signal=signal,
+                            market=market,
+                            orderbook=orderbook,
+                            trade_usd=trade_usd,
+                            kalshi=kalshi,
+                            db=db,
+                            live_confirmed=live_confirmed,
+                            strategy_name=strategy.name,
+                            price_guard_min=1,
+                            price_guard_max=99,
+                            max_slippage_cents=3,
+                        )
+                        if result:
+                            kill_switch.record_trade()
+                            secs_left = strategy._seconds_remaining(market) or 0
+                            logger.info(
+                                "[daily_sniper] [LIVE] BUY %s %s @ %d¢ %.2f USD"
+                                " | drift=%+.3f%% | %ds left | trade_id=%s",
+                                ticker, signal.side.upper(),
+                                result.get("price_cents", 0),
+                                result["cost_usd"],
+                                coin_drift_pct * 100,
+                                secs_left,
+                                result.get("trade_id", "?"),
+                            )
+                            _announce_live_bet(result, strategy_name=strategy.name)
+                else:
+                    # ═══ PAPER PATH ══════════════════════════════════════
+                    ok, block_reason = kill_switch.check_paper_order_allowed(
+                        trade_usd=strategy.PAPER_CALIBRATION_USD,
+                        current_bankroll_usd=current_bankroll,
                     )
+                    if not ok:
+                        logger.info("[daily_sniper] Kill switch blocked paper order: %s", block_reason)
+                        continue
+
+                    result = paper_exec.execute(
+                        ticker=ticker,
+                        side=signal.side,
+                        price_cents=signal.price_cents,
+                        size_usd=strategy.PAPER_CALIBRATION_USD,
+                        reason=signal.reason,
+                    )
+                    if result:
+                        secs_left = strategy._seconds_remaining(market) or 0
+                        logger.info(
+                            "[daily_sniper] [paper] BUY %s %s @ %d¢ USD %.2f"
+                            " | drift=%+.3f%% | %ds left | trade_id=%s",
+                            ticker, signal.side.upper(), signal.price_cents,
+                            strategy.PAPER_CALIBRATION_USD,
+                            coin_drift_pct * 100,
+                            secs_left,
+                            result.get("trade_id", "?"),
+                        )
 
         except asyncio.CancelledError:
             logger.info("[daily_sniper] Loop cancelled — exiting")
@@ -3615,6 +3702,9 @@ async def main():
             kill_switch=kill_switch,
             initial_delay_sec=120.0,
             max_daily_bets=10,
+            live_executor_enabled=True,
+            live_confirmed=live_confirmed,
+            trade_lock=trade_lock,
         ),
         name="daily_sniper_loop",
     )

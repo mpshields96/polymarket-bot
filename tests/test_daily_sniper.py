@@ -349,3 +349,81 @@ class TestDailySniperLoopCeilingFilter:
         assert old_broken_logic is False  # Bug: should be True (skip), not False (allow)
         # The new max() logic correctly skips it
         assert _ceiling_filter(mkt) is True  # Fixed: correctly skips
+
+
+# ── Live path: function signature and constants ──────────────────────────────
+
+import inspect
+
+
+class TestDailySniperLiveSignature:
+    """Verify daily_sniper_loop accepts live params (TDD — pre-implementation tests)."""
+
+    def test_loop_accepts_live_executor_enabled(self):
+        """daily_sniper_loop must accept live_executor_enabled param."""
+        import main as _main
+        sig = inspect.signature(_main.daily_sniper_loop)
+        assert "live_executor_enabled" in sig.parameters
+
+    def test_loop_accepts_live_confirmed(self):
+        """daily_sniper_loop must accept live_confirmed param."""
+        import main as _main
+        sig = inspect.signature(_main.daily_sniper_loop)
+        assert "live_confirmed" in sig.parameters
+
+    def test_loop_accepts_trade_lock(self):
+        """daily_sniper_loop must accept trade_lock param."""
+        import main as _main
+        sig = inspect.signature(_main.daily_sniper_loop)
+        assert "trade_lock" in sig.parameters
+
+    def test_live_executor_defaults_to_false(self):
+        """live_executor_enabled must default to False (safe default = paper)."""
+        import main as _main
+        sig = inspect.signature(_main.daily_sniper_loop)
+        assert sig.parameters["live_executor_enabled"].default is False
+
+    def test_live_confirmed_defaults_to_false(self):
+        """live_confirmed must default to False."""
+        import main as _main
+        sig = inspect.signature(_main.daily_sniper_loop)
+        assert sig.parameters["live_confirmed"].default is False
+
+    def test_trade_lock_defaults_to_none(self):
+        """trade_lock must default to None."""
+        import main as _main
+        sig = inspect.signature(_main.daily_sniper_loop)
+        assert sig.parameters["trade_lock"].default is None
+
+    def test_live_cap_constant_is_one_dollar(self):
+        """_DAILY_SNIPER_LIVE_CAP_USD must be 1.0 USD (conservative ramp-up)."""
+        import main as _main
+        assert _main._DAILY_SNIPER_LIVE_CAP_USD == 1.0
+
+    def test_is_paper_mode_both_false(self):
+        """is_paper_mode = not (False and False) = True."""
+        live_executor_enabled = False
+        live_confirmed = False
+        is_paper_mode = not (live_executor_enabled and live_confirmed)
+        assert is_paper_mode is True
+
+    def test_is_paper_mode_executor_only(self):
+        """is_paper_mode = not (True and False) = True."""
+        live_executor_enabled = True
+        live_confirmed = False
+        is_paper_mode = not (live_executor_enabled and live_confirmed)
+        assert is_paper_mode is True
+
+    def test_is_paper_mode_confirmed_only(self):
+        """is_paper_mode = not (False and True) = True."""
+        live_executor_enabled = False
+        live_confirmed = True
+        is_paper_mode = not (live_executor_enabled and live_confirmed)
+        assert is_paper_mode is True
+
+    def test_is_paper_mode_both_true(self):
+        """is_paper_mode = not (True and True) = False → live mode."""
+        live_executor_enabled = True
+        live_confirmed = True
+        is_paper_mode = not (live_executor_enabled and live_confirmed)
+        assert is_paper_mode is False
