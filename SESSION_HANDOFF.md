@@ -55,8 +55,10 @@
      (false restart from 21:34 CDT → 26:34 UTC confusion — no bets lost)
 
 ## S137 PENDING TASKS (priority order)
-  1. maker_sniper paper calibration: 4 open paper bets (none settled yet). Need 30 clean fills at <=94c.
-     2 of the 4 were placed above ceiling (pre-fix) — do not count those. Valid fills only.
+  1. maker_sniper paper calibration: 4 paper bets placed (all 4 won). Valid fills: 2/4.
+     KXBTC NO@92c (VALID) + KXETH NO@94c (VALID) = 2 clean fills at ≤94c.
+     KXXRP NO@95c + KXSOL NO@96c = above ceiling (pre-fix, don't count).
+     Need 28 more valid fills (≤94c). Post-08:xx block bets will all be valid.
      Watch for settlement — when 30 clean fills accumulate, evaluate for live gate.
   2. daily_sniper ramp-up: 18/30 live bets settled (17/18 WR = 94.4%, +0.34 USD net). Need 12 more.
      After 30 confirmed: evaluate raise cap 1→5 USD.
