@@ -1754,6 +1754,10 @@ async def settlement_loop(kalshi, db, kill_switch, drift_model=None, calibrator=
                     continue
 
                 result = market.result  # "yes" | "no"
+                # CLV: capture yes_price at finalization. NULL-guard: prices collapse to 1/99
+                # after resolution so only store values in 2-98 range (~86% coverage expected).
+                _close_price = market.yes_price
+                close_price_cents = _close_price if 2 <= _close_price <= 98 else None
                 ticker_trades = [t for t in kalshi_trades if t["ticker"] == ticker]
 
                 for trade in ticker_trades:
@@ -1763,6 +1767,7 @@ async def settlement_loop(kalshi, db, kill_switch, drift_model=None, calibrator=
                         fill_price_cents=trade["price_cents"],
                         side=trade["side"],
                         count=trade["count"],
+                        close_price_cents=close_price_cents,
                     )
                     mode = "PAPER" if trade["is_paper"] else "LIVE"
                     won = result == trade["side"]

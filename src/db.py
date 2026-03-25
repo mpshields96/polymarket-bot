@@ -128,6 +128,8 @@ class DB:
             "ALTER TABLE trades ADD COLUMN tax_basis_usd REAL",           # = net_profit_usd for ordinary income reporting
             # Session 109: signal feature logging for future meta-labeling classifier
             "ALTER TABLE trades ADD COLUMN signal_features TEXT",          # JSON blob of all signal features at fire time
+            # Session 139: CLV tracking — yes_price at finalization for structural edge validation
+            "ALTER TABLE trades ADD COLUMN close_price_cents INTEGER",     # yes_price at settlement (2-98c), NULL if collapsed
         ]
         for sql in migrations:
             try:
@@ -195,17 +197,19 @@ class DB:
         kalshi_fee_cents: Optional[int] = None,    # actual taker fee charged (cents)
         gross_profit_cents: Optional[int] = None,  # P&L before fees
         tax_basis_usd: Optional[float] = None,     # = net_profit_usd for ordinary income
+        close_price_cents: Optional[int] = None,   # yes_price at finalization (2-98c only; NULL if collapsed)
     ):
         """Record settlement outcome on a trade. Tax fields optional for backward compat."""
         self._conn.execute(
             """UPDATE trades
                SET result = ?, pnl_cents = ?, settled_at = ?,
                    exit_price_cents = ?, kalshi_fee_cents = ?,
-                   gross_profit_cents = ?, tax_basis_usd = ?
+                   gross_profit_cents = ?, tax_basis_usd = ?,
+                   close_price_cents = ?
                WHERE id = ?""",
             (result, pnl_cents, time.time(),
              exit_price_cents, kalshi_fee_cents, gross_profit_cents, tax_basis_usd,
-             trade_id),
+             close_price_cents, trade_id),
         )
         self._conn.commit()
 

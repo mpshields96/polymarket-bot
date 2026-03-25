@@ -174,6 +174,7 @@ class PaperExecutor:
         fill_price_cents: int,   # price we paid (side's buy price)
         side: str,               # "yes" | "no" — our position
         count: int,
+        close_price_cents: Optional[int] = None,  # yes_price at finalization for CLV (2-98c only)
     ) -> int:
         """
         Record settlement for a paper trade.
@@ -212,6 +213,7 @@ class PaperExecutor:
             kalshi_fee_cents=fees_cents,
             gross_profit_cents=gross_pnl_cents,
             tax_basis_usd=tax_basis_usd,
+            close_price_cents=close_price_cents,
         )
         logger.info(
             "[paper] Settled trade %d: result=%s, P&L=$%.2f (fee=$%.2f)",

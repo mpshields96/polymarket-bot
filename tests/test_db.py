@@ -127,6 +127,25 @@ class TestSettleTrade:
         trades = db.get_trades()
         assert trades[0]["pnl_cents"] == -440
 
+    def test_settle_stores_close_price_cents(self, db):
+        trade_id = _save_trade(db, side="yes", price_cents=92)
+        db.settle_trade(trade_id, result="yes", pnl_cents=800, close_price_cents=95)
+        trades = db.get_trades()
+        assert trades[0]["close_price_cents"] == 95
+
+    def test_settle_close_price_none_when_omitted(self, db):
+        trade_id = _save_trade(db, side="yes")
+        db.settle_trade(trade_id, result="yes", pnl_cents=600)
+        trades = db.get_trades()
+        assert trades[0]["close_price_cents"] is None
+
+    def test_settle_close_price_null_for_collapsed_price(self, db):
+        """Price collapsed to 1c (post-finalization) should be stored as NULL."""
+        trade_id = _save_trade(db, side="yes", price_cents=92)
+        db.settle_trade(trade_id, result="yes", pnl_cents=800, close_price_cents=None)
+        trades = db.get_trades()
+        assert trades[0]["close_price_cents"] is None
+
 
 # ── Win rate ──────────────────────────────────────────────────────
 
