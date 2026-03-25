@@ -1595,7 +1595,7 @@ async def maker_sniper_loop(
                     continue
 
                 try:
-                    markets = await kalshi.get_open_markets(series_ticker)
+                    markets = await kalshi.get_markets(series_ticker=series_ticker, status="open")
                 except Exception as exc:
                     logger.warning("[maker_sniper] Market fetch failed for %s: %s", series_ticker, exc)
                     continue
