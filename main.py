@@ -1555,7 +1555,11 @@ async def maker_sniper_loop(
         "KXSOL15M": sol_feed,
         "KXXRP15M": xrp_feed,
     }
-    _window_open_price: dict = {}
+    # Session open price per feed — reset at midnight UTC, same as expiry_sniper.
+    # Using midnight reference gives the same drift signal as expiry_sniper (not per-ticker
+    # reference which gives near-zero drift and fails the 0.1% min_drift_pct check).
+    _session_open: dict = {}  # series_ticker -> (price, date)
+    _session_open_date: dict = {}  # series_ticker -> date
 
     logger.info("[maker_sniper] Startup — waiting %.0fs before first poll", initial_delay_sec)
     await asyncio.sleep(initial_delay_sec)
@@ -1604,17 +1608,26 @@ async def maker_sniper_loop(
                     continue
 
                 current_price = feed.current_price()
+                if current_price is None or current_price <= 0:
+                    continue
+
+                # Session-open drift (same reference as expiry_sniper: midnight UTC).
+                # Per-ticker reference gives near-zero drift and fails min_drift_pct=0.1%.
+                today_utc = __import__("datetime").datetime.now(
+                    __import__("datetime").timezone.utc
+                ).date()
+                if (series_ticker not in _session_open
+                        or _session_open_date.get(series_ticker) != today_utc):
+                    _session_open[series_ticker] = current_price
+                    _session_open_date[series_ticker] = today_utc
+                session_open_price = _session_open[series_ticker]
+                coin_drift_pct = (
+                    (current_price - session_open_price) / session_open_price
+                    if session_open_price > 0 else 0.0
+                )
+
                 for market in markets:
                     ticker = market.ticker
-
-                    # Track window open price for drift calculation
-                    if ticker not in _window_open_price:
-                        _window_open_price[ticker] = current_price
-                    window_open = _window_open_price[ticker]
-                    if window_open and window_open > 0:
-                        coin_drift_pct = (current_price - window_open) / window_open
-                    else:
-                        continue
 
                     # Generate signal (FLB + ceiling + time + drift checks)
                     signal = strategy.generate_signal(market, coin_drift_pct)
@@ -1670,11 +1683,7 @@ async def maker_sniper_loop(
                             result.get("trade_id", "?"),
                         )
 
-            # Prune stale window tracking entries
-            _window_open_price = {
-                k: v for k, v in _window_open_price.items()
-                if k in {m.ticker for series_ticker in _series_feeds for m in []}
-            }
+            # Session open resets daily via _session_open_date check — no pruning needed
 
         except asyncio.CancelledError:
             logger.info("[maker_sniper] Loop cancelled — exiting")
