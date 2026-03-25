@@ -444,6 +444,7 @@ def main():
     parser.add_argument("--wins", default="", help="Session wins (one sentence)")
     parser.add_argument("--losses", default="", help="Session losses (one sentence)")
     parser.add_argument("--write", action="store_true", help="Auto-write files (SESSION_HANDOFF, polybot-init, CHANGELOG)")
+    parser.add_argument("--autoloop", action="store_true", help="After --write, trigger next session in new Terminal.app window")
     parser.add_argument("--changelog-only", action="store_true", help="Only output changelog entry")
     parser.add_argument("--prompt-only", action="store_true", help="Only output new session prompt")
     args = parser.parse_args()
@@ -490,6 +491,20 @@ def main():
             log_to_cca_journal(session_num, args.grade, args.wins, args.losses)
             print("  ✓ CCA journal updated")
 
+        # Autoloop trigger: open next session in new Terminal.app window
+        if args.autoloop:
+            import subprocess
+            trigger = os.path.join(PROJECT_DIR, "polybot_autoloop_trigger.sh")
+            if os.path.exists(trigger):
+                print("\nTriggering next session in Terminal.app...")
+                result = subprocess.run([trigger], capture_output=True, text=True)
+                if result.returncode == 0:
+                    print("  ✓ New Kalshi session opened in Terminal.app")
+                else:
+                    print(f"  ✗ Trigger failed: {result.stderr.strip()}")
+            else:
+                print("  ✗ polybot_autoloop_trigger.sh not found — skipping")
+
     # Output
     if args.changelog_only:
         print("\n" + "=" * 60)
@@ -525,9 +540,12 @@ def main():
     print("=" * 60)
     print("  1. Run: ./venv/bin/python3 scripts/polybot_wrap_helper.py "
           f"--session {session_num} --grade A --wins '...' --losses '...' --write")
-    print("  2. Update SESSION_HANDOFF.md manually if needed (autoloop section)")
+    print("  2. Update SESSION_HANDOFF.md manually if needed")
     print("  3. git add SESSION_HANDOFF.md .planning/CHANGELOG.md && git commit")
-    print("  4. Done. Start next session with /kalshi-main")
+    print("  4. git push")
+    print("  5. Auto-trigger next session (optional):")
+    print("       ./polybot_autoloop_trigger.sh")
+    print("     OR add --autoloop to the wrap command above to trigger automatically after --write")
     print()
 
 
