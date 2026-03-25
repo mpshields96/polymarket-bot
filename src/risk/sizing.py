@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 # ── Hard caps — cannot be overridden by config ────────────────────
 KELLY_FRACTION = 0.25           # Conservative 1/4 Kelly
 ABSOLUTE_MAX_USD = 15.00        # No bet ever exceeds this (Stage 3 cap)
+DEFAULT_MAX_LOSS_USD = 7.50     # REQ-042: Max loss per trade (your bet = your max loss on Kalshi)
 
 STAGES = {
     1: {"range": (0.0,   100.0),  "max_usd": 5.00,  "max_pct": 0.05},
@@ -46,8 +47,9 @@ class SizeResult:
     stage: int                  # Current bankroll stage (1, 2, or 3)
     stage_cap_usd: float        # Stage max_usd that applied
     pct_cap_usd: float          # Pct-of-bankroll cap that applied
-    limiting_factor: str        # "kelly" | "stage_cap" | "pct_cap" | "absolute_cap"
+    limiting_factor: str        # "kelly" | "stage_cap" | "pct_cap" | "absolute_cap" | "max_loss_cap"
     edge_pct: float             # Edge percentage from strategy signal
+    max_loss_cap_usd: Optional[float] = None  # REQ-042: max loss cap if applied
 
 
 def get_stage(bankroll_usd: float) -> int:
@@ -65,6 +67,8 @@ def calculate_size(
     edge_pct: float,
     bankroll_usd: float,
     min_edge_pct: float = 0.08,
+    max_loss_usd: Optional[float] = None,
+    kelly_scale: float = 1.0,
 ) -> Optional[SizeResult]:
     """
     Calculate recommended bet size.
@@ -75,6 +79,8 @@ def calculate_size(
         edge_pct:           Edge from strategy signal (must exceed min_edge_pct)
         bankroll_usd:       Current bankroll in USD
         min_edge_pct:       Minimum edge to bet at all (default 8%)
+        max_loss_usd:       REQ-042: Max loss per trade in USD (None = no cap)
+        kelly_scale:        Bayesian uncertainty multiplier (0.0–1.0, default 1.0)
 
     Returns:
         SizeResult if we should bet, None if edge is too thin or bankroll too low.
@@ -87,6 +93,12 @@ def calculate_size(
     # Bankroll check
     if bankroll_usd <= 0:
         logger.warning("Bankroll is zero or negative — no bet")
+        return None
+
+    # ── Clamp kelly_scale to [0, 1] ──────────────────────────────
+    kelly_scale = max(0.0, min(1.0, kelly_scale))
+    if kelly_scale <= 0.0:
+        logger.debug("kelly_scale is zero — no bet")
         return None
 
     # ── Kelly calculation ─────────────────────────────────────────
@@ -104,7 +116,7 @@ def calculate_size(
         logger.debug("Kelly is negative (%.4f) — no edge, no bet", kelly_raw)
         return None
 
-    kelly_fractional = kelly_raw * KELLY_FRACTION
+    kelly_fractional = kelly_raw * KELLY_FRACTION * kelly_scale
     kelly_usd = kelly_fractional * bankroll_usd
 
     # ── Stage caps ────────────────────────────────────────────────
@@ -129,6 +141,11 @@ def calculate_size(
         size = ABSOLUTE_MAX_USD
         limiting_factor = "absolute_cap"
 
+    # REQ-042: Max loss cap — on Kalshi, your loss = your bet amount
+    if max_loss_usd is not None and size > max_loss_usd:
+        size = max_loss_usd
+        limiting_factor = "max_loss_cap"
+
     # Floor to nearest cent (truncate, never round up).
     # Using round() would round $4.7685 → $4.77, which then fails the kill switch
     # pct_cap check ($4.77 / $95.37 = 5.0016% > 5.0%).  Floor ensures the sized
@@ -148,6 +165,7 @@ def calculate_size(
         pct_cap_usd=round(pct_cap_usd, 2),
         limiting_factor=limiting_factor,
         edge_pct=edge_pct,
+        max_loss_cap_usd=max_loss_usd,
     )
 
     logger.info(

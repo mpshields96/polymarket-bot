@@ -315,7 +315,7 @@ async def trading_loop(
 
                 # Size the trade (synchronous)
                 # kalshi_payout() takes YES price — convert NO price for NO-side signals
-                from src.risk.sizing import calculate_size, kalshi_payout
+                from src.risk.sizing import calculate_size, kalshi_payout, DEFAULT_MAX_LOSS_USD
                 yes_price_cents_for_payout = (
                     signal.price_cents if signal.side == "yes"
                     else (100 - signal.price_cents)
@@ -325,12 +325,17 @@ async def trading_loop(
                 # signals the strategy already cleared (btc_lag 4%, btc_drift 5% vs 8% default).
                 # Signal reaching this point already passed the strategy's edge gate.
                 _strat_min_edge = getattr(strategy, '_min_edge_pct', 0.08)
+                # REQ-042: kelly_scale from Bayesian drift model (if available on strategy)
+                _dm = getattr(strategy, '_drift_model', None)
+                _ks = _dm.kelly_scale if _dm else 1.0
                 size_result = calculate_size(
                     win_prob=signal.win_prob,
                     payout_per_dollar=payout,
                     edge_pct=signal.edge_pct,
                     bankroll_usd=current_bankroll,
                     min_edge_pct=_strat_min_edge,
+                    max_loss_usd=DEFAULT_MAX_LOSS_USD,
+                    kelly_scale=_ks,
                 )
 
                 if size_result is None:
@@ -567,7 +572,7 @@ async def weather_loop(
                     logger.info("[%s] Kill switch blocked trade: %s", loop_name, reason)
                     continue
 
-                from src.risk.sizing import calculate_size, kalshi_payout as _kp
+                from src.risk.sizing import calculate_size, kalshi_payout as _kp, DEFAULT_MAX_LOSS_USD
                 from src.risk.kill_switch import HARD_MAX_TRADE_USD as _HARD_CAP
                 _yes_p = signal.price_cents if signal.side == "yes" else (100 - signal.price_cents)
                 _size_result = calculate_size(
@@ -575,6 +580,7 @@ async def weather_loop(
                     payout_per_dollar=_kp(_yes_p, signal.side),
                     edge_pct=signal.edge_pct,
                     bankroll_usd=current_bankroll,
+                    max_loss_usd=DEFAULT_MAX_LOSS_USD,
                 )
                 if _size_result is None:
                     continue
@@ -724,7 +730,7 @@ async def fomc_loop(
                     logger.info("[%s] Kill switch blocked: %s", loop_name, reason)
                     continue
 
-                from src.risk.sizing import calculate_size, kalshi_payout as _kp
+                from src.risk.sizing import calculate_size, kalshi_payout as _kp, DEFAULT_MAX_LOSS_USD
                 from src.risk.kill_switch import HARD_MAX_TRADE_USD as _HARD_CAP
                 _yes_p = signal.price_cents if signal.side == "yes" else (100 - signal.price_cents)
                 _size_result = calculate_size(
@@ -732,6 +738,7 @@ async def fomc_loop(
                     payout_per_dollar=_kp(_yes_p, signal.side),
                     edge_pct=signal.edge_pct,
                     bankroll_usd=current_bankroll,
+                    max_loss_usd=DEFAULT_MAX_LOSS_USD,
                 )
                 if _size_result is None:
                     continue
@@ -884,7 +891,7 @@ async def unemployment_loop(
                     logger.info("[%s] Kill switch blocked: %s", loop_name, reason)
                     continue
 
-                from src.risk.sizing import calculate_size, kalshi_payout as _kp
+                from src.risk.sizing import calculate_size, kalshi_payout as _kp, DEFAULT_MAX_LOSS_USD
                 from src.risk.kill_switch import HARD_MAX_TRADE_USD as _HARD_CAP
                 _yes_p = signal.price_cents if signal.side == "yes" else (100 - signal.price_cents)
                 _size_result = calculate_size(
@@ -892,6 +899,7 @@ async def unemployment_loop(
                     payout_per_dollar=_kp(_yes_p, signal.side),
                     edge_pct=signal.edge_pct,
                     bankroll_usd=current_bankroll,
+                    max_loss_usd=DEFAULT_MAX_LOSS_USD,
                 )
                 if _size_result is None:
                     continue
@@ -1074,7 +1082,7 @@ async def crypto_daily_loop(
                 continue
 
             # ── Size + execute (paper) ────────────────────────────────
-            from src.risk.sizing import calculate_size, kalshi_payout as _kp
+            from src.risk.sizing import calculate_size, kalshi_payout as _kp, DEFAULT_MAX_LOSS_USD
             from src.risk.kill_switch import HARD_MAX_TRADE_USD as _HARD_CAP
 
             _yes_p = signal.price_cents if signal.side == "yes" else (100 - signal.price_cents)
@@ -1084,6 +1092,7 @@ async def crypto_daily_loop(
                 edge_pct=signal.edge_pct,
                 bankroll_usd=current_bankroll,
                 min_edge_pct=strategy._min_edge_pct,
+                max_loss_usd=DEFAULT_MAX_LOSS_USD,
             )
             if _size_result is None:
                 await asyncio.sleep(CRYPTO_DAILY_POLL_INTERVAL_SEC)
