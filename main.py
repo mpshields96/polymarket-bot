@@ -1129,6 +1129,7 @@ async def crypto_daily_loop(
 # ── Daily sniper loop (KXBTCD near-expiry paper sniping) ──────────────
 
 _DAILY_SNIPER_POLL_SEC = 60   # 60s poll — needs to catch entry in 30-90min window
+_ECONOMICS_SNIPER_POLL_SEC = 300  # 5-min poll — 48h window, no urgency
 
 
 async def daily_sniper_loop(
@@ -1291,6 +1292,134 @@ async def daily_sniper_loop(
             logger.warning("[daily_sniper] Unexpected error: %s", exc, exc_info=True)
 
         await asyncio.sleep(_DAILY_SNIPER_POLL_SEC)
+
+
+async def economics_sniper_loop(
+    kalshi,
+    db,
+    kill_switch,
+    initial_delay_sec: float = 180.0,
+    max_daily_bets: int = 5,
+):
+    """
+    KXCPI/KXGDP near-settlement paper sniping loop (K2 expansion).
+
+    Paper-only. Targets KXCPI-* and KXGDP-* markets when YES or NO price
+    is 88-93c AND settlement is within 48h.
+
+    Academic basis: Burgi et al. (2026) [SSRN 5502658] — FLB in economics
+    prediction markets is strongest 24-48h before settlement.
+
+    No coin_drift_pct required — pure FLB signal (price + time proximity).
+    CCA REQ-032: entry YES>=88c, 24-48h window, 0.5x Kelly. Paper phase.
+    Entry window: April 8 for KXCPI-26MAR-T0.6 (closes April 10).
+
+    Poll interval: 5 min (48h window, no urgency vs 14-min crypto window).
+    """
+    from src.strategies.economics_sniper import make_economics_sniper
+    from src.execution.paper import PaperExecutor
+
+    strategy = make_economics_sniper()
+    paper_exec = PaperExecutor(
+        db=db,
+        strategy_name=strategy.name,
+        slippage_ticks=1,
+        fill_probability=1.0,
+    )
+
+    if initial_delay_sec > 0:
+        logger.info("[economics_sniper] Startup delay %.0fs (stagger)", initial_delay_sec)
+        await asyncio.sleep(initial_delay_sec)
+
+    logger.info("[economics_sniper] Started — paper-only KXCPI/KXGDP 88-93c FLB sniping")
+
+    _SERIES = ("KXCPI", "KXGDP")
+
+    while True:
+        try:
+            if kill_switch.is_hard_stopped:
+                logger.debug("[economics_sniper] Hard stop active — skipping poll")
+                await asyncio.sleep(_ECONOMICS_SNIPER_POLL_SEC)
+                continue
+
+            # ── Fetch KXCPI + KXGDP markets ──────────────────────────
+            markets = []
+            for series in _SERIES:
+                try:
+                    batch = await kalshi.get_markets(
+                        series_ticker=series,
+                        status="open",
+                        limit=100,
+                    )
+                    markets.extend(batch or [])
+                except Exception as e:
+                    logger.debug("[economics_sniper] Fetch %s failed: %s", series, e)
+
+            if not markets:
+                logger.debug("[economics_sniper] No open KXCPI/KXGDP markets found")
+                await asyncio.sleep(_ECONOMICS_SNIPER_POLL_SEC)
+                continue
+
+            # ── Evaluate each market ──────────────────────────────────
+            for market in markets:
+                ticker = market.ticker
+
+                # Generate signal (strategy handles time gate + floor + ceiling)
+                signal = strategy.generate_signal(market=market)
+                if signal is None:
+                    continue
+
+                # Dedup: skip if already have open position
+                if db.has_open_position(ticker=ticker, is_paper=True):
+                    logger.debug("[economics_sniper] Already have open position for %s — skip", ticker)
+                    continue
+
+                # Daily bet cap
+                if max_daily_bets > 0:
+                    today_count = db.count_trades_today(strategy=strategy.name, is_paper=True)
+                    if today_count >= max_daily_bets:
+                        logger.info(
+                            "[economics_sniper] Daily paper cap (%d/%d) reached",
+                            today_count, max_daily_bets,
+                        )
+                        break
+
+                # Kill switch (paper path)
+                current_bankroll = db.latest_bankroll() or 50.0
+                ok, block_reason = kill_switch.check_paper_order_allowed(
+                    trade_usd=strategy.PAPER_CALIBRATION_USD,
+                    current_bankroll_usd=current_bankroll,
+                )
+                if not ok:
+                    logger.info("[economics_sniper] Kill switch blocked paper order: %s", block_reason)
+                    continue
+
+                # Execute paper bet
+                result = paper_exec.execute(
+                    ticker=ticker,
+                    side=signal.side,
+                    price_cents=signal.price_cents,
+                    size_usd=strategy.PAPER_CALIBRATION_USD,
+                    reason=signal.reason,
+                )
+                if result:
+                    secs_left = strategy._seconds_remaining(market) or 0
+                    logger.info(
+                        "[economics_sniper] [paper] BUY %s %s @ %d¢ USD %.2f"
+                        " | %ds to settlement | trade_id=%s",
+                        ticker, signal.side.upper(), signal.price_cents,
+                        strategy.PAPER_CALIBRATION_USD,
+                        secs_left,
+                        result.get("trade_id", "?"),
+                    )
+
+        except asyncio.CancelledError:
+            logger.info("[economics_sniper] Loop cancelled — exiting")
+            break
+        except Exception as exc:
+            logger.warning("[economics_sniper] Unexpected error: %s", exc, exc_info=True)
+
+        await asyncio.sleep(_ECONOMICS_SNIPER_POLL_SEC)
 
 
 # ── Bayesian drift model update helper ────────────────────────────────
@@ -3490,6 +3619,22 @@ async def main():
         name="daily_sniper_loop",
     )
 
+    # ── Economics sniper loop (KXCPI/KXGDP FLB — paper-only K2) ─────────
+    # Paper-only. Targets KXCPI-*/KXGDP-* at 88-93c within 48h of settlement.
+    # Academic basis: Burgi et al. (2026) [SSRN 5502658] — FLB strongest 24-48h pre-settlement.
+    # CCA REQ-032: April 8 entry window for KXCPI-26MAR-T0.6. 0.5x Kelly paper phase.
+    economics_sniper_task = asyncio.create_task(
+        economics_sniper_loop(
+            kalshi=kalshi,
+            db=db,
+            kill_switch=kill_switch,
+            initial_delay_sec=180.0,   # stagger: after daily_sniper (120s) + buffer
+            max_daily_bets=5,
+        ),
+        name="economics_sniper_loop",
+    )
+    logger.info("Economics sniper loop started (paper-only, KXCPI/KXGDP, 88-93c, 48h window)")
+
     # ── Copy-trade loop (Polymarket PRIMARY strategy) ─────────────────
     # Paper-only. Polls top whale wallets every 5 min, applies decoy filters,
     # paper-executes genuine signals on api.polymarket.us markets.
@@ -3592,6 +3737,7 @@ async def main():
         sports_futures_task.cancel()
         expiry_sniper_task.cancel()
         daily_sniper_task.cancel()
+        economics_sniper_task.cancel()
 
     for _sig, _sname in ((_signal.SIGTERM, "SIGTERM"), (_signal.SIGHUP, "SIGHUP")):
         _loop.add_signal_handler(_sig, lambda n=_sname: _on_signal(n))
@@ -3606,6 +3752,7 @@ async def main():
             sports_futures_task,
             expiry_sniper_task,
             daily_sniper_task,
+            economics_sniper_task,
             return_exceptions=True,  # S90: prevent one task's exception from killing all others
         )
         # Log any tasks that died with unexpected exceptions (not CancelledError)
@@ -3614,7 +3761,7 @@ async def main():
             "xrp_drift", "btc_imbalance", "eth_imbalance", "weather", "fomc",
             "unemployment", "sol_lag", "settle",
             "btc_daily", "eth_daily", "sol_daily", "copy_trade",
-            "sports_futures", "expiry_sniper", "daily_sniper",
+            "sports_futures", "expiry_sniper", "daily_sniper", "economics_sniper",
         ]
         for _tname, _result in zip(_task_names, results):
             if isinstance(_result, Exception) and not isinstance(_result, asyncio.CancelledError):
@@ -3645,6 +3792,7 @@ async def main():
         sports_futures_task.cancel()
         expiry_sniper_task.cancel()
         daily_sniper_task.cancel()
+        economics_sniper_task.cancel()
         await asyncio.gather(
             btc_monitor_task,
             trade_task, eth_lag_task, drift_task, eth_drift_task, sol_drift_task,
@@ -3654,6 +3802,7 @@ async def main():
             sports_futures_task,
             expiry_sniper_task,
             daily_sniper_task,
+            economics_sniper_task,
             return_exceptions=True,
         )
         logger.info("Stopping feeds and connections...")
