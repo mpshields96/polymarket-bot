@@ -486,6 +486,35 @@ class DB:
                 break
         return streak, last_loss_ts
 
+    def post_guard_clean_bets(self, max_loss_cents: int = 750) -> int:
+        """Count live settled bets since the last loss exceeding max_loss_cents.
+
+        Used to track progress toward HARD_MAX ramp schedule gates:
+          Gate 1 = 200 clean bets → recommend HARD_MAX raise to $12
+          Gate 2 = 300 clean bets → recommend HARD_MAX raise to $14
+          Gate 3 = 500 clean bets → recommend HARD_MAX raise to $15
+
+        A "clean" bet is one where |pnl_cents| <= max_loss_cents (no large loss).
+        Counts backwards from most recent settled live bet until a large loss is found.
+
+        Returns: int count of consecutive clean bets since last large loss.
+        """
+        rows = self._conn.execute(
+            """SELECT pnl_cents
+               FROM trades
+               WHERE is_paper = 0
+                 AND result IS NOT NULL
+               ORDER BY settled_at DESC""",
+        ).fetchall()
+
+        count = 0
+        for row in rows:
+            pnl = row[0] or 0
+            if pnl < 0 and abs(pnl) > max_loss_cents:
+                break  # large loss found — stop counting
+            count += 1
+        return count
+
     def total_realized_pnl_usd(self, is_paper: Optional[bool] = None) -> float:
         """Return sum of all settled P&L in USD."""
         query = "SELECT SUM(pnl_cents) FROM trades WHERE result IS NOT NULL"

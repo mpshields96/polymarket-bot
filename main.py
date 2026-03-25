@@ -1795,6 +1795,23 @@ async def settlement_loop(kalshi, db, kill_switch, drift_model=None, calibrator=
                         else:
                             kill_switch.record_loss(abs(pnl_cents) / 100.0)
 
+                        # ── Post-guard clean bet counter (ramp schedule gate logging) ──
+                        # Counts consecutive live bets with no large loss (> $7.50).
+                        # Logs milestones for HARD_MAX ramp schedule (Matthew approval required).
+                        _pgcb = db.post_guard_clean_bets()
+                        _RAMP_GATES = {200: 12.0, 300: 14.0, 500: 15.0}
+                        if _pgcb in _RAMP_GATES:
+                            logger.warning(
+                                "[settle] HARD_MAX RAMP GATE %d REACHED: %d post-guard clean bets. "
+                                "Recommend raising HARD_MAX to %.2f USD — Matthew approval required.",
+                                _pgcb, _pgcb, _RAMP_GATES[_pgcb],
+                            )
+                        elif _pgcb > 0 and _pgcb % 50 == 0:
+                            logger.info(
+                                "[settle] Post-guard clean bets: %d (gates at 200/$12, 300/$14, 500/$15)",
+                                _pgcb,
+                            )
+
                         # ── Bayesian posterior + temperature calibration update ────────
                         # Bayesian: updates sigmoid parameter estimates after each settled live drift bet.
                         # Calibrator: updates per-strategy T_s for post-hoc confidence correction.
@@ -3098,7 +3115,28 @@ def print_health(db) -> None:
     else:
         print(f"  (no event log -- no kill switch hard stops ever fired)")
 
-    # ── 7. Summary ────────────────────────────────────────────────────
+    # ── 7. HARD_MAX ramp progress ──────────────────────────────────────
+    print()
+    print("  [7] HARD_MAX RAMP PROGRESS (post-guard clean bet counter)")
+    print("  " + "-" * (width - 2))
+    try:
+        pgcb = db.post_guard_clean_bets()
+        from src.risk.kill_switch import HARD_MAX_TRADE_USD
+        _ramp_gates = [(200, 12.0), (300, 14.0), (500, 15.0)]
+        next_gate = next(((n, cap) for n, cap in _ramp_gates if pgcb < n), None)
+        if next_gate:
+            needed = next_gate[0] - pgcb
+            print(f"  Clean bets:        {pgcb} / {next_gate[0]} (next gate → HARD_MAX raise to {next_gate[1]:.0f} USD)")
+            print(f"  Until gate:        {needed} more bets without large loss")
+        else:
+            print(f"  Clean bets:        {pgcb} (all gates passed)")
+        print(f"  Current HARD_MAX:  {HARD_MAX_TRADE_USD:.2f} USD")
+        if next_gate and pgcb >= next_gate[0]:
+            issues.append(f"HARD_MAX gate {next_gate[0]} reached — raise HARD_MAX to {next_gate[1]:.0f} USD (Matthew approval)")
+    except Exception as e:
+        print(f"  Ramp progress:     error -- {e}")
+
+    # ── 8. Summary ────────────────────────────────────────────────────
     print()
     print("=" * width)
     if issues:

@@ -861,3 +861,69 @@ class TestCurrentLiveConsecutiveLosses:
         assert ts is not None
         # ts must be close to now (within 5 seconds)
         assert abs(_time.time() - ts) < 5.0
+
+
+class TestPostGuardCleanBets:
+    """
+    post_guard_clean_bets() counts live settled bets since the last large loss.
+    Used to track progress toward HARD_MAX ramp schedule gates.
+    Default max_loss_cents=750 (i.e., $7.50 MAX_LOSS cap).
+    """
+
+    def _live(self, db, pnl_cents):
+        t = db.save_trade(
+            ticker="KXBTC15M-T", side="yes", action="buy", price_cents=93,
+            count=100, cost_usd=7.44, is_paper=False,
+            strategy="expiry_sniper_v1", edge_pct=0.05, win_prob=0.956,
+        )
+        db.settle_trade(t, result="yes" if pnl_cents > 0 else "no", pnl_cents=pnl_cents)
+
+    def test_returns_zero_if_no_trades(self, db):
+        assert db.post_guard_clean_bets() == 0
+
+    def test_counts_all_wins_when_no_large_losses(self, db):
+        """All wins → clean count equals total settled."""
+        for _ in range(5):
+            self._live(db, pnl_cents=+600)
+        assert db.post_guard_clean_bets() == 5
+
+    def test_resets_at_large_loss(self, db):
+        """A loss > 750 cents resets the counter to 0."""
+        self._live(db, pnl_cents=-900)  # large loss — resets counter
+        assert db.post_guard_clean_bets() == 0
+
+    def test_counts_bets_after_large_loss(self, db):
+        """Clean bets after a large loss are counted; before is not."""
+        self._live(db, pnl_cents=+600)   # win before large loss
+        self._live(db, pnl_cents=+600)   # win before large loss
+        self._live(db, pnl_cents=-900)   # large loss — resets
+        self._live(db, pnl_cents=+600)   # 1 clean bet after
+        self._live(db, pnl_cents=+600)   # 2 clean bets after
+        assert db.post_guard_clean_bets() == 2
+
+    def test_small_loss_does_not_reset(self, db):
+        """A loss within MAX_LOSS cap ($7.50 = 750 cents) is still clean."""
+        self._live(db, pnl_cents=+600)
+        self._live(db, pnl_cents=-740)   # just under 750 cents — still clean
+        self._live(db, pnl_cents=+600)
+        assert db.post_guard_clean_bets() == 3
+
+    def test_paper_trades_not_counted(self, db):
+        """Paper trades must not affect the clean bet counter."""
+        t = db.save_trade(
+            ticker="KXBTC15M-P", side="yes", action="buy", price_cents=93,
+            count=100, cost_usd=7.44, is_paper=True,  # paper
+            strategy="expiry_sniper_v1", edge_pct=0.05, win_prob=0.956,
+        )
+        db.settle_trade(t, result="no", pnl_cents=-900)  # paper large loss
+        self._live(db, pnl_cents=+600)  # 1 live clean bet
+        assert db.post_guard_clean_bets() == 1
+
+    def test_custom_max_loss_cents(self, db):
+        """Custom threshold overrides default 750."""
+        self._live(db, pnl_cents=-600)   # small by default but large at threshold=500
+        self._live(db, pnl_cents=+400)
+        # default (750): -600 is clean → count = 2
+        assert db.post_guard_clean_bets(max_loss_cents=750) == 2
+        # custom (500): -600 exceeds 500 → resets → count = 1
+        assert db.post_guard_clean_bets(max_loss_cents=500) == 1
