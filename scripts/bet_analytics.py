@@ -620,7 +620,8 @@ def analyze_sniper_forward_edge(bets: list[dict], guards: list[dict]) -> None:
         guarded = False
         if ticker_contains:
             for g in guards:
-                if (g["ticker_contains"] in ticker and
+                if (g["ticker_contains"] is not None and
+                        g["ticker_contains"] in ticker and
                         g["price_cents"] == price and
                         g["side"] == side):
                     guarded = True
@@ -776,6 +777,70 @@ def analyze_sniper_rolling_wr(bets: list[dict], window_size: int = 50) -> None:
             print(f"  Trend: WR {direction} {abs(trend)*100:.1f}pp (W1→W{len(windows)})")
 
 
+def clv_analysis(db_path: str = str(DB_PATH), strategy: str = "expiry_sniper_v1") -> None:
+    """Closing Line Value analysis: did we beat the closing price?
+
+    CLV = close_price_cents - entry_price_cents (for YES-side bets).
+    Positive CLV means we entered at better odds than the market closed at,
+    confirming structural FLB edge rather than variance.
+
+    Groups by price bucket (90-94c) and reports mean CLV, % positive, and
+    FLB signal classification.
+
+    Requires close_price_cents column (added Session 139). NULL rows excluded.
+    """
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    try:
+        rows = conn.execute(
+            """SELECT price_cents, close_price_cents, side, result
+               FROM trades
+               WHERE is_paper = 0
+                 AND strategy = ?
+                 AND close_price_cents IS NOT NULL
+                 AND result IS NOT NULL""",
+            (strategy,),
+        ).fetchall()
+    except Exception:
+        # Column doesn't exist yet — migration runs at next bot restart
+        print("  CLV: pending bot restart to apply close_price_cents migration (added S139)")
+        conn.close()
+        return
+    conn.close()
+
+    if not rows:
+        print("  CLV: no data yet (column exists but no settlements with close_price captured)")
+        return
+
+    # CLV for YES bets: positive = we paid less than closing price (we got value)
+    # CLV for NO bets: positive = closing YES price > our price implies NO was cheap
+    clv_by_bucket: dict[int, list[float]] = {}
+    for price_cents, close_price, side, _result in rows:
+        bucket = price_cents  # or round to nearest 5: (price_cents // 5) * 5
+        if side == "yes":
+            clv = close_price - price_cents
+        else:
+            # NO bets: we paid (100 - price_cents) for NO. CLV = our implied yes price beats close.
+            clv = price_cents - close_price
+        clv_by_bucket.setdefault(bucket, []).append(clv)
+
+    print(f"  CLV ANALYSIS — {strategy} (n={len(rows)} with close_price)")
+    print(f"  {'Bucket':>8}  {'n':>5}  {'Mean CLV':>10}  {'% Positive':>12}  {'Signal':>20}")
+    for bucket in sorted(clv_by_bucket):
+        vals = clv_by_bucket[bucket]
+        mean_clv = sum(vals) / len(vals)
+        pct_pos = 100 * sum(1 for v in vals if v > 0) / len(vals)
+        if mean_clv > 1.0 and pct_pos > 60:
+            signal = "CONFIRMS_FLB"
+        elif mean_clv < -1.0 or pct_pos < 40:
+            signal = "AGAINST_FLB"
+        else:
+            signal = "neutral"
+        print(f"  {bucket:>6}c  {len(vals):>5}  {mean_clv:>+9.2f}c  {pct_pos:>11.1f}%  {signal:>20}")
+    overall_clv = [v for vals in clv_by_bucket.values() for v in vals]
+    print(f"  {'OVERALL':>8}  {len(overall_clv):>5}  {sum(overall_clv)/len(overall_clv):>+9.2f}c")
+    print()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Universal bet analytics — SPRT, Wilson CI, Brier, CUSUM"
@@ -860,6 +925,14 @@ def main() -> int:
     print(f"\n{'─'*55}")
     print("  Observation only. No config changes made.")
     print(f"{'─'*55}\n")
+
+    # ── CLV analysis (Session 139 — requires close_price_cents column) ─────────
+    print(f"\n{'─'*55}")
+    print("  CLOSING LINE VALUE (CLV) — structural FLB validator")
+    print(f"{'─'*55}")
+    strat_for_clv = args.strategy or "expiry_sniper_v1"
+    clv_analysis(db_path=str(db_path), strategy=strat_for_clv)
+
     return 0
 
 
