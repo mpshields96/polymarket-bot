@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "updated_ts": 1774407850.199822,
+  "updated_date": "2026-03-25 03:04 UTC",
+  "guards": [
+    {
+      "ticker_contains": "KXXRP",
+      "price_cents": 95,
+      "side": "no",
+      "n_bets": 19,
+      "win_rate": 0.9474,
+      "break_even_wr": 0.9532,
+      "total_loss_usd": -7.07,
+      "discovered_ts": 1773807458.361698,
+      "discovered_date": "2026-03-18 04:17 UTC"
+    },
+    {
+      "ticker_contains": "KXSOL",
+      "price_cents": 93,
+      "side": "no",
+      "n_bets": 12,
+      "win_rate": 0.9167,
+      "break_even_wr": 0.9343,
+      "total_loss_usd": -7.05,
+      "discovered_ts": 1773811106.152497,
+      "discovered_date": "2026-03-18 05:18 UTC"
+    },
+    {
+      "ticker_contains": "KXBTC",
+      "price_cents": 94,
+      "side": "yes",
+      "n_bets": 13,
+      "win_rate": 0.9231,
+      "break_even_wr": 0.9437,
+      "total_loss_usd": -9.94,
+      "discovered_ts": 1773869136.840641,
+      "discovered_date": "2026-03-18 21:25 UTC"
+    },
+    {
+      "ticker_contains": "KXXRP",
+      "price_cents": 93,
+      "side": "no",
+      "n_bets": 24,
+      "win_rate": 0.9167,
+      "break_even_wr": 0.9343,
+      "total_loss_usd": -15.3,
+      "discovered_ts": 1773880681.333681,
+      "discovered_date": "2026-03-19 00:38 UTC"
+    },
+    {
+      "ticker_contains": "KXBTC",
+      "price_cents": 94,
+      "side": "no",
+      "n_bets": 10,
+      "win_rate": 0.9,
+      "break_even_wr": 0.9437,
+      "total_loss_usd": -11.24,
+      "discovered_ts": 1773880681.333681,
+      "discovered_date": "2026-03-19 00:38 UTC"
+    },
+    {
+      "ticker_contains": "KXETH",
+      "price_cents": null,
+      "utc_hour": 8,
+      "side": null,
+      "n_bets": 10,
+      "win_rate": 0.8,
+      "break_even_wr": 0.9248,
+      "avg_price_cents": 92.4,
+      "total_loss_usd": -30.01,
+      "discovered_ts": 1774301993.59091,
+      "discovered_date": "2026-03-23 21:39 UTC"
+    },
+    {
+      "ticker_contains": "KXBTC",
+      "price_cents": null,
+      "utc_hour": 8,
+      "side": null,
+      "n_bets": 12,
+      "win_rate": 0.8333,
+      "break_even_wr": 0.9343,
+      "avg_price_cents": 93.1,
+      "total_loss_usd": -28.27,
+      "discovered_ts": 1774301993.59091,
+      "discovered_date": "2026-03-23 21:39 UTC"
+    },
+    {
+      "ticker_contains": "KXETH",
+      "price_cents": null,
+      "utc_hour": 2,
+      "side": null,
+      "n_bets": 12,
+      "win_rate": 0.8333,
+      "break_even_wr": 0.9437,
+      "avg_price_cents": 94.1,
+      "total_loss_usd": -29.45,
+      "discovered_ts": 1774321314.346439,
+      "discovered_date": "2026-03-24 03:01 UTC"
+    },
+    {
+      "ticker_contains": null,
+      "price_cents": null,
+      "side": "no",
+      "utc_hour": 0,
+      "n_bets": 29,
+      "win_rate": 0.862,
+      "break_even_wr": 0.93,
+      "total_loss_usd": 54.31,
+      "discovered_date": "2026-03-25",
+      "notes": "Asia-session open: 00:xx UTC NO-side WR=86% vs 93% BE. YES-side same hour: 29/29 (100%). Structural basis: CCA S120 Asia-momentum research (Eross 2019, Makarov/Schoar 2020). p\u22480.07."
+    }
+  ]
+}
