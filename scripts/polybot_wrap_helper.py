@@ -378,7 +378,7 @@ def update_main_chat_in_init(new_main_chat_block: str) -> bool:
         content[:start_idx]
         + new_main_chat_block
         + "\n"
-        + content[end_idx + len(end_marker):]
+        + content[end_idx:]   # keep end_marker in place (was dropping it, breaking next wrap)
     )
     POLYBOT_INIT.write_text(new_content, encoding="utf-8")
     return True
