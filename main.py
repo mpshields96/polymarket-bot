@@ -1558,11 +1558,11 @@ async def maker_sniper_loop(
     )
 
     _POLL_SEC = 10
+    # KXXRP15M permanently removed (S141 — Matthew directive: XRP banned forever).
     _series_feeds = {
         "KXBTC15M": btc_feed,
         "KXETH15M": eth_feed,
         "KXSOL15M": sol_feed,
-        "KXXRP15M": xrp_feed,
     }
     # Session open price per feed — reset at midnight UTC, same as expiry_sniper.
     # Using midnight reference gives the same drift signal as expiry_sniper (not per-ticker
@@ -1573,8 +1573,8 @@ async def maker_sniper_loop(
     logger.info("[maker_sniper] Startup — waiting %.0fs before first poll", initial_delay_sec)
     await asyncio.sleep(initial_delay_sec)
     logger.info(
-        "[maker_sniper] Started — paper-only BTC/ETH/SOL/XRP 15M 90-94c maker sniping "
-        "(offset=1c, min_spread=2c, expiry=300s)"
+        "[maker_sniper] Started — paper-only BTC/ETH/SOL 15M 90-94c maker sniping "
+        "(offset=1c, min_spread=2c, expiry=300s) [XRP permanently banned]"
     )
 
     # Same hour block as expiry_sniper — structural weakness at 08:xx UTC
@@ -2075,11 +2075,12 @@ async def expiry_sniper_loop(
     _mode_label = "paper-only" if is_paper_mode else "LIVE"
 
     # Map series prefix → feed for drift calculation
+    # KXXRP15M permanently removed (S141 — Matthew directive: XRP banned forever).
+    # IL-33 already blocks at execution; removing from feed prevents polling entirely.
     _series_feeds = {
         "KXBTC15M": btc_feed,
         "KXETH15M": eth_feed,
         "KXSOL15M": sol_feed,
-        "KXXRP15M": xrp_feed,
     }
 
     # Per-window price tracking: ticker → coin price at first observation of window
@@ -2087,7 +2088,7 @@ async def expiry_sniper_loop(
 
     logger.info("[expiry_sniper] Startup — waiting %.0fs before first poll", initial_delay_sec)
     await asyncio.sleep(initial_delay_sec)
-    logger.info("[expiry_sniper] Started — %s BTC/ETH/SOL/XRP 15M 90c+ sniping", _mode_label)
+    logger.info("[expiry_sniper] Started — %s BTC/ETH/SOL 15M 90c+ sniping (XRP permanently banned)", _mode_label)
 
     # S123 analysis: 08:xx reinstated — all-time n=39, WR=82.1%, -106.63 USD, p=0.012 (sig at 5%).
     # Non-XRP 08:xx: n=32, WR=87.5%, -52.70 USD. SOL=100% but only n=9 (too small to exclude).
@@ -3469,18 +3470,17 @@ async def main():
     logger.info("Strategy loaded: %s (STAGE 1 ETH drift — Kelly + $5 cap, graduated Session 44)", eth_drift_strategy.name)
     sol_drift_strategy = sol_drift_load()
     logger.info("Strategy loaded: %s (STAGE 1 SOL drift — Kelly + $5 cap, promoted S48 per Matthew)", sol_drift_strategy.name)
-    xrp_drift_strategy = xrp_drift_load()
-    logger.info("Strategy loaded: %s (micro-live XRP drift, 1 contract/bet)", xrp_drift_strategy.name)
+    # xrp_drift_strategy permanently removed (S141 — XRP banned forever, Matthew directive).
 
-    # ── Inject Bayesian posterior into all 4 drift strategies (Dim 4) ─────
+    # ── Inject Bayesian posterior into active drift strategies (Dim 4) ─────
     # Each strategy holds a reference to the shared model loaded at startup.
     # When model.should_override_static() (30+ live obs), generate_signal() uses
     # model.predict(drift_pct) instead of the static sigmoid. Both paths still
     # apply the time-blending adjustment toward 0.5 early in the window.
-    for _drift_strat in [drift_strategy, eth_drift_strategy, sol_drift_strategy, xrp_drift_strategy]:
+    for _drift_strat in [drift_strategy, eth_drift_strategy, sol_drift_strategy]:
         _drift_strat._drift_model = _drift_model
     logger.info(
-        "[startup] Bayesian model injected into 4 drift strategies "
+        "[startup] Bayesian model injected into 3 drift strategies (XRP banned) "
         "(n=%d obs, override_active=%s)",
         _drift_model.n_observations,
         _drift_model.should_override_static(),
@@ -3729,33 +3729,9 @@ async def main():
         ),
         name="sol_drift_loop",
     )
-    # XRP drift: micro-live, stagger 33s (offset from sol_drift at 29s)
-    # Enabled Session 41: XRP ~2x more volatile than BTC → more frequent signals.
-    # Same 1-contract/bet cap as btc_drift/eth_drift/sol_drift. KXXRP15M series.
-    # Do NOT raise cap until: 30+ xrp live trades + Brier < 0.30.
-    xrp_drift_task = asyncio.create_task(
-        trading_loop(
-            kalshi=kalshi,
-            btc_feed=xrp_feed,
-            strategy=xrp_drift_strategy,
-            kill_switch=kill_switch,
-            db=db,
-            live_executor_enabled=live_mode,
-            live_confirmed=live_confirmed,
-            btc_series_ticker="KXXRP15M",
-            loop_name="xrp_drift",
-            initial_delay_sec=33.0,
-            max_daily_bets=0,  # unlimited — daily loss limit governs
-            slippage_ticks=paper_slippage_ticks,
-            fill_probability=paper_fill_probability,
-            trade_lock=_live_trade_lock,
-            calibration_max_usd=_DRIFT_CALIBRATION_CAP_USD,
-            btc_move_condition=_btc_move_condition,
-            direction_filter="yes",  # YES 83% (5/6) vs NO 36% (4/11) — applied Session 54
-            maker_mode=True,  # S98: post_only=True, 30s expiration. Same as btc/eth drift. Saves ~75% on fees.
-        ),
-        name="xrp_drift_loop",
-    )
+    # XRP drift permanently removed (S141 — Matthew directive: XRP banned forever).
+    # xrp_drift_task replaced with a no-op placeholder to preserve gather() structure.
+    xrp_drift_task = asyncio.create_task(asyncio.sleep(0), name="xrp_drift_loop_disabled")
     # BTC orderbook imbalance: paper-only, stagger 36s (was 29s — shifted for sol_drift)
     btc_imbalance_task = asyncio.create_task(
         trading_loop(
