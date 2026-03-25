@@ -73,6 +73,13 @@
      polybot_comm.py heartbeat runs every cycle — BOT_STATUS.md auto-updated.
   DONE S137: REQ-039 (maker_sniper built — 5 bugs fixed), REQ-038 (send_outcome_report + 13 tests),
              polybot_wrap_helper.py --write flag fixed (S136 commit 92ed2c9).
+  ⚠️ MATTHEW DECISION NEEDED — 08:xx HOUR BLOCK REVIEW:
+     S119 research (never implemented): 08:xx block was unjustified (crash-contaminated).
+     Hourly analysis (977 live bets): 08:xx WR=92.1%, P&L=-15.28 USD (borderline).
+     09:xx is the BEST HOUR: WR=98.6%, +45.51 USD. Block cuts off lead-up to this window.
+     13:xx: n=39, WR=82.1%, -104 USD (pre-guard XRP bets, NOT currently code-blocked).
+     XRP at 08:xx is now auto-guarded. To unblock: remove 8 from frozenset({8}) in main.py (2 places).
+     Current missed value: ~0.5-1 USD/day while BTC/ETH YES=91-94c during 08:xx.
 
 ## S133 KEY BUILDS (for reference)
 
