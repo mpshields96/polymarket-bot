@@ -407,6 +407,17 @@ def analyze_strategy(name: str, bets: list[dict], min_bets: int = MIN_BETS_DEFAU
     print(f"  SPRT (Wald 1945):  {verdict_label}  "
           f"[lambda={sprt.lambda_val:+.3f}, bounds={sprt.lower_boundary:.3f}/{sprt.upper_boundary:.3f}]")
 
+    # E-Value — Grünwald, de Heide & Koolen (2024) JRSS-B — optional-stopping safe
+    ev = run_evalue(outcomes, p0, p1)
+    if ev.edge_confirmed:
+        ev_label = "EDGE CONFIRMED"
+    elif ev.edge_eroding:
+        ev_label = "ERODING (log_e < 0)"
+    else:
+        ev_label = "collecting data"
+    print(f"  E-Value (Grünwald 2024): {ev_label}  "
+          f"[E_n={ev.e_value:.3f}, threshold=20.0]")
+
     # CUSUM — Page 1954
     cusum = run_cusum(outcomes, mu_0, mu_1)
     cusum_label = "DRIFT ALERT" if cusum.alert else "stable"
