@@ -1655,6 +1655,14 @@ async def maker_sniper_loop(
                         )
                         continue
 
+                    # Post-orderbook ceiling guard: market may have moved since signal fired
+                    if maker_price > strategy.ceiling_price_cents:
+                        logger.debug(
+                            "[maker_sniper] %s %s: maker_price=%dc > ceiling=%dc (market moved) — skip",
+                            ticker, signal.side, maker_price, strategy.ceiling_price_cents,
+                        )
+                        continue
+
                     # Paper execute at maker_price (simulates 1c price improvement)
                     _current_bankroll = db.latest_bankroll() or 50.0
                     ok, block_reason = kill_switch.check_paper_order_allowed(
@@ -1674,10 +1682,10 @@ async def maker_sniper_loop(
                     )
                     if result:
                         logger.info(
-                            "[maker_sniper] [paper] BUY %s %s @ %dc (maker, ask=%dc) "
+                            "[maker_sniper] [paper] BUY %s %s @ %dc (signal=%dc offset=-%dc) "
                             "USD %.2f | drift=%+.3f%% | trade_id=%s",
                             series_ticker, signal.side.upper(),
-                            maker_price, signal.price_cents,
+                            maker_price, signal.price_cents, strategy.offset_cents,
                             strategy.PAPER_CALIBRATION_USD,
                             coin_drift_pct * 100,
                             result.get("trade_id", "?"),
