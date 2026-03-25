@@ -56,6 +56,12 @@ KALSHI_FEE_RATE = 0.07  # 7% taker fee
 # but filters pure-noise activations (p=0.44-0.60 seen in all 5 existing guards).
 P_VALUE_THRESHOLD = 0.20
 
+# CUSUM drift detection (Page 1954, Biometrika 41:100-115)
+# Detects sustained drift below baseline BEFORE binomial p-value reaches significance.
+# S_i = max(0, S_{i-1} + (mu_0 - outcome - k)), alert when S >= h.
+CUSUM_THRESHOLD = 5.0   # h: standard CUSUM threshold (validated in bet_analytics.py)
+CUSUM_MIN_BETS = 15     # minimum sample for CUSUM guard (conservative, avoids variance noise)
+
 # Ticker prefix map — maps DB ticker prefix to guard pattern
 # e.g. "KXBTC15M-26MAR..." → prefix "KXBTC"
 _TICKER_PREFIXES = ["KXBTC", "KXETH", "KXSOL", "KXXRP"]
@@ -109,6 +115,33 @@ _EXISTING_HARDCODED_GUARDS: set[tuple] = {
     # IL-35: KXSOL sniper at 05:xx UTC — handled via _EXISTING_HARDCODED_HOUR_GUARDS
     # IL-33: KXXRP global sniper block — individual KXXRP combos already listed above
 }
+
+
+def cusum_statistic(outcomes: list, mu_0: float, h: float = CUSUM_THRESHOLD) -> tuple:
+    """
+    Compute CUSUM statistic for a sequence of outcomes.
+
+    Page's CUSUM (1954): detects downward drift from baseline win rate mu_0.
+    S_i = max(0, S_{i-1} + (mu_0 - outcome_i - k))
+    where k = (mu_0 - mu_1) / 2, mu_1 = mu_0 - 0.15 (degraded regime).
+
+    Args:
+        outcomes: list of bool (True=win, False=loss)
+        mu_0:     baseline win rate (break-even WR for this bucket)
+        h:        threshold for alert (default 5.0)
+
+    Returns:
+        (triggered: bool, s_value: float)
+    """
+    if not outcomes:
+        return (False, 0.0)
+    mu_1 = max(0.01, mu_0 - 0.15)
+    k = (mu_0 - mu_1) / 2
+    s = 0.0
+    for outcome in outcomes:
+        val = 1.0 if outcome else 0.0
+        s = max(0.0, s + (mu_0 - val - k))
+    return (s > h, round(s, 4))
 
 
 def break_even_wr(price_cents: int) -> float:
@@ -351,16 +384,18 @@ def _discover_guards_manual(db_path: Path) -> list[dict]:
     """).fetchall()
     conn.close()
 
-    # Bucket: (asset_prefix, price_cents, side) → {n, wins, total_pnl}
+    # Bucket: (asset_prefix, price_cents, side) → {n, wins, total_pnl, outcomes}
     buckets: dict[tuple, dict] = {}
     for ticker, side, price_cents, result, pnl_cents in rows:
         prefix = ticker_prefix(ticker)
         key = (prefix, price_cents, side)
         if key not in buckets:
-            buckets[key] = {"n": 0, "wins": 0, "pnl": 0}
+            buckets[key] = {"n": 0, "wins": 0, "pnl": 0, "outcomes": []}
+        won = side == result
         buckets[key]["n"] += 1
-        buckets[key]["wins"] += 1 if side == result else 0
+        buckets[key]["wins"] += 1 if won else 0
         buckets[key]["pnl"] += pnl_cents or 0
+        buckets[key]["outcomes"].append(won)
 
     guards = []
     now_ts = datetime.now(timezone.utc).timestamp()
@@ -372,15 +407,28 @@ def _discover_guards_manual(db_path: Path) -> list[dict]:
         wr = wins / n if n > 0 else 0.0
         be_wr = break_even_wr(price_cents)
 
-        # Skip if doesn't meet guard criteria
-        if not meets_statistical_threshold(n, wins, be_wr):
+        if is_already_guarded(prefix, price_cents, side):
             continue
         if total_pnl_usd >= -MIN_LOSS_USD:
             continue
-        if is_already_guarded(prefix, price_cents, side):
+
+        # Path 1: Statistical threshold (existing — binomial p-value)
+        guard_type = None
+        cusum_s = 0.0
+        if meets_statistical_threshold(n, wins, be_wr):
+            guard_type = "STATISTICAL"
+        else:
+            # Path 2: CUSUM drift detection (new — Page 1954)
+            # Only if enough samples and WR is below break-even
+            if n >= CUSUM_MIN_BETS and wr < be_wr:
+                triggered, cusum_s = cusum_statistic(stats["outcomes"], mu_0=be_wr)
+                if triggered:
+                    guard_type = "CUSUM_DRIFT"
+
+        if guard_type is None:
             continue
 
-        guards.append({
+        guard_entry = {
             "ticker_contains": prefix,
             "price_cents": price_cents,
             "side": side,
@@ -388,9 +436,13 @@ def _discover_guards_manual(db_path: Path) -> list[dict]:
             "win_rate": round(wr, 4),
             "break_even_wr": round(be_wr, 4),
             "total_loss_usd": round(total_pnl_usd, 2),
+            "guard_type": guard_type,
             "discovered_ts": now_ts,
             "discovered_date": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
-        })
+        }
+        if guard_type == "CUSUM_DRIFT":
+            guard_entry["cusum_s"] = cusum_s
+        guards.append(guard_entry)
 
     # Sort by total_loss_usd ascending (worst first)
     guards.sort(key=lambda g: g["total_loss_usd"])
