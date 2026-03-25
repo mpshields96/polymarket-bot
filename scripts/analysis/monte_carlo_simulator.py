@@ -1,375 +1,565 @@
-#!/usr/bin/env python3
-"""
-monte_carlo_simulator.py — Forward-Looking Monte Carlo Simulator for Kalshi Strategies
+"""Monte Carlo bankroll simulator (REQ-040).
 
-Projects bucket-level performance under uncertainty using Monte Carlo trials.
-Answers: "If the sniper maintains X% WR for N more bets, what's the range of outcomes?"
-
-Outputs:
-  - CDF of cumulative PnL (5th, 25th, 50th, 75th, 95th percentiles)
-  - Value-at-Risk (VaR) and Conditional VaR (Expected Shortfall)
-  - Probability of ruin (cumulative PnL < -bankroll)
-  - Max drawdown distribution
-  - Kelly-optimal vs flat sizing comparison
-
-Safety: Read-only. Advisory only. No trade execution.
+Simulates bankroll trajectories using parameterized or empirical bet distributions.
+Answers: given current bankroll + daily bet volume + win rate distribution,
+what is the probability of reaching a target vs ruin?
 
 Usage:
-    python3 monte_carlo_simulator.py --bucket KXBTC|93|no --n 500 --trials 10000
-    python3 monte_carlo_simulator.py --bucket KXBTC|93|no --n 500 --trials 5000 --json
-    python3 monte_carlo_simulator.py --bucket KXBTC|93|no --wr-range 0.90,0.98 --n 500
-"""
+    from monte_carlo_simulator import BetDistribution, MonteCarloSimulator
 
+    dist = BetDistribution(win_rate=0.957, avg_win=0.90, avg_loss=-10.0, daily_volume=30)
+    sim = MonteCarloSimulator(dist)
+    result = sim.run(starting_bankroll=100.0, target_bankroll=125.0, n_days=60, n_simulations=10000)
+    print(result.summary())
+
+CLI:
+    python3 monte_carlo_simulator.py --bankroll 100 --target 125 --days 60 --sims 10000
+    python3 monte_carlo_simulator.py --from-db  # use actual polybot.db bet history
+"""
+import argparse
 import json
 import math
 import os
 import random
-import sys
+import sqlite3
+import statistics
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Optional
-
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.dirname(os.path.dirname(SCRIPT_DIR))
-
-LEARNING_STATE_PATH = os.path.join(PROJECT_ROOT, "data", "learning_state.json")
-DB_PATH = os.path.join(PROJECT_ROOT, "data", "polybot.db")
-
-# Import profile builder from synthetic generator (same directory)
-sys.path.insert(0, SCRIPT_DIR)
-from synthetic_bet_generator import ProfileBuilder, BucketProfile
-
-
-# ── Data Classes ─────────────────────────────────────────────────────────────
 
 
 @dataclass
-class TrialResult:
-    """Result of a single Monte Carlo trial."""
-    final_pnl_cents: int
-    max_drawdown_cents: int
-    peak_pnl_cents: int
-    n_wins: int
-    n_losses: int
-    is_ruin: bool  # Final PnL < -bankroll
+class BetDistribution:
+    """Parameterized bet outcome distribution.
+
+    Can be created from explicit parameters or from historical outcome data.
+    Supports both parametric sampling (Bernoulli win/loss) and empirical
+    bootstrap sampling from actual outcome values.
+    """
+
+    win_rate: float = 0.0
+    avg_win: float = 0.0
+    avg_loss: float = 0.0
+    total_bets: int = 0
+    daily_volume: int = 30
+    win_values: list = field(default_factory=list)
+    loss_values: list = field(default_factory=list)
+
+    @classmethod
+    def from_outcomes(cls, outcomes: list[float], daily_volume: int = 30) -> "BetDistribution":
+        """Create distribution from a list of P&L values."""
+        if not outcomes:
+            return cls(total_bets=0, daily_volume=daily_volume)
+
+        wins = [o for o in outcomes if o > 0]
+        losses = [o for o in outcomes if o <= 0]
+        total = len(outcomes)
+        win_rate = len(wins) / total if total > 0 else 0.0
+        avg_win = statistics.mean(wins) if wins else 0.0
+        avg_loss = statistics.mean(losses) if losses else 0.0
+
+        return cls(
+            win_rate=win_rate,
+            avg_win=avg_win,
+            avg_loss=avg_loss,
+            total_bets=total,
+            daily_volume=daily_volume,
+            win_values=wins,
+            loss_values=losses,
+        )
+
+    @classmethod
+    def from_db(
+        cls,
+        db_path: str | None = None,
+        strategy: str | None = None,
+        daily_volume: int | None = None,
+    ) -> "BetDistribution":
+        """Create distribution from actual polybot.db trade history.
+
+        Args:
+            db_path: Path to polybot.db. Defaults to ~/Projects/polymarket-bot/data/polybot.db
+            strategy: Filter to specific strategy (e.g. 'expiry_sniper_v1'). None = all live.
+            daily_volume: Override daily volume. None = estimate from data.
+        """
+        if db_path is None:
+            db_path = os.path.expanduser("~/Projects/polymarket-bot/data/polybot.db")
+
+        if not os.path.exists(db_path):
+            raise FileNotFoundError(f"DB not found: {db_path}")
+
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        try:
+            # Get settled live trade P&L values
+            query = """
+                SELECT pnl_cents FROM trades
+                WHERE is_paper = 0 AND result IS NOT NULL AND pnl_cents IS NOT NULL
+            """
+            params = []
+            if strategy:
+                query += " AND strategy = ?"
+                params.append(strategy)
+
+            rows = conn.execute(query, params).fetchall()
+            if not rows:
+                return cls(total_bets=0)
+
+            outcomes = [r[0] / 100.0 for r in rows]  # cents to USD
+
+            # Estimate daily volume from data if not provided
+            if daily_volume is None:
+                date_query = """
+                    SELECT COUNT(*) as n, date(timestamp, 'unixepoch') as d
+                    FROM trades
+                    WHERE is_paper = 0 AND result IS NOT NULL
+                """
+                if strategy:
+                    date_query += " AND strategy = ?"
+                date_query += " GROUP BY d HAVING n > 0"
+                day_rows = conn.execute(date_query, params).fetchall()
+                if day_rows:
+                    daily_counts = [r[0] for r in day_rows]
+                    daily_volume = round(statistics.mean(daily_counts))
+                else:
+                    daily_volume = 30  # fallback
+
+            # Get current bankroll
+            bankroll_row = conn.execute(
+                "SELECT balance_usd FROM bankroll_history WHERE source = 'api' ORDER BY timestamp DESC LIMIT 1"
+            ).fetchone()
+            current_bankroll = bankroll_row[0] if bankroll_row else None
+
+            dist = cls.from_outcomes(outcomes, daily_volume)
+            dist._current_bankroll = current_bankroll
+            return dist
+        finally:
+            conn.close()
+
+    def expected_value(self) -> float:
+        """Expected value of a single bet."""
+        return self.win_rate * self.avg_win + (1 - self.win_rate) * self.avg_loss
+
+    def variance(self) -> float:
+        """Variance of a single bet outcome."""
+        ev = self.expected_value()
+        return (
+            self.win_rate * (self.avg_win - ev) ** 2
+            + (1 - self.win_rate) * (self.avg_loss - ev) ** 2
+        )
+
+    def sample(self) -> float:
+        """Sample a single bet outcome (parametric Bernoulli)."""
+        if random.random() < self.win_rate:
+            return self.avg_win
+        return self.avg_loss
+
+    def sample_empirical(self) -> float:
+        """Sample from empirical distribution (bootstrap from actual values)."""
+        if not self.win_values and not self.loss_values:
+            return self.sample()
+        if random.random() < self.win_rate:
+            return random.choice(self.win_values) if self.win_values else self.avg_win
+        return random.choice(self.loss_values) if self.loss_values else self.avg_loss
+
+    def kelly_fraction(self) -> float:
+        """Full Kelly fraction: f* = p/q - q/(b/a) where p=WR, q=1-WR, b=avg_win, a=|avg_loss|."""
+        if self.avg_loss == 0 or self.avg_win == 0:
+            return 0.0
+        p = self.win_rate
+        q = 1 - p
+        b = self.avg_win
+        a = abs(self.avg_loss)
+        kelly = p / a - q / b
+        # Clamp to [0, 1] — negative means don't bet
+        return max(0.0, min(1.0, kelly * a))  # Scale back to fraction of bankroll
 
 
 @dataclass
-class MonteCarloResult:
-    """Aggregated Monte Carlo simulation results."""
-    bucket_key: str
-    n_bets: int
-    n_trials: int
-    win_rate_used: float
-    win_pnl_cents: int
-    loss_pnl_cents: int
-    bankroll_cents: int
-    seed: Optional[int] = None
+class SimulationResult:
+    """Results from a Monte Carlo simulation run."""
 
-    # PnL percentiles (in cents)
-    pnl_p5: int = 0
-    pnl_p25: int = 0
-    pnl_p50: int = 0  # Median
-    pnl_p75: int = 0
-    pnl_p95: int = 0
-    pnl_mean: float = 0.0
+    n_simulations: int
+    n_days: int
+    starting_bankroll: float
+    target_bankroll: float
+    final_bankrolls: list[float]
+    ruin_count: int
+    target_count: int
+    paths: list[list[float]] = field(default_factory=list)
 
-    # Risk metrics
-    var_95: int = 0  # 5th percentile loss (Value-at-Risk)
-    cvar_95: float = 0.0  # Expected Shortfall below 5th percentile
-    prob_ruin: float = 0.0  # P(final PnL < -bankroll)
-    prob_profit: float = 0.0  # P(final PnL > 0)
+    @property
+    def ruin_probability(self) -> float:
+        return self.ruin_count / self.n_simulations if self.n_simulations > 0 else 0.0
 
-    # Drawdown percentiles
-    dd_p50: int = 0
-    dd_p95: int = 0
-    dd_max: int = 0
+    @property
+    def target_probability(self) -> float:
+        return self.target_count / self.n_simulations if self.n_simulations > 0 else 0.0
 
-    # Expected value
-    ev_per_bet_cents: float = 0.0
-    ev_total_cents: float = 0.0
+    @property
+    def median_bankroll(self) -> float:
+        if not self.final_bankrolls:
+            return 0.0
+        return statistics.median(self.final_bankrolls)
+
+    def percentiles(self, p: float) -> float:
+        """Get percentile of final bankrolls (0-100)."""
+        if not self.final_bankrolls:
+            return 0.0
+        sorted_b = sorted(self.final_bankrolls)
+        idx = int(p / 100.0 * (len(sorted_b) - 1))
+        return sorted_b[idx]
+
+    def expected_daily_pnl(self) -> float:
+        """Average daily P&L across all simulations."""
+        if not self.final_bankrolls or self.n_days == 0:
+            return 0.0
+        avg_final = statistics.mean(self.final_bankrolls)
+        return (avg_final - self.starting_bankroll) / self.n_days
 
     def to_dict(self) -> dict:
         return {
-            "bucket_key": self.bucket_key,
-            "n_bets": self.n_bets,
-            "n_trials": self.n_trials,
-            "win_rate_used": round(self.win_rate_used, 4),
-            "win_pnl_cents": self.win_pnl_cents,
-            "loss_pnl_cents": self.loss_pnl_cents,
-            "bankroll_cents": self.bankroll_cents,
-            "seed": self.seed,
-            "pnl_percentiles": {
-                "p5": self.pnl_p5,
-                "p25": self.pnl_p25,
-                "p50": self.pnl_p50,
-                "p75": self.pnl_p75,
-                "p95": self.pnl_p95,
-                "mean": round(self.pnl_mean, 1),
-            },
-            "risk": {
-                "var_95": self.var_95,
-                "cvar_95": round(self.cvar_95, 1),
-                "prob_ruin": round(self.prob_ruin, 4),
-                "prob_profit": round(self.prob_profit, 4),
-            },
-            "drawdown": {
-                "p50": self.dd_p50,
-                "p95": self.dd_p95,
-                "max": self.dd_max,
-            },
-            "expected_value": {
-                "per_bet_cents": round(self.ev_per_bet_cents, 2),
-                "total_cents": round(self.ev_total_cents, 1),
-            },
+            "n_simulations": self.n_simulations,
+            "n_days": self.n_days,
+            "starting_bankroll": self.starting_bankroll,
+            "target_bankroll": self.target_bankroll,
+            "ruin_probability": round(self.ruin_probability, 4),
+            "target_probability": round(self.target_probability, 4),
+            "median_bankroll": round(self.median_bankroll, 2),
+            "percentile_5": round(self.percentiles(5), 2),
+            "percentile_25": round(self.percentiles(25), 2),
+            "percentile_75": round(self.percentiles(75), 2),
+            "percentile_95": round(self.percentiles(95), 2),
+            "expected_daily_pnl": round(self.expected_daily_pnl(), 4),
+            "mean_bankroll": round(statistics.mean(self.final_bankrolls), 2) if self.final_bankrolls else 0.0,
         }
 
-
-# ── Monte Carlo Engine ───────────────────────────────────────────────────────
+    def summary(self) -> str:
+        """Human-readable summary."""
+        d = self.to_dict()
+        lines = [
+            f"Monte Carlo Simulation ({d['n_simulations']} paths, {d['n_days']} days)",
+            f"  Start: ${d['starting_bankroll']:.2f} -> Target: ${d['target_bankroll']:.2f}",
+            f"  Ruin probability:   {d['ruin_probability']:.1%}",
+            f"  Target probability: {d['target_probability']:.1%}",
+            f"  Median bankroll:    ${d['median_bankroll']:.2f}",
+            f"  5th/95th pct:       ${d['percentile_5']:.2f} / ${d['percentile_95']:.2f}",
+            f"  Expected daily P&L: ${d['expected_daily_pnl']:.4f}",
+        ]
+        return "\n".join(lines)
 
 
 class MonteCarloSimulator:
-    """Forward-projects bucket performance with uncertainty quantification."""
+    """Monte Carlo bankroll simulation engine."""
 
-    DEFAULT_TRIALS = 10000
-    DEFAULT_BANKROLL_CENTS = 10000  # $100
+    def __init__(self, distribution: BetDistribution):
+        self.distribution = distribution
 
-    def __init__(self, seed: int = None):
-        self.seed = seed
-        self._rng = random.Random(seed)
-
-    def simulate(
+    def simulate_path(
         self,
-        profile: BucketProfile,
-        n_bets: int,
-        n_trials: int = None,
-        bankroll_cents: int = None,
-        win_rate_override: float = None,
-    ) -> MonteCarloResult:
-        """Run Monte Carlo simulation for a bucket.
+        starting_bankroll: float,
+        n_days: int,
+        ruin_threshold: float = 0.0,
+        use_empirical: bool = False,
+    ) -> list[float]:
+        """Simulate a single bankroll trajectory.
+
+        Returns list of bankroll values [day0, day1, ..., dayN].
+        Stops early if bankroll hits ruin threshold.
+        """
+        path = [starting_bankroll]
+        bankroll = starting_bankroll
+
+        if bankroll <= ruin_threshold:
+            return [0.0] * (n_days + 1)
+
+        sample_fn = self.distribution.sample_empirical if use_empirical else self.distribution.sample
+
+        for day in range(n_days):
+            daily_pnl = 0.0
+            for _ in range(self.distribution.daily_volume):
+                daily_pnl += sample_fn()
+
+            bankroll += daily_pnl
+            if bankroll <= ruin_threshold:
+                bankroll = 0.0
+                path.append(0.0)
+                # Fill remaining days with 0
+                path.extend([0.0] * (n_days - day - 1))
+                return path
+
+            path.append(bankroll)
+
+        return path
+
+    def run(
+        self,
+        starting_bankroll: float,
+        target_bankroll: float,
+        n_days: int,
+        n_simulations: int,
+        seed: int | None = None,
+        ruin_threshold: float = 0.0,
+        use_empirical: bool = False,
+        store_paths: bool = False,
+    ) -> SimulationResult:
+        """Run full Monte Carlo simulation.
 
         Args:
-            profile: Bucket statistical profile
-            n_bets: Number of forward bets per trial
-            n_trials: Number of Monte Carlo trials (default 10000)
-            bankroll_cents: Bankroll for ruin calculation (default 10000 = $100)
-            win_rate_override: Override the historical win rate
+            starting_bankroll: Starting bankroll in USD
+            target_bankroll: Target bankroll in USD
+            n_days: Number of days to simulate
+            n_simulations: Number of paths to simulate
+            seed: Random seed for reproducibility
+            ruin_threshold: Bankroll level considered ruin (default 0)
+            use_empirical: Use bootstrap sampling instead of parametric
+            store_paths: Store all paths (memory-intensive, for charting)
         """
-        if n_trials is None:
-            n_trials = self.DEFAULT_TRIALS
-        if bankroll_cents is None:
-            bankroll_cents = self.DEFAULT_BANKROLL_CENTS
+        if seed is not None:
+            random.seed(seed)
 
-        p = win_rate_override if win_rate_override is not None else profile.win_rate
-        win_pnl = int(profile.avg_win_pnl_cents)
-        loss_pnl = int(profile.avg_loss_pnl_cents)
+        final_bankrolls = []
+        ruin_count = 0
+        target_count = 0
+        paths = []
 
-        # Run trials
-        trials: list[TrialResult] = []
-        for _ in range(n_trials):
-            trial = self._run_trial(p, win_pnl, loss_pnl, n_bets, bankroll_cents)
-            trials.append(trial)
-
-        # Aggregate results
-        return self._aggregate(
-            trials, profile.bucket_key, n_bets, n_trials,
-            p, win_pnl, loss_pnl, bankroll_cents,
-        )
-
-    def _run_trial(
-        self, p: float, win_pnl: int, loss_pnl: int,
-        n_bets: int, bankroll_cents: int,
-    ) -> TrialResult:
-        """Execute a single trial: n_bets sequential Bernoulli draws."""
-        cumulative = 0
-        peak = 0
-        max_dd = 0
-        wins = 0
-
-        for _ in range(n_bets):
-            if self._rng.random() < p:
-                cumulative += win_pnl
-                wins += 1
-            else:
-                cumulative += loss_pnl
-
-            if cumulative > peak:
-                peak = cumulative
-            dd = peak - cumulative
-            if dd > max_dd:
-                max_dd = dd
-
-        return TrialResult(
-            final_pnl_cents=cumulative,
-            max_drawdown_cents=max_dd,
-            peak_pnl_cents=peak,
-            n_wins=wins,
-            n_losses=n_bets - wins,
-            is_ruin=cumulative < -bankroll_cents,
-        )
-
-    def _aggregate(
-        self, trials: list[TrialResult],
-        bucket_key: str, n_bets: int, n_trials: int,
-        p: float, win_pnl: int, loss_pnl: int, bankroll_cents: int,
-    ) -> MonteCarloResult:
-        """Aggregate trial results into percentiles and risk metrics."""
-        if not trials:
-            return MonteCarloResult(
-                bucket_key=bucket_key, n_bets=n_bets, n_trials=0,
-                win_rate_used=p, win_pnl_cents=win_pnl,
-                loss_pnl_cents=loss_pnl, bankroll_cents=bankroll_cents,
+        for _ in range(n_simulations):
+            path = self.simulate_path(
+                starting_bankroll, n_days, ruin_threshold, use_empirical
             )
+            final = path[-1]
+            final_bankrolls.append(final)
 
-        pnls = sorted([t.final_pnl_cents for t in trials])
-        drawdowns = sorted([t.max_drawdown_cents for t in trials])
+            if final <= ruin_threshold:
+                ruin_count += 1
+            if final >= target_bankroll:
+                target_count += 1
 
-        result = MonteCarloResult(
-            bucket_key=bucket_key,
-            n_bets=n_bets,
-            n_trials=n_trials,
-            win_rate_used=p,
-            win_pnl_cents=win_pnl,
-            loss_pnl_cents=loss_pnl,
-            bankroll_cents=bankroll_cents,
-            seed=self.seed,
+            if store_paths:
+                paths.append(path)
+
+        return SimulationResult(
+            n_simulations=n_simulations,
+            n_days=n_days,
+            starting_bankroll=starting_bankroll,
+            target_bankroll=target_bankroll,
+            final_bankrolls=final_bankrolls,
+            ruin_count=ruin_count,
+            target_count=target_count,
+            paths=paths,
         )
 
-        # PnL percentiles
-        result.pnl_p5 = self._percentile(pnls, 5)
-        result.pnl_p25 = self._percentile(pnls, 25)
-        result.pnl_p50 = self._percentile(pnls, 50)
-        result.pnl_p75 = self._percentile(pnls, 75)
-        result.pnl_p95 = self._percentile(pnls, 95)
-        result.pnl_mean = sum(pnls) / len(pnls)
-
-        # VaR and CVaR at 95% confidence
-        result.var_95 = -result.pnl_p5  # Loss at 5th percentile
-        cutoff_idx = max(1, len(pnls) * 5 // 100)
-        tail = pnls[:cutoff_idx]
-        result.cvar_95 = -sum(tail) / len(tail) if tail else 0.0
-
-        # Probabilities
-        result.prob_ruin = sum(1 for t in trials if t.is_ruin) / len(trials)
-        result.prob_profit = sum(1 for t in trials if t.final_pnl_cents > 0) / len(trials)
-
-        # Drawdown percentiles
-        result.dd_p50 = self._percentile(drawdowns, 50)
-        result.dd_p95 = self._percentile(drawdowns, 95)
-        result.dd_max = drawdowns[-1] if drawdowns else 0
-
-        # Expected value (analytical, not simulated)
-        result.ev_per_bet_cents = p * win_pnl + (1 - p) * loss_pnl
-        result.ev_total_cents = result.ev_per_bet_cents * n_bets
-
-        return result
-
-    @staticmethod
-    def _percentile(sorted_data: list, pct: int) -> int:
-        """Compute percentile from sorted list. Returns int."""
-        if not sorted_data:
-            return 0
-        idx = max(0, min(len(sorted_data) - 1, int(len(sorted_data) * pct / 100)))
-        return sorted_data[idx]
-
-    def sensitivity_sweep(
+    def scenario_analysis(
         self,
-        profile: BucketProfile,
-        n_bets: int,
-        wr_lo: float,
-        wr_hi: float,
-        steps: int = 10,
-        n_trials: int = 1000,
-    ) -> list[MonteCarloResult]:
-        """Run simulations across a range of win rates."""
+        starting_bankroll: float,
+        target_bankroll: float,
+        n_days_options: list[int],
+        n_simulations: int = 1000,
+        seed: int | None = None,
+        **kwargs,
+    ) -> list[SimulationResult]:
+        """Run simulations across multiple time horizons."""
         results = []
+        for n_days in n_days_options:
+            result = self.run(
+                starting_bankroll, target_bankroll, n_days, n_simulations,
+                seed=seed, **kwargs,
+            )
+            results.append(result)
+        return results
+
+    def sensitivity_analysis(
+        self,
+        starting_bankroll: float,
+        target_bankroll: float,
+        n_days: int,
+        n_simulations: int = 1000,
+        win_rate_range: tuple[float, float] = (0.90, 0.98),
+        steps: int = 5,
+        seed: int | None = None,
+    ) -> list[dict]:
+        """Sweep win rate to see sensitivity of outcomes."""
+        wr_low, wr_high = win_rate_range
+        step_size = (wr_high - wr_low) / (steps - 1) if steps > 1 else 0
+        results = []
+
         for i in range(steps):
-            wr = wr_lo + (wr_hi - wr_lo) * i / max(steps - 1, 1)
-            r = self.simulate(profile, n_bets, n_trials=n_trials, win_rate_override=wr)
-            results.append(r)
+            wr = wr_low + i * step_size
+            dist = BetDistribution(
+                win_rate=wr,
+                avg_win=self.distribution.avg_win,
+                avg_loss=self.distribution.avg_loss,
+                daily_volume=self.distribution.daily_volume,
+            )
+            sim = MonteCarloSimulator(dist)
+            result = sim.run(
+                starting_bankroll, target_bankroll, n_days, n_simulations, seed=seed
+            )
+            results.append({
+                "win_rate": round(wr, 4),
+                "ruin_probability": round(result.ruin_probability, 4),
+                "target_probability": round(result.target_probability, 4),
+                "median_bankroll": round(result.median_bankroll, 2),
+            })
+
         return results
 
 
-# ── CLI ──────────────────────────────────────────────────────────────────────
+class SyntheticBetGenerator:
+    """Generate synthetic bets from historical patterns.
 
+    Supports multi-strategy generation where each strategy maintains
+    its own outcome distribution and volume proportion.
+    """
 
-def format_result(r: MonteCarloResult) -> str:
-    """Format simulation result for console."""
-    lines = []
-    lines.append("=" * 70)
-    lines.append(f"MONTE CARLO SIMULATION: {r.bucket_key}")
-    lines.append(f"  {r.n_trials:,} trials x {r.n_bets} bets @ WR={r.win_rate_used:.1%}")
-    lines.append(f"  Win: +{r.win_pnl_cents}c / Loss: {r.loss_pnl_cents}c")
-    lines.append("=" * 70)
+    def __init__(self, strategies: dict[str, BetDistribution], daily_volume: int = 30):
+        self.strategies = strategies
+        self.daily_volume = daily_volume
+        # Calculate volume proportions from total_bets
+        total = sum(d.total_bets for d in strategies.values())
+        if total > 0:
+            self._proportions = {
+                name: d.total_bets / total for name, d in strategies.items()
+            }
+        else:
+            n = len(strategies)
+            self._proportions = {name: 1.0 / n for name in strategies} if n > 0 else {}
 
-    lines.append(f"\nEXPECTED VALUE:")
-    lines.append(f"  Per bet: {r.ev_per_bet_cents:+.2f}c")
-    lines.append(f"  Total ({r.n_bets} bets): {r.ev_total_cents:+.1f}c (${r.ev_total_cents/100:+.2f})")
+    @classmethod
+    def from_trade_data(
+        cls, trade_data: list[dict], daily_volume: int = 30
+    ) -> "SyntheticBetGenerator":
+        """Create from list of trade dicts with 'pnl_usd' and 'strategy' keys."""
+        by_strategy: dict[str, list[float]] = {}
+        for t in trade_data:
+            strat = t.get("strategy", "unknown")
+            pnl = t.get("pnl_usd", 0.0)
+            by_strategy.setdefault(strat, []).append(pnl)
 
-    lines.append(f"\nPnL DISTRIBUTION (cents):")
-    lines.append(f"  5th:  {r.pnl_p5:+,}c (${r.pnl_p5/100:+.2f})")
-    lines.append(f"  25th: {r.pnl_p25:+,}c (${r.pnl_p25/100:+.2f})")
-    lines.append(f"  50th: {r.pnl_p50:+,}c (${r.pnl_p50/100:+.2f})")
-    lines.append(f"  75th: {r.pnl_p75:+,}c (${r.pnl_p75/100:+.2f})")
-    lines.append(f"  95th: {r.pnl_p95:+,}c (${r.pnl_p95/100:+.2f})")
-    lines.append(f"  Mean: {r.pnl_mean:+,.1f}c (${r.pnl_mean/100:+.2f})")
+        strategies = {}
+        for name, outcomes in by_strategy.items():
+            strategies[name] = BetDistribution.from_outcomes(outcomes)
 
-    lines.append(f"\nRISK METRICS:")
-    lines.append(f"  VaR (95%):  {r.var_95:,}c (${r.var_95/100:.2f})")
-    lines.append(f"  CVaR (95%): {r.cvar_95:,.1f}c (${r.cvar_95/100:.2f})")
-    lines.append(f"  P(ruin):    {r.prob_ruin:.2%}")
-    lines.append(f"  P(profit):  {r.prob_profit:.2%}")
+        return cls(strategies, daily_volume)
 
-    lines.append(f"\nDRAWDOWN:")
-    lines.append(f"  Median: {r.dd_p50:,}c")
-    lines.append(f"  95th:   {r.dd_p95:,}c")
-    lines.append(f"  Max:    {r.dd_max:,}c")
+    @classmethod
+    def from_outcomes(
+        cls, outcomes: list[float], daily_volume: int = 30
+    ) -> "SyntheticBetGenerator":
+        """Create from flat list of outcomes (single strategy bootstrap)."""
+        dist = BetDistribution.from_outcomes(outcomes)
+        return cls({"default": dist}, daily_volume)
 
-    return "\n".join(lines)
+    def generate_day(self) -> list[dict]:
+        """Generate one day of synthetic bets."""
+        bets = []
+        for name, proportion in self._proportions.items():
+            count = round(self.daily_volume * proportion)
+            dist = self.strategies[name]
+            for _ in range(count):
+                pnl = dist.sample_empirical() if dist.win_values or dist.loss_values else dist.sample()
+                bets.append({"pnl": pnl, "strategy": name})
+
+        # Adjust to exact daily_volume (rounding may under/overshoot)
+        while len(bets) < self.daily_volume:
+            name = random.choice(list(self.strategies.keys()))
+            dist = self.strategies[name]
+            pnl = dist.sample_empirical() if dist.win_values or dist.loss_values else dist.sample()
+            bets.append({"pnl": pnl, "strategy": name})
+        while len(bets) > self.daily_volume:
+            bets.pop()
+
+        random.shuffle(bets)
+        return bets
+
+    def generate_sequence(self, n_days: int) -> list[list[dict]]:
+        """Generate N days of synthetic bets."""
+        return [self.generate_day() for _ in range(n_days)]
 
 
 def main():
-    import argparse
-    parser = argparse.ArgumentParser(description="Monte Carlo Simulator")
-    parser.add_argument("--bucket", type=str, required=True, help="Bucket key (e.g. KXBTC|93|no)")
-    parser.add_argument("--n", type=int, default=500, help="Forward bets per trial")
-    parser.add_argument("--trials", type=int, default=10000, help="Number of MC trials")
-    parser.add_argument("--bankroll", type=int, default=10000, help="Bankroll in cents")
-    parser.add_argument("--wr-override", type=float, help="Override win rate")
-    parser.add_argument("--wr-range", type=str, help="Win rate sweep range (e.g. 0.90,0.98)")
-    parser.add_argument("--steps", type=int, default=10, help="Sweep steps")
-    parser.add_argument("--seed", type=int, help="Random seed")
-    parser.add_argument("--json", action="store_true", help="JSON output")
+    """CLI entry point."""
+    parser = argparse.ArgumentParser(description="Monte Carlo bankroll simulator")
+    parser.add_argument("--bankroll", type=float, default=100.0, help="Starting bankroll (USD)")
+    parser.add_argument("--target", type=float, default=125.0, help="Target bankroll (USD)")
+    parser.add_argument("--days", type=int, default=60, help="Days to simulate")
+    parser.add_argument("--sims", type=int, default=10000, help="Number of simulations")
+    parser.add_argument("--wr", type=float, default=0.957, help="Win rate")
+    parser.add_argument("--win", type=float, default=0.90, help="Average win (USD)")
+    parser.add_argument("--loss", type=float, default=-10.0, help="Average loss (USD)")
+    parser.add_argument("--volume", type=int, default=30, help="Daily bet volume")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument("--json", action="store_true", help="Output JSON")
+    parser.add_argument("--sensitivity", action="store_true", help="Run WR sensitivity analysis")
+    parser.add_argument("--scenarios", action="store_true", help="Run 30/60/90 day scenarios")
+    parser.add_argument("--from-db", action="store_true", help="Use actual polybot.db bet history")
+    parser.add_argument("--db-path", type=str, default=None, help="Custom DB path (with --from-db)")
+    parser.add_argument("--strategy", type=str, default=None, help="Filter to strategy (with --from-db)")
+
     args = parser.parse_args()
 
-    builder = ProfileBuilder()
-    profile = builder.build_from_db(args.bucket)
-    if profile is None:
-        profile = builder.build_from_learning_state(args.bucket)
-    if profile is None:
-        print(f"Error: No data found for bucket {args.bucket}")
-        sys.exit(1)
-
-    sim = MonteCarloSimulator(seed=args.seed)
-
-    if args.wr_range:
-        lo, hi = [float(x) for x in args.wr_range.split(",")]
-        results = sim.sensitivity_sweep(profile, args.n, lo, hi, args.steps, n_trials=args.trials)
-        for r in results:
-            if args.json:
-                print(json.dumps({"wr": r.win_rate_used, **r.to_dict()}))
-            else:
-                print(f"WR={r.win_rate_used:.3f}: EV={r.ev_total_cents:+.0f}c P(profit)={r.prob_profit:.1%} VaR={r.var_95}c DD95={r.dd_p95}c")
+    if args.from_db:
+        try:
+            dist = BetDistribution.from_db(
+                db_path=args.db_path,
+                strategy=args.strategy,
+                daily_volume=args.volume if args.volume != 30 else None,
+            )
+            bankroll = args.bankroll
+            if hasattr(dist, '_current_bankroll') and dist._current_bankroll and bankroll == 100.0:
+                bankroll = dist._current_bankroll
+                print(f"Using DB bankroll: ${bankroll:.2f}")
+            print(f"From DB: {dist.total_bets} bets, WR={dist.win_rate:.1%}, "
+                  f"avg_win=${dist.avg_win:.2f}, avg_loss=${dist.avg_loss:.2f}, "
+                  f"volume={dist.daily_volume}/day")
+            args.bankroll = bankroll
+        except FileNotFoundError as e:
+            print(f"Error: {e}")
+            return
     else:
-        result = sim.simulate(
-            profile, args.n, n_trials=args.trials,
-            bankroll_cents=args.bankroll,
-            win_rate_override=args.wr_override,
+        dist = BetDistribution(
+            win_rate=args.wr,
+            avg_win=args.win,
+            avg_loss=args.loss,
+            daily_volume=args.volume,
+        )
+    sim = MonteCarloSimulator(dist)
+
+    if args.sensitivity:
+        results = sim.sensitivity_analysis(
+            args.bankroll, args.target, args.days, args.sims, seed=args.seed
         )
         if args.json:
-            print(json.dumps(result.to_dict(), indent=2))
+            print(json.dumps(results, indent=2))
         else:
-            print(format_result(result))
+            print(f"Sensitivity Analysis (WR sweep, {args.days} days, {args.sims} sims)")
+            print(f"{'WR':>8} {'Ruin%':>8} {'Target%':>8} {'Median$':>10}")
+            print("-" * 38)
+            for r in results:
+                print(f"{r['win_rate']:>8.1%} {r['ruin_probability']:>8.1%} "
+                      f"{r['target_probability']:>8.1%} ${r['median_bankroll']:>9.2f}")
+        return
+
+    if args.scenarios:
+        results = sim.scenario_analysis(
+            args.bankroll, args.target, [30, 60, 90], args.sims, seed=args.seed
+        )
+        if args.json:
+            print(json.dumps([r.to_dict() for r in results], indent=2))
+        else:
+            for r in results:
+                print(r.summary())
+                print()
+        return
+
+    result = sim.run(
+        args.bankroll, args.target, args.days, args.sims, seed=args.seed
+    )
+
+    if args.json:
+        print(json.dumps(result.to_dict(), indent=2))
+    else:
+        print(result.summary())
+        print(f"\n  EV per bet:   ${dist.expected_value():.4f}")
+        print(f"  Kelly fraction: {dist.kelly_fraction():.4f}")
 
 
 if __name__ == "__main__":
