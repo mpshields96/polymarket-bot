@@ -14,12 +14,11 @@
 ##   academic context review, hourly pattern analysis, data integrity checks.
 ## ═══════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S134 — updated 2026-03-25 ~03:00 UTC)
-  Bot RUNNING PID 8651 → /tmp/polybot_session134.log
-  Restart for S135 using restart command below.
-  All-time live P&L: +22.89 USD | S134 net: -3.92 USD (12 live bets, 11/12 wins, 1 NO@92c loss -9.20 USD)
-  Tests: 1800 passing (1 pre-existing failure — scripts/analysis shebangs). Last commit: 1876819
-  S134 GRADE: B — economics_sniper_v1 built, polybot_comm.py built, CCA comms fixed; net negative from 1 NO@92c loss
+## BOT STATE (S135 — updated 2026-03-25 ~04:30 UTC)
+  Bot RUNNING PID 36394 → /tmp/polybot_session135.log
+  All-time live P&L: +25.58 USD | S135 net: +2.67 USD (18 live bets, 17/18 WR, 94%)
+  Tests: 1836 passing (1 pre-existing failure — test_security shebang). Last commit: 5f03e7a
+  S135 GRADE: B+ — IL-37 guard, daily_sniper live, ROC AUC steal, CCA REQ-025 acted
 
   ALL DRIFTS DISABLED (min_drift_pct=9.99 for all four)
   KXXRP sniper: BLOCKED globally (IL-33)
@@ -27,8 +26,8 @@
   IL-35: KXSOL sniper at 05:xx UTC — BLOCKED
   IL-36: KXETH NO@95c — BLOCKED
   IL-24: KXSOL NO@95c — BLOCKED (legacy)
-  8 auto-guards: KXXRP NO@95c + KXSOL NO@93c + KXBTC YES@94c + KXXRP NO@93c + KXBTC NO@94c
-                 + KXBTC 08:xx + KXETH 08:xx + KXETH 02:xx
+  9 auto-guards: KXXRP NO@95c + KXSOL NO@93c + KXBTC YES@94c + KXXRP NO@93c + KXBTC NO@94c
+                 + KXBTC 08:xx + KXETH 08:xx + KXETH 02:xx + IL-37 NO@00:xx (all assets)
   HOUR BLOCK: frozenset({8}) — 08:xx UTC blocked
   YES@95c BTC/ETH/SOL: PROFITABLE, still firing (100% WR)
   NO@95c: ALL BLOCKED by ILs. Only YES@95c for non-XRP still active.
@@ -49,18 +48,20 @@
   5. CDT/UTC timezone fix: log timestamp comparison now uses local time correctly
      (false restart from 21:34 CDT → 26:34 UTC confusion — no bets lost)
 
-## S134 PENDING TASKS (priority order)
-  1. REQ-033 URGENT: CCA to analyze KXBTC NO@92c (n=12 now, WR=91.7%, -9.20 USD — guard-worthy?)
-     Filed with DB data. Check CCA response at session start.
-  2. REQ-034: CCA to provide monte_carlo_simulator.py + synthetic_bet_generator.py integration plan
-     Scripts exist at scripts/analysis/ — just need wiring
-  3. REQ-035: CCA to analyze daily sniper interim (10/30 wins, Wilson CI lower bound)
-  4. REQ-025: STILL PENDING (new second edge K2 search) — push CCA every session
-  5. Fix "0 settled today" query: UTC/CDT midnight offset (query uses CDT midnight = 05:00 UTC)
-     Misses all bets before 05:00 UTC. Not urgent but counts are wrong in monitoring display.
-  6. Daily sniper: need 20 more clean paper bets (currently 10/30)
-  7. economics sniper: first paper bets April 8 (KXCPI-26MAR-T0.6 enters 48h window)
-  8. NO@92c monitoring: n=12, -9.20 USD — if REQ-033 confirms guard needed, add immediately
+## S136 PENDING TASKS (priority order)
+  1. FIRST PRIORITY: Confirm first daily_sniper LIVE bet fires correctly
+     grep "[daily_sniper] [LIVE]" /tmp/polybot_session135.log — verify end-to-end execution works
+  2. REQ-037: CCA maker-side limit orders feasibility (Becker 2026, +1.12% structural edge)
+     Filed S135. Await response. If CCA confirms Kalshi API supports limit/post_only orders: BUILD.
+  3. REQ-027 URGENT (Matthew standing directive, S132): Monte Carlo + Synthetic Origination tools
+     Push CCA every session until delivered. Non-negotiable.
+  4. REQ-038: Cross-chat learning loop — outcome_report + research_priority message types
+     Filed S135. Small build — fits within polybot_comm.py.
+  5. daily_sniper ramp-up: 0/30 live bets so far. After 30 confirmed: raise cap 1→5 USD.
+  6. economics sniper: first paper bets April 8 (KXCPI-26MAR-T0.6 enters 48h window)
+  7. sol_drift re-evaluation: SPRT edge confirmed (lambda=+2.337, 67% WR) but disabled S123.
+     Matthew directive required to re-enable. Flag for discussion.
+  8. Autoloop broken: consecutive_short_sessions (terminal auth issue). Investigate fix.
 
 ## S133 KEY BUILDS (for reference)
 

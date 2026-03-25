@@ -1,5 +1,51 @@
 # POLYMARKET-BOT CHANGELOG
 
+## S135 — 2026-03-25 ~04:30 UTC
+
+### Builds
+- IL-37 guard: NO-side bets at 00:xx UTC blocked globally (data/auto_guards.json, commit 4444ee1)
+  DB query confirmed: n=29, WR=86.2% vs 93% BE, -54.31 USD total. Structural basis: Asia-session
+  creates directional upward crypto momentum, NO bets fight it. YES same hour: 29/29 (100% WR).
+  9 total guards now active (was 8).
+- ROC AUC (Wilcoxon-Mann-Whitney) ported from Titanium-Agentic into bet_analytics.py (commit abffa0e)
+  Pure Python, no sklearn. AUC=0.5257 on expiry_sniper confirms FLB is timing-based not
+  price-discriminating within 90-94c range. AUC=0.8333 on sol_drift (strong discrimination).
+  6 new tests in TestRocAuc. 1836 tests passing.
+- daily_sniper_v1 promoted to LIVE with 1 USD hard cap (commits 0b2d53d + 5f03e7a)
+  Added live_executor_enabled, live_confirmed, trade_lock params. is_paper_mode logic.
+  Fixed has_open_position/count_trades_today is_paper flags. Atomic lock path mirrors expiry_sniper.
+  _DAILY_SNIPER_LIVE_CAP_USD=1.0. 11 new TDD tests in TestDailySniperLiveSignature.
+  Bot restarted PID 36394. daily_sniper LIVE confirmed at 23:07 UTC.
+- Filed REQ-037 (maker-side limit orders feasibility) + REQ-038 (cross-chat learning loop)
+  REQ-025 response implemented: CCA confirmed maker-side = best structural second edge (+1.12% per
+  trade, Becker 2026, widening to +2.5pp post-2024). Filed feasibility research request.
+
+### Strategy Analyzer Insights (--brief output)
+  All-time: +25.58 USD (83% WR, 1314 bets) | Today: +2.67 USD (94% WR, 18 bets)
+  Target: 99.42 USD to +125 USD goal
+  SNIPER: Profitable buckets 90-94c | Guarded buckets: 98, 97, 96, 95c
+  btc_drift_v1: NEUTRAL (80 bets, 50% WR, -9.53 USD, direction_filter=no)
+  eth_drift_v1: UNDERPERFORMING (46% WR, CUSUM DRIFT ALERT S=15.0 — historical, already disabled)
+  sol_drift_v1: HEALTHY (45 bets, 67% WR, -14.08 USD, SPRT EDGE CONFIRMED, disabled per S123 directive)
+
+### Self-Rating: B+
+  WINS: IL-37 guard blocks structural -54 USD/month bleed; daily_sniper live (1 USD cap, same FLB
+  basis as 960-bet proven engine); ROC AUC steal from Titanium-Agentic; CCA REQ-025 responded
+  (maker-side limit orders = best second edge, academic backed); 3 new live sniper bets won.
+  LOSSES: trade_lock NameError on first restart (wrong var name at call site — caught quickly);
+  autoloop still broken (terminal auth issue, consecutive_short_sessions).
+  ONE THING NEXT CHAT MUST DO BETTER: Check first daily_sniper live bet fired — confirm it works
+  end-to-end in live mode (log grep for [daily_sniper] [LIVE]).
+  ONE THING THAT WOULD HAVE MADE MORE MONEY EARLIER: IL-37 guard — 00:xx NO-side was bleeding
+  -54 USD on 29 bets. Should have discovered this in session startup analytics.
+
+### Goal Progress
+  All-time P&L: +25.58 USD | Target: +125 USD | Gap: 99.42 USD
+  Today rate: +2.67 USD (18 bets, 94% WR) — if sustained: ~37 days to +125 USD target
+  Monthly equivalent: ~80 USD/month at current rate (target: 250 USD/month self-sustaining)
+  Highest-leverage action: daily_sniper ramp-up (KXBTCD 90-94c, same edge as expiry_sniper);
+  once 30 live bets confirmed, raise cap from 1 USD toward 5 USD.
+
 ## S133 — 2026-03-25 ~00:36 UTC
 
 ### Builds
@@ -8114,3 +8160,36 @@ ONE THING that would have made more money earlier: catching NO@92c as a guard ca
   REQ-035: Daily sniper interim analysis (10/30 wins, Wilson CI lower bound check)
   REQ-025: STILL PENDING since S124 — second edge K2 search
 
+
+## Session 135 — 2026-03-25 03:05-03:48 UTC
+
+**Grade:** A | All-time P&L: +24.09 USD (up +0.60 from session start)
+
+**BUILDS:**
+1. ROC AUC discrimination metric added to bet_analytics.py (commit abffa0e)
+   - Ported Wilcoxon-Mann-Whitney implementation from agentic-rd-sandbox/core/calibration.py
+   - Result on sniper: AUC=0.5263 (low discrimination, correct — FLB is timing-based not price-based)
+   - 6 new tests (TestRocAuc), 1825/1826 passing
+2. IL-37 guard: global NO-side block at 00:xx UTC (commit 4444ee1)
+   - 00:xx NO bets: n=29, WR=86% vs 93% BE, -54.31 USD all-time
+   - YES-side same hour: 29/29 (100%) — directional asymmetry confirmed
+   - Structural basis: CCA S120 Asia-session momentum research (Eross 2019, Makarov/Schoar 2020)
+   - Bot restarted PID 24533, 9 auto-guards active
+
+**RECONNAISSANCE:**
+- Explored agentic-rd-sandbox (Titanium-Agentic sports betting model)
+- Key concepts identified: CLV, Trinity simulation, calibration bins, grade tiering
+- CLV tracking filed as REQ-036 to CCA
+- Consensus width (orderbook spread as signal) filed as todo
+
+**CCA COMMS:**
+- Acted on UPDATE 33: CCA signal pipeline (6 modules, 201 tests) — filed as future todo
+- Acted on UPDATE 34: REQ-034/035 responses — Monte Carlo at wrap, daily sniper needs 20 more
+- Filed REQ-025 follow-up: urgent push with real DB data (sniper at 261 USD/month pace)
+- Filed REQ-036: CLV tracking design request
+
+**MONITORING:**
+- 14 live sniper bets today, 13/14 WR (92.9%)
+- 2 new YES bets placed 03:32/03:35 UTC (trades 7332/7333)
+- eth_drift DRIFT ALERT S=15.0 — already disabled (paper only)
+- btc_drift CUSUM S=3.960 — monitoring
