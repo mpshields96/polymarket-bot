@@ -14,24 +14,25 @@
 ##   academic context review, hourly pattern analysis, data integrity checks.
 ## ═══════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S140 — updated 2026-03-25 ~22:10 UTC)
-  Bot RUNNING PID 83523 → /tmp/polybot_session140.log
-  All-time live P&L: +25.97 USD (DB authoritative) | S140 net: -5.12 USD
-  expiry_sniper: 102/109 wins today (93.6% WR). Post-fix bets capped at 7.44 USD each.
-  daily_sniper: 18/30 live settled (17/18 = 94.4% WR). 12 more for 1→5 USD cap raise.
-  maker_sniper: paper calibration ongoing. Valid paper fills: 5/30 (5/5 wins). 25 more needed.
-  Tests: 1910 passing. Last commit: 92e56ef
-  S140 work:
-    ce71048: expiry_sniper_loop MAX_LOSS bypass fixed — was using min(HARD_CAP, pct_max),
-      ignoring DEFAULT_MAX_LOSS_USD=$7.50. Fixed to min(HARD_CAP, pct_max, MAX_LOSS).
-      Regression test: test_expiry_sniper_loop_max_loss_formula.
-    92e56ef: Post-guard clean bet counter (CCA-S178) — 7 tests + --health [7] display.
-      Current: 3 clean bets, Gate 1 at 200 (auto-raise HARD_MAX to 12 USD — pre-authorized).
-    CCA-S177/S178: MAX_LOSS + kelly_scale implemented + verified working in both loops.
-    REQ-041/042/043 filed, CCA-S178 action items implemented.
+## BOT STATE (S141 — updated 2026-03-25 ~23:05 UTC)
+  Bot RUNNING PID 15227 → /tmp/polybot_session141.log
+  All-time live P&L: +20.88 USD (all strategies) | expiry_sniper alone: +101.40 USD
+  Today: 95 settled | 93% WR | -6.4 USD (multiple losses across BTC/ETH/SOL)
+  daily_sniper: 18/30 live settled (12 more for 1→5 USD cap raise)
+  Post-guard clean bets: 8/200 (Gate 1 → auto-raise HARD_MAX 10→12 USD at 200)
+  Tests: 1915 passing. Last commit: 1a0f58c
+  S141 work:
+    7a291bf: Auto-raise HARD_MAX at gates — settlement_loop now auto-raises without approval.
+      set_hard_max_trade_usd() added to kill_switch.py. 5 new tests.
+    e745a71: Permanent XRP ban — removed from expiry_sniper/maker_sniper feeds, drift task,
+      calibrator, Bayesian injection. xrp_drift_task replaced with no-op.
+    1a0f58c: Fix NameError — xrp_drift_strategy calibrator ref missed in first pass.
 
-  RESTART COMMAND (S140):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session140.log 2>&1 &
+  XRP STATUS: PERMANENTLY BANNED. IL-33 still in live.py as defense. No polling anywhere.
+  08:xx BLOCK: CONFIRMED CORRECT — non-XRP 08:xx: n=34, WR=88%, -51.6 USD. Block stays.
+
+  RESTART COMMAND (S141):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session141.log 2>&1 &
 
   ALL DRIFTS DISABLED (min_drift_pct=9.99 for all four)
   KXXRP sniper: BLOCKED globally (IL-33)
@@ -61,24 +62,20 @@
   5. CDT/UTC timezone fix: log timestamp comparison now uses local time correctly
      (false restart from 21:34 CDT → 26:34 UTC confusion — no bets lost)
 
-## S141 PENDING TASKS (priority order)
-  1. AUTO-HARD_MAX RAISE at gates — PRIORITY 1 (Matthew pre-authorized all gates):
-     HARD_MAX_TRADE_USD is a module constant — must make it runtime-mutable.
-     Options: (a) store in config.yaml + reload on gate, (b) module-level mutable var,
-     (c) env var. Then settlement_loop auto-raises at 200/300/500 clean bets.
-     Currently at 3 clean bets post-fix. Gate 1 still ~197 bets away.
-  2. daily_sniper cap raise: 18/30 live settled (17/18 WR = 94.4%). Need 12 more.
-     After 30: Wilson CI lower bound must exceed 93% BE before raising 1→5 USD cap.
-  3. maker_sniper paper calibration: 5/30 valid fills. 25 more needed.
-     Track via DB — once 30 clean fills, evaluate live gate with fill_rate + WR check.
-  4. REQ-041 (plateau framework): awaiting CCA response.
-  5. CLV accumulation: close_price_cents column deployed. 0 rows post-restart (drought).
-     Run bet_analytics CLV report once enough post-restart bets have settled.
-  6. economics sniper: first paper bets April 8 (KXCPI-26MAR-T0.6 48h window).
-  7. sol_drift re-enable: SPRT edge confirmed (lambda=+2.337) but needs Matthew directive.
-  8. 08:xx hour block: marginal (WR=91.5% vs BE=91.6%, n=59). Matthew call to remove.
-     To unblock: remove 8 from frozenset({8}) in main.py lines ~1572 + ~2063.
-  DONE S140: MAX_LOSS bypass fix (ce71048) + post-guard counter (92e56ef) + CCA-S178 ACK.
+## S142 PENDING TASKS (priority order)
+  DONE S141:
+    7a291bf: Auto-HARD_MAX raise at gates (set_hard_max_trade_usd, 5 tests)
+    e745a71 + 1a0f58c: Permanent XRP ban (feeds, drift, calibrator)
+    08:xx block confirmed correct (non-XRP: n=34, WR=88%, -51.6 USD — NOT marginal)
+    SESSION_HANDOFF + CCA comms updated
+  1. daily_sniper cap raise: 18/30 live settled. Need 12 more.
+     After 30: Wilson CI lower bound must exceed 93% BE → raise 1→5 USD cap.
+  2. HARD_MAX gate progress: 8/200 clean bets. Auto-raise fires at 200 (no action needed).
+  3. maker_sniper paper calibration: 5/30 valid fills. Passive — track via DB.
+  4. REQ-041 (plateau framework): awaiting CCA response. REQ-044 (sol re-enable): pending.
+  5. economics sniper: first paper bets April 8 (KXCPI-26MAR-T0.6 48h window).
+  6. sol_drift re-enable: SPRT EDGE CONFIRMED (lambda=+2.337, CUSUM stable S=1.680).
+     min_drift_pct=9.99 currently blocks all bets. Needs Matthew directive to re-enable.
   ⚠️ MATTHEW DECISION NEEDED — 08:xx HOUR BLOCK ANALYSIS (S137, corrected):
      Data: 08:xx total: n=63, WR=92.1%, P&L=-15.28 USD (break-even is 91.6%)
      Crash analysis: Mar17 08:xx was FINE (n=4, 100% WR, +4.62 USD). Losses from non-crash days.
