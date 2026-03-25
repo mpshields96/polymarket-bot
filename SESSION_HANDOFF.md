@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-25 ~00:40 UTC (Session 133 — E-Value, autoloop, wrap helper)
+# Last updated: 2026-03-25 ~06:15 UTC (Session 136 — daily_sniper validated, bot killed for night)
 # ═══════════════════════════════════════════════════════════════
 
 ## ⚠️ HYBRID CHAT — PERMANENT ARCHITECTURE (Matthew standing directive, S131)
@@ -14,11 +14,13 @@
 ##   academic context review, hourly pattern analysis, data integrity checks.
 ## ═══════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S135 — updated 2026-03-25 ~04:30 UTC)
-  Bot RUNNING PID 36394 → /tmp/polybot_session135.log
-  All-time live P&L: +25.58 USD | S135 net: +2.67 USD (18 live bets, 17/18 WR, 94%)
-  Tests: 1836 passing (1 pre-existing failure — test_security shebang). Last commit: 5f03e7a
-  S135 GRADE: B+ — IL-37 guard, daily_sniper live, ROC AUC steal, CCA REQ-025 acted
+## BOT STATE (S136 — updated 2026-03-25 ~06:15 UTC)
+  Bot STOPPED (killed per Matthew directive after S136 wrap)
+  All-time live P&L: +29.99 USD | S136 net: +4.41 USD (24 live settled, 16/16 expiry WR)
+  Tests: 1836 passing (1 pre-existing failure — test_security shebang). Last commit: ac107cb
+  S136 GRADE: B+ — daily_sniper validated (7/8 WR), background monitor fixed, REQ-039/040 filed
+
+  ⚠️ BOT STOPPED — restart with: pkill -f "python3 main.py" 2>/dev/null; sleep 2; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session137.log 2>&1 &
 
   ALL DRIFTS DISABLED (min_drift_pct=9.99 for all four)
   KXXRP sniper: BLOCKED globally (IL-33)
@@ -48,20 +50,22 @@
   5. CDT/UTC timezone fix: log timestamp comparison now uses local time correctly
      (false restart from 21:34 CDT → 26:34 UTC confusion — no bets lost)
 
-## S136 PENDING TASKS (priority order)
-  1. FIRST PRIORITY: Confirm first daily_sniper LIVE bet fires correctly
-     grep "[daily_sniper] [LIVE]" /tmp/polybot_session135.log — verify end-to-end execution works
-  2. REQ-037: CCA maker-side limit orders feasibility (Becker 2026, +1.12% structural edge)
-     Filed S135. Await response. If CCA confirms Kalshi API supports limit/post_only orders: BUILD.
-  3. REQ-027 URGENT (Matthew standing directive, S132): Monte Carlo + Synthetic Origination tools
-     Push CCA every session until delivered. Non-negotiable.
-  4. REQ-038: Cross-chat learning loop — outcome_report + research_priority message types
-     Filed S135. Small build — fits within polybot_comm.py.
-  5. daily_sniper ramp-up: 0/30 live bets so far. After 30 confirmed: raise cap 1→5 USD.
-  6. economics sniper: first paper bets April 8 (KXCPI-26MAR-T0.6 enters 48h window)
-  7. sol_drift re-evaluation: SPRT edge confirmed (lambda=+2.337, 67% WR) but disabled S123.
-     Matthew directive required to re-enable. Flag for discussion.
+## S137 PENDING TASKS (priority order)
+  1. STARTUP: Check daily_sniper 3 open bets (window 03) settled correctly overnight.
+     grep "[daily_sniper].*settle\|settle.*daily_sniper" logs to confirm. Daily cap resets at UTC midnight.
+  2. daily_sniper ramp-up: 8/30 live bets settled (7/8 WR, -0.39 USD net). Need 22 more.
+     After 30 confirmed: raise cap 1→5 USD.
+  3. CCA REQ-039: maker_sniper_v1 architecture design (filed S136). Await response.
+     When CCA responds: build MakerSniperStrategy paper trade, 30-bet gate before live.
+  4. REQ-027 URGENT (Matthew standing directive, S132): Monte Carlo + Synthetic Origination.
+     Filed REQ-040 S136. Push CCA every session. Non-negotiable.
+  5. REQ-038: Cross-chat learning loop (outcome_report + research_priority message types).
+     Small build in polybot_comm.py. Do when bot stable.
+  6. economics sniper: first paper bets April 8 (KXCPI-26MAR-T0.6 enters 48h window).
+  7. sol_drift re-evaluation: SPRT edge confirmed (lambda=+2.337, AUC=0.8333) but disabled S123.
+     Matthew directive required to re-enable.
   8. Autoloop broken: consecutive_short_sessions (terminal auth issue). Investigate fix.
+  9. Fix polybot_wrap_helper.py --write flag (S136: --write flag silently did nothing, no CHANGELOG update).
 
 ## S133 KEY BUILDS (for reference)
 

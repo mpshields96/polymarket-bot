@@ -1,5 +1,30 @@
 # POLYMARKET-BOT CHANGELOG
 
+## S136 — 2026-03-25 ~06:13 UTC
+
+### Builds
+- E-Value (Grünwald 2024) integrated into bet_analytics.py — optional-stopping safe
+  Sniper E_n=360M (massively confirmed). btc/xrp/eth drift: ERODING (log_e<0).
+- start_autoloop.sh — Terminal.app auto-loop for Kalshi main chat
+  Opens new window per session, handles wrap/restart autonomously.
+  Usage: ./start_autoloop.sh --tmux | --status | --dry-run
+- scripts/polybot_wrap_helper.py — fast wrap automation
+  Replaces 15-20 min manual wrap with 5-min auto-generation.
+
+### Performance
+- Today live: 30/32 wins (93.8% WR), +5.78 USD
+- All-time live: +29.99 USD | Gap to +125 goal: 95.01 USD
+
+### CUSUM State
+- (bet_analytics error: Command '['./venv/bin/python3', 'scripts/bet_analytics.py']' returned non-zero exit status 1.)
+
+### Self-Assessment
+- Grade: B+
+- Wins: daily_sniper first live bets validated (7/8 WR), background monitor fixed (abs paths+timeout), REQ-039/040 filed
+- Losses: first daily_sniper bet lost (window 01 BTC rose above threshold), background monitor unstable early
+
+---
+
 ## S135 — 2026-03-25 ~04:30 UTC
 
 ### Builds
@@ -8193,3 +8218,45 @@ ONE THING that would have made more money earlier: catching NO@92c as a guard ca
 - 2 new YES bets placed 03:32/03:35 UTC (trades 7332/7333)
 - eth_drift DRIFT ALERT S=15.0 — already disabled (paper only)
 - btc_drift CUSUM S=3.960 — monitoring
+
+
+## Session 136 — 2026-03-25 04:53-06:15 UTC
+
+**Grade:** B+ | All-time P&L: +29.99 USD (up +4.41 from S135 wrap)
+
+**BUILDS:** None (monitoring + validation session)
+
+**SELF-ASSESSMENT:**
+- Wins: daily_sniper first live bets validated end-to-end. Window 02: 7/7 wins (100% WR YES bets). Background monitor fixed (absolute paths + 10-min timeout). REQ-039 (maker_sniper_v1 arch) + REQ-040 (Monte Carlo push) filed to CCA. CCA REQ-025/037 acked.
+- Losses: First daily_sniper bet (window 01 NO@93c) lost -0.93 USD (BTC rose above threshold — normal variance). Background monitor failures early (sleep 300 < 120s default timeout, fixed cycle 7+).
+- One thing next chat must do differently: check background task timeout upfront, use 600000ms immediately.
+- One thing that would have made more money earlier: N/A (monitoring session, no builds needed).
+
+**MONITORING:**
+- 24 live sniper bets today, 16/16 WR, +10.38 USD (expiry_sniper)
+- daily_sniper: 8 settled today (7/8 = 87.5% WR), -0.39 USD net. 3 open at shutdown.
+  - Window 01: 1 bet (NO@93c, LOSS -0.93, BTC above threshold)
+  - Window 02: 7 bets (YES side, 7/7 WINS, +0.54 USD net for window)
+- Session net: +4.41 USD (all-time +25.58 → +29.99)
+- Bot killed for the night per Matthew directive after wrap
+
+**Strategy Analyzer Insights (--brief):**
+- All-time: +29.99 USD (83% WR, 1330 bets)
+- Today: +7.08 USD (94% WR, 34 bets)
+- SNIPER: Profitable buckets 90-94c. Guarded: 98, 97, 96, 95c.
+- btc_drift_v1: NEUTRAL — 80 bets, 50% WR, -9.53 USD [direction filter no]
+- eth_drift_v1: UNDERPERFORMING — 46% WR declining (disabled)
+- sol_drift_v1: HEALTHY — 45 bets, 67% WR (disabled per Matthew S123)
+
+**CCA Comms:**
+- Acked REQ-025 (second edge research — economics_sniper + maker-side top candidates)
+- Acked REQ-037 (maker-side already implemented in drifts; queued maker_sniper_v1)
+- Filed REQ-039: maker_sniper_v1 architecture design request
+- Filed REQ-040: Monte Carlo push (standing directive S132)
+
+**Goal Progress:**
+- All-time: +29.99 USD | Target: +125 USD | Gap: 95.01 USD
+- Rate: ~5.44 USD/day (today's run rate) → ~17 days to goal
+- Highest-leverage: daily_sniper ramp-up (8/30 live bets, 87.5% WR) + expiry sniper stable
+
+**Next chat priority:** Confirm daily_sniper window 03 open bets settled correctly at startup. Check if 10-bet daily cap was reached and reset at UTC midnight.

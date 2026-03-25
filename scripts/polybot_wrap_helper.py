@@ -152,9 +152,11 @@ def get_strategy_counts() -> dict:
 
 def get_cusum_state() -> list[str]:
     """Run bet_analytics and extract CUSUM lines."""
+    venv_python = str(PROJECT_DIR / "venv" / "bin" / "python3")
+    analytics_script = str(PROJECT_DIR / "scripts" / "bet_analytics.py")
     try:
         result = subprocess.check_output(
-            ["./venv/bin/python3", "scripts/bet_analytics.py"],
+            [venv_python, analytics_script],
             cwd=PROJECT_DIR, text=True, stderr=subprocess.DEVNULL,
             timeout=30
         )
@@ -269,16 +271,14 @@ def generate_main_chat_prompt(
         f"Tests: {git['test_count']} passing | Last commit: {git['hash']} ({git['msg'][:50]})",
         f"",
         f"S{session_num} KEY CHANGES:",
-        f"- E-Value (Grünwald 2024) integrated into bet_analytics.py output",
-        f"- start_autoloop.sh: Terminal.app auto-loop built (modelled on CCA autoloop)",
-        f"  Usage: ./start_autoloop.sh | --tmux | --status | --dry-run",
-        f"- polybot_wrap_helper.py: fast wrap automation (<5 min vs 15-20 min)",
+        f"- S{session_num} GRADE: {grade} | wins: {wins[:120] if wins else '(see CHANGELOG)'}",
+        f"  losses: {losses[:100] if losses else '(see CHANGELOG)'}",
         f"",
         f"CRITICAL STARTUP CHECKS:",
         f"  Bot is STOPPED. Run restart command first.",
         f"  tail -5 {log_path}  (MUST be recent after restart)",
         f"  grep 'Loaded.*auto-discovered' {log_path} | tail -1",
-        f"  MUST show 'Loaded 8 auto-discovered guard(s)'",
+        f"  MUST show 'Loaded {guard_count} auto-discovered guard(s)'",
         f"  grep 'n_observations' data/drift_posterior.json  (MUST show n_observations>=334)",
         f"",
         f"STARTUP SEQUENCE (run in order):",
@@ -309,11 +309,6 @@ def generate_main_chat_prompt(
         f"--- END MAIN CHAT PROMPT ---",
     ]
 
-    if grade != "?":
-        # Insert grade after "S{N} KEY CHANGES"
-        idx = next(i for i, l in enumerate(lines) if "KEY CHANGES" in l)
-        lines.insert(idx + 1, f"- S{session_num} GRADE: {grade} | {wins} | losses: {losses}")
-
     return "\n".join(lines)
 
 
@@ -331,14 +326,10 @@ def generate_changelog_entry(
     lines = [
         f"## S{session_num} — {ts}",
         f"",
-        f"### Builds",
-        f"- E-Value (Grünwald 2024) integrated into bet_analytics.py — optional-stopping safe",
-        f"  Sniper E_n=360M (massively confirmed). btc/xrp/eth drift: ERODING (log_e<0).",
-        f"- start_autoloop.sh — Terminal.app auto-loop for Kalshi main chat",
-        f"  Opens new window per session, handles wrap/restart autonomously.",
-        f"  Usage: ./start_autoloop.sh --tmux | --status | --dry-run",
-        f"- scripts/polybot_wrap_helper.py — fast wrap automation",
-        f"  Replaces 15-20 min manual wrap with 5-min auto-generation.",
+        f"### Session Summary",
+        f"- Grade: {grade}",
+        f"- Wins: {wins if wins else '(none recorded)'}",
+        f"- Losses: {losses if losses else '(none recorded)'}",
         f"",
         f"### Performance",
         f"- Today live: {pnl['today_wins']}/{pnl['today_bets']} wins ({sniper_today_wr}% WR), {pnl['today']:+.2f} USD",
@@ -354,11 +345,6 @@ def generate_changelog_entry(
         lines.append("- All stable")
 
     lines += [
-        f"",
-        f"### Self-Assessment",
-        f"- Grade: {grade}",
-        f"- Wins: {wins}",
-        f"- Losses: {losses}",
         f"",
         f"---",
         f"",
@@ -384,7 +370,8 @@ def update_main_chat_in_init(new_main_chat_block: str) -> bool:
     end_idx = content.find(end_marker)
 
     if start_idx == -1 or end_idx == -1:
-        print("WARNING: Could not find MAIN CHAT markers in polybot-init.md")
+        print(f"ERROR: Could not find MAIN CHAT markers in polybot-init.md")
+        print(f"  Looking for: '{start_marker}' (found: {start_idx!=-1}) and '{end_marker}' (found: {end_idx!=-1})")
         return False
 
     new_content = (
