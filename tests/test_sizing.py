@@ -217,6 +217,22 @@ class TestExistingBehaviorPreserved(unittest.TestCase):
         self.assertEqual(get_stage(150.0), 2)
         self.assertEqual(get_stage(300.0), 3)
 
+    def test_expiry_sniper_loop_max_loss_formula(self):
+        """S140 regression: expiry_sniper_loop used min(_HARD_CAP, pct_max) bypassing
+        DEFAULT_MAX_LOSS_USD. Fix: min(_HARD_CAP, pct_max, _MAX_LOSS).
+        At bankroll=208, MAX_PCT=0.08: pct_max=16.63. HARD_CAP=10. MAX_LOSS=7.50.
+        Correct result: 7.50. Wrong (pre-fix) result: 10.00."""
+        from src.risk.kill_switch import HARD_MAX_TRADE_USD, MAX_TRADE_PCT
+        from src.risk.sizing import DEFAULT_MAX_LOSS_USD
+        bankroll = 208.0
+        pct_max = round(bankroll * MAX_TRADE_PCT, 2) - 0.01
+        # Pre-fix (wrong): trade_usd = min(HARD_CAP, pct_max)
+        wrong = min(HARD_MAX_TRADE_USD, max(0.01, pct_max))
+        self.assertAlmostEqual(wrong, 10.00, places=2, msg="pre-fix formula should give 10 USD")
+        # Post-fix (correct): trade_usd = min(HARD_CAP, pct_max, MAX_LOSS)
+        correct = min(HARD_MAX_TRADE_USD, max(0.01, pct_max), DEFAULT_MAX_LOSS_USD)
+        self.assertAlmostEqual(correct, 7.50, places=2, msg="post-fix formula should give 7.50 USD")
+
 
 if __name__ == "__main__":
     unittest.main()

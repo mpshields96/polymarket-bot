@@ -2198,9 +2198,11 @@ async def expiry_sniper_loop(
                         # S60 fix: at ~98 USD bankroll, 5.00 = 5.1% > 5% cap → blocked.
                         # S61 fix: floating-point precision — 4.72/94.4 = 0.05000000003 > 0.05.
                         # Subtract 0.01 to guarantee strictly under the cap.
+                        # S140 fix (REQ-042): apply MAX_LOSS cap — CCA-S177 missed this loop.
                         from src.risk.kill_switch import MAX_TRADE_PCT as _MAX_PCT
+                        from src.risk.sizing import DEFAULT_MAX_LOSS_USD as _MAX_LOSS
                         _pct_max = round(current_bankroll * _MAX_PCT, 2) - 0.01
-                        trade_usd = min(_HARD_CAP, max(0.01, _pct_max))
+                        trade_usd = min(_HARD_CAP, max(0.01, _pct_max), _MAX_LOSS)
 
                         # Atomic: lock → kill_switch → execute → record_trade
                         _lock_ctx = trade_lock if trade_lock is not None else contextlib.nullcontext()
