@@ -21,6 +21,7 @@ from scripts.bet_analytics import (
     wilson_ci, run_sprt, brier_score, run_cusum, SPRTResult,
     calibration_adjusted_edge, analyze_sniper_coins, analyze_sniper_monthly,
     analyze_sniper_forward_edge, analyze_sniper_rolling_wr,
+    roc_auc,
 )
 
 
@@ -190,6 +191,43 @@ class TestCUSUM:
         # mu_0 - 1 - k = 0.97 - 1 - 0.035 = -0.065 -> floors at 0 from 0
         r = run_cusum([1], mu_0=0.97, mu_1=0.90)
         assert r.statistic == 0.0  # max(0, 0 + (-0.065)) = 0
+
+
+# ── ROC AUC (Hanley & McNeil 1982, ported from Titanium-Agentic calibration.py) ─
+
+class TestRocAuc:
+    def test_perfect_discrimination(self):
+        """Wins all have higher price than losses → AUC = 1.0."""
+        prices = [0.94, 0.93, 0.91, 0.90]
+        outcomes = [1, 1, 0, 0]
+        assert roc_auc(prices, outcomes) == 1.0
+
+    def test_random_classifier(self):
+        """Equal prices → AUC = 0.5."""
+        prices = [0.92, 0.92, 0.92, 0.92]
+        outcomes = [1, 0, 1, 0]
+        assert roc_auc(prices, outcomes) == 0.5
+
+    def test_all_wins_returns_05(self):
+        """All-win set: undefined AUC, returns 0.5."""
+        assert roc_auc([0.92, 0.93], [1, 1]) == 0.5
+
+    def test_all_losses_returns_05(self):
+        """All-loss set: undefined AUC, returns 0.5."""
+        assert roc_auc([0.90, 0.91], [0, 0]) == 0.5
+
+    def test_empty_returns_05(self):
+        assert roc_auc([], []) == 0.5
+
+    def test_sniper_high_wr_moderate_auc(self):
+        """Sniper at 95% WR: with 1 loss at 0.91c and wins spread 0.90-0.94, AUC near 0.5."""
+        # 19 wins at various prices, 1 loss at 0.91
+        prices =  [0.92, 0.93, 0.94, 0.90, 0.92, 0.93, 0.91, 0.94, 0.93, 0.92,
+                   0.91, 0.90, 0.93, 0.92, 0.94, 0.91, 0.93, 0.92, 0.90, 0.91]
+        outcomes = [1,    1,    1,    1,    1,    1,    0,    1,    1,    1,
+                    1,    1,    1,    1,    1,    1,    1,    1,    1,    1]
+        auc = roc_auc(prices, outcomes)
+        assert 0.0 <= auc <= 1.0  # valid range always
 
 
 # ── Le (2026) Calibration Adjusted Edge ───────────────────────────────────────

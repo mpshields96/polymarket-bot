@@ -257,6 +257,39 @@ def brier_score(prices: list[float], outcomes: list[int],
     )
 
 
+# ── ROC AUC — Discrimination Power (Hanley & McNeil 1982) ────────────────────
+# Ported from Titanium-Agentic/core/calibration.py (agentic-rd-sandbox, 2026-02-19)
+# Measures whether predicted probability discriminates wins from losses.
+# AUC = P(score of win > score of loss). 0.5 = random, 1.0 = perfect.
+# Uses Wilcoxon-Mann-Whitney statistic — exact, no external libraries.
+
+
+def roc_auc(prices: list[float], outcomes: list[int]) -> float:
+    """
+    Compute ROC AUC via Wilcoxon-Mann-Whitney statistic (pure Python, no sklearn).
+
+    For the sniper: AUC > 0.5 means higher entry price → more likely to win.
+    Near 0.5 = price within 90-94c range doesn't discriminate (wins distributed evenly).
+    Above 0.6 = 94c entries win more reliably than 90c entries (price-edge relationship).
+
+    Returns 0.5 for undefined cases (all-win or all-loss, empty list).
+    """
+    if not prices or sum(outcomes) == 0 or sum(outcomes) == len(outcomes):
+        return 0.5
+    positives = [p for p, o in zip(prices, outcomes) if o == 1]
+    negatives = [p for p, o in zip(prices, outcomes) if o == 0]
+    if not positives or not negatives:
+        return 0.5
+    concordant = 0.0
+    for pos in positives:
+        for neg in negatives:
+            if pos > neg:
+                concordant += 1.0
+            elif pos == neg:
+                concordant += 0.5
+    return round(min(1.0, max(0.0, concordant / (len(positives) * len(negatives)))), 4)
+
+
 # ── CUSUM Changepoint Detection (Page 1954) ───────────────────────────────────
 
 @dataclass
@@ -434,10 +467,14 @@ def analyze_strategy(name: str, bets: list[dict], min_bets: int = MIN_BETS_DEFAU
         print(f"  Brier (1950):      {brier.score:.4f}  "
               f"[REL={brier.reliability:.4f} RES={brier.resolution:.4f}]  "
               f"(using model win_prob)")
+        auc = roc_auc(win_probs, wp_outcomes)
     else:
         print(f"  Brier (1950):      {brier.score:.4f}  "
               f"[REL={brier.reliability:.4f} RES={brier.resolution:.4f}]  "
               f"(using purchase price)")
+        auc = roc_auc(prices, outcomes)
+    auc_label = "good" if auc >= 0.65 else ("moderate" if auc >= 0.55 else "low")
+    print(f"  ROC AUC:           {auc:.4f}  [{auc_label} discrimination]")
 
     # Flag if SPRT says no edge
     if sprt.verdict == "no_edge":
