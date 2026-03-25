@@ -8294,20 +8294,37 @@ ONE THING that would have made more money earlier: catching NO@92c as a guard ca
 - Filed REQ-041 (fill rate monitoring for maker_sniper in bet_analytics)
 - Status update written to POLYBOT_TO_CCA.md with CUSUM data
 
-**COMMITS THIS SESSION:**
+**BUILDS / FIXES (continued):**
+6. **maker_sniper ceiling guard post-orderbook** (commit f85e6df): After compute_maker_adjustment(), market can move in ~100ms before orderbook fetch. Added guard: `if maker_price > ceiling: skip`. Trades 7889/7890 (XRP NO@95c, SOL NO@96c) were above-ceiling — root cause was this missing check. Fixed for all future bets.
+7. **maker_sniper log format** (commit f85e6df): `(maker, ask=%dc)` was misleading — "ask" was actually `signal.price_cents` (the signal price, not the orderbook ask). Fixed to `(signal=%dc offset=-%dc)`.
+8. **polybot_comm.py heartbeat guards fix** (commit d3f6d79): `auto_guards.json` is dict with "guards" key — was calling `len(guards_data)` which returned 4 (key count), not guard count. Fixed.
+9. **SESSION_HANDOFF.md updated**: S137 wrap content updated including restart PID 5839.
+10. **BOT RESTART**: Bot froze at 02:59 CDT (07:59 UTC). Restarted to PID 5839. Cause: likely sleep/suspend. Restart resolved.
+
+**COMMITS THIS SESSION (complete):**
 - 413af31: fix: maker_sniper_loop is_stale @property bug
 - 8f682b7: fix: same (confirmed entry)
 - eaa143f: fix: maker_sniper_loop get_open_markets → get_markets
 - fea5c83: test: 13 tests for polybot_comm REQ-038 functions
-- d3f6d79: fix: polybot_comm heartbeat dynamic values
+- d3f6d79: fix: polybot_comm heartbeat dynamic values + guards count fix
 - 40075ae: fix: maker_sniper_loop use session_open drift
+- cf86ca8: fix: remove stale _window_open_price pruning block
+- f85e6df: fix: maker_sniper ceiling guard post-orderbook + log format
+- 648b6d6: docs: S137 wrap — SESSION_HANDOFF updated
 
-**NOT YET DONE:**
-- REQ-038 cross-chat loop: functions already existed, tests added, DONE
+**FINAL MONITORING STATE (08:15 UTC):**
+- All-time: +36.91 USD | Today: 32 settled, 31/32 = 97% WR, +9.63 USD
+- daily_sniper: 18/30 live settled (17/18 WR = 94.4%). Cap raise deferred to 30 bets.
+- maker_sniper: 4 paper settled (4/4 wins). 26 more needed.
+- Bot: RUNNING PID 5839
+
+**PENDING:**
 - REQ-041 (fill rate monitoring): waiting for maker_sniper paper fills in DB first
+- REQ-042 (fill_probability for maker paper): awaiting CCA response
 - autoloop fix (consecutive_short_sessions): not investigated yet
-- git push: 6 commits not yet pushed to remote (awaiting Matthew)
+- daily_sniper cap raise: at 30 live settled bets, verify Wilson CI WR > 93% break-even
+- CCA CLV tracking (REQ-036): DB migration + settlement_loop change, future session
 
 **GOAL PROGRESS:**
-- All-time: +35.01 USD | Target: +125 USD | Gap: 89.99 USD
-- Today rate: ~10.23 USD from ~3 hours of trading
+- All-time: +36.91 USD | Target: +125 USD | Gap: 88.09 USD
+- Today rate: ~9.63 USD from sniper trading (08:xx block still active)
