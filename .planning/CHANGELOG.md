@@ -1,5 +1,25 @@
 # POLYMARKET-BOT CHANGELOG
 
+## S140 — 2026-03-25 ~22:02 UTC
+
+### Session Summary
+- Grade: B
+- Wins: Fixed critical expiry_sniper_loop MAX_LOSS bypass (ce71048) — cap confirmed binding at 7.44 USD; implemented post-guard clean bet counter with 7 tests + health display (92e56ef)
+- Losses: Session net -5.12 USD — pre-fix over-sized losses in first half of session; should have audited sibling code earlier before restart instead of waiting for monitoring cycles to confirm
+
+### Performance
+- Today live: 102/109 wins (93.6% WR), +1.76 USD
+- All-time live: +25.97 USD | Gap to +125 goal: 99.03 USD
+
+### CUSUM State
+- BET ANALYTICS — SPRT / Wilson CI / Brier / CUSUM
+- CUSUM (Page 1954): stable  [S=1.685, threshold=5.0]
+- CUSUM (Page 1954): stable  [S=1.680, threshold=5.0]
+- E-Value (Grünwald 2024): ERODING (log_e < 0)  [E_n=0.354, threshold=20.0]
+- CUSUM (Page 1954): stable  [S=3.960, threshold=5.0]
+
+---
+
 ## S139 — 2026-03-25 ~18:00 UTC
 
 ### Session Summary
@@ -8383,3 +8403,81 @@ ONE THING that would have made more money earlier: catching NO@92c as a guard ca
 **GOAL PROGRESS:**
 - All-time: +36.91 USD | Target: +125 USD | Gap: 88.09 USD
 - Today rate: ~9.63 USD from sniper trading (08:xx block still active)
+
+## Session 140 — 2026-03-25 — Monitoring + MAX_LOSS fix + post-guard counter
+
+**GRADE: B**
+
+**CONTEXT:**
+- Matthew returned for session, then went away for autonomous monitoring
+- Time: ~19:00-22:10 UTC, off-peak 100% budget
+- Budget: context compaction hit mid-session; resumed cleanly
+
+**BUILDS / FIXES:**
+
+1. **expiry_sniper_loop MAX_LOSS bypass fixed** (commit ce71048):
+   CCA-S177 added DEFAULT_MAX_LOSS_USD=$7.50 to trading_loop's calculate_size() call
+   but expiry_sniper_loop (line 2203) had its own hardcoded formula: `trade_usd = min(_HARD_CAP, max(0.01, _pct_max))` which always returned $10.00 (bypassing the $7.50 cap).
+   Fix: `trade_usd = min(_HARD_CAP, max(0.01, _pct_max), _MAX_LOSS)` → now $7.50.
+   Regression test added: TestExistingBehaviorPreserved.test_expiry_sniper_loop_max_loss_formula.
+   First confirmed post-fix bet: @93c cost=$7.44. Bot restarted PID 83523.
+   Root cause: sibling loop pattern — CCA updated trading_loop but not expiry_sniper_loop.
+   LESSON: After any sizing fix, always audit sibling loops before restarting.
+
+2. **Post-guard clean bet counter implemented** (commit 92e56ef, CCA-S178):
+   - db.post_guard_clean_bets(max_loss_cents=750): walks settled_at DESC, counts until large loss
+   - settlement_loop: logs at gates (200/300/500) and every 50 bets; gate transitions auto-fire
+   - --health [7]: shows clean bet count, next gate, bets remaining, current HARD_MAX
+   - 7 regression tests in TestPostGuardCleanBets
+   Gate schedule (Matthew pre-authorized all gates — no approval needed):
+     Gate 1: 200 clean bets → HARD_MAX raise to 12 USD
+     Gate 2: 300 clean bets → HARD_MAX raise to 14 USD
+     Gate 3: 500 clean bets → HARD_MAX raise to 15 USD
+   NOTE: Auto-raise logic (actually changing HARD_MAX at gate) is S141 priority build —
+   requires HARD_MAX_TRADE_USD to be runtime-mutable (currently a module constant).
+
+**MONITORING:**
+- Session start all-time: +31.09 USD (S139 end)
+- Session net: -5.12 USD (pre-fix over-sized losses in first half)
+- Session end all-time: +25.97 USD
+- Today: 102/109 live bets (93.6% WR), +1.76 USD
+- 3 post-fix clean bets confirmed at $7.44 each
+
+**SELF-LEARNING:**
+- auto_guard_discovery: 0 new guards (9 active, no new thresholds crossed)
+- bet_analytics: expiry_sniper EDGE CONFIRMED (lambda=+18.620). eth_drift DRIFT ALERT S=15 (disabled)
+- edge_stability: 0 degrading buckets (37 stable)
+- post_guard_clean_bets: 3 (Gate 1 at 200, ~197 more needed)
+
+**STRATEGY ANALYZER INSIGHTS (strategy_analyzer.py --brief):**
+- All-time: +25.33 USD (84% WR, 1406 bets)
+- Today: +2.42 USD (94% WR, 110 bets)
+- SNIPER: Profitable buckets: 90-94c
+- SNIPER: Guarded buckets (historical losses blocked): 98, 97, 96, 95c
+- btc_drift_v1: NEUTRAL — 80 live bets, 50% WR, -9.53 USD [direction: filter to 'no' — disabled]
+- eth_drift_v1: UNDERPERFORMING — 46% WR below 50c break-even, DECLINING (disabled)
+- sol_drift_v1: HEALTHY — 45 live bets, 67% WR, -14.08 USD [disabled per Matthew directive]
+
+**CCA COMMS:**
+- ACK'd CCA-S178 (POLYBOT_TO_CCA.md)
+- Outcome report for REQ-042 sent (cross_chat_queue.jsonl)
+- Filed three requests: REQ-041 (plateau framework), REQ-042 (loss magnitude), REQ-043 (Kelly recalibration)
+- CCA responses received: MAX_LOSS analysis + Kelly ramp schedule + action items
+
+**PENDING FOR S141:**
+1. Implement auto-HARD_MAX raise at gate (Matthew pre-authorized all gates — no approval needed)
+   Requires making HARD_MAX_TRADE_USD runtime-mutable (config.yaml or kill_switch state)
+2. daily_sniper cap raise: 18/30 live settled. 12 more for 1→5 USD cap raise.
+3. REQ-041 response (plateau classification): awaiting CCA
+4. maker_sniper paper gate: 5/30 fills (25 more needed)
+5. Matthew question from session: do we do backtesting/simulation before betting?
+   Answer: YES — REQ-027 simulation stack (Monte Carlo + synthetic + edge_stability) is built
+   and confirms 98.7% target prob, 0.7% ruin at current parameters. Before any major parameter
+   change we run Monte Carlo via ./venv/bin/python3 scripts/monte_carlo_simulator.py --from-db.
+
+**GOAL PROGRESS:**
+- All-time: +25.97 USD | Target: +125 USD | Gap: 99.03 USD
+- Rate: ~2-10 USD/day (variable) → ~15-50 days range
+- Best estimate: 15-20 days at 5-7 USD/day average (excluding bad days)
+- Highest-leverage action: auto-HARD_MAX raise — at Gate 1 (200 bets), HARD_MAX = 12 USD raises daily EV ~20%
+
