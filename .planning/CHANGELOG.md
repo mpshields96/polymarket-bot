@@ -8260,3 +8260,54 @@ ONE THING that would have made more money earlier: catching NO@92c as a guard ca
 - Highest-leverage: daily_sniper ramp-up (8/30 live bets, 87.5% WR) + expiry sniper stable
 
 **Next chat priority:** Confirm daily_sniper window 03 open bets settled correctly at startup. Check if 10-bet daily cap was reached and reset at UTC midnight.
+
+---
+
+## Session 137 — 2026-03-25 — Monitoring + maker_sniper build completion
+
+**GRADE: A- (ongoing — 3 bugs fixed, key drift fix)**
+
+**CONTEXT:**
+- Matthew away for 2 hours — full autonomous session
+- Bot was STOPPED at start of session — restarted per SESSION_HANDOFF
+- Time: 02:00-03:00 ET (07:00-08:00 UTC), off-peak 100% budget
+- Current time: 02:45 ET
+
+**BUILDS / FIXES:**
+1. **maker_sniper_loop is_stale bug** (commit 8f682b7): `feed.is_stale()` called as method but `is_stale` is `@property`. Fixed → `feed.is_stale`. Required 3 restarts.
+2. **maker_sniper_loop get_open_markets bug** (commit eaa143f): `kalshi.get_open_markets(series_ticker)` method doesn't exist. Fixed → `kalshi.get_markets(series_ticker=..., status="open")`. All other sniper loops use this pattern.
+3. **maker_sniper_loop session_open drift bug** (commit 40075ae): Was using `_window_open_price[ticker]` (set at bot start → near-zero drift ~0.05%, fails min_drift_pct=0.1% check). Fixed to use `_session_open[series_ticker]` reset at midnight UTC, same as expiry_sniper_loop. This is the key fix enabling maker_sniper signals to fire.
+4. **polybot_comm tests** (commit fea5c83): 13 tests for send_outcome_report + parse_research_priorities (REQ-038). Functions were already implemented but untested.
+5. **polybot_comm heartbeat fix** (commit d3f6d79): Replaced hardcoded S134 values with dynamic log path, guard count (was always 0 due to dict format), paper bet progress from DB.
+
+**MONITORING:**
+- Session to date: +10.23 USD live (15/15 sniper WR = 100%), all-time +35.01 USD
+- expiry_sniper: 15 bets today, 15/15 WR = perfect
+- daily_sniper: 18/30 live bets settled (17/18 WR = 94.4%), needs 12 more
+- maker_sniper: 0/30 paper fills (just started with correct drift fix at 02:44 ET)
+- Monte Carlo (sniper-only): 97.9% target prob, 0.8% ruin — healthy
+- CUSUM watch: btc_drift S=3.960/5.0, xrp_drift S=3.980/5.0 (both DISABLED already)
+
+**CCA COMMS:**
+- Implemented REQ-039 (MakerSniperStrategy) — 25 tests, paper loop in main.py
+- Ran Monte Carlo REQ-040 (sniper-only: 97.9% target prob, 0.8% ruin)
+- Filed REQ-041 (fill rate monitoring for maker_sniper in bet_analytics)
+- Status update written to POLYBOT_TO_CCA.md with CUSUM data
+
+**COMMITS THIS SESSION:**
+- 413af31: fix: maker_sniper_loop is_stale @property bug
+- 8f682b7: fix: same (confirmed entry)
+- eaa143f: fix: maker_sniper_loop get_open_markets → get_markets
+- fea5c83: test: 13 tests for polybot_comm REQ-038 functions
+- d3f6d79: fix: polybot_comm heartbeat dynamic values
+- 40075ae: fix: maker_sniper_loop use session_open drift
+
+**NOT YET DONE:**
+- REQ-038 cross-chat loop: functions already existed, tests added, DONE
+- REQ-041 (fill rate monitoring): waiting for maker_sniper paper fills in DB first
+- autoloop fix (consecutive_short_sessions): not investigated yet
+- git push: 6 commits not yet pushed to remote (awaiting Matthew)
+
+**GOAL PROGRESS:**
+- All-time: +35.01 USD | Target: +125 USD | Gap: 89.99 USD
+- Today rate: ~10.23 USD from ~3 hours of trading
