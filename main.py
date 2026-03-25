@@ -1795,20 +1795,23 @@ async def settlement_loop(kalshi, db, kill_switch, drift_model=None, calibrator=
                         else:
                             kill_switch.record_loss(abs(pnl_cents) / 100.0)
 
-                        # ── Post-guard clean bet counter (ramp schedule gate logging) ──
+                        # ── Post-guard clean bet counter (ramp schedule auto-raise) ──
                         # Counts consecutive live bets with no large loss (> $7.50).
-                        # Logs milestones for HARD_MAX ramp schedule (Matthew approval required).
+                        # Auto-raises HARD_MAX at gates — Matthew pre-authorized all gates (S140).
                         _pgcb = db.post_guard_clean_bets()
                         _RAMP_GATES = {200: 12.0, 300: 14.0, 500: 15.0}
                         if _pgcb in _RAMP_GATES:
+                            _new_hard_max = _RAMP_GATES[_pgcb]
+                            from src.risk.kill_switch import set_hard_max_trade_usd as _set_hm
+                            _set_hm(_new_hard_max)
                             logger.warning(
-                                "[settle] HARD_MAX RAMP GATE %d REACHED: %d post-guard clean bets. "
-                                "Recommend raising HARD_MAX to %.2f USD — Matthew approval required.",
-                                _pgcb, _pgcb, _RAMP_GATES[_pgcb],
+                                "[settle] HARD_MAX AUTO-RAISED: gate %d reached (%d post-guard clean bets). "
+                                "HARD_MAX raised to %.2f USD (pre-authorized S140).",
+                                _pgcb, _pgcb, _new_hard_max,
                             )
                         elif _pgcb > 0 and _pgcb % 50 == 0:
                             logger.info(
-                                "[settle] Post-guard clean bets: %d (gates at 200/$12, 300/$14, 500/$15)",
+                                "[settle] Post-guard clean bets: %d (gates at 200/12 USD, 300/14 USD, 500/15 USD)",
                                 _pgcb,
                             )
 

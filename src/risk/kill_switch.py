@@ -629,4 +629,20 @@ def reset_kill_switch() -> None:
 
     print("  ✅ Kill switch reset. Review your bankroll before trading.")
     print("  Run: python main.py --verify")
+
+
+def set_hard_max_trade_usd(new_value: float) -> None:
+    """Update HARD_MAX_TRADE_USD at runtime for automated ramp schedule gate transitions.
+
+    Matthew pre-authorized all three gate transitions (S140):
+      Gate 1: 200 post-guard clean bets → 12.00 USD
+      Gate 2: 300 post-guard clean bets → 14.00 USD
+      Gate 3: 500 post-guard clean bets → 15.00 USD
+
+    Uses globals() so check_order_allowed() and all importers see the new value
+    on their next reference. Loops that do `from kill_switch import HARD_MAX_TRADE_USD`
+    will pick up the new value on their next import call (Python re-reads module attr).
+    """
+    global HARD_MAX_TRADE_USD
+    HARD_MAX_TRADE_USD = new_value
     print("=" * 60 + "\n")

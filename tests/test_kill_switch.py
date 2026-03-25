@@ -32,6 +32,7 @@ from src.risk.kill_switch import (
     KillSwitch,
     check_lock_at_startup,
     reset_kill_switch,
+    set_hard_max_trade_usd,
 )
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -1119,3 +1120,52 @@ class TestResetSoftStop:
             ks.record_loss(1.0)
         ks.reset_soft_stop()
         assert ks._state._daily_loss_usd == pytest.approx(8.0)
+
+
+class TestSetHardMaxTradeUsd:
+    """set_hard_max_trade_usd() mutates the module-level HARD_MAX and is reflected
+    in check_order_allowed() — supports pre-authorized HARD_MAX ramp gates (S141)."""
+
+    @pytest.fixture(autouse=True)
+    def restore_hard_max(self):
+        """Always restore original HARD_MAX_TRADE_USD after each test."""
+        import src.risk.kill_switch as ks_mod
+        original = ks_mod.HARD_MAX_TRADE_USD
+        yield
+        ks_mod.HARD_MAX_TRADE_USD = original
+
+    @pytest.fixture
+    def ks(self):
+        return KillSwitch(starting_bankroll_usd=200.0)
+
+    def test_set_raises_module_value(self):
+        import src.risk.kill_switch as ks_mod
+        set_hard_max_trade_usd(12.0)
+        assert ks_mod.HARD_MAX_TRADE_USD == 12.0
+
+    def test_check_order_allowed_uses_new_cap(self, ks):
+        """After raising HARD_MAX to 12, a 11.50 trade must be allowed."""
+        set_hard_max_trade_usd(12.0)
+        allowed, reason = ks.check_order_allowed(trade_usd=11.50, current_bankroll_usd=200.0)
+        assert allowed is True, reason
+
+    def test_check_order_blocked_above_new_cap(self, ks):
+        """After raising to 12, a 13 USD trade must still be blocked."""
+        set_hard_max_trade_usd(12.0)
+        allowed, reason = ks.check_order_allowed(trade_usd=13.0, current_bankroll_usd=200.0)
+        assert allowed is False
+        assert "hard cap" in reason.lower() or "exceeds" in reason.lower()
+
+    def test_original_cap_blocks_before_raise(self, ks):
+        """Before any raise, 11 USD exceeds the default 10 USD cap."""
+        import src.risk.kill_switch as ks_mod
+        ks_mod.HARD_MAX_TRADE_USD = 10.0  # ensure default
+        allowed, _ = ks.check_order_allowed(trade_usd=11.0, current_bankroll_usd=200.0)
+        assert allowed is False
+
+    def test_sequential_gates(self):
+        """Successive raises apply: 10 → 12 → 14 → 15."""
+        import src.risk.kill_switch as ks_mod
+        for target in [12.0, 14.0, 15.0]:
+            set_hard_max_trade_usd(target)
+            assert ks_mod.HARD_MAX_TRADE_USD == target
