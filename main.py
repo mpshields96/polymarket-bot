@@ -1590,7 +1590,7 @@ async def maker_sniper_loop(
                 continue
 
             for series_ticker, feed in _series_feeds.items():
-                if feed.is_stale():
+                if feed.is_stale:
                     logger.debug("[maker_sniper] %s feed stale — skip series", series_ticker)
                     continue
 
