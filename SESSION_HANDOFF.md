@@ -14,14 +14,15 @@
 ##   academic context review, hourly pattern analysis, data integrity checks.
 ## ═══════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S137 — updated 2026-03-25 ~08:00 UTC)
-  Bot RUNNING PID 5839 → /tmp/polybot_session137.log (restarted ~08:00 UTC after freeze)
-  All-time live P&L: +35.81 USD | S137 net: +9.93 USD (30/30 expiry settled today, 29/30 = 97% WR)
-  daily_sniper: 18/30 live settled (17/18 = 94.4% WR)
-  maker_sniper: 4 open paper bets (0 settled). 08:xx block active — resumes 09:xx UTC.
-  Tests: 1874 passing (1 pre-existing failure — test_security shebang). Last commit: f85e6df
-  S137 work: maker_sniper_loop 5 bugs fixed (is_stale, get_open_markets, session_open drift,
-             ceiling guard, log format). Strategy active and firing paper bets correctly.
+## BOT STATE (S138 — updated 2026-03-25 ~16:25 UTC)
+  Bot RUNNING PID 5839 → /tmp/polybot_session137.log (stable all session)
+  All-time live P&L: +37.70 USD | S138 net: +1.89 USD (today 95.1% WR, +13.49 USD — daily counter)
+  expiry_sniper: 78/82 wins today (95.1% WR). All-time: 1381 live bets, +306.69 USD sniper-only.
+  daily_sniper: 18/30 live settled (17/18 = 94.4% WR) — unchanged since S137
+  maker_sniper: paper calibration ongoing. Valid fills: 2/30 (KXBTC@92c + KXETH@94c). 28 more needed.
+  Tests: 1874 passing. Last commit: e073d0e
+  S138 work: peak_budget_hook deployed from CCA (scripts/token_budget.py + peak_hours.py + peak_budget_hook.py)
+             wired as PreToolUse hook in .claude/settings.local.json. Monitoring only during PEAK hours.
 
   RESTART COMMAND (S137):
   pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session137.log 2>&1 &
@@ -54,27 +55,22 @@
   5. CDT/UTC timezone fix: log timestamp comparison now uses local time correctly
      (false restart from 21:34 CDT → 26:34 UTC confusion — no bets lost)
 
-## S137 PENDING TASKS (priority order)
-  1. maker_sniper paper calibration: 4 paper bets placed (all 4 won). Valid fills: 2/4.
-     KXBTC NO@92c (VALID) + KXETH NO@94c (VALID) = 2 clean fills at ≤94c.
-     KXXRP NO@95c + KXSOL NO@96c = above ceiling (pre-fix, don't count).
-     Need 28 more valid fills (≤94c). Post-08:xx block bets will all be valid.
-     Watch for settlement — when 30 clean fills accumulate, evaluate for live gate.
-  2. daily_sniper ramp-up: 18/30 live bets settled (17/18 WR = 94.4%, +0.34 USD net). Need 12 more.
-     After 30 confirmed: evaluate raise cap 1→5 USD.
-  3. REQ-041 (fill rate monitoring): Requested CCA add fill-rate analysis to bet_analytics.py.
-     Need maker_sniper fills to accumulate in DB first. Currently 4 open paper, 0 settled.
-  4. REQ-027 URGENT (Matthew standing directive, S132): Monte Carlo + Synthetic Origination.
-     S137 Monte Carlo result: 97.9% target prob, 0.8% ruin (well under 5% alert). CCA REQ-040 active.
-     Push CCA every session for Synthetic Origination engine build.
-  5. economics sniper: first paper bets April 8 (KXCPI-26MAR-T0.6 enters 48h window).
-  6. sol_drift re-evaluation: SPRT edge confirmed (lambda=+2.337, AUC=0.8333) but disabled S123.
-     Matthew directive required to re-enable.
-  7. Autoloop broken: consecutive_short_sessions (terminal auth issue). Investigate fix.
-  8. CCA comms: check CCA_TO_POLYBOT.md at each session start. File proactive requests every 2-3 cycles.
-     polybot_comm.py heartbeat runs every cycle — BOT_STATUS.md auto-updated.
-  DONE S137: REQ-039 (maker_sniper built — 5 bugs fixed), REQ-038 (send_outcome_report + 13 tests),
-             polybot_wrap_helper.py --write flag fixed (S136 commit 92ed2c9).
+## S139 PENDING TASKS (priority order)
+  1. maker_sniper paper calibration: 2/30 valid fills. 28 more needed (all post-fix bets at ≤94c valid).
+     Track via DB — once 30 clean fills, evaluate live gate with fill_rate + WR check.
+  2. daily_sniper cap raise: 18/30 live settled (17/18 WR = 94.4%). Need 12 more.
+     After 30: Wilson CI lower bound must exceed 93% BE before raising 1→5 USD cap.
+  3. REQ-027 URGENT: Synthetic Origination engine — push CCA every session. Monte Carlo done (98.5% target prob).
+  4. REQ-041 (fill rate monitoring): waiting for maker_sniper fills to accumulate first.
+  5. REQ-042 (fill_probability simulation): awaiting CCA response.
+  6. economics sniper: first paper bets April 8 (KXCPI-26MAR-T0.6 48h window).
+  7. sol_drift re-enable: SPRT edge confirmed but needs Matthew directive.
+  8. Autoloop broken: consecutive_short_sessions (terminal auth). Low priority.
+  9. 08:xx hour block: marginal weakness (WR=91.5% vs BE=91.6%, n=59). Matthew call to remove.
+     To unblock: remove 8 from frozenset({8}) in main.py lines ~1572 + ~2063.
+  10. CLV tracking (REQ-036): future build — DB schema + settlement_loop capture.
+  DONE S138: peak_budget_hook + token_budget.py + peak_hours.py deployed from CCA.
+             PreToolUse hook wired in .claude/settings.local.json.
   ⚠️ MATTHEW DECISION NEEDED — 08:xx HOUR BLOCK ANALYSIS (S137, corrected):
      Data: 08:xx total: n=63, WR=92.1%, P&L=-15.28 USD (break-even is 91.6%)
      Crash analysis: Mar17 08:xx was FINE (n=4, 100% WR, +4.62 USD). Losses from non-crash days.

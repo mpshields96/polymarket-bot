@@ -1,5 +1,21 @@
 # POLYMARKET-BOT CHANGELOG
 
+## S138 — 2026-03-25 ~16:25 UTC
+
+### Session Summary
+- Grade: B-
+- Wins: Peak budget hook deployed from CCA (no edits needed, 3 files + PreToolUse hook wired); monitoring maintained during PEAK hours; bot healthy all session PID 5839 zero downtime; CCA comms checked; 08:xx analysis completed pre-compaction
+- Losses: Context compacted mid-session — polybot-init.md S138 update interrupted; most productive work was pre-compaction; session was mostly monitoring + token calibration with minimal builds
+
+### Performance
+- Today live: 78/82 wins (95.1% WR), +13.49 USD
+- All-time live: +37.70 USD | Gap to +125 goal: 87.30 USD
+
+### CUSUM State
+- (bet_analytics error: Command '['/Users/matthewshields/Projects/polymarket-bot/venv/bin/python3', '/Users/matthewshields/Projects/polymarket-bot/scripts/bet_analytics.py']' returned non-zero exit status 1.)
+
+---
+
 ## S136 — 2026-03-25 ~06:13 UTC
 
 ### Builds
