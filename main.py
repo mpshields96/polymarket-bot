@@ -3704,7 +3704,7 @@ async def main():
             max_daily_bets=10,
             live_executor_enabled=True,
             live_confirmed=live_confirmed,
-            trade_lock=trade_lock,
+            trade_lock=_live_trade_lock,
         ),
         name="daily_sniper_loop",
     )
