@@ -14,12 +14,12 @@
 ##   academic context review, hourly pattern analysis, data integrity checks.
 ## ═══════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S133 — updated 2026-03-25 ~00:40 UTC)
-  Bot RUNNING PID 4979 → /tmp/polybot_session133.log (active, use session134 for next)
-  Restart for S134 using restart command below.
-  All-time live P&L: +26.81 USD | S133 net: +23.56 USD (48+ live wins today, 100% WR sniper)
-  Tests: 1800 passing (1 pre-existing failure — scripts/analysis shebangs). Last commit: ba4c435
-  S133 GRADE: A — 41/41 sniper 100% WR, E-Value wired, autoloop built, wrap helper built
+## BOT STATE (S134 — updated 2026-03-25 ~03:00 UTC)
+  Bot RUNNING PID 8651 → /tmp/polybot_session134.log
+  Restart for S135 using restart command below.
+  All-time live P&L: +22.89 USD | S134 net: -3.92 USD (12 live bets, 11/12 wins, 1 NO@92c loss -9.20 USD)
+  Tests: 1800 passing (1 pre-existing failure — scripts/analysis shebangs). Last commit: 1876819
+  S134 GRADE: B — economics_sniper_v1 built, polybot_comm.py built, CCA comms fixed; net negative from 1 NO@92c loss
 
   ALL DRIFTS DISABLED (min_drift_pct=9.99 for all four)
   KXXRP sniper: BLOCKED globally (IL-33)
@@ -33,14 +33,36 @@
   YES@95c BTC/ETH/SOL: PROFITABLE, still firing (100% WR)
   NO@95c: ALL BLOCKED by ILs. Only YES@95c for non-XRP still active.
 
-## S133 KEY BUILDS
-  1. scripts/bet_analytics.py — E-Value (Grünwald 2024) integrated into output
-     Sniper E_n=360M (massively confirmed). Drift strategies: ERODING (log_e<0).
-  2. start_autoloop.sh — Terminal.app auto-loop for Kalshi main chat
-     Opens new Terminal.app window per session, runs cc "/kalshi-main"
-     Usage: ./start_autoloop.sh | --tmux | --status | --dry-run
-  3. scripts/polybot_wrap_helper.py — fast wrap automation (<5 min vs 15-20 min)
-     Usage: ./venv/bin/python3 scripts/polybot_wrap_helper.py --session N --grade A --write
+## S134 KEY BUILDS
+  1. src/strategies/economics_sniper.py (NEW — K2 expansion)
+     EconomicsSniperStrategy: KXCPI/KXGDP FLB paper sniper, 88c floor, 94c ceiling, 48h window
+     No coin_drift_pct required. PAPER_CALIBRATION_USD=0.50. First bets: April 8 (KXCPI).
+     19 tests in tests/test_economics_sniper.py (commit 101dd75)
+  2. main.py: economics_sniper_loop() wired (commit 4af334a)
+     Polls every 300s, both KXCPI+KXGDP series, max 5/day paper, 180s startup stagger
+  3. scripts/polybot_comm.py (NEW — CCA comms client, commit 1876819)
+     Commands: heartbeat (updates BOT_STATUS.md every cycle), status, unread, pending, ack
+     Heartbeat now hardwired into EVERY monitoring cycle (not every 3rd)
+  4. CCA comms systemically fixed:
+     polybot-auto.md updated with PROACTIVE REQUEST RULE + heartbeat every cycle
+     Filed REQ-033 (NO@92c analysis), REQ-034 (REQ-027 integration plan), REQ-035 (daily sniper)
+  5. CDT/UTC timezone fix: log timestamp comparison now uses local time correctly
+     (false restart from 21:34 CDT → 26:34 UTC confusion — no bets lost)
+
+## S134 PENDING TASKS (priority order)
+  1. REQ-033 URGENT: CCA to analyze KXBTC NO@92c (n=12 now, WR=91.7%, -9.20 USD — guard-worthy?)
+     Filed with DB data. Check CCA response at session start.
+  2. REQ-034: CCA to provide monte_carlo_simulator.py + synthetic_bet_generator.py integration plan
+     Scripts exist at scripts/analysis/ — just need wiring
+  3. REQ-035: CCA to analyze daily sniper interim (10/30 wins, Wilson CI lower bound)
+  4. REQ-025: STILL PENDING (new second edge K2 search) — push CCA every session
+  5. Fix "0 settled today" query: UTC/CDT midnight offset (query uses CDT midnight = 05:00 UTC)
+     Misses all bets before 05:00 UTC. Not urgent but counts are wrong in monitoring display.
+  6. Daily sniper: need 20 more clean paper bets (currently 10/30)
+  7. economics sniper: first paper bets April 8 (KXCPI-26MAR-T0.6 enters 48h window)
+  8. NO@92c monitoring: n=12, -9.20 USD — if REQ-033 confirms guard needed, add immediately
+
+## S133 KEY BUILDS (for reference)
 
 ## WRAP PROCESS (NEW — use this going forward)
   1. ./venv/bin/python3 scripts/polybot_wrap_helper.py --session N --grade X --wins "..." --losses "..." --write

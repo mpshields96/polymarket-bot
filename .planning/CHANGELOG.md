@@ -8058,3 +8058,59 @@ KXCPI-26MAR-T0.6 at YES=89c: future sniper candidate (April 10 settlement)
 
 Commits this session: 353daa0, 4302b8f, 8b230fd, aafda95, 6c3b184
 Tests: 1799 passing (up from 1775 at session start = 24 new tests)
+
+## S134 — 2026-03-25 ~03:00 UTC (K2 expansion + CCA comms fix)
+
+### Session Grade: B
+WINS: economics_sniper_v1 built TDD (19 tests, deployed paper), polybot_comm.py built (BOT_STATUS.md auto-updated every cycle), CCA comms systemically fixed (heartbeat every cycle, 3 real data-backed requests filed), CDT/UTC frozen-process detection fixed.
+LOSSES: Net -3.92 USD (one NO@92c loss = -9.20 USD wiped 11 wins), "0 settled today" query still broken (UTC/CDT midnight offset), REQ-027 simulation files still unintegrated, 34 historical unacted deliveries not retroactively addressed.
+ONE THING next chat must do differently: run polybot_comm.py status check on EVERY cycle (now hardwired — enforce it), and check if REQ-033 NO@92c guard response arrived.
+ONE THING that would have made more money earlier: catching NO@92c as a guard candidate before it fired (n=12 bets, 91.7% WR, clearly below breakeven 92.9%).
+
+### Builds
+  economics_sniper_v1 (commits 101dd75 + 4af334a):
+    - src/strategies/economics_sniper.py: KXCPI/KXGDP FLB sniper, 88c floor, 94c ceiling, 48h window
+    - No coin_drift_pct param. WIN_PROB_PREMIUM=1pp (same as expiry_sniper — 0.5pp fails fee test)
+    - 19 tests in tests/test_economics_sniper.py (all passing)
+    - main.py: economics_sniper_loop() async, polls every 300s, 5/day limit, 180s stagger
+    - First paper bets expected April 8 (KXCPI-26MAR-T0.6 enters 48h window)
+  polybot_comm.py (commit 1876819):
+    - scripts/polybot_comm.py: structured CCA comm client
+    - cmd_heartbeat(): reads bot.pid, queries DB, writes BOT_STATUS.md, updates comm_state.json
+    - Commands: heartbeat, status, unread, pending, ack
+    - Hardwired into every monitoring cycle in polybot-auto.md
+  CCA comms fix:
+    - polybot-auto.md updated: heartbeat every cycle (not 3rd), PROACTIVE REQUEST RULE added
+    - Filed REQ-033 (KXBTC NO@92c guard analysis with full DB data)
+    - Filed REQ-034 (REQ-027 simulation integration plan request)
+    - Filed REQ-035 (daily sniper 10/30 interim Wilson CI analysis)
+    - Updated REQUEST_QUEUE.md + DELIVERY_ACK.md (ACK REQ-032 economics sniper)
+
+### Live Performance (S134)
+  Today: -1.32 USD | 12 settled | 11 wins (93% WR) | 1 NO@92c loss = -9.20 USD
+  All-time live: +22.89 USD (was +26.81 at S133 end = session net -3.92 USD)
+  Sniper live count: 956 total bets | Daily sniper paper: 10/30 clean bets
+
+### Strategy Analyzer Insights (--brief S134 wrap)
+  All-time: +22.89 USD (83% WR, 1310 bets)
+  Today: -0.02 USD (93% WR, 14 bets)
+  SNIPER: Profitable buckets 90-94c. Guarded: 98, 97, 96, 95c.
+  All drifts: DISABLED (min_drift_pct=9.99)
+  eth_orderbook: PAPER ONLY, CUSUM S=4.020/5.0
+
+### Goal Progress
+  All-time P&L: 22.89 USD | Target: +125 USD | Gap: 102.11 USD
+  Strategy rate: ~2.6 USD/day → ~39 days to goal
+  Highest-leverage: REQ-033 NO@92c guard (blocks -9.20 USD loss type recurring)
+
+### Bug Identified (not yet fixed)
+  "0 settled today" monitoring query: uses time.mktime(UTC date string) in CDT timezone
+  = CDT midnight = 05:00 UTC, misses all bets before 05:00 UTC. Counts wrong in monitoring display.
+  Fix: use datetime UTC-aware comparison or pass today's CDT date string directly.
+
+### CCA Requests Filed
+  REQ-033 URGENT: KXBTC NO@92c — n=12, WR=91.7%, BE=92.9%, -9.20 USD cumulative. Guard-worthy?
+  REQ-034: Integration plan for scripts/analysis/{monte_carlo_simulator,synthetic_bet_generator}.py
+  REQ-035: Daily sniper interim analysis (10/30 wins, Wilson CI lower bound check)
+  REQ-025: STILL PENDING since S124 — second edge K2 search
+
