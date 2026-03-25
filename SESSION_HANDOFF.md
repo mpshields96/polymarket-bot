@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-24 ~06:15 UTC (Session 131 — ceiling fix, hybrid chat directive)
+# Last updated: 2026-03-25 ~00:40 UTC (Session 133 — E-Value, autoloop, wrap helper)
 # ═══════════════════════════════════════════════════════════════
 
 ## ⚠️ HYBRID CHAT — PERMANENT ARCHITECTURE (Matthew standing directive, S131)
@@ -14,12 +14,13 @@
 ##   academic context review, hourly pattern analysis, data integrity checks.
 ## ═══════════════════════════════════════════════════════════════════════════
 
-## BOT STATE
-  Bot STOPPED — Matthew directive at S132 session end. Kill bot for the night.
-  Restart for S133 using restart command below.
-  All-time live P&L: +3.25 USD | S132 net: +3.40 USD (12/12 live wins, slippage fix)
-  Tests: 1775 passing (1 pre-existing failure — scripts/analysis shebangs). Last commit: 718c0bd
-  daily_sniper_v1 CEILING BUG FIXED again (commit 718c0bd): > → >= for slippage accounting
+## BOT STATE (S133 — updated 2026-03-25 ~00:40 UTC)
+  Bot RUNNING PID 4979 → /tmp/polybot_session133.log (active, use session134 for next)
+  Restart for S134 using restart command below.
+  All-time live P&L: +26.81 USD | S133 net: +23.56 USD (48+ live wins today, 100% WR sniper)
+  Tests: 1800 passing (1 pre-existing failure — scripts/analysis shebangs). Last commit: ba4c435
+  S133 GRADE: A — 41/41 sniper 100% WR, E-Value wired, autoloop built, wrap helper built
+
   ALL DRIFTS DISABLED (min_drift_pct=9.99 for all four)
   KXXRP sniper: BLOCKED globally (IL-33)
   IL-34: KXBTC NO@95c — BLOCKED
@@ -29,8 +30,24 @@
   8 auto-guards: KXXRP NO@95c + KXSOL NO@93c + KXBTC YES@94c + KXXRP NO@93c + KXBTC NO@94c
                  + KXBTC 08:xx + KXETH 08:xx + KXETH 02:xx
   HOUR BLOCK: frozenset({8}) — 08:xx UTC blocked
-  YES@95c BTC/ETH/SOL: PROFITABLE, still firing (100% WR, +48.68 USD — see S131 research)
+  YES@95c BTC/ETH/SOL: PROFITABLE, still firing (100% WR)
   NO@95c: ALL BLOCKED by ILs. Only YES@95c for non-XRP still active.
+
+## S133 KEY BUILDS
+  1. scripts/bet_analytics.py — E-Value (Grünwald 2024) integrated into output
+     Sniper E_n=360M (massively confirmed). Drift strategies: ERODING (log_e<0).
+  2. start_autoloop.sh — Terminal.app auto-loop for Kalshi main chat
+     Opens new Terminal.app window per session, runs cc "/kalshi-main"
+     Usage: ./start_autoloop.sh | --tmux | --status | --dry-run
+  3. scripts/polybot_wrap_helper.py — fast wrap automation (<5 min vs 15-20 min)
+     Usage: ./venv/bin/python3 scripts/polybot_wrap_helper.py --session N --grade A --write
+
+## WRAP PROCESS (NEW — use this going forward)
+  1. ./venv/bin/python3 scripts/polybot_wrap_helper.py --session N --grade X --wins "..." --losses "..." --write
+     (auto-updates polybot-init.md MAIN CHAT + CHANGELOG.md in one shot)
+  2. Update SESSION_HANDOFF.md BOT STATE manually (2 min)
+  3. git add SESSION_HANDOFF.md .planning/CHANGELOG.md && git commit + push
+  4. Done. Total: ~5 min
 
 ## S130 KEY FACTS
 

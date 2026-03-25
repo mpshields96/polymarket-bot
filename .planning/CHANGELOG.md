@@ -1,4 +1,33 @@
 # POLYMARKET-BOT CHANGELOG
+
+## S133 — 2026-03-25 ~00:36 UTC
+
+### Builds
+- E-Value (Grünwald 2024) integrated into bet_analytics.py — optional-stopping safe
+  Sniper E_n=360M (massively confirmed). btc/xrp/eth drift: ERODING (log_e<0).
+- start_autoloop.sh — Terminal.app auto-loop for Kalshi main chat
+  Opens new window per session, handles wrap/restart autonomously.
+  Usage: ./start_autoloop.sh --tmux | --status | --dry-run
+- scripts/polybot_wrap_helper.py — fast wrap automation
+  Replaces 15-20 min manual wrap with 5-min auto-generation.
+
+### Performance
+- Today live: 4/4 wins (100.0% WR), +2.60 USD
+- All-time live: +26.81 USD | Gap to +125 goal: 98.19 USD
+
+### CUSUM State
+- BET ANALYTICS — SPRT / Wilson CI / Brier / CUSUM
+- CUSUM (Page 1954): stable  [S=0.000, threshold=5.0]
+- CUSUM (Page 1954): stable  [S=1.680, threshold=5.0]
+- E-Value (Grünwald 2024): ERODING (log_e < 0)  [E_n=0.354, threshold=20.0]
+- CUSUM (Page 1954): stable  [S=3.960, threshold=5.0]
+
+### Self-Assessment
+- Grade: A
+- Wins: 41/41 sniper 100% WR +29 USD live, E-Value wired into analytics, autoloop built, wrap helper built
+- Losses: Token lockdown consumed first half of session at reduced function
+
+---
 # Permanent session-by-session log. NEVER TRUNCATE OLD ENTRIES.
 # ALL future Claude sessions MUST append their changes here at session end.
 # This file is the authoritative record of what changed, why, and when.
