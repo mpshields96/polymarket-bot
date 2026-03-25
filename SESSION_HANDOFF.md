@@ -73,13 +73,16 @@
      polybot_comm.py heartbeat runs every cycle — BOT_STATUS.md auto-updated.
   DONE S137: REQ-039 (maker_sniper built — 5 bugs fixed), REQ-038 (send_outcome_report + 13 tests),
              polybot_wrap_helper.py --write flag fixed (S136 commit 92ed2c9).
-  ⚠️ MATTHEW DECISION NEEDED — 08:xx HOUR BLOCK REVIEW:
-     S119 research (never implemented): 08:xx block was unjustified (crash-contaminated).
-     Hourly analysis (977 live bets): 08:xx WR=92.1%, P&L=-15.28 USD (borderline).
-     09:xx is the BEST HOUR: WR=98.6%, +45.51 USD. Block cuts off lead-up to this window.
-     13:xx: n=39, WR=82.1%, -104 USD (pre-guard XRP bets, NOT currently code-blocked).
-     XRP at 08:xx is now auto-guarded. To unblock: remove 8 from frozenset({8}) in main.py (2 places).
-     Current missed value: ~0.5-1 USD/day while BTC/ETH YES=91-94c during 08:xx.
+  ⚠️ MATTHEW DECISION NEEDED — 08:xx HOUR BLOCK ANALYSIS (S137, corrected):
+     Data: 08:xx total: n=63, WR=92.1%, P&L=-15.28 USD (break-even is 91.6%)
+     Crash analysis: Mar17 08:xx was FINE (n=4, 100% WR, +4.62 USD). Losses from non-crash days.
+     Non-crash 08:xx: n=59, WR=91.5%, -19.9 USD (marginally below BE of 91.6%).
+     09:xx: n=71, WR=98.6%, +45.51 USD (BEST HOUR). Block costs lead-up to 09:xx.
+     13:xx analysis: losses entirely from Mar17 crash (n=7 losses, all Mar17). Post-crash fine.
+     Wilson CI for 08:xx at n=59: lower bound ~82.0%. Not statistically confirmed bad.
+     RECOMMENDATION: The 08:xx weakness is marginal (0.1pp below BE). At n=59 it's within noise.
+     Consider removing block (XRP auto-guarded) and monitoring with fresh data for 30+ bets.
+     To unblock: remove 8 from frozenset({8}) in main.py (2 places: lines ~1572 + ~2063).
 
 ## S133 KEY BUILDS (for reference)
 
