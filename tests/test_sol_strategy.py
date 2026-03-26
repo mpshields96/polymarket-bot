@@ -215,8 +215,8 @@ class TestSolDriftStrategy:
     """Tests for load_sol_drift_from_config() factory and sol_drift_v1 parameters.
 
     sol_drift uses BTCDriftStrategy with SOL feed.
-    SOL is ~3x more volatile than BTC — min_drift_pct is scaled 3x (0.15 vs 0.05).
-    STAGE 1 live as of Session 48 (calibration_max_usd removed, Kelly + $5 cap governs).
+    RE-ENABLED S141 (CCA REQ-044): min_drift_pct=0.10, SPRT EDGE CONFIRMED (lambda=+2.337, WR=67%).
+    50-bet trial: calibration_max_usd=3.0 USD cap. Remove cap after 50 settled live bets.
     direction_filter="no" ACTIVE (Session 51 — NO 11/11 wins pre-filter).
     """
 
@@ -228,12 +228,18 @@ class TestSolDriftStrategy:
         strategy = load_sol_drift_from_config()
         assert strategy.name == "sol_drift_v1"
 
-    def test_sol_drift_min_drift_pct_scaled_for_volatility(self):
-        """SOL ~3x more volatile than BTC → min_drift_pct must be >= 0.15."""
+    def test_sol_drift_min_drift_pct_operational(self):
+        """SOL drift min_drift_pct must be >= 0.10 (CCA REQ-044 validated threshold).
+        S141: SPRT EDGE CONFIRMED (lambda=+2.337, WR=67%) at 0.10. Not disabled (9.99).
+        Original 0.15 threshold was theoretical 3x BTC scaling; 0.10 validated by SPRT."""
         strategy = load_sol_drift_from_config()
-        assert strategy._min_drift_pct >= 0.15, (
-            f"SOL drift min_drift_pct={strategy._min_drift_pct:.3f} is too low. "
-            "SOL is ~3x more volatile than BTC; threshold must be >= 0.15 to maintain signal quality."
+        assert strategy._min_drift_pct >= 0.10, (
+            f"SOL drift min_drift_pct={strategy._min_drift_pct:.3f} is below operational minimum 0.10 "
+            "or may be set to 9.99 (disabled). CCA REQ-044 validated edge at >= 0.10."
+        )
+        assert strategy._min_drift_pct < 1.0, (
+            f"SOL drift min_drift_pct={strategy._min_drift_pct:.3f} looks disabled (>= 1.0). "
+            "Use config.yaml min_drift_pct: 0.10 to re-enable."
         )
 
     def test_sol_drift_min_edge_pct_set(self):
