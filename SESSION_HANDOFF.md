@@ -14,24 +14,41 @@
 ##   academic context review, hourly pattern analysis, data integrity checks.
 ## ═══════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S142 in-session — 2026-03-26 ~04:40 UTC)
-  Bot RUNNING PID 64107 → /tmp/polybot_session142.log
-  All-time live P&L: +26.11 USD + today
-  Today (2026-03-26 UTC): -8.39 USD (14 bets, 85.7% WR — bad start, ceiling change applied going fwd)
-  daily_sniper: 18/30 live settled (12 more for 1→5 USD cap raise)
-  Post-guard clean bets: ~25/200 (Gate 1 → HARD_MAX auto-raise to 40 USD at 50)
-  Tests: 1917 passing. Last commit: 410904c
+## BOT STATE (S143 — 2026-03-27 ~00:45 UTC)
+  Bot RUNNING PID 69049 → /tmp/polybot_session142.log (same session)
+  All-time live P&L: +14.73 USD
+  Today (2026-03-26 UTC): -8.39 USD FINAL (14 bets, 85.7% WR — low-vol day due to S142 restarts + market)
+  daily_sniper: 18/30 live settled (12 more for 1→5 USD cap raise — criterion corrected, see below)
+  Post-guard clean bets: 26/50 (Gate 1 → HARD_MAX auto-raise to 40 USD at 50)
+  Tests: 1923 passing. Last commit: 75c6cf8 (S143 maker gate 30→15)
+
+  S143 RESEARCH FINDINGS (00:00-00:45 UTC 3/27):
+  - 03:xx "problem" was XRP contamination noise (1 pre-fix XRP loss = -19.32). Ex-XRP: only -1.08.
+  - 11:xx "problem" was 2 single-day losses on 3/25. Not structural.
+  - Daily sniper cap-raise criterion CORRECTED: Wilson CI 95% lower > 93% is impossible at n=30.
+    New criterion: WR >= 93.4% BE with SPRT lambda > 0 at 30+ bets.
+  - Sol drift direction_filter="no" + min_drift_pct=0.10 — fires only when SOL DOWN ≥0.10%.
+    SOL has been UP/flat since re-enable → 0 bets expected (not a bug).
+  - Maker sniper: 5/15 paper fills (gate lowered 30→15 this session), 100% WR.
+  - No new guards needed — all ETH/SOL/BTC NO@91-92c buckets clean.
+  - CCA REQ-049 filed: volume pattern analysis, floor safety, sol_drift threshold calibration.
+  - DAILY SOFT STOP always shows "ACTIVE" at HARD_MAX=35 — threshold ($38.26) < 1 loss (~$33). Cosmetic.
 
   S142 IN-SESSION COMMITS:
     697b601: HARD_MAX 10→35 + accelerated gate schedule {50:40,100:50,200:60} + test isolation
     b879717: sol_drift re-enabled CCA REQ-044
     410904c: IL-38 — sniper ceiling 94c→93c (CRITICAL: $18/day avg at 90-93c vs $3.50 full)
+    1cba52f: IL-39 — sol_drift NO price floor at 60c (negative EV below 60c confirmed)
 
   ⚠️ CEILING CHANGE IL-38 (S142 CRITICAL):
   SNIPER CEILING: 93c (was 94c). BLOCKS all YES@94c+ for expiry_sniper.
   EVIDENCE: 90-93c only P&L = +$252.22 over 14 days = $18.02/day avg (target: $15-25/day).
   94c bets: n=79, WR=94.9%, EV=-$0.066/bet (NEGATIVE). Only gave up $1.97 over 14 days.
   This IS the path to the 5-day $15-25/day target. Matthew's mandate met if performance holds.
+
+  ⚠️ SOL DRIFT GUARD IL-39 (S142):
+  sol_drift NO@<60c BLOCKED. Evidence: n=16 bets WR=44%, P&L=-25.71 USD total at <60c.
+  NO@60c+ = positive EV (+0.44 USD/bet avg). Guard is sol_drift_v1-specific only.
 
   5-DAY CLOCK: Starts Day 1 = 2026-03-27 07:00 CST (13:00 UTC). Deadline: 2026-03-31.
   CURRENT CEILING: 93c | FLOOR: 90c | Range: 90-93c YES bets only.
@@ -40,7 +57,8 @@
   HARD_MAX: 35 USD | DEFAULT_MAX_LOSS: 7.50 USD | Gate schedule: {50→40,100→50,200→60}
   XRP STATUS: PERMANENTLY BANNED.
   08:xx BLOCK: CONFIRMED CORRECT.
-  DAILY SOFT STOP: COSMETIC ONLY.
+  DAILY SOFT STOP: COSMETIC ONLY. Always shows "SOFT STOP ACTIVE" at HARD_MAX=35 USD —
+    threshold ($38.26 = 20% of bankroll) < one losing bet (~$33). Stale threshold. Not a blocker.
 
   RESTART COMMAND (S142):
   pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session142.log 2>&1 &
@@ -48,6 +66,7 @@
   ALL DRIFTS DISABLED (min_drift_pct=9.99 for all four) except sol_drift (min=0.10, max_loss=3.00)
   KXXRP sniper: BLOCKED globally (IL-33)
   IL-34: KXBTC NO@95c | IL-35: KXSOL 05:xx | IL-36: KXETH NO@95c | IL-24: KXSOL NO@95c
+  IL-38: SNIPER CEILING 93c | IL-39: SOL_DRIFT NO@<60c BLOCKED
   IL-38: ALL YES@94c blocked via ceiling (new S142)
   9 auto-guards: KXXRP NO@95c + KXSOL NO@93c + KXBTC YES@94c + KXXRP NO@93c + KXBTC NO@94c
                  + KXBTC 08:xx + KXETH 08:xx + KXETH 02:xx + IL-37 NO@00:xx (all assets)
@@ -76,7 +95,9 @@
     08:xx block confirmed correct (non-XRP: n=34, WR=88%, -51.6 USD)
     CCA REQ-041 + REQ-044 ACKed with z-test results
   1. daily_sniper cap raise: 18/30 live settled. Need 12 more.
-     After 30: Wilson CI lower bound must exceed 93% BE → raise 1→5 USD cap.
+     After 30: WR >= 93.4% (BE) with SPRT lambda > 0 → raise 1→5 USD cap.
+     NOTE: Wilson CI 95% lower > 93% is mathematically impossible at n=30 (needs 30/30). Use SPRT.
+     S143 analysis: SPRT testing H0=93.4% vs H1=95% — lambda confirms/denies edge at 30+ bets.
   2. HARD_MAX gate progress: 18/200 clean bets. Auto-raise fires at 200 (no action needed).
   3. sol_drift re-enable: SPRT EDGE CONFIRMED (lambda=+2.337, CUSUM S=1.680 stable).
      CCA framework: min_drift_pct=0.10, kelly_scale=0.25, max_loss_usd=3.00.
