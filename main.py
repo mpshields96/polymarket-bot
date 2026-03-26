@@ -1539,12 +1539,13 @@ async def maker_sniper_loop(
     takers -1.12%. At 30 sniper bets/day, 1c maker improvement = ~45 USD/month
     pure fee capture even before spread improvement.
 
-    Paper-only (30 fills required before live gate evaluation).
+    Paper-only (15 fills required before live gate evaluation — lowered from 30, S143).
     Orderbook is fetched for EVERY signal to compute maker price and spread check.
     Paper executor fills at maker_price (not ask) to simulate realistic entry.
 
     CCA REQ-039 implementation: MakerSniperStrategy spec from 2026-03-26.
-    Live promotion gate: 30 fills + fill_rate >= 40% + WR within expiry_sniper CI.
+    Live promotion gate: 15 fills + fill_rate >= 40% + WR within expiry_sniper CI.
+    Gate lowered 30→15 (S143) — at 1-2 fills/day, 30-fill gate = 12+ more days. 15 = ~5 days.
     """
     from src.strategies.maker_sniper import MakerSniperStrategy
     from src.execution.paper import PaperExecutor
@@ -3957,10 +3958,10 @@ async def main():
     )
     logger.info("Economics sniper loop started (paper-only, KXCPI/KXGDP, 88-93c, 48h window)")
 
-    # ── Maker sniper loop (paper-only — 30 fills before live gate) ────────
+    # ── Maker sniper loop (paper-only — 15 fills before live gate, S143) ────────
     # Same FLB signal as expiry_sniper_v1, but places maker limit orders 1c below ask.
     # Academic basis: Becker (2026) — makers earn +1.12% structural vs takers -1.12%.
-    # Paper phase: 30 fills needed. Fill rate, WR, and time-to-fill tracked vs expiry_sniper.
+    # Paper phase: 15 fills needed (lowered from 30 S143 — at 1-2/day, 30-fill = 12+ days).
     # CCA REQ-039 implementation. Live gate: fill_rate >= 40% AND WR within expiry_sniper CI.
     maker_sniper_task = asyncio.create_task(
         maker_sniper_loop(
