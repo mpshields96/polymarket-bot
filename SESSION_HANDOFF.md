@@ -14,25 +14,33 @@
 ##   academic context review, hourly pattern analysis, data integrity checks.
 ## ═══════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S143 — 2026-03-27 ~00:45 UTC)
+## BOT STATE (S143 — 2026-03-27 ~06:15 UTC)
   Bot RUNNING PID 69049 → /tmp/polybot_session142.log (same session)
-  All-time live P&L: +14.73 USD
-  Today (2026-03-26 UTC): -8.39 USD FINAL (14 bets, 85.7% WR — low-vol day due to S142 restarts + market)
+  All-time live P&L: +15.21 USD (up from +14.73 since last checkpoint — 05:52 UTC bet settled WIN)
+  Today (2026-03-26 UTC): 15 bets, 13/15 wins (87% WR), -7.91 USD (2 correlated losses 03:xx — BTC+SOL both NO in same window)
   daily_sniper: 18/30 live settled (12 more for 1→5 USD cap raise — criterion corrected, see below)
   Post-guard clean bets: 26/50 (Gate 1 → HARD_MAX auto-raise to 40 USD at 50)
-  Tests: 1923 passing. Last commit: 75c6cf8 (S143 maker gate 30→15)
+  Tests: 1923 passing. Last commit: 037139c (fix: HARD_MAX health display gate schedule)
 
-  S143 RESEARCH FINDINGS (00:00-00:45 UTC 3/27):
+  S143 RESEARCH FINDINGS (00:00-06:15 UTC 3/27):
   - 03:xx "problem" was XRP contamination noise (1 pre-fix XRP loss = -19.32). Ex-XRP: only -1.08.
   - 11:xx "problem" was 2 single-day losses on 3/25. Not structural.
   - Daily sniper cap-raise criterion CORRECTED: Wilson CI 95% lower > 93% is impossible at n=30.
     New criterion: WR >= 93.4% BE with SPRT lambda > 0 at 30+ bets.
   - Sol drift direction_filter="no" + min_drift_pct=0.10 — fires only when SOL DOWN ≥0.10%.
-    SOL has been UP/flat since re-enable → 0 bets expected (not a bug).
+    SOL has been UP/flat since re-enable → 0 bets expected (not a bug). Max observed drift: +0.095% (wrong direction).
   - Maker sniper: 5/15 paper fills (gate lowered 30→15 this session), 100% WR.
   - No new guards needed — all ETH/SOL/BTC NO@91-92c buckets clean.
   - CCA REQ-049 filed: volume pattern analysis, floor safety, sol_drift threshold calibration.
+  - CCA FLB addendum (REQ-048): 7 verified papers confirm 90c floor justified (Becker 72M Kalshi trades).
   - DAILY SOFT STOP always shows "ACTIVE" at HARD_MAX=35 — threshold ($38.26) < 1 loss (~$33). Cosmetic.
+  - 08:xx BLOCK: CONFIRMED STILL JUSTIFIED at 93c ceiling. 90-93c only: n=13 WR=84.6% vs 91.5% BE.
+    Block saves ~6.55 USD/day by avoiding negative-EV 08:xx bets.
+  - March 25 retroanalysis: 90-93c only = +7.52 USD (vs -1.43 actual). Ceiling change removes 22 bad 94c bets.
+  - 14-day 90-93c daily average: $18.05/day (252.70 USD / 14 days). VALIDATES 5-day mandate target.
+  - HARD_MAX health display fixed: was showing stale gates (200→12, 300→14, 500→15).
+    Now shows correct gates (50→40, 100→50, 200→60). Commit: 037139c.
+  - IL-38 ceiling active since 04:50 UTC restart. No 94c+ bets placed since then (verified).
 
   S142 IN-SESSION COMMITS:
     697b601: HARD_MAX 10→35 + accelerated gate schedule {50:40,100:50,200:60} + test isolation
@@ -44,6 +52,9 @@
   SNIPER CEILING: 93c (was 94c). BLOCKS all YES@94c+ for expiry_sniper.
   EVIDENCE: 90-93c only P&L = +$252.22 over 14 days = $18.02/day avg (target: $15-25/day).
   94c bets: n=79, WR=94.9%, EV=-$0.066/bet (NEGATIVE). Only gave up $1.97 over 14 days.
+  REFINED (S143): XRP contaminated the 14-day analysis (-19.07 USD, 83 bets in 90-93c).
+  Non-XRP 90-93c (our actual going-forward): $19.41/day avg over 14 days.
+  XRP ban IMPROVED the expected daily P&L at 90-93c. 5-day mandate target is well-supported.
   This IS the path to the 5-day $15-25/day target. Matthew's mandate met if performance holds.
 
   ⚠️ SOL DRIFT GUARD IL-39 (S142):
