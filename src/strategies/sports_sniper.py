@@ -15,10 +15,17 @@ Late-game thresholds (conservative — calibrate with DB data after 30+ bets):
 
 Floor: 90c  Ceiling: 95c  (same as crypto sniper ceiling)
 Paper-only until 20 settled bets with WR >= 90%.
+
+Injury guard layer (src/data/injury_leverage.py — currently dormant):
+  If injury data becomes available, pass injuries=[{position, is_starter, team_side}]
+  to SportsSniper.evaluate(). Kill threshold: 3.5pt expected line shift on the bet team.
+  Until an injury feed is wired, the guard is a no-op (safe default = allow).
 """
 import logging
 import re
 from typing import Optional
+
+from src.data.injury_leverage import injury_kill_switch
 
 logger = logging.getLogger(__name__)
 
@@ -89,12 +96,21 @@ def parse_kalshi_game_ticker(ticker: str) -> Optional[dict]:
 class SportsSniper:
     """Generates YES signals for near-certain late-game sports outcomes."""
 
-    def evaluate(self, game: dict, price_cents: int) -> Optional[dict]:
+    def evaluate(
+        self,
+        game: dict,
+        price_cents: int,
+        injuries: Optional[list] = None,
+    ) -> Optional[dict]:
         """Evaluate a live game and Kalshi market price for a sniper signal.
 
         Args:
             game: Normalized game dict from ESPNFeed._parse_game()
             price_cents: Current Kalshi YES price in cents for the leading team
+            injuries: Optional list of injury dicts, each with keys:
+                        position (str), is_starter (bool), team_side ("home"/"away")
+                      Currently unused (ESPN feed has no injury data).
+                      Pass when an injury feed is connected.
 
         Returns:
             Signal dict with keys (team, side, price_cents, sport, period, lead)
@@ -137,6 +153,25 @@ class SportsSniper:
                 price_cents, _FLOOR_CENTS, _CEILING_CENTS,
             )
             return None
+
+        # Injury guard: if injury data is available, check for kill-threshold absences
+        if injuries:
+            bet_direction = "home" if leading_team == game.get("home") else "away"
+            for inj in injuries:
+                kill, reason = injury_kill_switch(
+                    sport=sport,
+                    position=inj.get("position", ""),
+                    is_starter=inj.get("is_starter", False),
+                    team_side=inj.get("team_side", "home"),
+                    bet_market="h2h",
+                    bet_direction=bet_direction,
+                )
+                if kill:
+                    logger.info(
+                        "[sports_sniper] INJURY KILL %s %s: %s",
+                        sport.upper(), leading_team, reason,
+                    )
+                    return None
 
         logger.info(
             "[sports_sniper] SIGNAL %s %s: period=%d lead=%d price=%dc",
