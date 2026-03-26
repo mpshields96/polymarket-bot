@@ -31,7 +31,10 @@ logger = logging.getLogger(__name__)
 # ── Hard caps — cannot be overridden by config ────────────────────
 KELLY_FRACTION = 0.25           # Conservative 1/4 Kelly
 ABSOLUTE_MAX_USD = 15.00        # No bet ever exceeds this (Stage 3 cap)
-DEFAULT_MAX_LOSS_USD = 7.50     # REQ-042: Max loss per trade (your bet = your max loss on Kalshi)
+DEFAULT_MAX_LOSS_USD = 10.00    # REQ-042: Max loss per trade (your bet = your max loss on Kalshi)
+# S147 (2026-03-26): raised 7.50 → 10.00 USD for 5-day mandate.
+# At bankroll ~185 USD (Stage 2), pct cap (5% = 9.25 USD) now binds.
+# Expected: +4.8 USD/day from 23% size increase. Math: 9.25/185 = 5% = conservative 1/10 Kelly.
 
 STAGES = {
     1: {"range": (0.0,   100.0),  "max_usd": 5.00,  "max_pct": 0.05},
