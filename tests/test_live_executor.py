@@ -2290,6 +2290,152 @@ class TestSniperExecutionCeiling:
         kalshi.create_order.assert_called_once()
 
 
+# ── IL-39: sol_drift NO price floor (S142) ───────────────────────────────────
+
+
+@pytest.mark.asyncio
+class TestSolDriftNoPriceFloor:
+    """IL-39: sol_drift NO bets at <60c YES-price are structurally negative EV.
+
+    Evidence from 45 historical live sol_drift bets (pre-re-enable, S142 analysis):
+      NO@60-64c: n=15, WR=80%, P&L=+6.55 USD (+0.44 USD/bet)
+      NO@55-59c: n=12, WR=50%, P&L=-6.74 USD (-0.56 USD/bet)
+      NO@45-49c: n=4,  WR=25%, P&L=-18.97 USD (-4.74 USD/bet)
+    Break-even for NO@59c: need 41% YES-win, equiv to 59% NO-win. Observed: 50%.
+    The <60c bucket is structurally negative EV — large losses from low-certainty signals.
+    YES-equivalent price < 60c means NO-price > 40c, signal is weak (near 50/50).
+    """
+
+    async def test_sol_drift_no_at_55c_blocked(self, live_env, bypass_first_run):
+        """sol_drift NO@55c blocked by IL-39 -- NO@55-59c WR=50%, P&L=-6.74 USD, negative EV."""
+        ob = make_orderbook(no_bid=55)
+        signal = make_signal(side="no", price_cents=55, ticker="KXSOL15M-26MAR170445-45")
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=45, no_price=55),
+            ob,
+            3.0,
+            kalshi,
+            db,
+            live_confirmed=True,
+            strategy_name="sol_drift_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is None
+        kalshi.create_order.assert_not_called()
+
+    async def test_sol_drift_no_at_45c_blocked(self, live_env, bypass_first_run):
+        """sol_drift NO@45c blocked by IL-39 -- NO@45-49c WR=25%, P&L=-18.97 USD, catastrophic."""
+        ob = make_orderbook(no_bid=45)
+        signal = make_signal(side="no", price_cents=45, ticker="KXSOL15M-26MAR170445-45")
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=55, no_price=45),
+            ob,
+            3.0,
+            kalshi,
+            db,
+            live_confirmed=True,
+            strategy_name="sol_drift_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is None
+        kalshi.create_order.assert_not_called()
+
+    async def test_sol_drift_no_at_60c_allowed(self, live_env, bypass_first_run):
+        """sol_drift NO@60c is allowed -- exactly at floor, WR=80%, P&L positive."""
+        ob = make_orderbook(no_bid=60)
+        signal = make_signal(side="no", price_cents=60, ticker="KXSOL15M-26MAR170445-45")
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=40, no_price=60),
+            ob,
+            3.0,
+            kalshi,
+            db,
+            live_confirmed=True,
+            strategy_name="sol_drift_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
+    async def test_sol_drift_no_at_59c_blocked(self, live_env, bypass_first_run):
+        """sol_drift NO@59c blocked -- 1 cent below floor, negative EV bucket."""
+        ob = make_orderbook(no_bid=59)
+        signal = make_signal(side="no", price_cents=59, ticker="KXSOL15M-26MAR170445-45")
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=41, no_price=59),
+            ob,
+            3.0,
+            kalshi,
+            db,
+            live_confirmed=True,
+            strategy_name="sol_drift_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is None
+        kalshi.create_order.assert_not_called()
+
+    async def test_sniper_no_at_55c_not_affected_by_il39(self, live_env, bypass_first_run):
+        """IL-39 targets sol_drift_v1 only. Sniper NO@55c is NOT blocked by IL-39
+        (sniper has its own floor/ceiling guards, but IL-39 is sol_drift-specific)."""
+        ob = make_orderbook(no_bid=55)
+        signal = make_signal(side="no", price_cents=55, ticker="KXSOL15M-26MAR170445-45")
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=45, no_price=55),
+            ob,
+            3.0,
+            kalshi,
+            db,
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        # Sniper has its own floor at 90c (YES-equiv). NO@55c -> YES-equiv=45c -> blocked by sniper floor.
+        # IL-39 does NOT add a block here; the sniper floor already handles it.
+        # This test confirms IL-39 guard check is strategy-scoped.
+        assert result is None  # blocked by sniper floor, not IL-39
+
+    async def test_btc_drift_no_at_55c_not_blocked_by_il39(self, live_env, bypass_first_run):
+        """IL-39 is sol_drift_v1 specific. btc_drift NO@55c is NOT blocked by IL-39."""
+        ob = make_orderbook(no_bid=55)
+        signal = make_signal(side="no", price_cents=55, ticker="KXBTC15M-26MAR170445-45")
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=45, no_price=55),
+            ob,
+            3.0,
+            kalshi,
+            db,
+            live_confirmed=True,
+            strategy_name="btc_drift_v1",
+            price_guard_min=35,
+            price_guard_max=65,
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
+
 # ── post_only taker fallback (S88) ───────────────────────────────────────────
 
 

@@ -512,6 +512,23 @@ async def execute(
         )
         return None
 
+    # IL-39: sol_drift NO price floor at 60c (S142) ──────────────────────
+    # sol_drift bets NO on SOL when price drifts down. Low NO prices (high YES)
+    # mean the signal is weak (market near 50/50). Evidence from 45 live bets:
+    #   NO@60-64c: n=15, WR=80%, P&L=+6.55 USD (+0.44 USD/bet) — POSITIVE EV
+    #   NO@55-59c: n=12, WR=50%, P&L=-6.74 USD (-0.56 USD/bet) — NEGATIVE EV
+    #   NO@45-49c: n=4,  WR=25%, P&L=-18.97 USD (-4.74 USD/bet) — CATASTROPHIC
+    # Break-even for NO@59c: 41% YES-win = 59% NO-win needed. Observed: 50%.
+    # Historical -14.08 USD total: large losses concentrated at <60c NO.
+    # Floor set at 60c: YES-equiv=40c (near-50/50 market, signal not strong enough).
+    if strategy_name == "sol_drift_v1" and signal.side == "no" and price_cents < 60:
+        logger.info(
+            "[live] KXSOL sol_drift NO@%d¢ below IL-39 price floor 60¢ "
+            "(n=16 bets WR=44%%, -25.71 USD — negative EV below 60¢) — skip %s",
+            price_cents, signal.ticker,
+        )
+        return None
+
     # ── Execution-time price guard ────────────────────────────────────────
     # Convert execution price to YES-equivalent for range + slippage checks.
     # Protects against HFT repricing in the asyncio gap after signal generation.
