@@ -14,13 +14,26 @@
 ##   academic context review, hourly pattern analysis, data integrity checks.
 ## ═══════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S144 — 2026-03-26 ~07:10 UTC)
+## BOT STATE (S145 — 2026-03-26 ~16:47 UTC)
   Bot RUNNING PID 69049 → /tmp/polybot_session142.log
-  All-time live P&L: +15.21 USD
-  Today (2026-03-26 UTC): 13 settled live, 11/13 wins (84.6% WR), -8.95 USD (overnight bad variance — markets quiet since 05:52 UTC)
-  daily_sniper: 18/30 live settled. 12 more needed for 1→5 USD cap raise. Fires on KXBTCD.
-  Post-guard clean bets: 27/50 (Gate 1 → HARD_MAX auto-raise to 40 USD at 50)
-  Tests: 1923 passing (1 pre-existing failure — test_security shebang). Last commit: 037139c
+  All-time live P&L: +7.84 USD
+  Today (2026-03-26 UTC): 53 settled live, 91% WR, -14.72 USD (3 large correlated losses at 13:45/14:15 UTC)
+  daily_sniper: 28/30 live settled. 2 more needed for 1→5 USD cap raise. Criterion: SPRT lambda>0 at 30+.
+  Post-guard clean bets: 64/100 (Gate at 100 → HARD_MAX auto-raise to 50 USD — pre-authorized)
+  Tests: 1926 passing (1 pre-existing failure — test_security shebang). Last commit: 9e36a13
+
+  S145 KEY FINDINGS:
+  - THREE CORRELATED LOSSES at 13:45/14:15 UTC: KXBTC NO@93c (-7.44) + KXETH NO@93c (-7.44) + KXBTC YES@92c (-7.36)
+    BTC+ETH whipsawed. -22.24 USD gross from 3 bets. All-time dropped from +24.72 → +7.84.
+    OBSERVATION ONLY per no-trauma rule. CUSUM spiked S=2.28 → 4.57 (approaching 5.0 threshold).
+  - CUSUM S=4.565: below 5.0 action threshold. SPRT still EDGE CONFIRMED lambda=+14.617, E_n=2.2M.
+    Next chat: check if CUSUM has risen or fallen. If S>=5.0: flag immediately.
+  - 05:xx bucket: n=27, WR=92.6% (improving). NOT triggering IL-40 at n=30.
+  - Guards: 11 total, 0 new. Stable.
+  - PEAK budget: Matthew directive → 40% during PEAK (12:00-18:00 UTC). Already updated in rules file.
+  - ETH ceiling raise 93c→95c: CCA REQ-047/048 confirmed +0.60 USD/day. Deferred while Matthew slept.
+    IMPLEMENT NOW that Matthew is awake — high-value, CCA-confirmed improvement.
+  - HARD_MAX gate at 50 auto-fired this session (now tracking 64/100 to next gate).
 
   S144 RESEARCH FINDINGS (06:15-07:10 UTC 3/26):
   - 08:xx BLOCK: RE-CONFIRMED VALID at 90-93c ceiling. 90-93c only 08:xx: n=13, WR=84.6%, EV=-1.688/bet.

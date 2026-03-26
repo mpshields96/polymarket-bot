@@ -8661,3 +8661,60 @@ PID 29262 → /tmp/polybot_session142.log. sol_drift startup confirmed: "[sol_dr
 - 5-day EV projection validation request
 - Kelly fraction calibration at 93c ceiling
 
+
+---
+
+## S145 — 2026-03-26 ~07:30 UTC → 16:47 UTC (Monitoring — fully autonomous while Matthew slept)
+
+### Session Summary
+Full-autonomy overnight/morning PEAK monitoring session. Matthew sleeping 07:30–16:47 UTC.
+No code changes made (correct discipline — standing directive respected).
+Bot stayed alive PID 69049 the entire session. 85+ monitoring cycles completed.
+
+### P&L
+- Session start all-time: +15.21 USD
+- Session end all-time: +7.84 USD
+- Session net: -7.37 USD (bad variance day)
+- Today (2026-03-26): -14.72 USD (91% WR, 53 bets)
+- Largest damage: three correlated ceiling losses at 13:45/14:15 UTC (-22.24 USD gross)
+  1. KXBTC NO@93c 13:45 → YES won (-7.44 USD): BTC went UP
+  2. KXETH NO@93c 13:45 → YES won (-7.44 USD): ETH correlated with BTC
+  3. KXBTC YES@92c 14:15 → NO won (-7.36 USD): BTC reversed direction (whipsaw)
+
+### Key Observations (NO-TRAUMA RULE — all observations, no actions)
+- CUSUM spike: S=2.280 → 4.565 (threshold=5.0) driven by 3-loss cluster. SPRT still EDGE CONFIRMED lambda=+14.617.
+- 05:xx bucket: n=27, WR=92.6% (improving from 90.9% at n=22). NOT triggering IL-40.
+- IL-38 ceiling guard blocked NO@94c multiple times correctly (would have been wins, but guard rule preserved for long-run EV).
+- eth_drift CUSUM S=3.960 — disabled strategy, historical observation only.
+- Guards: 11 total, 0 new discovered.
+- daily_sniper: 28/30 (no new daily_sniper_v1 bets settled today — market structure).
+
+### Strategy Analyzer Insights (strategy_analyzer.py --brief)
+- All-time: +7.84 USD (84% WR, 1468 bets)
+- Today: -14.72 USD (91% WR, 53 bets) — target: 117.16 USD to +125 USD goal
+- SNIPER: Profitable buckets: 90-94c. Guarded: 95-98c.
+- btc_drift_v1: NEUTRAL — 80 live bets, 50% WR, -9.53 USD. Direction filter "no" side = 27% spread.
+- eth_drift_v1: UNDERPERFORMING — 46% WR. Trend=DECLINING. Already disabled.
+- sol_drift_v1: HEALTHY — 45 live bets, 67% WR, -14.08 USD. Still in early bets.
+- expiry_sniper_v1: Paper equivalent +306.69 USD, 75/30 bets, LIVE ENGINE.
+
+### Code Changes
+- NONE (Matthew sleeping, standing no-change directive respected)
+- Budget rule updated: PEAK 60% → 40% (Matthew live directive, 2026-03-26 ~16:00 UTC)
+
+### Self-Rating: C
+- WINS: Bot alive 7+ hours autonomous. No panic actions. Guards held. No-trauma rule correctly applied. Partial recovery (-19.52 → -14.72) via 8+ consecutive wins post-losses.
+- LOSSES: Three large correlated losses (-22.24 USD gross) drove all-time from +24.72 → +7.84. Episodic large-loss reset pattern (exactly what stagnation diagnosis rule warned about).
+- Next chat ONE THING: Check if CUSUM S hit 5.0. If so, flag immediately and log to CCA.
+- Would have made more money earlier: ETH ceiling raise 93c→95c (CCA confirmed +0.60 USD/day) was correctly deferred while Matthew sleeping — implement NOW that he's awake.
+
+### Goal Progress
+- All-time P&L: +7.84 USD | Target: +125 USD | Gap: 117.16 USD
+- Rate: ~0.41 USD/day expected at 90-93c ceiling (31.5 qualifying bets/day avg)
+- At expected rate: ~285 days to +125 USD (high variance — individual days -14 to +5)
+- Highest-leverage action: ETH ceiling raise to 95c (+0.60 USD/day confirmed by CCA REQ-047/048). Implement this session.
+
+### HARD_MAX Gate
+- Clean bets: 64/100 (was 27/50 at S144 wrap — gate at 50 auto-fired, HARD_MAX raised to 40 USD)
+- Next gate: 36 more clean bets → HARD_MAX raises to 50 USD (pre-authorized)
+
