@@ -3134,7 +3134,7 @@ def print_health(db) -> None:
     try:
         pgcb = db.post_guard_clean_bets()
         from src.risk.kill_switch import HARD_MAX_TRADE_USD
-        _ramp_gates = [(200, 12.0), (300, 14.0), (500, 15.0)]
+        _ramp_gates = [(50, 40.0), (100, 50.0), (200, 60.0)]
         next_gate = next(((n, cap) for n, cap in _ramp_gates if pgcb < n), None)
         if next_gate:
             needed = next_gate[0] - pgcb
@@ -3144,7 +3144,7 @@ def print_health(db) -> None:
             print(f"  Clean bets:        {pgcb} (all gates passed)")
         print(f"  Current HARD_MAX:  {HARD_MAX_TRADE_USD:.2f} USD")
         if next_gate and pgcb >= next_gate[0]:
-            issues.append(f"HARD_MAX gate {next_gate[0]} reached — raise HARD_MAX to {next_gate[1]:.0f} USD (Matthew approval)")
+            issues.append(f"HARD_MAX gate {next_gate[0]} reached — HARD_MAX auto-raises to {next_gate[1]:.0f} USD at next settlement (pre-authorized S140/S142)")
     except Exception as e:
         print(f"  Ramp progress:     error -- {e}")
 
