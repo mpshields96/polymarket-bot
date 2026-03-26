@@ -8510,3 +8510,48 @@ ONE THING that would have made more money earlier: catching NO@92c as a guard ca
 - Best estimate: 15-20 days at 5-7 USD/day average (excluding bad days)
 - Highest-leverage action: auto-HARD_MAX raise — at Gate 1 (200 bets), HARD_MAX = 12 USD raises daily EV ~20%
 
+
+---
+
+## Session 141 — sol_drift Re-Enable (post-wrap implementation)
+
+**Date**: 2026-03-26 UTC  
+**Commit**: b879717
+
+### What Changed
+- `config.yaml`: sol_drift min_drift_pct: 9.99 → 0.10 (re-enabled per CCA REQ-044)
+- `main.py`: sol_drift_task calibration_max_usd: None → 3.0 (50-bet trial cap at 3 USD/bet)
+- `tests/test_sol_strategy.py`: Updated TestSolDriftStrategy to assert >= 0.10 (CCA-validated) instead of >= 0.15 (theoretical). Added disabled-detection assertion.
+
+### Rationale
+CCA REQ-044 delivered framework: SPRT EDGE CONFIRMED (lambda=+2.337, WR=67%). Matthew explicitly authorized re-enable: "highest leverage ... just make more goddamn money." sol_drift adds a second live revenue stream alongside expiry_sniper, generating additional compounding income at manageable risk (3 USD/bet trial cap).
+
+### Bot Restart
+PID 29262 → /tmp/polybot_session142.log. sol_drift startup confirmed: "[sol_drift] Startup delay 29s (stagger)". 9 auto-guards loaded. XRP banned confirmed.
+
+## S142 — 2026-03-26 (monitoring + research — 5-day target session)
+
+### IL-38: Sniper ceiling lowered 94c→93c
+- **Evidence**: 94c bets (n=79, WR=94.9%) have EV=-$0.066/bet — NEGATIVE after fees
+- **Historical impact**: 90-93c-only P&L over 14 days = +$252 vs +$49 full (+5x)
+- **Mechanism**: 94c is above Kelly-optimal range at average WR days; negative EV confirmed empirically
+- **Implementation**: `_SNIPER_EXECUTION_CEILING_CENTS = 93` in live.py; IL-38
+- Tests: 1917 passing (added test_yes_at_94c_blocked_by_ceiling)
+- Commit: 410904c
+
+### HARD_MAX raised 10→35 + gate schedule {50:40, 100:50, 200:60}
+- Matthew directive: full carte blanche on strategy, $15-25/day target
+- Never-lower guard added to gate logic
+- Tests: 1916→1917 passing
+- Commit: 697b601
+
+### REQ-047 filed to CCA
+- 5-day strategy mandate: find/build path to $15-25/day sustained
+- Mathematical breakdown of why current sniper at 90-95c caps at ~$3/day
+- 6 research questions covering FLB at lower prices, volume expansion, Monte Carlo
+
+### REQ-048 filed to CCA
+- Ceiling change validation + academic backing request
+- 5-day EV projection validation request
+- Kelly fraction calibration at 93c ceiling
+

@@ -14,38 +14,44 @@
 ##   academic context review, hourly pattern analysis, data integrity checks.
 ## ═══════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S141 wrap — 2026-03-26 ~02:25 UTC)
-  Bot RUNNING PID 15227 → /tmp/polybot_session141.log
-  All-time live P&L: +26.11 USD | expiry_sniper: +101.19 USD (1050 bets, 95.5% WR)
-  Today (2026-03-26 UTC): 7 settled | 6/6 wins (100% WR) | +2.99 USD live
+## BOT STATE (S142 in-session — 2026-03-26 ~04:40 UTC)
+  Bot RUNNING PID 64107 → /tmp/polybot_session142.log
+  All-time live P&L: +26.11 USD + today
+  Today (2026-03-26 UTC): -8.39 USD (14 bets, 85.7% WR — bad start, ceiling change applied going fwd)
   daily_sniper: 18/30 live settled (12 more for 1→5 USD cap raise)
-  Post-guard clean bets: 18/200 (Gate 1 → auto-raise HARD_MAX 10→12 USD at 200)
-  Tests: 1915 passing. Last commit: b84a5c7
-  S141 commits:
-    7a291bf: Auto-raise HARD_MAX at gates (set_hard_max_trade_usd, 5 tests)
-    e745a71: Permanent XRP ban (feeds, drift task, calibrator, Bayesian injection)
-    1a0f58c: Fix NameError — xrp_drift_strategy calibrator ref missed in first pass
-    612648c: docs: S141 session handoff
-    b84a5c7: docs: S141 CHANGELOG
+  Post-guard clean bets: ~25/200 (Gate 1 → HARD_MAX auto-raise to 40 USD at 50)
+  Tests: 1917 passing. Last commit: 410904c
 
-  XRP STATUS: PERMANENTLY BANNED. IL-33 still in live.py as defense. No polling anywhere.
-  08:xx BLOCK: CONFIRMED CORRECT — non-XRP 08:xx: n=34, WR=88%, -51.6 USD. Block stays.
-  DAILY SOFT STOP: $54.20 >= $39.03 — COSMETIC ONLY. Enforcement commented out. Bets firing.
+  S142 IN-SESSION COMMITS:
+    697b601: HARD_MAX 10→35 + accelerated gate schedule {50:40,100:50,200:60} + test isolation
+    b879717: sol_drift re-enabled CCA REQ-044
+    410904c: IL-38 — sniper ceiling 94c→93c (CRITICAL: $18/day avg at 90-93c vs $3.50 full)
+
+  ⚠️ CEILING CHANGE IL-38 (S142 CRITICAL):
+  SNIPER CEILING: 93c (was 94c). BLOCKS all YES@94c+ for expiry_sniper.
+  EVIDENCE: 90-93c only P&L = +$252.22 over 14 days = $18.02/day avg (target: $15-25/day).
+  94c bets: n=79, WR=94.9%, EV=-$0.066/bet (NEGATIVE). Only gave up $1.97 over 14 days.
+  This IS the path to the 5-day $15-25/day target. Matthew's mandate met if performance holds.
+
+  5-DAY CLOCK: Starts Day 1 = 2026-03-27 07:00 CST (13:00 UTC). Deadline: 2026-03-31.
+  CURRENT CEILING: 93c | FLOOR: 90c | Range: 90-93c YES bets only.
+  NEXT PRIORITY: Daily_sniper cap raise (12 more bets needed). Sol drift trial (50 bets).
+
+  HARD_MAX: 35 USD | DEFAULT_MAX_LOSS: 7.50 USD | Gate schedule: {50→40,100→50,200→60}
+  XRP STATUS: PERMANENTLY BANNED.
+  08:xx BLOCK: CONFIRMED CORRECT.
+  DAILY SOFT STOP: COSMETIC ONLY.
 
   RESTART COMMAND (S142):
   pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session142.log 2>&1 &
 
-  ALL DRIFTS DISABLED (min_drift_pct=9.99 for all four)
+  ALL DRIFTS DISABLED (min_drift_pct=9.99 for all four) except sol_drift (min=0.10, max_loss=3.00)
   KXXRP sniper: BLOCKED globally (IL-33)
-  IL-34: KXBTC NO@95c — BLOCKED
-  IL-35: KXSOL sniper at 05:xx UTC — BLOCKED
-  IL-36: KXETH NO@95c — BLOCKED
-  IL-24: KXSOL NO@95c — BLOCKED (legacy)
+  IL-34: KXBTC NO@95c | IL-35: KXSOL 05:xx | IL-36: KXETH NO@95c | IL-24: KXSOL NO@95c
+  IL-38: ALL YES@94c blocked via ceiling (new S142)
   9 auto-guards: KXXRP NO@95c + KXSOL NO@93c + KXBTC YES@94c + KXXRP NO@93c + KXBTC NO@94c
                  + KXBTC 08:xx + KXETH 08:xx + KXETH 02:xx + IL-37 NO@00:xx (all assets)
   HOUR BLOCK: frozenset({8}) — 08:xx UTC blocked
-  YES@95c BTC/ETH/SOL: PROFITABLE, still firing (100% WR)
-  NO@95c: ALL BLOCKED by ILs. Only YES@95c for non-XRP still active.
 
 ## S134 KEY BUILDS
   1. src/strategies/economics_sniper.py (NEW — K2 expansion)
