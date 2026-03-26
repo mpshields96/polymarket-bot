@@ -1,5 +1,57 @@
 # POLYMARKET-BOT CHANGELOG
 
+## S143 — 2026-03-26 06:xx UTC (monitoring + research, inline)
+
+### Research: 5-Day Mandate Validation
+- **14-day non-XRP 90-93c average**: $19.41/day (corrected from $18.05 — XRP was contaminating dataset with -19.07 USD / 83 bets)
+- **XRP ban improved expected daily P&L** at 90-93c. Good news for mandate.
+- **08:xx block re-validated at 93c ceiling**: non-XRP 90-93c WR=84.6% (n=13) vs 91.5% BE. Block justified, saves ~6.55 USD/day.
+- **KXSOL 06:xx watch bucket debunked**: -8.4 USD entirely from one 96c bet (March 15, now blocked by ceiling). 90-93c only: 4/4 wins, +3.66 USD.
+- **Monte Carlo risk**: 32.8% probability of averaging <15 USD/day over 5 days. Driven by high variance (StDev=21.54). Median 5-day = $95.9 USD. Acceptable risk given EV.
+- **March 25 retroanalysis**: with ceiling only = +7.52 USD (not -1.43 USD). Ceiling removes 22 bad 94c bets (-8.95 USD).
+
+### Fix: HARD_MAX Health Display
+- health --report was showing stale gate schedule: (200→12, 300→14, 500→15)
+- Corrected to match settlement loop: (50→40, 100→50, 200→60)
+- Commit: 037139c
+
+### Research: Sol Drift Zero Bets Explained
+- direction_filter="no" only fires when SOL drifts DOWN ≥0.10%
+- SOL has been drifting UP/flat since re-enable — max observed: +0.095% (wrong direction)
+- 0 bets = correct behavior, not a bug
+
+### CCA REQ-049 Filed
+- Volume pattern analysis for 5-day gap
+- 85c floor safety analysis request
+- Sol drift threshold calibration (is 0.10% correctly calibrated?)
+- Maker dual-mode timing questions
+
+## S142 — 2026-03-26 UTC → ongoing
+
+### Session Summary
+- Grade: in progress
+- 5-DAY MANDATE: $15-25 USD/day by 2026-03-31. Day 1 = 2026-03-27 13:00 UTC.
+- IL-38: sniper ceiling lowered 94c→93c. Evidence: 90-93c = +18.02 USD/day avg over 14 days; 94c = -0.066 USD/bet negative EV. 5x improvement vs full range.
+- IL-39: sol_drift NO price floor at 60c. Evidence: NO@<60c = -25.71 USD over 16 bets (WR=44%). NO@60c+ = positive EV. 6 TDD tests.
+- HARD_MAX: raised 10→35 USD (Matthew pre-authorized). Gates: 50 clean bets→40, 100→50, 200→60 USD.
+
+### Performance
+- Today live (S142): -8.39 USD (14 settled, 12/14 WR=85.7%)
+- All-time: +14.73 USD (dropped from +26.11 pre-S142 — bad day variance)
+
+### CUSUM State
+- expiry_sniper: EDGE CONFIRMED, CUSUM stable. All drifts disabled.
+
+### Commits
+- 410904c: feat: IL-38 sniper ceiling 94c→93c (S142 5-day mandate)
+- 1cba52f: feat: IL-39 sol_drift NO price floor at 60c (S142)
+
+### CCA Activity
+- REQ-048 filed: ceiling change analysis + 4 research questions (academic backing, Monte Carlo projection, Kelly calibration, floor review)
+- REQ-047 filed: 5-day mandate strategic support
+
+---
+
 ## S141 — 2026-03-25 ~22:15 UTC → ongoing
 
 ### Session Summary
