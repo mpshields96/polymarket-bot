@@ -1140,6 +1140,172 @@ async def crypto_daily_loop(
 _DAILY_SNIPER_POLL_SEC = 60   # 60s poll — needs to catch entry in 30-90min window
 _DAILY_SNIPER_LIVE_CAP_USD = 1.0  # Conservative live cap for initial ramp-up (CCA REQ-035)
 _ECONOMICS_SNIPER_POLL_SEC = 300  # 5-min poll — 48h window, no urgency
+_SPORTS_SNIPER_POLL_SEC = 180     # 3-min poll — games evolve fast, catch entries
+_SPORTS_SNIPER_PAPER_CAP_USD = 5.0  # Paper cap during calibration (30-bet gate)
+
+
+async def sports_sniper_loop(
+    kalshi,
+    db,
+    kill_switch,
+    initial_delay_sec: float = 150.0,
+    max_daily_bets: int = 10,
+):
+    """
+    Sports game-winner sniper loop (PAPER-ONLY, calibration phase).
+
+    Polls ESPN for NBA/NHL/MLB games in-progress. When a game is in a late
+    period with a commanding lead AND the Kalshi game-winner market is 90-95c,
+    places a paper bet on the leading team (YES).
+
+    Academic basis: CCA REQ-56 confirms FLB applies to live sports game markets.
+    Same mechanism as expiry_sniper_v1 — near-certainty convergence to 99c.
+
+    Sports: NBA (KXNBAGAME), NHL (KXNHLGAME), MLB (KXMLBGAME)
+    Late-game gates: NBA=Q4 15+pts, MLB=7th+ 5+runs, NHL=3rd 3+goals
+    Price: 90–95c only. Paper cap: 5 USD. Live gate: 20 settled bets, WR >= 90%.
+    """
+    from src.data.espn import ESPNFeed
+    from src.strategies.sports_sniper import SportsSniper, parse_kalshi_game_ticker
+    from src.execution.paper import PaperExecutor
+
+    strategy_name = "sports_sniper_v1"
+    paper_exec = PaperExecutor(
+        db=db,
+        strategy_name=strategy_name,
+        slippage_ticks=0,   # sports markets don't have the same spread dynamics
+        fill_probability=1.0,
+    )
+    sniper = SportsSniper()
+    _SPORTS = ["nba", "nhl", "mlb"]
+
+    if initial_delay_sec > 0:
+        logger.info("[sports_sniper] Startup delay %.0fs", initial_delay_sec)
+        await asyncio.sleep(initial_delay_sec)
+
+    logger.info("[sports_sniper] Started — paper-only NBA/NHL/MLB 90-95c late-game sniping")
+
+    _bet_today: set[str] = set()   # tickers bet today, reset at midnight UTC
+    _last_midnight = None
+
+    while True:
+        try:
+            # Reset daily bet set at midnight UTC
+            _today = datetime.utcnow().date()
+            if _today != _last_midnight:
+                _bet_today.clear()
+                _last_midnight = _today
+
+            # Daily paper bet cap
+            daily_count = db.count_trades_today(strategy_name=strategy_name, is_paper=True)
+            if daily_count >= max_daily_bets:
+                logger.debug("[sports_sniper] Daily paper cap %d reached", max_daily_bets)
+                await asyncio.sleep(_SPORTS_SNIPER_POLL_SEC)
+                continue
+
+            # Fetch live games for each sport
+            for sport in _SPORTS:
+                live_games = await asyncio.get_event_loop().run_in_executor(
+                    None, ESPNFeed.get_live_games, sport
+                )
+                if not live_games:
+                    continue
+
+                # Fetch matching Kalshi markets
+                series_map = {
+                    "nba": "KXNBAGAME",
+                    "nhl": "KXNHLGAME",
+                    "mlb": "KXMLBGAME",
+                }
+                series = series_map[sport]
+                try:
+                    kalshi_markets = await kalshi.get_markets(
+                        series_ticker=series, status="open"
+                    )
+                except Exception as e:
+                    logger.warning("[sports_sniper] Failed to fetch %s markets: %s", series, e)
+                    continue
+
+                # Build lookup: (frozenset{team1, team2}, date_str) → {team: market}
+                market_lookup: dict = {}
+                for m in kalshi_markets:
+                    parsed = parse_kalshi_game_ticker(m.ticker)
+                    if not parsed:
+                        continue
+                    key = parsed["teams"]
+                    team = parsed["team"]
+                    yes_price = getattr(m, "yes_price", None)
+                    if yes_price is None:
+                        continue
+                    if key not in market_lookup:
+                        market_lookup[key] = {}
+                    market_lookup[key][team] = (m.ticker, int(yes_price))
+
+                # Evaluate each live game
+                for game in live_games:
+                    home = game["home"]
+                    away = game["away"]
+                    teams_key = frozenset([home, away])
+
+                    if teams_key not in market_lookup:
+                        logger.debug("[sports_sniper] No Kalshi market for %s vs %s", home, away)
+                        continue
+
+                    leading_team = game.get("leading_team")
+                    if not leading_team:
+                        continue  # tied game
+
+                    team_markets = market_lookup[teams_key]
+                    if leading_team not in team_markets:
+                        continue
+
+                    ticker, yes_price_cents = team_markets[leading_team]
+
+                    if ticker in _bet_today:
+                        continue  # already bet this game today
+
+                    signal = sniper.evaluate(game, yes_price_cents)
+                    if not signal:
+                        continue
+
+                    # Check kill switch (paper path)
+                    if not kill_switch.check_paper_order_allowed():
+                        logger.info("[sports_sniper] Kill switch blocking paper bet")
+                        continue
+
+                    # Size: flat paper cap
+                    from src.risk.sizing import calculate_size, DEFAULT_MAX_LOSS_USD
+                    from src.risk.kill_switch import HARD_MAX_TRADE_USD
+                    payout = 100.0 / yes_price_cents  # payout per dollar (simplified)
+                    size_result = calculate_size(
+                        payout_per_dollar=payout,
+                        bankroll_usd=db.get_bankroll(),
+                        min_edge_pct=0.05,
+                    )
+                    trade_usd = min(size_result.recommended_usd, _SPORTS_SNIPER_PAPER_CAP_USD, HARD_MAX_TRADE_USD)
+                    trade_usd = max(trade_usd, 0.50)  # floor 50c
+
+                    result = paper_exec.execute(
+                        ticker=ticker,
+                        side="yes",
+                        price_cents=yes_price_cents,
+                        size_usd=trade_usd,
+                    )
+                    if result:
+                        _bet_today.add(ticker)
+                        logger.info(
+                            "[sports_sniper] PAPER BET: %s %s YES@%dc %.2f USD | %s period=%d lead=%d",
+                            sport.upper(), leading_team, yes_price_cents, trade_usd,
+                            ticker, signal["period"], signal["lead"],
+                        )
+
+        except asyncio.CancelledError:
+            logger.info("[sports_sniper] Loop cancelled — shutting down")
+            break
+        except Exception as e:
+            logger.error("[sports_sniper] Unexpected error: %s", e, exc_info=True)
+
+        await asyncio.sleep(_SPORTS_SNIPER_POLL_SEC)
 
 
 async def daily_sniper_loop(
@@ -3958,6 +4124,23 @@ async def main():
     )
     logger.info("Economics sniper loop started (paper-only, KXCPI/KXGDP, 88-93c, 48h window)")
 
+    # ── Sports sniper loop (paper-only — KXNBAGAME/KXNHLGAME/KXMLBGAME) ────
+    # Paper-only. Polls ESPN for live games; bets YES at 90-95c on late-game leaders.
+    # FLB verified by CCA REQ-56. Gate: 20 settled paper bets + WR >= 90% before live.
+    # Zero correlation with crypto — pure diversification for 5-day mandate.
+    # Stagger: 150s to start after other loops are settled.
+    sports_sniper_task = asyncio.create_task(
+        sports_sniper_loop(
+            kalshi=kalshi,
+            db=db,
+            kill_switch=kill_switch,
+            initial_delay_sec=150.0,
+            max_daily_bets=10,
+        ),
+        name="sports_sniper_loop",
+    )
+    logger.info("Sports sniper loop started (paper-only, NBA/NHL/MLB 90-95c late-game FLB)")
+
     # ── Maker sniper loop (paper-only — 15 fills before live gate, S143) ────────
     # Same FLB signal as expiry_sniper_v1, but places maker limit orders 1c below ask.
     # Academic basis: Becker (2026) — makers earn +1.12% structural vs takers -1.12%.
@@ -4099,6 +4282,7 @@ async def main():
             daily_sniper_task,
             economics_sniper_task,
             maker_sniper_task,
+            sports_sniper_task,
             return_exceptions=True,  # S90: prevent one task's exception from killing all others
         )
         # Log any tasks that died with unexpected exceptions (not CancelledError)
@@ -4108,7 +4292,7 @@ async def main():
             "unemployment", "sol_lag", "settle",
             "btc_daily", "eth_daily", "sol_daily", "copy_trade",
             "sports_futures", "expiry_sniper", "daily_sniper", "economics_sniper",
-            "maker_sniper",
+            "maker_sniper", "sports_sniper",
         ]
         for _tname, _result in zip(_task_names, results):
             if isinstance(_result, Exception) and not isinstance(_result, asyncio.CancelledError):
