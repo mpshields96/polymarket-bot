@@ -1101,12 +1101,31 @@ class TestSniperNegativeEvBucketGuard:
         assert result is None
         kalshi.create_order.assert_not_called()
 
+    async def test_yes_at_94c_blocked_by_ceiling(self, live_env, bypass_first_run):
+        """YES@94c IS blocked -- S142: ceiling lowered from 94c to 93c.
+        Data: 94c bets = 79 bets, 94.9% WR, EV=-$0.066/bet (NEGATIVE). Break-even = 94.0%.
+        Degraded from +6.32 USD at n=141 (S130) to negative EV as sample grew.
+        90-93c-only P&L over 14 days: +$252 vs +$49 full (5x improvement)."""
+        ob = make_orderbook(no_bid=6)  # no_bid=6 -> yes_ask = 94c
+        signal = make_signal(side="yes", price_cents=92)
+        kalshi = make_kalshi_mock()
+        db = make_db_mock()
+
+        result = await execute(
+            signal, make_market(yes_price=94, no_price=6), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="expiry_sniper_v1",
+            price_guard_min=1, price_guard_max=99,
+        )
+
+        assert result is None
+        kalshi.create_order.assert_not_called()
+
     async def test_yes_at_95c_blocked_by_ceiling(self, live_env, bypass_first_run):
-        """YES@95c IS blocked -- S130: ceiling lowered from 95c to 94c.
+        """YES@95c IS blocked -- S130: ceiling lowered from 95c to 94c, S142: further to 93c.
         Data: 95c bets = 160 bets, 96.3% WR, -7.26 USD cumulative. Break-even ~95.2% with fee.
         The 0.7pp edge over break-even creates unacceptable volatility for marginal gain."""
         ob = make_orderbook(no_bid=5)  # no_bid=5 -> yes_ask = 95c
-        signal = make_signal(side="yes", price_cents=93)
+        signal = make_signal(side="yes", price_cents=92)
         kalshi = make_kalshi_mock()
         db = make_db_mock()
 
@@ -1294,8 +1313,9 @@ class TestPerAssetStructuralLossGuards:
         assert result is None
         kalshi.create_order.assert_not_called()
 
-    async def test_eth_yes_at_94c_not_blocked(self, live_env, bypass_first_run):
-        """ETH YES@94c is NOT blocked -- BTC/ETH are profitable at 94c."""
+    async def test_eth_yes_at_94c_blocked_by_ceiling(self, live_env, bypass_first_run):
+        """ETH YES@94c IS blocked -- S142: ceiling lowered to 93c (all assets).
+        Aggregate 94c data: n=79, WR=94.9%, EV=-$0.066/bet (NEGATIVE). Universal block."""
         ob = make_orderbook(no_bid=6)  # yes_ask = 94c
         signal = make_signal(side="yes", price_cents=93, ticker="KXETH15M-26MAR151500-94")
         kalshi = make_kalshi_mock()
@@ -1311,8 +1331,8 @@ class TestPerAssetStructuralLossGuards:
             price_guard_min=1,
             price_guard_max=99,
         )
-        assert result is not None
-        kalshi.create_order.assert_called_once()
+        assert result is None
+        kalshi.create_order.assert_not_called()
 
     async def test_xrp_no_at_94c_blocked_il28(self, live_env, bypass_first_run):
         """IL-28: KXXRP NO@94c IS blocked -- 17 bets, 94.1% WR, fee-adjusted break-even ~94.4%, -5.29 USD net.
@@ -2227,15 +2247,16 @@ class TestSniperExecutionCeiling:
         assert result is None
         kalshi.create_order.assert_not_called()
 
-    async def test_sniper_allows_yes_at_94c_exactly(self, live_env, bypass_first_run):
-        """Sniper allows KXETH YES@94c — exactly at new ceiling (S130: lowered from 95c to 94c).
-        Uses ETH ticker because KXBTC YES@94c is auto-guarded (92.3% WR, -9.94 USD)."""
-        ob = make_orderbook(yes_bid=94)
-        signal = make_signal(side="yes", price_cents=94, ticker="KXETH15M-26MAR170445-45")
+    async def test_sniper_allows_yes_at_93c_exactly(self, live_env, bypass_first_run):
+        """Sniper allows YES@93c — exactly at new ceiling (S142: lowered from 94c to 93c).
+        94c has negative EV (-$0.066/bet, n=79). 93c EV = +$0.38/bet (n=82).
+        Uses BTC ticker — KXETH YES@93c has separate IL-30 block."""
+        ob = make_orderbook(yes_bid=93)
+        signal = make_signal(side="yes", price_cents=93, ticker="KXBTC15M-26MAR170445-45")
         kalshi = make_kalshi_mock()
         result = await execute(
             signal,
-            make_market(yes_price=94, no_price=6),
+            make_market(yes_price=93, no_price=7),
             ob,
             5.0,
             kalshi,

@@ -497,14 +497,14 @@ async def execute(
         )
         return None
 
-    # ── Sniper execution-time ceiling (94c maximum, any side) ────────────
-    # Fee math: at 95c YES, break-even WR ≈ 95.2% (with taker fee). Observed WR = 96.3%
-    # across 160 bets — but cumulative P&L = -7.26 USD. At this margin, any run of consecutive
-    # losses erases weeks of wins. Not worth the vol for 0.7pp edge over break-even.
-    # S130: lowered from 95c to 94c. Data: 90-94c = +224 USD, 95c+ = -113 USD (all-time).
-    # 94c: 141 bets, 95.7% WR, +6.32 USD — marginally profitable, kept in.
+    # ── Sniper execution-time ceiling (93c maximum, any side) ────────────
+    # Fee math: 94c YES break-even WR ≈ 94.0%. Observed WR = 94.9% across 79 bets → EV = -$0.066/bet.
+    # This has degraded from +6.32 USD at n=141 (S130 eval) to negative EV as sample grew.
+    # S130: lowered from 95c to 94c. S142: further lowered from 94c to 93c.
+    # Evidence: 90-93c-only P&L over 14 days = +$252 vs +$49 full (5x improvement).
+    # 94c bets are the primary source of loss on bad WR days (negative Kelly → don't bet).
     # Does NOT affect drift strategies.
-    _SNIPER_EXECUTION_CEILING_CENTS = 94
+    _SNIPER_EXECUTION_CEILING_CENTS = 93
     if strategy_name == "expiry_sniper_v1" and price_cents > _SNIPER_EXECUTION_CEILING_CENTS:
         logger.info(
             "[live] Sniper execution price %d¢ above ceiling %d¢ (fee bleed) — skip %s",
