@@ -28,14 +28,38 @@
 ## ALL FUTURE KALSHI CHATS ARE FORBIDDEN FROM FORGETTING THIS. PERMANENT.
 ## ═══════════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S146 — 2026-03-26 ~17:28 UTC)
-  Bot RUNNING (restarted from frozen) → /tmp/polybot_session146.log
-  All-time live P&L: +9.60 USD
-  Today (2026-03-26 UTC): 41 settled live, 92.7% WR, -5.13 USD
-  daily_sniper: 28/30 live settled. 2 more needed for 1→5 USD cap raise.
-  Post-guard clean bets: 64/100 (Gate at 100 → HARD_MAX auto-raise to 50 USD — pre-authorized)
-  Tests: 1928 passing (1 pre-existing failure — test_security shebang). Last commit: 4a7f4dc
-  ETH ceiling raised 93c→95c (IL-38-ETH) — implemented S146, CCA REQ-53, +$0.60/day EV
+## BOT STATE (S147 — 2026-03-26 ~23:30 UTC)
+  Bot RUNNING PID 5936 → /tmp/polybot_session147.log
+  All-time live P&L: +12.20 USD
+  Today (2026-03-26 UTC): 44 settled live, 93% WR, -2.53 USD live (14 settled, 13W 1L = +9.16 USD net at report)
+  daily_sniper: 28/30 live settled. 2 more needed → SPRT eval → 1→5 USD cap raise.
+  Post-guard clean bets: 70/100 (Gate at 100 → HARD_MAX auto-raise to 50 USD — pre-authorized)
+  Tests: 2001 passing (1 pre-existing failure — test_security shebang). Last commit: 3c9a58c
+  ETH ceiling at 95c (IL-38-ETH). DEFAULT_MAX_LOSS at 10.00 USD. Sports sniper PAPER-ACTIVE.
+
+  S147 KEY BUILDS:
+  1. src/models/monte_carlo.py — Trinity Monte Carlo from agentic-rd-sandbox (REQ-027 foundation)
+     run_trinity_simulation + poisson_soccer + efficiency_gap_to_margin. 10k iterations, Box-Muller.
+  2. src/data/injury_leverage.py — Positional kill switch (NBA/NFL/NHL/MLB). NHL G / NFL QB = kill.
+     Wired into sports_sniper.evaluate(injuries=[...]) — dormant until injury feed connected.
+  3. src/data/espn.py — ESPN scoreboard feed. ESPNFeed.get_live_games(sport) → normalized game dicts.
+  4. src/strategies/sports_sniper.py — Late-game FLB sniper. SportsSniper.evaluate(game, price).
+     Sports: NBA Q4 15+pts, NHL P3 3+goals, MLB 7th+ 5+runs. Floor 90c, ceiling 95c. Paper-only.
+  5. sports_sniper_loop wired in main.py — polls ESPN every 3 min, cross-refs Kalshi prices.
+  6. DEFAULT_MAX_LOSS raised 7.50→10.00 USD (5-day mandate). At 185 USD bankroll: pct cap binds.
+  7. ETH ceiling raised 93c→95c (IL-38-ETH, CCA REQ-53 confirmed +0.60 USD/day).
+  8. REQ-027: CCA updated with BankrollSimulator request — bankroll_sim.py is the next build.
+  CCA COMMS: Updated POLYBOT_TO_CCA.md with REQ-027 bankroll simulator spec.
+  DOUBLE TOKEN LIMIT ENDING: Last 2x off-peak window = tonight (March 27 off-peak). Front-load heavy builds.
+
+  S147 PENDING TASKS (priority order):
+  1. daily_sniper cap raise: 28/30 live bets. 2 more → SPRT lambda>0 → raise 1→5 USD. FIRES TONIGHT/TOMORROW.
+  2. 5-DAY MANDATE: Clock starts on Matthew's mark. Bot armed: 9.25 USD max, ETH 95c, sports paper running.
+  3. REQ-027 BankrollSimulator: CCA request filed. Next build = src/models/bankroll_sim.py.
+  4. HARD_MAX gate: 70/100 clean bets → auto-raise to 50 USD at 100 (passive, pre-authorized).
+  5. Sports sniper paper validation: need 20 fills at WR>=90% before live promotion.
+     ESPN API active; Kalshi KXNBA/NHL/MLB prices cross-referenced every 3 min.
+  6. CUSUM: S145 ended 4.565. Check at startup — if S>=5.0: flag immediately.
 
   S145 KEY FINDINGS:
   - THREE CORRELATED LOSSES at 13:45/14:15 UTC: KXBTC NO@93c (-7.44) + KXETH NO@93c (-7.44) + KXBTC YES@92c (-7.36)
@@ -98,8 +122,8 @@
   DAILY SOFT STOP: COSMETIC ONLY. Always shows "SOFT STOP ACTIVE" at HARD_MAX=35 USD —
     threshold ($38.26 = 20% of bankroll) < one losing bet (~$33). Stale threshold. Not a blocker.
 
-  RESTART COMMAND (S144):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session144.log 2>&1 &
+  RESTART COMMAND (S148):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session148.log 2>&1 &
 
   ALL DRIFTS DISABLED (min_drift_pct=9.99 for all four) except sol_drift (min=0.10, max_loss=3.00)
   KXXRP sniper: BLOCKED globally (IL-33)

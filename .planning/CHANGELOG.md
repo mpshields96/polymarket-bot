@@ -1,5 +1,65 @@
 # POLYMARKET-BOT CHANGELOG
 
+## S147 — 2026-03-26 23:30 UTC (wrap — main monitoring + agentic-rd-sandbox integration)
+
+### Self-Rating: B
+
+WINS:
+- ETH ceiling 95c (IL-38-ETH) implemented — CCA REQ-53 confirmed +0.60 USD/day EV.
+- DEFAULT_MAX_LOSS raised 7.50→10.00 USD — at 185 USD bankroll pct cap now binds (9.25 USD bets).
+  Expected +4.8 USD/day from 23% bet size increase. 5-day mandate armed.
+- sports_sniper_v1 PAPER-ACTIVE: ESPN API + Kalshi cross-reference, polls every 3 min.
+  NBA Q4 15+pts, NHL P3 3+goals, MLB 7th+ 5+runs. Floor 90c, ceiling 95c (23 tests).
+- Trinity Monte Carlo (REQ-027 foundation): src/models/monte_carlo.py from agentic-rd-sandbox.
+  run_trinity_simulation (10k iter, Box-Muller, 20/60/20 weighting), poisson_soccer. 24 tests.
+- Injury leverage kill switch: src/data/injury_leverage.py. NHL G / NFL QB at 3.5pt kill threshold.
+  Wired into sports_sniper (dormant until injury feed). 34 tests.
+- Tests: 2001 passing (+75 new this session). Commit 3c9a58c.
+- CCA updated: REQ-027 BankrollSimulator spec filed. Double token limit ending March 28 noted.
+- HARD_MAX gate advanced: 64→70/100 clean bets during session.
+
+LOSSES:
+- Bot frozen 5 hours (12:47-17:47 UTC). Log stale >15min pattern not caught until stale >5hr.
+  Root cause: frozen process (alive in ps but not logging). Kill -9 + fresh restart fixed it.
+- sports sniper 0 paper fills during session (NBA/NHL/MLB not in late-game moments vs Kalshi prices).
+  Normal — paper validation requires live game periods with 90c+ prices.
+- daily_sniper still at 28/30 (needs 2 more to trigger SPRT eval for cap raise).
+- Context summary carried over from previous session causing some re-reading of state.
+
+ONE THING DIFFERENTLY: Add log-recency check to EVERY monitoring cycle iteration (not just startup).
+  Frozen process detection should fire at 15min staleness, not discovered 5 hours later.
+
+ONE THING THAT WOULD HAVE MADE MORE MONEY EARLIER: Sports sniper was built this session but the
+  KXBTCD daily threshold volume scan from S146 could have been done earlier — confirmed 0 volume
+  means that path was dead. Sports game markets were the right call. Earlier decision = more paper bets.
+
+### Goal Progress
+All-time P&L (live): +12.20 USD | Goal: +125 USD | Gap: 112.80 USD
+Today (live): -2.53 USD (44 settled, 93% WR)
+Rate context: 90-93c sniper expected ~17.6 USD/day (18 bets/day * 9.25 * 0.961 * 0.11 payout)
+  Monte Carlo confirms path is mathematically sound. BankrollSimulator will validate CI.
+Highest-leverage action: daily_sniper cap raise (2 bets away) adds ~1.70 USD/day at 5 USD cap.
+  After that: sports sniper 20-bet paper validation → live at 5 USD cap = more diversification.
+
+### Key Builds
+- 4a7f4dc: ETH ceiling 93c→95c (IL-38-ETH)
+- 09953d9: DEFAULT_MAX_LOSS 7.50→10.00 USD
+- ae84178: sports_sniper_v1 + ESPN feed + main.py wiring
+- 3c9a58c: Trinity Monte Carlo + injury leverage (from agentic-rd-sandbox)
+
+### Strategy Analyzer Insights (--brief)
+All-time: +12.20 USD (84% WR, 1474 live bets)
+Today: -10.36 USD total (92% WR, 59 bets — includes paper)
+SNIPER profitable buckets: 90-94c
+SNIPER guarded buckets (blocked): 98, 97, 96, 95c (non-ETH)
+btc_drift: NEUTRAL — 80 bets, 50% WR, -9.53 USD. direction_filter="no" active (27% spread).
+eth_drift: UNDERPERFORMING — 46% WR below 50c BE. Trend DECLINING. Watching.
+sol_drift: HEALTHY — 46 bets, 67% WR, -12.68 USD (direction_filter="no" active — correct behavior).
+
+### Next Chat's Single Most Important Focus
+Confirm daily_sniper hits 30 bets and run SPRT eval for 1→5 USD cap raise.
+Then: CCA check for BankrollSimulator delivery. Then: sports sniper paper count.
+
 ## S144 — 2026-03-26 07:10 UTC (wrap — overnight quiet period research)
 
 ### Self-Rating: C+
