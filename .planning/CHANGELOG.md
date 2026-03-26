@@ -1,5 +1,34 @@
 # POLYMARKET-BOT CHANGELOG
 
+## S141 — 2026-03-25 ~22:15 UTC → ongoing
+
+### Session Summary
+- Grade: B (in progress)
+- Wins: Auto-HARD_MAX raise implemented (gates pre-authorized, fully autonomous now); XRP permanently banned from all polling feeds; 08:xx block confirmed correct with non-XRP data (WR=88%, -51.6 USD); z-test confirms WR softness is variance not structural (z=-1.19, not significant); CCA REQ-041 + REQ-044 ACKed with real data
+- Losses: Today net -4.72 USD; multiple ETH/SOL expiry sniper losses early in session (variance); bot.pid accidentally deleted during restart — had to recreate manually
+
+### Performance
+- Today live: 98 settled, 91 wins (93% WR), -4.72 USD (recovering from -6.4 USD low)
+- All-time: +20.88 USD (all strats) | expiry_sniper alone: +101.40 USD
+- Clean bets: 18/200 (Gate 1 → HARD_MAX 10→12 USD)
+- daily_sniper: 18/30 (12 more for cap raise)
+
+### CUSUM State
+- expiry_sniper: EDGE CONFIRMED (E=141M, CUSUM S=1.620, stable)
+- All drifts disabled (min_drift_pct=9.99), historical CUSUM alerts are noise
+- Z-test: last 100 bets WR=93% vs all-time 95.5%, z=-1.19 — NOT significant, threshold <91%
+
+### Commits
+- 7a291bf: feat: auto-raise HARD_MAX at gates (set_hard_max_trade_usd, 5 tests)
+- e745a71: feat: permanent XRP ban (feeds, drift task, calibrator, Bayesian injection)
+- 1a0f58c: fix: remove residual xrp_drift_strategy refs causing NameError on startup
+- 612648c: docs: S141 session handoff — XRP ban, auto-HARD_MAX, 08:xx block confirmed
+
+### CCA Activity
+- REQ-041 response: plateau = sizing constraint (confirmed by z-test). Gate system is correct fix.
+- REQ-044 response: sol_drift re-enable framework delivered. Option A = min_drift_pct=0.10, kelly_scale=0.25, max_loss_usd=3.00. Awaiting Matthew directive.
+- S141 status update written with 08:xx block analysis, XRP ban news, z-test results.
+
 ## S140 — 2026-03-25 ~22:02 UTC
 
 ### Session Summary
