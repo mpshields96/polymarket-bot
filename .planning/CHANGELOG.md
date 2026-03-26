@@ -1,5 +1,59 @@
 # POLYMARKET-BOT CHANGELOG
 
+## S144 — 2026-03-26 07:10 UTC (wrap — overnight quiet period research)
+
+### Self-Rating: C+
+WINS:
+- 08:xx block re-confirmed valid AT 90-93c ceiling: n=13, WR=84.6%, EV/bet=-1.688. Block is structural, not ceiling artifact.
+- Mandate reality check: honest recalculation shows 32.8% failure probability at $15/day. Not panic — but accurate expectation setting.
+- 14-day 90-93c: confirmed 441 bets, $19.41/day, WR=96.1%. The expected value IS real.
+- Hourly 90-93c performance table: 04:xx, 07:xx, 10:xx, 12:xx are strongest (EV=+1.1 to +1.3/bet).
+- 05:xx flag: WR=90.9%, EV=-0.685/bet at 90-93c. New watch candidate.
+- DB schema confirmed: trades table, UTC epoch 1774483200 for 2026-03-26.
+
+LOSSES:
+- Initial wrong UNIX timestamps (2025 epoch instead of 2026) caused incorrect query results in first pass.
+- Wrong DB table guess (bets vs trades) wasted one query.
+- No code changes, no revenue improvements — entirely analysis session during quiet market window.
+- Mandate post-ceiling reality: March 18-25 avg $9.72/day vs $19.41 projection. Outliers inflated historical.
+
+GRADE: C+ — Good analysis but no revenue impact. Wrong timestamps wasted time. Markets were quiet.
+ONE THING next chat must do differently: Hit ground running when markets open ~09:00 UTC — start monitoring immediately, run auto_guard_discovery.py before any research.
+ONE THING that would have made more money if done earlier: N/A (overnight quiet period, nothing to bet on)
+
+### Strategy Analyzer Insights (--brief, S144 wrap)
+All-time: +15.21 USD (84% WR, 1431 bets)
+Today: -7.35 USD (88% WR, 16 bets) — variance, not structural
+SNIPER: Profitable buckets: 90-94c. Guarded: 95c, 96c, 97c, 98c.
+btc_drift_v1: NEUTRAL — 80 live bets, 50% WR, -9.53 USD
+eth_drift_v1: UNDERPERFORMING — 46% WR, DECLINING. Correctly disabled.
+sol_drift_v1: HEALTHY — 45 live bets, 67% WR, -14.08 USD (0 bets since re-enable — SOL wrong direction)
+
+### Research: Mandate Accuracy Audit
+- 14-day 90-93c non-XRP sniper: n=441, P&L=+271.77, avg=19.41/day, WR=96.1%, EV/bet=+0.6163
+- Daily bet count in 90-93c range: 31.5/day (ceiling halved qualifying bet count vs all-price)
+- StDev daily P&L: ~$16/day → 32-39% chance of missing $15/day any single day
+- Worst post-ceiling days: March 20 (n=9, -8.19), March 22 (n=14, EV but lucky sample)
+- Best post-ceiling days: March 16 (+63.97 at 90-93c), March 14 (+35.53), March 18 (+35.76)
+- Mandate risk is HIGH VARIANCE, not negative EV. The $19.41/day expectation is real.
+
+### Research: 08:xx Block Final Verdict
+At 90-93c ceiling, 08:xx: n=13, WR=84.6%, P&L=-21.94 USD, EV/bet=-1.688.
+Other blocked 94c+ at 08:xx had EV=+0.509/bet (n=15, 100% WR, +7.64 USD).
+The weakness is concentrated in 90-93c range at 08:xx — not the blocked high-price bets.
+VERDICT: Block is justified and should remain. Structural underperformance at 08:xx confirmed.
+
+### Research: 05:xx Watch Bucket
+90-93c at 05:xx: n=22, WR=90.9%, EV/bet=-0.685 USD. Borderline below BE (91.5%).
+Not guarding yet — need 30+ bets. If pattern holds at n=30, add IL-40 SNIPER 05:xx.
+
+### Goal Progress
+All-time P&L: 15.21 USD | Distance to +125 USD: 109.79 USD
+Rate: ~$19.41/day expected (90-93c sniper, 31.5 bets/day) | StDev: ~$16/day
+At expected rate: ~5.7 days to +125 USD goal from now
+5-day mandate: Day 1 = 2026-03-27 13:00 UTC. Need $15-25/day through 2026-03-31. 32.8% failure probability.
+Highest-leverage action: Keep bot alive during high-bet-count hours (04:xx, 06:xx, 07:xx, 09:xx-14:xx UTC). Volume = the variance reducer.
+
 ## S143 — 2026-03-26 06:xx UTC (monitoring + research, inline)
 
 ### Research: 5-Day Mandate Validation

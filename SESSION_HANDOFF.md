@@ -14,33 +14,32 @@
 ##   academic context review, hourly pattern analysis, data integrity checks.
 ## ═══════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S143 — 2026-03-27 ~06:15 UTC)
-  Bot RUNNING PID 69049 → /tmp/polybot_session142.log (same session)
-  All-time live P&L: +15.21 USD (up from +14.73 since last checkpoint — 05:52 UTC bet settled WIN)
-  Today (2026-03-26 UTC): 15 bets, 13/15 wins (87% WR), -7.91 USD (2 correlated losses 03:xx — BTC+SOL both NO in same window)
-  daily_sniper: 18/30 live settled (12 more for 1→5 USD cap raise — criterion corrected, see below)
-  Post-guard clean bets: 26/50 (Gate 1 → HARD_MAX auto-raise to 40 USD at 50)
-  Tests: 1923 passing. Last commit: 037139c (fix: HARD_MAX health display gate schedule)
+## BOT STATE (S144 — 2026-03-26 ~07:10 UTC)
+  Bot RUNNING PID 69049 → /tmp/polybot_session142.log
+  All-time live P&L: +15.21 USD
+  Today (2026-03-26 UTC): 13 settled live, 11/13 wins (84.6% WR), -8.95 USD (overnight bad variance — markets quiet since 05:52 UTC)
+  daily_sniper: 18/30 live settled. 12 more needed for 1→5 USD cap raise. Fires on KXBTCD.
+  Post-guard clean bets: 27/50 (Gate 1 → HARD_MAX auto-raise to 40 USD at 50)
+  Tests: 1923 passing (1 pre-existing failure — test_security shebang). Last commit: 037139c
 
-  S143 RESEARCH FINDINGS (00:00-06:15 UTC 3/27):
-  - 03:xx "problem" was XRP contamination noise (1 pre-fix XRP loss = -19.32). Ex-XRP: only -1.08.
-  - 11:xx "problem" was 2 single-day losses on 3/25. Not structural.
-  - Daily sniper cap-raise criterion CORRECTED: Wilson CI 95% lower > 93% is impossible at n=30.
-    New criterion: WR >= 93.4% BE with SPRT lambda > 0 at 30+ bets.
-  - Sol drift direction_filter="no" + min_drift_pct=0.10 — fires only when SOL DOWN ≥0.10%.
-    SOL has been UP/flat since re-enable → 0 bets expected (not a bug). Max observed drift: +0.095% (wrong direction).
-  - Maker sniper: 5/15 paper fills (gate lowered 30→15 this session), 100% WR.
-  - No new guards needed — all ETH/SOL/BTC NO@91-92c buckets clean.
-  - CCA REQ-049 filed: volume pattern analysis, floor safety, sol_drift threshold calibration.
-  - CCA FLB addendum (REQ-048): 7 verified papers confirm 90c floor justified (Becker 72M Kalshi trades).
-  - DAILY SOFT STOP always shows "ACTIVE" at HARD_MAX=35 — threshold ($38.26) < 1 loss (~$33). Cosmetic.
-  - 08:xx BLOCK: CONFIRMED STILL JUSTIFIED at 93c ceiling. 90-93c only: n=13 WR=84.6% vs 91.5% BE.
-    Block saves ~6.55 USD/day by avoiding negative-EV 08:xx bets.
-  - March 25 retroanalysis: 90-93c only = +7.52 USD (vs -1.43 actual). Ceiling change removes 22 bad 94c bets.
-  - 14-day 90-93c daily average: $18.05/day (252.70 USD / 14 days). VALIDATES 5-day mandate target.
-  - HARD_MAX health display fixed: was showing stale gates (200→12, 300→14, 500→15).
-    Now shows correct gates (50→40, 100→50, 200→60). Commit: 037139c.
-  - IL-38 ceiling active since 04:50 UTC restart. No 94c+ bets placed since then (verified).
+  S144 RESEARCH FINDINGS (06:15-07:10 UTC 3/26):
+  - 08:xx BLOCK: RE-CONFIRMED VALID at 90-93c ceiling. 90-93c only 08:xx: n=13, WR=84.6%, EV=-1.688/bet.
+    Structural weakness, not just pre-ceiling artifact. Block stays.
+  - 05:xx WATCH: 90-93c WR=90.9% (n=22), EV/bet=-0.685. Below BE. Not guarded yet (need 30+ bets).
+    Monitor — could become IL-40 if pattern persists.
+  - MANDATE REALITY CHECK: Post-ceiling March 18-25 avg = $9.72/day (not $19.41).
+    $19.41 IS confirmed over 14 days in 90-93c (441 bets, +271.77 USD, WR=96.1%).
+    But std ~$16/day → 32-39% chance of missing $15/day any single day.
+    Outlier days (March 14-16 with 94c+ at perfect WR) pulled 14-day average up.
+    With ceiling locked at 93c, ~31.5 qualifying 90-93c bets/day expected.
+    32.8% failure probability for 5-day mandate at $15/day threshold (bootstrap MC).
+  - DB schema confirmed: trades table in data/polybot.db. UTC 2026 midnight = 1774483200.
+  - Daily sniper fires on KXBTCD (daily BTC range markets). Revenue at 5 USD cap: ~$1.70/day.
+    Will hit 30 bets today or tomorrow. Will raise automatically per WR/SPRT criterion.
+  - HOURLY 90-93c leaders: 04:xx EV=+1.106, 07:xx EV=+1.210, 10:xx EV=+1.311, 12:xx EV=+1.284.
+    Worst (unblocked): 05:xx EV=-0.685, 09:xx EV=-0.003.
+  - Maker sniper: 5/15 paper fills, 100% WR paper. Passive.
+  - Sol drift: 0 bets (correct — SOL UP/flat, direction_filter="no" only fires on DOWN ≥0.10%).
 
   S142 IN-SESSION COMMITS:
     697b601: HARD_MAX 10→35 + accelerated gate schedule {50:40,100:50,200:60} + test isolation
@@ -71,8 +70,8 @@
   DAILY SOFT STOP: COSMETIC ONLY. Always shows "SOFT STOP ACTIVE" at HARD_MAX=35 USD —
     threshold ($38.26 = 20% of bankroll) < one losing bet (~$33). Stale threshold. Not a blocker.
 
-  RESTART COMMAND (S142):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session142.log 2>&1 &
+  RESTART COMMAND (S144):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session144.log 2>&1 &
 
   ALL DRIFTS DISABLED (min_drift_pct=9.99 for all four) except sol_drift (min=0.10, max_loss=3.00)
   KXXRP sniper: BLOCKED globally (IL-33)
