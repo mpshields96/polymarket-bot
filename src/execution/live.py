@@ -497,20 +497,27 @@ async def execute(
         )
         return None
 
-    # ── Sniper execution-time ceiling (93c maximum, any side) ────────────
-    # Fee math: 94c YES break-even WR ≈ 94.0%. Observed WR = 94.9% across 79 bets → EV = -$0.066/bet.
-    # This has degraded from +6.32 USD at n=141 (S130 eval) to negative EV as sample grew.
-    # S130: lowered from 95c to 94c. S142: further lowered from 94c to 93c.
-    # Evidence: 90-93c-only P&L over 14 days = +$252 vs +$49 full (5x improvement).
-    # 94c bets are the primary source of loss on bad WR days (negative Kelly → don't bet).
-    # Does NOT affect drift strategies.
+    # ── Sniper execution-time ceiling (93c BTC/SOL, 95c ETH) ────────────
+    # IL-38 (S142): global ceiling at 93c. Fee math: 94c YES break-even WR ≈ 94.0%.
+    # Observed WR 94.9% across 79 bets → EV = -$0.066/bet (NEGATIVE). 90-93c-only
+    # P&L over 14 days: +$252 vs +$49 full (5x improvement). BTC/SOL remain at 93c.
+    #
+    # IL-38-ETH (S146, CCA REQ-53): conditional expansion to 95c for ETH only.
+    # ETH@94c: n=63, WR=96.8%, p=0.175 (not yet significant at 95% CI).
+    # CCA verdict: CONDITIONAL — safe to add with review gate at n=100.
+    # At 0% ruin, +EV bets cannot worsen outcomes. Estimated +$0.60/day EV.
+    # Auto-review: if ETH@94-95c WR falls below 94% at n=100, revert to 93c.
     _SNIPER_EXECUTION_CEILING_CENTS = 93
-    if strategy_name == "expiry_sniper_v1" and price_cents > _SNIPER_EXECUTION_CEILING_CENTS:
-        logger.info(
-            "[live] Sniper execution price %d¢ above ceiling %d¢ (fee bleed) — skip %s",
-            price_cents, _SNIPER_EXECUTION_CEILING_CENTS, signal.ticker,
-        )
-        return None
+    _SNIPER_EXECUTION_CEILING_ETH_CENTS = 95  # IL-38-ETH: conditional expansion (CCA REQ-53, S146)
+    if strategy_name == "expiry_sniper_v1":
+        _is_eth = "KXETH" in signal.ticker
+        _effective_ceiling = _SNIPER_EXECUTION_CEILING_ETH_CENTS if _is_eth else _SNIPER_EXECUTION_CEILING_CENTS
+        if price_cents > _effective_ceiling:
+            logger.info(
+                "[live] Sniper execution price %d¢ above ceiling %d¢ (fee bleed) — skip %s",
+                price_cents, _effective_ceiling, signal.ticker,
+            )
+            return None
 
     # IL-39: sol_drift NO price floor at 60c (S142) ──────────────────────
     # sol_drift bets NO on SOL when price drifts down. Low NO prices (high YES)

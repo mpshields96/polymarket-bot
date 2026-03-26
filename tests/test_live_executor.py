@@ -1313,15 +1313,58 @@ class TestPerAssetStructuralLossGuards:
         assert result is None
         kalshi.create_order.assert_not_called()
 
-    async def test_eth_yes_at_94c_blocked_by_ceiling(self, live_env, bypass_first_run):
-        """ETH YES@94c IS blocked -- S142: ceiling lowered to 93c (all assets).
-        Aggregate 94c data: n=79, WR=94.9%, EV=-$0.066/bet (NEGATIVE). Universal block."""
+    async def test_eth_yes_at_94c_allowed_by_ceiling(self, live_env, bypass_first_run):
+        """ETH YES@94c is ALLOWED -- S146: IL-38-ETH conditional expansion to 95c.
+        CCA REQ-53: n=63, WR=96.8%, +$0.60/day EV. Review gate at n=100.
+        BTC/SOL remain capped at 93c. ETH ceiling raised: 93c → 95c."""
         ob = make_orderbook(no_bid=6)  # yes_ask = 94c
         signal = make_signal(side="yes", price_cents=93, ticker="KXETH15M-26MAR151500-94")
         kalshi = make_kalshi_mock()
         result = await execute(
             signal,
             make_market(yes_price=94, no_price=6),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
+    async def test_eth_yes_at_95c_allowed_by_ceiling(self, live_env, bypass_first_run):
+        """ETH YES@95c is ALLOWED -- S146: IL-38-ETH raises ETH ceiling to 95c.
+        CCA REQ-53 conditional expansion covers 94-95c range."""
+        ob = make_orderbook(no_bid=5)  # yes_ask = 95c
+        signal = make_signal(side="yes", price_cents=93, ticker="KXETH15M-26MAR151500-95")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=95, no_price=5),
+            ob,
+            5.0,
+            kalshi,
+            make_db_mock(),
+            live_confirmed=True,
+            strategy_name="expiry_sniper_v1",
+            price_guard_min=1,
+            price_guard_max=99,
+        )
+        assert result is not None
+        kalshi.create_order.assert_called_once()
+
+    async def test_eth_yes_at_96c_blocked_by_ceiling(self, live_env, bypass_first_run):
+        """ETH YES@96c is BLOCKED -- IL-38-ETH ceiling is 95c, not unlimited.
+        96c+ always blocked regardless of asset."""
+        ob = make_orderbook(no_bid=4)  # yes_ask = 96c
+        signal = make_signal(side="yes", price_cents=93, ticker="KXETH15M-26MAR151500-96")
+        kalshi = make_kalshi_mock()
+        result = await execute(
+            signal,
+            make_market(yes_price=96, no_price=4),
             ob,
             5.0,
             kalshi,
