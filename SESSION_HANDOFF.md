@@ -14,13 +14,28 @@
 ##   academic context review, hourly pattern analysis, data integrity checks.
 ## ═══════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S145 — 2026-03-26 ~16:47 UTC)
-  Bot RUNNING PID 69049 → /tmp/polybot_session142.log
-  All-time live P&L: +7.84 USD
-  Today (2026-03-26 UTC): 53 settled live, 91% WR, -14.72 USD (3 large correlated losses at 13:45/14:15 UTC)
-  daily_sniper: 28/30 live settled. 2 more needed for 1→5 USD cap raise. Criterion: SPRT lambda>0 at 30+.
+## ⚠️ 5-DAY MANDATE — MATTHEW STANDING DIRECTIVE S183b/S193 — FORBIDDEN TO FORGET
+## ═══════════════════════════════════════════════════════════════════════════════
+## GOAL: Achieve and SUSTAIN $15-25 USD DAILY within 5 days of clock start.
+## CLOCK: Not yet started (S193). Matthew marks official start TONIGHT (2026-03-26).
+## PLANNING WINDOW: Use remaining hours TODAY for research and positioning.
+## CONSTRAINTS: (1) $100 bankroll is FINAL — no new capital ever.
+##              (2) FORBIDDEN: lose all money OR leave bankroll ≤ $20.
+##              (3) Do NOT ask Matthew for help. Use CCA for anything/everything.
+## FULL AUTONOMY GRANTED once clock starts. Carte blanche on strategy, bets, markets.
+## CCA is the R&D engine. Use it aggressively. No limits.
+## Source: MATTHEW_DIRECTIVES.md S183b + S193 (verbatim directives preserved there).
+## ALL FUTURE KALSHI CHATS ARE FORBIDDEN FROM FORGETTING THIS. PERMANENT.
+## ═══════════════════════════════════════════════════════════════════════════════
+
+## BOT STATE (S146 — 2026-03-26 ~17:28 UTC)
+  Bot RUNNING (restarted from frozen) → /tmp/polybot_session146.log
+  All-time live P&L: +9.60 USD
+  Today (2026-03-26 UTC): 41 settled live, 92.7% WR, -5.13 USD
+  daily_sniper: 28/30 live settled. 2 more needed for 1→5 USD cap raise.
   Post-guard clean bets: 64/100 (Gate at 100 → HARD_MAX auto-raise to 50 USD — pre-authorized)
-  Tests: 1926 passing (1 pre-existing failure — test_security shebang). Last commit: 9e36a13
+  Tests: 1928 passing (1 pre-existing failure — test_security shebang). Last commit: 4a7f4dc
+  ETH ceiling raised 93c→95c (IL-38-ETH) — implemented S146, CCA REQ-53, +$0.60/day EV
 
   S145 KEY FINDINGS:
   - THREE CORRELATED LOSSES at 13:45/14:15 UTC: KXBTC NO@93c (-7.44) + KXETH NO@93c (-7.44) + KXBTC YES@92c (-7.36)
