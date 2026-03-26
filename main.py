@@ -1197,7 +1197,7 @@ async def sports_sniper_loop(
                 _last_midnight = _today
 
             # Daily paper bet cap
-            daily_count = db.count_trades_today(strategy_name=strategy_name, is_paper=True)
+            daily_count = db.count_trades_today(strategy=strategy_name, is_paper=True)
             if daily_count >= max_daily_bets:
                 logger.debug("[sports_sniper] Daily paper cap %d reached", max_daily_bets)
                 await asyncio.sleep(_SPORTS_SNIPER_POLL_SEC)
