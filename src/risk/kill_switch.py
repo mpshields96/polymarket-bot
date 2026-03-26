@@ -36,7 +36,7 @@ LOCK_FILE = PROJECT_ROOT / "kill_switch.lock"
 EVENT_LOG = PROJECT_ROOT / "KILL_SWITCH_EVENT.log"
 
 # ── Hard limits — these cannot be changed by config ──────────────
-HARD_MAX_TRADE_USD = 10.00        # Absolute ceiling per trade (S130: halved from 20 — data shows 90-94c zone yields +16 USD/day avg; at 20 USD/bet variance was ±67 USD/day, unworkable. 10 USD halves variance, still targets +8 USD/day = 240 USD/month from sniper alone)
+HARD_MAX_TRADE_USD = 35.00        # Absolute ceiling per trade (S142: raised from 10→35 from 20 — data shows 90-94c zone yields +16 USD/day avg; at 20 USD/bet variance was ±67 USD/day, unworkable. 10 USD halves variance, still targets +8 USD/day = 240 USD/month from sniper alone)
 HARD_MIN_BANKROLL_USD = 20.00     # Below $20 = hard stop
 DAILY_LOSS_LIMIT_PCT = 0.20       # 20% daily loss = soft kill (resets midnight)
 CONSECUTIVE_LOSS_LIMIT = 8        # Losses before cooling period (raised Session 41: daily limit governs at Stage 1)
@@ -634,10 +634,11 @@ def reset_kill_switch() -> None:
 def set_hard_max_trade_usd(new_value: float) -> None:
     """Update HARD_MAX_TRADE_USD at runtime for automated ramp schedule gate transitions.
 
-    Matthew pre-authorized all three gate transitions (S140):
-      Gate 1: 200 post-guard clean bets → 12.00 USD
-      Gate 2: 300 post-guard clean bets → 14.00 USD
-      Gate 3: 500 post-guard clean bets → 15.00 USD
+    Matthew pre-authorized all gate transitions (S140 + S142):
+      Baseline: 35.00 USD (raised S142 from 10 USD baseline)
+      Gate 1: 50 post-guard clean bets  → 40.00 USD
+      Gate 2: 100 post-guard clean bets → 50.00 USD
+      Gate 3: 200 post-guard clean bets → 60.00 USD
 
     Uses globals() so check_order_allowed() and all importers see the new value
     on their next reference. Loops that do `from kill_switch import HARD_MAX_TRADE_USD`

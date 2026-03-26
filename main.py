@@ -1799,19 +1799,26 @@ async def settlement_loop(kalshi, db, kill_switch, drift_model=None, calibrator=
                         # Counts consecutive live bets with no large loss (> $7.50).
                         # Auto-raises HARD_MAX at gates — Matthew pre-authorized all gates (S140).
                         _pgcb = db.post_guard_clean_bets()
-                        _RAMP_GATES = {200: 12.0, 300: 14.0, 500: 15.0}
+                        _RAMP_GATES = {50: 40.0, 100: 50.0, 200: 60.0}
                         if _pgcb in _RAMP_GATES:
                             _new_hard_max = _RAMP_GATES[_pgcb]
+                            import src.risk.kill_switch as _ks_mod
                             from src.risk.kill_switch import set_hard_max_trade_usd as _set_hm
-                            _set_hm(_new_hard_max)
-                            logger.warning(
-                                "[settle] HARD_MAX AUTO-RAISED: gate %d reached (%d post-guard clean bets). "
-                                "HARD_MAX raised to %.2f USD (pre-authorized S140).",
-                                _pgcb, _pgcb, _new_hard_max,
-                            )
-                        elif _pgcb > 0 and _pgcb % 50 == 0:
+                            if _new_hard_max > _ks_mod.HARD_MAX_TRADE_USD:
+                                _set_hm(_new_hard_max)
+                                logger.warning(
+                                    "[settle] HARD_MAX AUTO-RAISED: gate %d reached (%d post-guard clean bets). "
+                                    "HARD_MAX raised to %.2f USD (pre-authorized S140/S142).",
+                                    _pgcb, _pgcb, _new_hard_max,
+                                )
+                            else:
+                                logger.info(
+                                    "[settle] Gate %d reached but HARD_MAX already %.2f >= %.2f — no change.",
+                                    _pgcb, _ks_mod.HARD_MAX_TRADE_USD, _new_hard_max,
+                                )
+                        elif _pgcb > 0 and _pgcb % 25 == 0:
                             logger.info(
-                                "[settle] Post-guard clean bets: %d (gates at 200/12 USD, 300/14 USD, 500/15 USD)",
+                                "[settle] Post-guard clean bets: %d (gates at 50/40 USD, 100/50 USD, 200/60 USD)",
                                 _pgcb,
                             )
 

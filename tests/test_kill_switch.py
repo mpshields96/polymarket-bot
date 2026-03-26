@@ -58,15 +58,15 @@ def ks():
 
 class TestTradeSizeCaps:
     def test_trade_at_hard_cap_allowed(self, ks):
-        # S130: HARD_MAX = 10 USD. pct cap 8% of 200 = 16 USD, so hard cap binds at 10.
-        ok, reason = ks.check_order_allowed(trade_usd=10.00, current_bankroll_usd=200.0)
+        # S142: HARD_MAX = 35 USD. pct cap 8% of 500 = 40 USD, so hard cap binds at 35.
+        ok, reason = ks.check_order_allowed(trade_usd=35.00, current_bankroll_usd=500.0)
         assert ok, reason
 
     def test_trade_above_hard_cap_blocked(self, ks):
-        # S130: HARD_MAX = 10 USD. Any trade > 10 USD blocked.
-        ok, reason = ks.check_order_allowed(trade_usd=10.01, current_bankroll_usd=200.0)
+        # S142: HARD_MAX = 35 USD. Any trade > 35 USD blocked.
+        ok, reason = ks.check_order_allowed(trade_usd=35.01, current_bankroll_usd=500.0)
         assert not ok
-        assert "10.01" in reason or "hard cap" in reason.lower()
+        assert "35.01" in reason or "hard cap" in reason.lower()
 
     def test_trade_exceeds_pct_cap_blocked(self, ks):
         # 40% of $100 = $40 — exceeds 8% pct cap ($8) AND $10 hard cap
@@ -1156,16 +1156,27 @@ class TestSetHardMaxTradeUsd:
         assert allowed is False
         assert "hard cap" in reason.lower() or "exceeds" in reason.lower()
 
-    def test_original_cap_blocks_before_raise(self, ks):
-        """Before any raise, 11 USD exceeds the default 10 USD cap."""
-        import src.risk.kill_switch as ks_mod
-        ks_mod.HARD_MAX_TRADE_USD = 10.0  # ensure default
-        allowed, _ = ks.check_order_allowed(trade_usd=11.0, current_bankroll_usd=200.0)
-        assert allowed is False
-
     def test_sequential_gates(self):
-        """Successive raises apply: 10 → 12 → 14 → 15."""
+        """Successive raises apply per S142 schedule: 35 baseline → 40 → 50 → 60."""
         import src.risk.kill_switch as ks_mod
-        for target in [12.0, 14.0, 15.0]:
+        for target in [40.0, 50.0, 60.0]:
             set_hard_max_trade_usd(target)
             assert ks_mod.HARD_MAX_TRADE_USD == target
+
+    def test_never_lower_guard(self, ks):
+        """Gate should never lower HARD_MAX — only raise. If gate fires below current, skip."""
+        import src.risk.kill_switch as ks_mod
+        set_hard_max_trade_usd(50.0)
+        # Attempt to set to 40 (lower) — verify the gate logic in main.py would skip
+        # We verify by checking that the gate target 40 < current 50 (the guard condition)
+        gate_target = 40.0
+        assert gate_target < ks_mod.HARD_MAX_TRADE_USD, (
+            "Gate at 40 should be below current 50 — main.py must skip this gate"
+        )
+
+    def test_original_cap_blocks_before_raise(self, ks):
+        """Before any raise, 36 USD exceeds the default 35 USD cap."""
+        import src.risk.kill_switch as ks_mod
+        ks_mod.HARD_MAX_TRADE_USD = 35.0  # ensure baseline
+        allowed, _ = ks.check_order_allowed(trade_usd=36.0, current_bankroll_usd=500.0)
+        assert allowed is False

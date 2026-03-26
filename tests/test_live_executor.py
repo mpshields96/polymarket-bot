@@ -52,6 +52,18 @@ import src.execution.live as live_module
 from src.execution.live import _determine_limit_price, execute
 
 
+# ── Module-level auto-guard isolation ────────────────────────────────────
+# auto_guards.json contains time-sensitive guards (e.g. utc_hour blocks) that
+# vary based on when discovery.py last ran. Tests must not depend on real guards
+# or they become flaky at specific UTC hours. Clear at module level.
+# Tests that explicitly need a guard (TestSniperPriceGuardOverride) inject their own.
+
+@pytest.fixture(autouse=True)
+def isolate_auto_guards(monkeypatch):
+    """Clear _AUTO_GUARDS for every test in this module for deterministic isolation."""
+    monkeypatch.setattr(live_module, "_AUTO_GUARDS", [])
+
+
 # ── Test helpers ─────────────────────────────────────────────────────────
 
 
@@ -777,13 +789,26 @@ class TestSniperPriceGuardOverride:
         kalshi.create_order.assert_not_called()
 
     async def test_sniper_override_yes_side_at_high_price(
-        self, live_env, bypass_first_run
+        self, live_env, bypass_first_run, monkeypatch
     ):
-        """KXBTC YES@94c is blocked by auto-guard (S105: 13 bets, 92.3% WR < 94.4% BE).
+        """KXBTC YES@94c is blocked by auto-guard.
 
         Even with price_guard_min=1/max=99 override, the auto-guard fires first.
         Auto-guard takes precedence over price range guard.
+        Self-contained: injects the KXBTC YES@94c guard explicitly.
         """
+        kxbtc_yes_94_guard = {
+            "ticker_contains": "KXBTC",
+            "side": "yes",
+            "price_cents": 94,
+            "win_rate": 0.923,
+            "break_even_wr": 0.944,
+            "total_loss_usd": -5.0,
+            "discovered_date": "2026-01-01",
+            "utc_hour": None,
+        }
+        monkeypatch.setattr(live_module, "_AUTO_GUARDS", [kxbtc_yes_94_guard])
+
         # no_bid=6 → yes_ask = 100 - 6 = 94¢
         ob = make_orderbook(no_bid=6)
         signal = make_signal(side="yes", price_cents=94)
@@ -1242,9 +1267,15 @@ class TestPerAssetStructuralLossGuards:
         )
         assert result is None
 
-    async def test_btc_yes_at_94c_blocked_by_auto_guard(self, live_env, bypass_first_run):
+    async def test_btc_yes_at_94c_blocked_by_auto_guard(self, live_env, bypass_first_run, monkeypatch):
         """BTC YES@94c is blocked by auto-guard (13 bets, 92.3% WR < 94.4% break-even, -9.94 USD).
-        Auto-guard added S105 after confirmed negative-EV bucket discovery."""
+        Auto-guard added S105 after confirmed negative-EV bucket discovery.
+        Self-contained: injects guard explicitly for test isolation."""
+        monkeypatch.setattr(live_module, "_AUTO_GUARDS", [{
+            "ticker_contains": "KXBTC", "side": "yes", "price_cents": 94,
+            "win_rate": 0.923, "break_even_wr": 0.944, "total_loss_usd": -9.94,
+            "discovered_date": "2026-01-01", "utc_hour": None,
+        }])
         ob = make_orderbook(no_bid=6)  # yes_ask = 94c
         signal = make_signal(side="yes", price_cents=93, ticker="KXBTC15M-26MAR151500-94")
         kalshi = make_kalshi_mock()
@@ -1307,11 +1338,15 @@ class TestPerAssetStructuralLossGuards:
         assert result is None
         kalshi.create_order.assert_not_called()
 
-    async def test_btc_no_at_94c_blocked_by_auto_guard(self, live_env, bypass_first_run):
+    async def test_btc_no_at_94c_blocked_by_auto_guard(self, live_env, bypass_first_run, monkeypatch):
         """KXBTC NO@94c IS blocked -- auto-guard added S108: n=10, 90.0% WR (need 94.4%), -11.24 USD.
         IL-28 targets KXXRP only; this bucket was subsequently caught by auto_guard_discovery.py.
-        Updated S109: reflects current auto_guards.json (KXBTC NO@94c active).
-        """
+        Self-contained: injects guard explicitly for test isolation."""
+        monkeypatch.setattr(live_module, "_AUTO_GUARDS", [{
+            "ticker_contains": "KXBTC", "side": "no", "price_cents": 94,
+            "win_rate": 0.900, "break_even_wr": 0.944, "total_loss_usd": -11.24,
+            "discovered_date": "2026-01-01", "utc_hour": None,
+        }])
         ob = make_orderbook(yes_bid=6)
         signal = make_signal(side="no", price_cents=93, ticker="KXBTC15M-26MAR151500-06")
         kalshi = make_kalshi_mock()
