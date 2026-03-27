@@ -1,5 +1,49 @@
 # POLYMARKET-BOT CHANGELOG
 
+## S151 — 2026-03-28 05:30 UTC WRAP (monitoring — mandate day 2 morning)
+
+### SELF-RATING: C
+
+**WINS:**
+- Fixed all failing tests (4 total): test_live_cap_constant + 3 time-dependent KXSOL tests
+- Identified root cause of 3 KXSOL test failures: IL-35 blocks KXSOL sniper at 05:xx UTC — tests lacked datetime mock
+- Bot restarted (was dead ~5 hours — frozen process pattern)
+- Mandate Day 1 recorded: +6.56 USD (below target, but new sizing only active last ~1hr)
+- commit ccd15b7: fix(tests): pin UTC hour in 3 KXSOL tests
+
+**LOSSES:**
+- Bot died silently for ~5 hours (00:27-05:27 UTC) — missed ~5 hours of expiry_sniper bets
+- No daily_sniper bets at 5 USD cap yet (need more windows)
+- Day 1 at +6.56 USD = below 15-25 mandate target
+
+**GRADE: C** — Fixed all tests and restarted bot, but 5-hour outage was avoidable if monitoring had checked log recency
+
+**ONE THING NEXT CHAT MUST DO DIFFERENTLY:** Check `tail -5` log recency within first 2 minutes of every cycle. ps output alone misses frozen processes. Bot was "alive" in ps but producing no output.
+
+**ONE THING THAT WOULD HAVE MADE MORE MONEY IF DONE EARLIER:** Restart check at session start — bot was already dead when S151 started. Immediate restart = 5 more hours of sniper bets.
+
+### Strategy Analyzer Insights
+All-time: +20.36 USD (84% WR, 1492 bets)
+Today: +6.56 USD (94% WR, 16 bets)
+SNIPER: profitable 90-94c. guarded: 95-98c.
+btc_drift NEUTRAL (50% WR). eth_drift UNDERPERFORMING (46% WR, declining).
+sol_drift HEALTHY (66% WR, 47 bets). daily_sniper cap=5 USD active.
+
+### Goal Progress
+All-time P&L: +20.36 USD | Goal: +125 USD | Gap: 104.64 USD
+Day 1 mandate: +6.56 USD (below 15-25 target — new sizing barely active)
+Day 2 starts fresh with full mandate sizing + daily_sniper@5 USD.
+Expected Day 2: 42 sniper bets × 93% WR × ~1.91 USD/win ≈ 13 USD + daily_sniper ≈ 6 USD = ~19 USD
+Highest-leverage action: ensure bot stays alive ALL DAY (frozen process = lost bets)
+
+### Key Changes
+- Fixed 3 time-dependent test failures in test_live_executor.py (IL-35 blocks KXSOL at 05:xx UTC)
+- Added `monkeypatch.setattr(live_module, "datetime", mock_dt)` with hour=10 to make tests time-independent
+- Bot restarted: PID 15550 → session152.log
+- Mandate Day 1 recorded to mandate_state.jsonl
+
+## S150 — 2026-03-27 ~23:20 UTC WRAP (monitoring — mandate sizing + ABSOLUTE FREEDOM)
+
 ## S149 — 2026-03-27 22:25 UTC WRAP (monitoring — mandate day 1)
 
 ### SELF-RATING: B

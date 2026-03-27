@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-27 ~23:20 UTC (Session 150)
+# Last updated: 2026-03-28 ~05:30 UTC (Session 151)
 # ═══════════════════════════════════════════════════════════════
 
 ## ⚠️ READ FIRST: .planning/MATTHEW_DIRECTIVES.md — VERBATIM MANDATE DIRECTIVES (S150, 2026-03-27)
@@ -36,16 +36,17 @@
 ## ALL FUTURE KALSHI CHATS ARE FORBIDDEN FROM FORGETTING THIS. PERMANENT.
 ## ═══════════════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S150 — 2026-03-28 ~00:10 UTC)
-  Bot RUNNING PID 5334 → /tmp/polybot_session151.log
+## BOT STATE (S151 — 2026-03-28 ~05:30 UTC)
+  Bot RUNNING PID 15550 → /tmp/polybot_session152.log
+  ⚠️ Bot was DEAD for ~5 hours (00:27-05:27 UTC) — frozen process, log was stale. Restarted S151.
   All-time live P&L: +20.36 USD
   March 27 Day 1 (ended midnight UTC): +6.56 USD (16 settled, 15/16 = 93.75% WR)
-    - expiry_sniper: 15/15 wins on sniper bets today
-    - sol_drift: 0/1 wins -3.00 USD today
+    - expiry_sniper: 15/15 wins on sniper bets (14/14 settled today)
+    - sol_drift: 0/1 wins -3.00 USD
   daily_sniper: 28/30 settled. Cap RAISED to 5 USD (SPRT lambda=+3.833 confirmed at 28 bets).
     Under ABSOLUTE FREEDOM DIRECTIVE — dropped the "wait for bet 30" gate. Edge confirmed.
   Post-guard clean bets: 82/100 (Gate at 100 → HARD_MAX auto-raise to 50 USD — pre-authorized)
-  Tests: 2001 passing (1 pre-existing failure — test_security shebang). Last commit: 8e2bf08
+  Tests: 2001 passing (1 pre-existing failure — test_security shebang). Last commit: ccd15b7
 
   S150 KEY CHANGES:
   1. ABSOLUTE FREEDOM DIRECTIVE added + ACHIEVE AND SUSTAIN emphasis — Matthew explicit standing order.
@@ -60,16 +61,18 @@
 
 ## PENDING TASKS (priority order)
   ⚠️ ABSOLUTE FREEDOM DIRECTIVE OVERRIDES — if any task below conflicts with making 15-25 USD/day, drop it and find a better bet instead.
-  1. MANDATE DAY 1 EOD: Record result at midnight UTC March 28.
-     python3 scripts/mandate_monitor.py record 1 6.56 16 15 1
-     Day 1 result: +6.56 USD (16 settled, 15/16 = 93.75% WR). Below 15-25 target.
-     New sizing was only active for last ~1hr of Day 1. Day 2 is the real test.
-  2. MANDATE DAYS 2-5: Target 15-25 USD/day. Check P&L at startup — if not on track, act.
-     Under ABSOLUTE FREEDOM — do anything. Don't wait for Matthew to push you.
-  3. daily_sniper cap: ALREADY RAISED to 5 USD (S150). ✓ DONE.
-     Monitor first bets at 5 USD cap — confirm WR holds.
-  4. HARD_MAX gate: 88/100 clean bets → auto-raise to 50 USD at 100 (12 more, passive, pre-authorized).
-  5. CUSUM: S=3.330 (stable). SPRT lambda=+16.040. If S≥5.0: flag immediately.
+  1. MANDATE DAY 1 RECORDED. +6.56 USD (below 15-25 target — old sizing active most of Day 1).
+     mandate_monitor recorded via scripts/mandate_monitor.py record_day(1, '2026-03-27', 6.56, 16, 15, 1).
+  2. MANDATE DAY 2 (2026-03-28): Target 15-25 USD. New sizing + daily_sniper@5 USD active ALL day.
+     Check P&L at 18:00 UTC — if below 10 USD with 6hr left, act under ABSOLUTE FREEDOM.
+  3. daily_sniper: 28/30 settled. 2 more to hit 30 gate (already bypassed, cap=5 USD). Monitor WR.
+     First 5 USD cap bets — confirm 90%+ WR holds with larger size.
+  4. FROZEN PROCESS WATCH: Bot died silently S151 (~00:27-05:27 UTC). Check log recency every cycle.
+     Pattern: ps shows alive but log stale >15min = frozen. Must restart.
+  5. HARD_MAX gate: 82/100 clean bets → auto-raise to 50 USD at 100 (18 more, passive, pre-authorized).
+  6. CUSUM: S=3.330 (stable). SPRT lambda=+16.040. If S≥5.0: flag immediately.
+  7. CCA asked about bet_analytics.py P&L pipeline integrity audit (UPDATE 59). Run audit and respond.
+  8. Write Day 1 EOD to POLYBOT_TO_CCA.md: "Day 1: pnl=6.56, bets=16, wins=15, losses=1".
 
 ## STRATEGY STATUS
   ⚠️ ABSOLUTE FREEDOM DIRECTIVE OVERRIDES — these strategies are tools, not laws.
@@ -119,11 +122,11 @@
   bankroll_floor = 20 USD (INVIOLABLE — this one cannot be overridden)
 
 ## RESTART COMMAND (S152)
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session152.log 2>&1 &
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session153.log 2>&1 &
 
 ## CRITICAL STARTUP CHECKS (S152)
-  - cat bot.pid → get PID. Then tail -5 /tmp/polybot_session151.log — MUST show recent entries.
-    If stale >15min: RESTART to session152.log (frozen process pattern).
+  - cat bot.pid → get PID. Then tail -5 /tmp/polybot_session152.log — MUST show recent entries.
+    If stale >15min: RESTART to session153.log (frozen process pattern).
   - FIRST: check today's P&L vs mandate target (15-25 USD):
     ./venv/bin/python3 -c "import sqlite3,time; c=sqlite3.connect('data/polybot.db'); today=time.mktime(time.strptime('$(date -u +%Y-%m-%d)','%Y-%m-%d')); r=c.execute('SELECT COUNT(*),SUM(CASE WHEN side=result THEN 1 ELSE 0 END),ROUND(SUM(pnl_cents)/100.0,2) FROM trades WHERE is_paper=0 AND settled_at>=? AND result IS NOT NULL',(today,)).fetchone(); print(f'Today: {r[0]} settled | {r[1]} wins | {r[2]} USD')"
     If below 15 USD with <4hr left in UTC day: under ABSOLUTE FREEDOM — find more bets NOW.
