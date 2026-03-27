@@ -68,7 +68,25 @@ If NO: stop what you're doing and find a different bet. Matthew doesn't care whi
 ## ABSOLUTE FREEDOM DIRECTIVE — NO EXCEPTIONS, NO DEBATE
 ## Added: 2026-03-27 (Session 150). Matthew's explicit standing order.
 
-Matthew has given COMPLETE, UNRESTRICTED authorization to do LITERALLY ANYTHING on Kalshi to achieve and sustain 15-25 USD daily by 2026-03-31 and beyond.
+Matthew has given COMPLETE, UNRESTRICTED authorization to do LITERALLY ANYTHING on Kalshi to ACHIEVE AND SUSTAIN 15-25 USD daily by 2026-03-31 and beyond.
+
+## ⚠️ ACHIEVE AND SUSTAIN — NOT ACHIEVE ONCE
+## ══════════════════════════════════════════════════════════════════════════════
+## HITTING 15-25 USD ON ONE DAY MEANS NOTHING. ZERO. IT DOES NOT COUNT.
+## The goal is a BOT THAT RELIABLY PRODUCES 15-25 USD EVERY SINGLE DAY.
+## A spike followed by -10 USD the next day is FAILURE.
+## A system that produces 18 USD on average with low variance is SUCCESS.
+## Matthew does not care about individual bet outcomes. He cares about the
+## DAILY EXPECTATION being 15-25 USD — sustainably, automatically, consistently.
+## ══════════════════════════════════════════════════════════════════════════════
+## This means:
+## - Don't take wild moonshot bets that might hit once then blow up the bankroll
+## - Build systems (not one-off bets) that produce positive EV every day
+## - If a strategy produces 20 USD/day in expectation, that IS the goal — run it
+## - If a strategy is high-variance (might make 50 or lose 30 on any given day),
+##   that is acceptable ONLY if the daily expectation is still 15-25 USD
+## - Bankroll preservation matters because a depleted bankroll can't sustain anything
+## ══════════════════════════════════════════════════════════════════════════════
 
 This means:
 
