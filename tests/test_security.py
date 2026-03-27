@@ -123,7 +123,12 @@ class TestFileSystemSafety:
             # Skip this file itself — it contains the paths as test data, not live writes
             if py_file.name == "test_security.py":
                 continue
-            content = py_file.read_text(errors="replace")
+            # Exclude comment lines and shebangs (#!/usr/bin/env python3 contains /usr)
+            lines = [
+                line for line in py_file.read_text(errors="replace").splitlines()
+                if not line.strip().startswith("#")
+            ]
+            content = "\n".join(lines)
             for dangerous in self.DANGEROUS_PATHS:
                 if dangerous in content:
                     bad_files.append(f"{py_file.relative_to(PROJECT_ROOT)} (contains {dangerous})")
@@ -179,15 +184,15 @@ class TestAuthModuleSafety:
 # ── Kill switch safety ────────────────────────────────────────────
 
 class TestKillSwitchSafety:
-    def test_single_trade_never_exceeds_35_dollars(self):
-        """Hard cap of 35 USD must be enforced regardless of bankroll. (S142: raised 10→35 per Matthew)"""
+    def test_single_trade_never_exceeds_hard_max(self):
+        """Hard cap of 50 USD must be enforced regardless of bankroll. (S153: raised 35→50 — gate 100 post-guard clean bets)"""
         from src.risk.kill_switch import KillSwitch, LOCK_FILE
         if LOCK_FILE.exists():
             LOCK_FILE.unlink()
         ks = KillSwitch(starting_bankroll_usd=10000.0)
-        # Even with a huge bankroll, 35.01 USD must be blocked
-        ok, reason = ks.check_order_allowed(trade_usd=35.01, current_bankroll_usd=10000.0)
-        assert not ok, "Trade of 35.01 USD must be blocked regardless of bankroll size"
+        # Even with a huge bankroll, 50.01 USD must be blocked
+        ok, reason = ks.check_order_allowed(trade_usd=50.01, current_bankroll_usd=10000.0)
+        assert not ok, "Trade of 50.01 USD must be blocked regardless of bankroll size"
 
     def test_bankroll_pct_cap_enforced(self):
         """15% of bankroll cap must be enforced at small bankroll sizes. (S65: raised 5%→15%)"""

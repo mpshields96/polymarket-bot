@@ -1,5 +1,69 @@
 # POLYMARKET-BOT CHANGELOG
 
+## S153 WRAP — 2026-03-28 17:45 UTC (monitoring — mandate day 2 ABOVE TARGET)
+
+### SELF-RATING: B
+
+**WINS:**
+- Day 2 mandate: +26.37 USD (40 settled, 39W/1L, 97.5% WR) — ABOVE 25 USD ceiling
+- All-time P&L: +40.17 USD (was +20.36 at S151 wrap, +19.81 USD this session)
+- HARD_MAX raised 35→50 USD (gate 100 post-guard clean bets, pre-authorized)
+- test_security.py: fixed pre-existing shebang false positive + updated for 50 USD HARD_MAX
+- 2002 tests now passing (was 2001, fixed 2 failures, added 1 renamed test)
+- Codex integration: AGENTS.md + CODEX_OBSERVATIONS.md deployed and committed
+- Monthly income directive logged + compounding extrapolation: ~12 days to self-sustaining
+- Mandate deadline extended to April 3 (5 full trading days)
+
+**LOSSES:**
+- Day 2 P&L is 26.37 — above the 25 ceiling. Not a loss per se but means high variance (1 loss on sol_drift could swing it)
+- Context compaction hit mid-wrap, required resume — lost some wrap efficiency
+
+**GRADE: B** — Day 2 mandate clearly met, HARD_MAX gate completed, tests clean. Bot healthy and compounding.
+
+**NEXT CHAT MUST DO BETTER:** check CODEX_OBSERVATIONS.md at startup (new file, Codex may have filed notes)
+
+**HIGHEST LEVERAGE ACTION:** monitor that 113/200 clean bet counter advances without disruption → 60 USD HARD_MAX at gate 200
+
+### ACTIONS THIS SESSION (FULL):
+- Bot restarted as session 153 (previous instance dead, no logs from S152)
+- HARD_MAX raised 35→50 USD: gate 100 post-guard clean bets reached (108). Pre-authorized S140/S142. Kill_switch.py updated + tests updated.
+- test_kill_switch.py: TestTradeSizeCaps updated (50 USD, 700 USD bankroll to avoid PCT cap conflict)
+- test_security.py: test_single_trade_never_exceeds_35_dollars → test_single_trade_never_exceeds_hard_max (50.01 USD); shebang false positive fix (skip comment lines in external path scan)
+- Codex integration: AGENTS.md created (cp of CLAUDE.md, commit 3c18400) + CODEX_OBSERVATIONS.md created (commit 5cc918e). Both pushed to GitHub. CCA REQ responded.
+- Mandate deadline update: extended to Friday April 3 (5 actual trading days).
+- MATTHEW_DIRECTIVES.md: monthly income directive + compounding extrapolation appended (verbatim prompts + response). commit a602d68.
+- Session 153 CHANGELOG entry appended: commit 75394f6.
+
+### KEY STATE AT WRAP:
+  Bot PID 95371 → /tmp/polybot_session153.log (RUNNING)
+  All-time P&L: +40.17 USD | Day 2: +26.37 USD (40 settled, 39W/1L)
+  HARD_MAX: 50 USD. Next gate: 200 clean bets (currently 113) → 60 USD.
+  Tests: 2002 passing, 3 skipped
+  expiry_sniper: EDGE CONFIRMED (lambda=+17.538, E_n=41M, CUSUM S=2.030)
+  daily_sniper: EDGE CONFIRMED (lambda=+5.317, E_n=203.8). 38 settled, 97.4% WR.
+  sol_drift: EDGE CONFIRMED (lambda=+2.277, CUSUM S=1.800 stable)
+  eth_drift: DISABLED — DRIFT ALERT S=15.0 (historical, expected — disabled precisely for this)
+
+### Strategy Analyzer Insights (--brief):
+  All-time: +40.17 USD (85% WR, 1516 bets)
+  expiry_sniper: PROFITABLE 90-94c. Edge confirmed. Primary engine.
+  daily_sniper: PROFITABLE 97.4% WR, 38 bets, cap=5 USD confirmed.
+  sol_drift: EDGE CONFIRMED, 47 bets, 66% WR. Small negative P&L from sizing/variance.
+  eth_drift: NO EDGE + DRIFT ALERT — DISABLED (correct status)
+  Guard stack: CLEAN (eth_drift disabled, not producing losses)
+
+### Goal Progress:
+  All-time P&L: +40.17 USD | Goal gap to +125 USD: 84.83 USD
+  At current rate ~20 USD/day: ~4 days to +125 USD
+  Monthly target: 300-500 USD (self-sustaining at 250 USD/month for Claude Max20)
+  Compounding: bankroll ~228 USD → 8% PCT = 18.24 USD/bet → ~20+ USD/day expected
+  Self-sustaining milestone: ~12 more days at current rate
+
+### NEXT CHAT PRIORITY:
+  1. Day 3 mandate: check P&L at startup, confirm above target, monitor log recency
+  2. CODEX_OBSERVATIONS.md: check for Codex code review notes (new file this session)
+  3. CCA check: CCA_TO_POLYBOT.md for new deliveries; respond to UPDATE 59 (P&L pipeline audit)
+
 ## S153 — 2026-03-27 21:20 UTC (monitoring — mandate day 2 active)
 
 ### ACTIONS THIS SESSION:
