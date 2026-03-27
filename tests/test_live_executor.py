@@ -1651,8 +1651,12 @@ class TestPerAssetStructuralLossGuards:
         )
         assert result is None
 
-    async def test_sol_no_at_91c_not_blocked(self, live_env, bypass_first_run):
+    async def test_sol_no_at_91c_not_blocked(self, live_env, bypass_first_run, monkeypatch):
         """KXSOL NO@91c is NOT blocked -- IL-22 targets 92c only. 91c is 100% WR profitable."""
+        # Pin UTC hour to 10 — IL-35 blocks KXSOL at 05:xx UTC, test must be time-independent
+        mock_dt = MagicMock()
+        mock_dt.now.return_value.hour = 10
+        monkeypatch.setattr(live_module, "datetime", mock_dt)
         ob = make_orderbook(yes_bid=9)  # no_ask = 91c
         signal = make_signal(side="no", price_cents=91, ticker="KXSOL15M-26MAR170000-15")
         kalshi = make_kalshi_mock()
@@ -2609,13 +2613,17 @@ class TestSniperMaxSlippageCents:
         db.save_trade.assert_not_called()
 
     async def test_sniper_allows_2c_slippage_when_max_is_3(
-        self, live_env, bypass_first_run
+        self, live_env, bypass_first_run, monkeypatch
     ):
         """SOL YES signal@93c, orderbook ask=91c → 2c slip < 3c max → proceeds.
 
         Updated S95: test originally used signal@90c→exec@88c, but sniper floor now
         blocks execution at 88c (sub-90c floor). Updated to use 93c→91c (still above floor).
         """
+        # Pin UTC hour to 10 — IL-35 blocks KXSOL at 05:xx UTC, test must be time-independent
+        mock_dt = MagicMock()
+        mock_dt.now.return_value.hour = 10
+        monkeypatch.setattr(live_module, "datetime", mock_dt)
         ob = make_orderbook(yes_bid=91)  # yes execution at 91c
         signal = make_signal(side="yes", price_cents=93, ticker="KXSOL15M-26MAR151915-15")
         kalshi = make_kalshi_mock()
@@ -2879,6 +2887,11 @@ class TestAutoGuardLoading:
     ):
         """Auto guard for YES does not block NO at same price."""
         import src.execution.live as live_mod
+
+        # Pin UTC hour to 10 — IL-35 blocks KXSOL at 05:xx UTC, test must be time-independent
+        mock_dt = MagicMock()
+        mock_dt.now.return_value.hour = 10
+        monkeypatch.setattr(live_mod, "datetime", mock_dt)
 
         monkeypatch.setattr(live_mod, "_AUTO_GUARDS", [
             {

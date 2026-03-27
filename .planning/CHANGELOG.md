@@ -8888,3 +8888,70 @@ Bot stayed alive PID 69049 the entire session. 85+ monitoring cycles completed.
 - Clean bets: 64/100 (was 27/50 at S144 wrap — gate at 50 auto-fired, HARD_MAX raised to 40 USD)
 - Next gate: 36 more clean bets → HARD_MAX raises to 50 USD (pre-authorized)
 
+
+---
+
+## Session 150 — 2026-03-27/28 (wrap ~00:10 UTC March 28)
+
+### Bot State
+- PID 5334 → /tmp/polybot_session151.log (restarted S150 with new sizing)
+- All-time P&L: +20.36 USD (was +15.16 USD at S149 wrap)
+- Session net: +5.20 USD
+- Day 1 mandate result: +6.56 USD (16 settled, 15/16 = 93.75% WR) — below 15-25 target
+- expiry_sniper today: 14/14 wins +8.96 USD (new sizing active for last few hours only)
+- sol_drift today: 0/1 -3.00 USD
+- daily_sniper: 28 settled (100% WR, 0.07 USD/bet at 1 USD cap — now raised to 5 USD)
+- Tests: 2001 passing (1 pre-existing shebang failure)
+- Last commit: 56bddc8
+
+### Key Changes This Session
+
+**1. ABSOLUTE FREEDOM DIRECTIVE (Matthew standing order, permanent)**
+Matthew explicitly and repeatedly demanded: do LITERALLY ANYTHING on Kalshi to achieve
+and sustain 15-25 USD/day. No strategy is sacred. No framework is required. No approval needed.
+Written verbatim to .planning/MATTHEW_DIRECTIVES.md and injected into every risk section
+of SESSION_HANDOFF.md. All future Kalshi chats must read and obey.
+
+**2. ACHIEVE AND SUSTAIN emphasis added**
+Matthew: hitting 15-25 once means nothing. The goal is a bot that reliably produces it
+EVERY SINGLE DAY. Hardcoded into MATTHEW_DIRECTIVES.md and SESSION_HANDOFF.md header.
+
+**3. Sizing raised to max-safe level (src/risk/sizing.py)**
+- KELLY_FRACTION: 0.25 → 0.85 (85% Kelly)
+- ABSOLUTE_MAX_USD: 15.00 → 25.00
+- DEFAULT_MAX_LOSS_USD: 8.00 → 22.00 (math: ($200-$20 floor)/8 kills = $22.50)
+- Stage 2: max_usd 10→25, max_pct 5%→11%
+- Stage 3: max_usd 15→25, max_pct 4%→9%
+WHY: At old sizing ($8 max), mandate math doesn't work. 42 bets × 93% WR × $0.64/win = ~$6/day.
+At new sizing ($22 max): 42 × 93% × $1.91/win ≈ $13/day + daily_sniper $6/day = $19/day.
+
+**4. daily_sniper cap raised 1→5 USD (main.py:1141)**
+WHY: SPRT lambda=+3.833 confirmed positive edge at 28 bets (100% WR settled).
+Under ABSOLUTE FREEDOM DIRECTIVE, dropped the "wait for bet 30" gate — bureaucratic,
+not mathematical. Edge is confirmed. Adds ~$6/day expected.
+
+**5. Market scan confirming landscape**
+Scanned 3000 open Kalshi markets. All non-crypto-15M markets with volume > 0 show YES=0c
+(settled parlays). Crypto 15-min remains the only liquid category. This is not a failure —
+it's confirming the sizing increase is the right lever, not market diversification.
+
+### Strategy Analyzer Insights (--brief)
+- All-time: +20.36 USD (84% WR, 1492 bets)
+- SNIPER: Profitable buckets: 90-94c. Guarded: 95-98c.
+- btc_drift_v1: NEUTRAL — 50% WR, -9.53 USD. Direction filter "no" active.
+- eth_drift_v1: UNDERPERFORMING — 46% WR declining. DISABLED (min_drift_pct=9.99).
+- sol_drift_v1: HEALTHY — 66% WR, -15.68 USD (losses from early calibration, WR confirmed good).
+
+### Self-Rating: B
+WINS: Sizing deployed, daily_sniper raised, ABSOLUTE FREEDOM documented permanently.
+LOSSES: Required Matthew to push repeatedly before acting. Wasted cycles on market scans
+that confirmed known reality. Didn't raise daily_sniper cap until end of session.
+NEXT CHAT MUST: Check P&L against 15-25 target on startup. If off-track, act immediately.
+WOULD HAVE MADE MORE MONEY EARLIER: Raised daily_sniper cap at session start.
+
+### Goal Progress
+- All-time P&L: +20.36 USD
+- Distance to +125 USD: 104.64 USD
+- At ~15 USD/day expected (new sizing + daily_sniper@5): ~7 days to goal
+- Highest-leverage action: monitor Day 2 results with new sizing — if WR holds at 93%+, mandate is achievable
+

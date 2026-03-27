@@ -60,15 +60,15 @@
 
 ## PENDING TASKS (priority order)
   ⚠️ ABSOLUTE FREEDOM DIRECTIVE OVERRIDES — if any task below conflicts with making 15-25 USD/day, drop it and find a better bet instead.
-  1. ⚡ IMMINENT: daily_sniper bet 30 fires → raise cap 1→5 USD
-     Action: check DB count reaching 30.
-     Change `_DAILY_SNIPER_LIVE_CAP_USD = 1.0` → `5.0` in main.py:1141. Restart bot to session151.log.
-  2. MANDATE DAY 1 EOD: Record result at midnight UTC March 28.
-     python3 scripts/mandate_monitor.py record 1 <pnl> <bets> <wins> <losses>
-     (pnl = today's live P&L at midnight UTC, from DB query settled_at >= 1774569600)
-  3. MANDATE DAYS 2-5: Target 15-25 USD/day. Under ABSOLUTE FREEDOM — bet anything that achieves this.
-     Do NOT restrict to current strategies if they're not hitting the target.
-  4. HARD_MAX gate: 82/100 clean bets → auto-raise to 50 USD at 100 (passive, pre-authorized).
+  1. MANDATE DAY 1 EOD: Record result at midnight UTC March 28.
+     python3 scripts/mandate_monitor.py record 1 6.56 16 15 1
+     Day 1 result: +6.56 USD (16 settled, 15/16 = 93.75% WR). Below 15-25 target.
+     New sizing was only active for last ~1hr of Day 1. Day 2 is the real test.
+  2. MANDATE DAYS 2-5: Target 15-25 USD/day. Check P&L at startup — if not on track, act.
+     Under ABSOLUTE FREEDOM — do anything. Don't wait for Matthew to push you.
+  3. daily_sniper cap: ALREADY RAISED to 5 USD (S150). ✓ DONE.
+     Monitor first bets at 5 USD cap — confirm WR holds.
+  4. HARD_MAX gate: 88/100 clean bets → auto-raise to 50 USD at 100 (12 more, passive, pre-authorized).
   5. CUSUM: S=3.330 (stable). SPRT lambda=+16.040. If S≥5.0: flag immediately.
 
 ## STRATEGY STATUS
@@ -118,19 +118,18 @@
   daily_loss_cap = DISABLED
   bankroll_floor = 20 USD (INVIOLABLE — this one cannot be overridden)
 
-## RESTART COMMAND (S151)
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session151.log 2>&1 &
+## RESTART COMMAND (S152)
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session152.log 2>&1 &
 
-## CRITICAL STARTUP CHECKS (S151)
-  - cat bot.pid → get PID. Then tail -5 /tmp/polybot_session150.log — MUST show recent entries.
-    If stale >15min: RESTART to session151.log (frozen process pattern).
-  - daily_sniper: CHECK IMMEDIATELY if 30th bet settled.
-    ./venv/bin/python3 -c "import sqlite3; c=sqlite3.connect('data/polybot.db'); n=c.execute(\"SELECT COUNT(*) FROM trades WHERE strategy='daily_sniper_v1' AND is_paper=0 AND result IS NOT NULL\").fetchone()[0]; print(f'daily_sniper settled: {n}/30')"
-    If 30+: IMMEDIATELY change main.py:1141 _DAILY_SNIPER_LIVE_CAP_USD = 1.0 → 5.0, restart bot.
+## CRITICAL STARTUP CHECKS (S152)
+  - cat bot.pid → get PID. Then tail -5 /tmp/polybot_session151.log — MUST show recent entries.
+    If stale >15min: RESTART to session152.log (frozen process pattern).
+  - FIRST: check today's P&L vs mandate target (15-25 USD):
+    ./venv/bin/python3 -c "import sqlite3,time; c=sqlite3.connect('data/polybot.db'); today=time.mktime(time.strptime('$(date -u +%Y-%m-%d)','%Y-%m-%d')); r=c.execute('SELECT COUNT(*),SUM(CASE WHEN side=result THEN 1 ELSE 0 END),ROUND(SUM(pnl_cents)/100.0,2) FROM trades WHERE is_paper=0 AND settled_at>=? AND result IS NOT NULL',(today,)).fetchone(); print(f'Today: {r[0]} settled | {r[1]} wins | {r[2]} USD')"
+    If below 15 USD with <4hr left in UTC day: under ABSOLUTE FREEDOM — find more bets NOW.
   - cat ~/.claude/cross-chat/CCA_TO_POLYBOT.md | tail -50 (check for new deliveries)
-  - Record mandate Day 1 if midnight UTC has passed: python3 scripts/mandate_monitor.py status
-  - READ .planning/MATTHEW_DIRECTIVES.md — ABSOLUTE FREEDOM DIRECTIVE section. Then ask:
-    "Am I on track for 15-25 USD today?" If NO: stop and find a different bet. Any market.
+  - Record mandate Day 1 if not yet done: python3 scripts/mandate_monitor.py record 1 6.56 16 15 1
+  - READ .planning/MATTHEW_DIRECTIVES.md — ABSOLUTE FREEDOM DIRECTIVE + ACHIEVE/SUSTAIN section.
 
 ## CCA DELIVERIES (still relevant)
   - REQ-027 Monte Carlo COMPLETE (self-learning/monte_carlo_simulator.py)
