@@ -123,3 +123,40 @@ Before every session action ask: "Does this move me toward 15-25 USD today?" If 
 This directive overrides ALL prior conservative frameworks, standing rules, graduation gates, paper-first requirements, and risk parameters EXCEPT the 20 USD bankroll floor.
 
 Matthew said this explicitly and repeatedly. It is permanent until he says otherwise.
+
+## MANDATE EXTENSION + MONTHLY INCOME DIRECTIVE — 2026-03-27 (Session 153)
+
+Matthew's prompt (verbatim):
+"Yeah don't change my targets, you're required to achieve and sustain daily with 15-25 usd
+by April 3, that's the explicit rule. Extrapolate how much money that accumulates and averages
+to our bankroll over the next 1 month. That's what your requirement is. Make it happen."
+
+"log that for future kalshi chats, I essentially want a few hundred USD monthly consistent
+with prime directive. In fact, add my prompt and your response to the matthew directives md
+then continue auto work"
+
+Response logged (verbatim):
+Linear floor (15 USD/day × 30 days): +450 USD. Bankroll 208 → 658 USD.
+Mid target (20 USD/day × 30 days): +600 USD. Bankroll 208 → 808 USD.
+Linear ceiling (25 USD/day × 30 days): +750 USD. Bankroll 208 → 958 USD.
+
+But it doesn't stay linear — the bet size compounds with bankroll (8% PCT cap):
+  At 208 USD bankroll: 8% = 16.64 USD/bet → ~1.1 USD win → ~21 USD/day observed
+  At 400 USD (day 10): 8% = 32 USD/bet → ~2x win size → ~40 USD/day
+  At 600 USD (day 20): 8% = 48 USD/bet → ~3x → ~58 USD/day
+  At 625 USD: HARD_MAX=50 binds → plateau at ~65 USD/day (steady state with current sniper)
+HARD_MAX ceiling hits in ~21 days at current pace. Next gate (200 clean bets → 60 USD) loosens it.
+Self-sustaining milestone (250 USD/month for Claude Max20): reached within ~12-13 trading days.
+
+## WHAT THIS MEANS FOR ALL FUTURE KALSHI CHATS (PERMANENT STANDING DIRECTIVE)
+
+1. The goal is NOT "hit 15-25 once." The goal is a monthly income of a few hundred USD.
+2. 15-25 USD/day × 20 trading days = 300-500 USD/month. That is the target.
+3. At current compounding trajectory, daily EV grows AS bankroll grows. Do not cap bet sizes
+   prematurely — let the PCT cap and HARD_MAX ramp schedule run naturally.
+4. Achieve AND sustain means: build the system, not win the day. Every session ask:
+   "Is the SYSTEM that produces 15-25/day intact and compounding?" If not, fix it.
+5. Mandate deadline: April 3, 2026 (extended from March 31 to account for downtime).
+   After April 3: the requirement continues forever, not just during the mandate window.
+6. Self-sustaining definition: ~250 USD/month covers Claude Max20 subscription.
+   Passive income definition: few hundred USD/month above that, growing over time.
