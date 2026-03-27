@@ -1,5 +1,22 @@
 # POLYMARKET-BOT CHANGELOG
 
+## S153 — 2026-03-27 21:20 UTC (monitoring — mandate day 2 active)
+
+### ACTIONS THIS SESSION:
+- Bot restarted as session 153 (previous instance dead, no logs from S152)
+- HARD_MAX raised 35→50 USD: gate 100 post-guard clean bets reached (currently 108). Pre-authorized S140/S142. Kill_switch.py updated + tests updated + committed 35c6c81.
+- Codex integration: AGENTS.md created (cp of CLAUDE.md, commit 3c18400) + CODEX_OBSERVATIONS.md created (commit 5cc918e). Both pushed to GitHub. CCA REQ responded.
+- Mandate deadline update: extended to Friday April 3 (5 actual trading days).
+- Day 2 P&L at 21:20 UTC: +19.34 USD (31 settled, 30W/1L, 97% WR) — above mandate target.
+- All-time P&L: +33.14 USD (was +20.36 at S151 wrap).
+
+### KEY STATE:
+  HARD_MAX: 50 USD (was 35). Next gate: 200 clean bets → 60 USD.
+  Bot PID 95371 → /tmp/polybot_session153.log
+  expiry_sniper: EDGE CONFIRMED (lambda=+17.238, CUSUM stable S=2.290)
+  sol_drift: EDGE CONFIRMED (lambda=+2.277)
+  eth_drift: DISABLED (already was — DRIFT ALERT S=15 is historical data only)
+
 ## S151 — 2026-03-28 05:30 UTC WRAP (monitoring — mandate day 2 morning)
 
 ### SELF-RATING: C
