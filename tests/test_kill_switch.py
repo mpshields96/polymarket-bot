@@ -58,15 +58,16 @@ def ks():
 
 class TestTradeSizeCaps:
     def test_trade_at_hard_cap_allowed(self, ks):
-        # S142: HARD_MAX = 35 USD. pct cap 8% of 500 = 40 USD, so hard cap binds at 35.
-        ok, reason = ks.check_order_allowed(trade_usd=35.00, current_bankroll_usd=500.0)
+        # S153: HARD_MAX = 50 USD (raised from 35 at gate 100 clean bets, pre-authorized S140/S142).
+        # Use 700 USD bankroll: 50/700 = 7.1% < 8% pct cap, so hard cap governs.
+        ok, reason = ks.check_order_allowed(trade_usd=50.00, current_bankroll_usd=700.0)
         assert ok, reason
 
     def test_trade_above_hard_cap_blocked(self, ks):
-        # S142: HARD_MAX = 35 USD. Any trade > 35 USD blocked.
-        ok, reason = ks.check_order_allowed(trade_usd=35.01, current_bankroll_usd=500.0)
+        # S153: HARD_MAX = 50 USD. Any trade > 50 USD blocked.
+        ok, reason = ks.check_order_allowed(trade_usd=50.01, current_bankroll_usd=700.0)
         assert not ok
-        assert "35.01" in reason or "hard cap" in reason.lower()
+        assert "50.01" in reason or "hard cap" in reason.lower()
 
     def test_trade_exceeds_pct_cap_blocked(self, ks):
         # 40% of $100 = $40 — exceeds 8% pct cap ($8) AND $10 hard cap

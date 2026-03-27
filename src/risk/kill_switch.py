@@ -36,7 +36,7 @@ LOCK_FILE = PROJECT_ROOT / "kill_switch.lock"
 EVENT_LOG = PROJECT_ROOT / "KILL_SWITCH_EVENT.log"
 
 # ── Hard limits — these cannot be changed by config ──────────────
-HARD_MAX_TRADE_USD = 35.00        # Absolute ceiling per trade (S142: raised from 10→35 from 20 — data shows 90-94c zone yields +16 USD/day avg; at 20 USD/bet variance was ±67 USD/day, unworkable. 10 USD halves variance, still targets +8 USD/day = 240 USD/month from sniper alone)
+HARD_MAX_TRADE_USD = 50.00        # S153: auto-raised from 35→50 (gate 100 post-guard clean bets reached at 108 — pre-authorized S140/S142). Ramp: 50→40 at bet 50, 100→50 at bet 100. S142: raised from 10→35 — data shows 90-94c zone yields +16 USD/day avg.
 HARD_MIN_BANKROLL_USD = 20.00     # Below $20 = hard stop
 DAILY_LOSS_LIMIT_PCT = 0.20       # 20% daily loss = soft kill (resets midnight)
 CONSECUTIVE_LOSS_LIMIT = 8        # Losses before cooling period (raised Session 41: daily limit governs at Stage 1)
