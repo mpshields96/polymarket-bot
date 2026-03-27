@@ -6,6 +6,11 @@
 ## ⚠️ READ FIRST: .planning/MATTHEW_DIRECTIVES.md — VERBATIM MANDATE DIRECTIVES (S150, 2026-03-27)
 ## ══════════════════════════════════════════════════════════════════════════════════════
 ## MANDATE: 15-25 USD/day by 2026-03-31. ANY market. ANY strategy. Figure it out.
+## ABSOLUTE FREEDOM DIRECTIVE: DO LITERALLY ANYTHING ON KALSHI. No strategy is sacred.
+## No framework is required. No approval needed. Bet anything, any size, any market.
+## ONE RULE ONLY: bankroll must never drop below 20 USD. Matthew will NOT add more funds.
+## Everything else — kill switch, Kelly, stage caps, graduation gates — NEGOTIABLE.
+## Full directive: .planning/MATTHEW_DIRECTIVES.md (ABSOLUTE FREEDOM DIRECTIVE section)
 ## ══════════════════════════════════════════════════════════════════════════════════════
 
 ## ⚠️ HYBRID CHAT — PERMANENT ARCHITECTURE (Matthew standing directive, S131)
