@@ -3905,7 +3905,10 @@ async def main():
     # XRP drift permanently removed (S141 — Matthew directive: XRP banned forever).
     # xrp_drift_task replaced with a no-op placeholder to preserve gather() structure.
     xrp_drift_task = asyncio.create_task(asyncio.sleep(0), name="xrp_drift_loop_disabled")
-    # BTC orderbook imbalance: paper-only, stagger 36s (was 29s — shifted for sol_drift)
+    # BTC orderbook imbalance: S154 ENABLED LIVE — 202 paper bets, READY FOR LIVE, 55% WR at balanced prices (~52c).
+    # Payoff structure: bet YES@52-65c or NO@35-44c. Win ~= Lose (symmetric). Different from expiry_sniper.
+    # Signal: order book depth asymmetry (>65% YES depth → buy YES, <35% → buy NO).
+    # Asymmetric filter from S90: YES@52-65c (63% WR), NO@35-44c (50% WR). p=0.011.
     btc_imbalance_task = asyncio.create_task(
         trading_loop(
             kalshi=kalshi,
@@ -3913,8 +3916,8 @@ async def main():
             strategy=btc_imbalance_strategy,
             kill_switch=kill_switch,
             db=db,
-            live_executor_enabled=False,
-            live_confirmed=False,
+            live_executor_enabled=live_mode,  # S154: ENABLED LIVE
+            live_confirmed=live_confirmed,
             btc_series_ticker=btc_series_ticker,
             loop_name="btc_imbalance",
             initial_delay_sec=36.0,
@@ -4200,11 +4203,10 @@ async def main():
             db=db,
             kill_switch=kill_switch,
             initial_delay_sec=110.0,   # stagger after copy_trade (80s) + sports_futures (95s)
-            live_executor_enabled=live_mode,
+            live_executor_enabled=False,  # S154: DISABLED — payoff asymmetry (-15 USD losses vs +1.50 USD wins) causes consistent daily losses. Switching to orderbook_imbalance (balanced 52c payoff structure).
             live_confirmed=live_confirmed,
             trade_lock=_live_trade_lock,
-            max_daily_bets=0,  # S60: UNLIMITED — 97% win rate across 85 data points, every signal is +EV. Matthew directive.
-            # Previously: 10 (S59), 20 (S60 early). Removed entirely to capture every favorable-longshot window.
+            max_daily_bets=0,
         ),
         name="expiry_sniper_loop",
     )
