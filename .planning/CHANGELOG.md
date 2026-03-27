@@ -1,5 +1,65 @@
 # POLYMARKET-BOT CHANGELOG
 
+## S149 — 2026-03-27 22:25 UTC WRAP (monitoring — mandate day 1)
+
+### SELF-RATING: B
+WINS:
+- Bot ran cleanly all session (39 cycles, PID 40947, never needed restart)
+- Ceiling guard verified correct: 97-98c YES and NO blocked all session (IL-38/IL-38-ETH working)
+- Auto-guard discovery: 0 new guards, guard stack clean at 9 auto-guards + IL guards
+- mandate_monitor.py deployed to scripts/ (CCA S199 delivery — cross-session mandate tracker)
+- CUSUM S improved: 3.915 → 3.330. SPRT lambda improved: +15.366 → +16.040. E_n: 4.7M → 9.2M.
+- Day 1 ended POSITIVE (+1.36 USD live, 90% WR) despite extreme price volatility
+
+LOSSES:
+- Mandate Day 1 = +1.36 USD vs 15-25 USD target — significantly below mandate pace
+- Heavy price volatility (markets swinging 1c to 99c repeatedly) blocked most sniper windows
+- sol_drift fired 1 live bet and lost -3.00 USD unexpectedly (direction_filter="no" fired)
+- No code improvements made (pure monitoring session)
+- daily_sniper cap raise (1→5 USD) has NOT been executed yet — fires at 23:00 UTC tonight
+
+GRADE: B — bot healthy, guards working, edge strengthening. But Day 1 far below mandate target due to market conditions outside our control. The daily_sniper cap raise is the highest-leverage action tonight.
+
+NEXT CHAT MUST DO: Execute daily_sniper cap raise (main.py:1141 → 5.0) immediately when bet 30 settles. This adds ~6 USD/day and is pre-authorized.
+
+WOULD HAVE MADE MORE MONEY IF DONE EARLIER: N/A — market volatility was structural today. No parameter change would have helped. Cap raise was pending on bet count (can't change).
+
+### STRATEGY PERFORMANCE (S149)
+- expiry_sniper_v1: 9/9 wins today, +4.36 USD. CUSUM S=3.330 (stable, improved). SPRT lambda=+16.040.
+  Heavy ceiling blocking (97-98c) throughout evening session. Morning had normal activity.
+- daily_sniper_v1: 28/30 settled, 0 new bets S149. Cap raise IMMINENT at 23:00 UTC tonight.
+- sol_drift_v1: 1 live bet today, 0/1 wins, -3.00 USD loss. SPRT lambda=+2.277 (still positive).
+  CUSUM S=1.800 (stable). Single loss within normal variance. No action needed.
+- All others: paper-only or disabled, no changes.
+
+### Strategy Analyzer Insights (strategy_analyzer.py --brief — S149 wrap)
+  All-time: +15.16 USD (84% WR, 1486 bets)
+  Today: +1.36 USD (90% WR, 10 bets)
+  Target: 109.84 USD to +125 USD goal
+  SNIPER: Profitable buckets: 90-94c
+  SNIPER: Guarded buckets (historical losses blocked): 95c, 96c, 97c, 98c
+  sol_drift_v1: HEALTHY — 47 live bets, 66% WR, SPRT EDGE CONFIRMED
+  eth_drift_v1: UNDERPERFORMING — 46% WR below 50c break-even, CUSUM DRIFT ALERT S=15.0 (disabled)
+  btc_drift_v1: NEUTRAL — 80 live bets, 50% WR, direction filter "no" side 27% spread
+
+### MANDATE TRACKER — Day 1
+  Day 1 result: +1.36 USD live (vs 15-25 USD target) — BELOW TARGET
+  Reason: extreme price volatility (markets oscillating 1-99c all afternoon/evening)
+  Mitigating factor: daily_sniper cap raise fires tonight → +6 USD/day from Day 2 onward
+  5-day mandate pace: need ~14 USD/day average across remaining 4 days to hit 15-25 target
+
+### GOAL PROGRESS
+  All-time P&L: +15.16 USD
+  Distance to +125 USD goal: 109.84 USD
+  At mandate-projected 20 USD/day: ~5.5 days to +125 USD goal
+  HARD_MAX gate: 82/100 clean bets → auto-raise to 50 USD at 100 (passive)
+  Highest-leverage action: daily_sniper cap raise 1→5 USD tonight (adds ~6 USD/day permanently)
+
+### NEXT CHAT FOCUS
+  Execute daily_sniper cap raise at 23:00 UTC tonight. Then monitor overnight for Day 2 start.
+
+---
+
 ## S148 — 2026-03-27 00:45 UTC WRAP (monitoring + mandate launch)
 
 ### SELF-RATING: B+

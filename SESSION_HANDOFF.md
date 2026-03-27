@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-27 ~00:45 UTC (Session 148 wrap)
+# Last updated: 2026-03-27 ~22:25 UTC (Session 149 wrap)
 # ═══════════════════════════════════════════════════════════════
 
 ## ⚠️ HYBRID CHAT — PERMANENT ARCHITECTURE (Matthew standing directive, S131)
@@ -15,7 +15,7 @@
 ## ═══════════════════════════════════════════════════════════════════════════════════
 ## GOAL: Achieve and SUSTAIN 15-25 USD DAILY within 5 days.
 ## DEADLINE: 2026-03-31 ~00:11 UTC (same local time as start)
-## CLOCK STARTED: 2026-03-27 00:11 UTC. Day 1 underway.
+## CLOCK STARTED: 2026-03-27 00:11 UTC. Day 1 reporting at midnight UTC.
 ## CCA ANALYSIS: Expected 20 USD/day at 64 bets/day (70-75% success probability)
 ## Daily std dev = 18 USD — red days are normal variance, not crises.
 ## PATH: expiry_sniper (~14-15 USD/day) + daily_sniper at 5 USD cap (~6 USD/day) = 20+ USD/day
@@ -25,91 +25,94 @@
 ## ALL FUTURE KALSHI CHATS ARE FORBIDDEN FROM FORGETTING THIS. PERMANENT.
 ## ═══════════════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S148 wrap — 2026-03-27 ~00:45 UTC)
-  Bot RUNNING PID 40947 → /tmp/polybot_session148.log
-  All-time live P&L: +14.40 USD
-  March 27 (mandate Day 1): 1 settled, 1 win, +0.60 USD (just started at midnight UTC)
-  March 26 (pre-mandate): 61 settled, 56 wins (91.8% WR), -8.76 USD
-  daily_sniper: 28/30 live settled. 2 more → SPRT eval → 1→5 USD cap raise. FIRES ~23:00 UTC TONIGHT.
-  Post-guard clean bets: 73/100 (Gate at 100 → HARD_MAX auto-raise to 50 USD — pre-authorized)
-  Tests: 2001 passing (1 pre-existing failure — test_security shebang). Last commit: f1eb42d
+## BOT STATE (S149 wrap — 2026-03-27 ~22:25 UTC)
+  Bot RUNNING PID 40947 → /tmp/polybot_session148.log (never restarted S149)
+  All-time live P&L: +15.16 USD
+  March 27 today (mandate Day 1 in progress): +1.36 USD (10 settled live, 9/10 = 90% WR)
+    - expiry_sniper: 9/9 wins +4.36 USD today
+    - sol_drift: 0/1 wins -3.00 USD today (1 live bet lost, direction_filter="no" fired)
+  daily_sniper: 28/30 live settled. ⚡ FIRES ~23:00 UTC TONIGHT (~35 min from wrap)
+  Post-guard clean bets: 82/100 (Gate at 100 → HARD_MAX auto-raise to 50 USD — pre-authorized)
+  Tests: 2001 passing (1 pre-existing failure — test_security shebang). Last commit: 6109521
 
-  S148 KEY CHANGES:
-  1. DEFAULT_MAX_LOSS reduced 10.00→8.00 USD (CCA WR cliff analysis: at -8.34 avg_loss post-ceiling,
-     cliff = 90.2% → +3.1% safety margin vs 93.3% WR). Commit: f1eb42d. Tests: 2001 passing.
-  2. sports_sniper_loop crash FIXED: `strategy_name=` → `strategy=` kwarg in db.count_trades_today().
-     7 sessions of silent 30s crashes eliminated. Sports sniper now operational. Commit: 473eeb1.
-  3. 5-DAY MANDATE CLOCK STARTED: 2026-03-27 00:11 UTC. CCA REQ-58 filed + responded same session.
-     CCA analysis: 20 USD/day expected, 70-75% success probability, $8 max loss = full Kelly.
-  4. Frozen bot detected + restarted at session start (PID 5936 → 24844 → 31085 → 40947).
-     Root cause: 5-hour stale log. Pattern: always `tail -5` log, not just `ps`.
+  S149 KEY CHANGES:
+  1. mandate_monitor.py deployed to scripts/ (CCA S199 delivery). Tracks mandate daily P&L.
+     Usage: ./venv/bin/python3 scripts/mandate_monitor.py status
+     Record Day 1 at midnight UTC: python3 scripts/mandate_monitor.py record 1 <pnl> <bets> <wins>
+  2. Ceiling guard confirmed working S149: 97c/98c YES and NO correctly blocked all session.
+     Auto-guard discovery: 0 new guards fired. Guard stack clean at 9 auto-guards + IL guards.
+  3. CUSUM improved: S=3.330 (was 3.915 at S148 wrap). SPRT lambda=+16.040 (was +15.366).
+     E_n=9.2M (was 4.7M). Edge strengthening.
+  4. sol_drift fired 1 live bet today at -3.00 USD loss. SPRT lambda=+2.277 still positive.
+     CUSUM S=1.800 (stable). No action — single bet within normal variance.
 
-  S148 PENDING TASKS (priority order):
-  1. ⚡ TONIGHT ~23:00 UTC: daily_sniper bet 30 fires → SPRT eval → raise 1→5 USD cap
-     Action: grep settled trades for daily_sniper count reaching 30.
+  S149 PENDING TASKS (priority order):
+  1. ⚡ IMMINENT (~23:00 UTC March 27): daily_sniper bet 30 fires → raise cap 1→5 USD
+     Action: check DB count reaching 30.
      If SPRT lambda>0 (confirmed at +3.833): change `_DAILY_SNIPER_LIVE_CAP_USD = 1.0` → `5.0` in main.py:1141
-     Then restart bot. Log in CHANGELOG. This adds ~6 USD/day to mandate P&L.
-  2. MANDATE DAY 1 (March 27): Monitor 15-25 USD target. EOD report by midnight UTC.
-     If <40 sniper bets by noon UTC: investigate signal suppression.
-     Do NOT change parameters if WR ≥90% on 30+ bets — accept variance.
-  3. CCA check: REQ-58 ACK sent. Check for any additional CCA deliveries for mandate.
-     Push CCA on market scan: are there KXBTCD settlement windows beyond 6pm ET?
-  4. HARD_MAX gate: 73/100 clean bets → auto-raise to 50 USD at 100 (passive, pre-authorized).
-  5. Sports sniper paper fills: 0/20 needed. ESPN polling every 3 min. Need late-game 90c+ moments.
-  6. CUSUM: S=3.915 at S148 wrap (STABLE, below 5.0 threshold). SPRT lambda=+15.366 EDGE CONFIRMED.
-     eth_orderbook CUSUM S=4.020 — paper only, disable if S≥5.0.
+     Restart bot to session149.log. Log in CHANGELOG. Adds ~6 USD/day to mandate P&L.
+  2. MANDATE DAY 1 EOD: Record result in mandate_monitor.py at midnight UTC March 28.
+     python3 scripts/mandate_monitor.py record 1 <pnl> <bets> <wins> <losses>
+     (pnl = today's live P&L at midnight UTC, from DB query settled_at >= 1774569600)
+  3. MANDATE DAYS 2-5: Target 15-25 USD/day. Day 1 ended at +1.36 USD (below target).
+     Day 2 starts at midnight UTC March 28. Daily_sniper at 5 USD cap will add ~6 USD/day.
+  4. HARD_MAX gate: 82/100 clean bets → auto-raise to 50 USD at 100 (passive, pre-authorized).
+  5. Sports sniper paper fills: 0/20 needed. ESPN polling every 3 min.
+  6. CUSUM: S=3.330 (stable, improved). SPRT lambda=+16.040. If S≥5.0: flag immediately.
+     eth_orderbook CUSUM: check at startup. Last known S=3.960 (paper only, disable if S≥5.0).
 
-  S148 CCA DELIVERIES RECEIVED AND ACTED ON:
+  S148 CCA DELIVERIES (still relevant):
   - REQ-027 Monte Carlo COMPLETE (self-learning/monte_carlo_simulator.py)
   - REQ-054 Correlated Loss Analyzer COMPLETE (self-learning/correlated_loss_analyzer.py)
-  - REQ-055 market_diversifier.py COMPLETE
-  - loss_reduction_simulator.py, edge_decay_detector.py, wr_cliff_analyzer.py — all available
-  - REQ-58 RESPONSE (mandate analysis): expected 20 USD/day, 70-75% success, $8 max loss confirmed
-  - S198: mandate_tracker.py, kelly_optimizer.py, window_frequency_estimator.py, mandate_dashboard.py,
-    signal_threshold_analyzer.py — all delivered as specs (available for implementation if needed)
+  - REQ-058 RESPONSE: expected 20 USD/day, 70-75% success, $8 max loss confirmed. No new edges in 5 days.
+  - S199: mandate_monitor.py DEPLOYED to scripts/. mandate_tracker.py, kelly_optimizer.py,
+    window_frequency_estimator.py, mandate_dashboard.py, signal_threshold_analyzer.py available in CCA.
 
   MANDATE MATH (CCA-confirmed):
   - Expiry sniper: 64 bets/day at 93.3% WR, $8 max loss → 19.44 USD/day expected
-  - daily_sniper at 5 USD cap: 28 bets/day * ~0.40 USD/win * 96.4% WR → ~6 USD/day
+  - daily_sniper at 5 USD cap (IMMINENT): 28 bets/day * ~0.40 USD/win * 96.4% WR → ~6 USD/day
   - Combined: ~25 USD/day (above 15-25 target range)
-  - Key risk: daily std dev = 18 USD. Expect one -15 USD day in 5-day window. NORMAL.
-  - Post-ceiling avg_loss: -8.34 USD (n=12 losses). Consistent with $8 cap regime.
+  - Key risk: daily std dev = 18 USD. Expect one -15 USD day. NORMAL.
+  - Day 1 result: +1.36 USD (10 settled, 90% WR) — below target. Note: heavy volatility (1-99c swings)
+    reduced sniper windows. Day 2 should include daily_sniper at 5 USD cap = +6 USD/day boost.
 
   STRATEGY STATUS:
-  - expiry_sniper_v1: PRIMARY ENGINE. All-time 95.2% WR (1093 bets), +86.77 USD. EDGE CONFIRMED.
-    Ceiling: 93c BTC/SOL, 95c ETH (IL-38-ETH). Floor: 90c. 08:xx blocked (structural, re-confirmed S144).
-    CUSUM S=3.915 (stable). SPRT lambda=+15.366, E_n=4.7M (strong edge).
-  - daily_sniper_v1: LIVE (1 USD cap). 28/30 settled. 96.4% WR. SPRT lambda=+3.833 EDGE CONFIRMED.
-    ⚡ RAISE TO 5 USD CAP ON BET 30 (fires ~23:00 UTC March 27). Pre-authorized, no confirmation needed.
-    Markets: KXBTCD NO@90-93c near-expiry. Fires once/day at 6pm ET settlement.
-  - sol_drift_v1: LIVE. 0 bets since S148 start (SOL UP/flat, direction_filter="no" = correct).
-    SPRT lambda=+2.552 EDGE CONFIRMED. CUSUM S=1.240 (stable).
-  - sports_sniper_v1: PAPER-ONLY. 0/20 fills. ESPN polling every 3 min (bug fixed S148).
+  - expiry_sniper_v1: PRIMARY ENGINE. CUSUM S=3.330 (stable, improved). SPRT lambda=+16.040 EDGE CONFIRMED.
+    E_n=9.2M. Ceiling: 93c BTC/SOL, 95c ETH. Floor: 90c. 08:xx blocked.
+    Today: 9/9 wins +4.36 USD. Market was extremely volatile (1-99c swings limited windows).
+  - daily_sniper_v1: LIVE (1 USD cap). 28/30 settled. 96.4% WR. ⚡ FIRES TONIGHT 23:00 UTC.
+    ⚡ RAISE TO 5 USD CAP ON BET 30. Pre-authorized. SPRT lambda=+3.833 confirmed.
+  - sol_drift_v1: LIVE. 1 bet today (-3.00 USD loss). SPRT lambda=+2.277 EDGE CONFIRMED.
+    CUSUM S=1.800 (stable). direction_filter="no". Single loss within normal variance.
+  - sports_sniper_v1: PAPER-ONLY. 0/20 fills. ESPN polling every 3 min.
   - economics_sniper_v1: PAPER-ONLY. First bets April 8 (KXCPI). After mandate deadline.
-  - maker_sniper_v1: PAPER calibration. 5/15 fills, 100% WR paper.
   - eth_drift_v1: DISABLED (min_drift_pct=9.99). CUSUM DRIFT ALERT S=15.0 (historical, no action).
-  - btc_drift_v1/xrp_drift_v1: DISABLED (min_drift_pct=9.99). Monitoring CUSUM.
+  - btc_drift_v1/xrp_drift_v1: DISABLED (min_drift_pct=9.99).
 
   GUARDS ACTIVE (11 total):
   - IL-33: KXXRP GLOBAL BLOCK (PERMANENT — XRP forever banned)
   - IL-34: KXBTC NO@95c | IL-35: KXSOL 05:xx UTC | IL-36: KXETH NO@95c | IL-24: KXSOL NO@95c
   - IL-38: Sniper ceiling 93c (BTC/SOL) | IL-38-ETH: ETH ceiling 95c
   - IL-39: sol_drift NO@<60c
-  - 9 auto-guards from auto_guards.json (loaded at startup)
+  - 9 auto-guards from auto_guards.json (loaded at startup). 0 new guards S149.
   - HOUR BLOCK: frozenset({8}) — 08:xx UTC blocked (structural, S144 confirmed)
 
-  RESTART COMMAND (S149):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session149.log 2>&1 &
+  RESTART COMMAND (S150):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session150.log 2>&1 &
 
-  CRITICAL STARTUP CHECKS (S149):
+  CRITICAL STARTUP CHECKS (S150):
   - cat bot.pid → get PID. Then tail -5 /tmp/polybot_session148.log — MUST show recent entries.
-    If stale >15min: RESTART even if ps shows alive (frozen process pattern — seen twice S148).
-  - CUSUM: S=3.915 (stable). If S≥5.0 at startup: flag immediately.
-  - daily_sniper: check if 30th bet settled since wrap. If yes: execute cap raise 1→5 USD NOW.
+    If stale >15min: RESTART to session150.log (frozen process pattern).
+  - CUSUM: S=3.330 (stable). If S≥5.0 at startup: flag immediately.
+  - daily_sniper: CHECK IMMEDIATELY if 30th bet settled since wrap.
+    ./venv/bin/python3 -c "import sqlite3; c=sqlite3.connect('data/polybot.db'); n=c.execute(\"SELECT COUNT(*) FROM trades WHERE strategy='daily_sniper_v1' AND is_paper=0 AND result IS NOT NULL\").fetchone()[0]; print(f'daily_sniper settled: {n}/30')"
+    If 30+: IMMEDIATELY change main.py:1141 _DAILY_SNIPER_LIVE_CAP_USD = 1.0 → 5.0, restart bot.
   - cat ~/.claude/cross-chat/CCA_TO_POLYBOT.md | tail -50 (check for new deliveries)
+  - Record mandate Day 1 if midnight UTC has passed: python3 scripts/mandate_monitor.py status
 
-  S147 KEY BUILDS (still relevant context):
-  - ETH ceiling 95c (IL-38-ETH, CCA REQ-53 confirmed +0.60 USD/day)
-  - Trinity Monte Carlo (src/models/monte_carlo.py) from agentic-rd-sandbox
-  - Injury leverage kill switch (src/data/injury_leverage.py)
-  - Sports sniper (src/strategies/sports_sniper.py) + ESPN feed
+  S147-S148 KEY BUILDS (still relevant):
+  - ETH ceiling 95c (IL-38-ETH, CCA REQ-53)
+  - DEFAULT_MAX_LOSS 8.00 USD (CCA WR cliff analysis S148)
+  - sports_sniper_v1 ESPN feed + main.py loop (paper, bug fixed S148)
+  - Trinity Monte Carlo (src/models/monte_carlo.py)
+  - mandate_monitor.py deployed scripts/ (S149, CCA S199)
