@@ -3,6 +3,11 @@
 # Last updated: 2026-03-27 ~22:25 UTC (Session 149 wrap)
 # ═══════════════════════════════════════════════════════════════
 
+## ⚠️ READ FIRST: .planning/MATTHEW_DIRECTIVES.md — VERBATIM MANDATE DIRECTIVES (S150, 2026-03-27)
+## ══════════════════════════════════════════════════════════════════════════════════════
+## MANDATE: 15-25 USD/day by 2026-03-31. ANY market. ANY strategy. Figure it out.
+## ══════════════════════════════════════════════════════════════════════════════════════
+
 ## ⚠️ HYBRID CHAT — PERMANENT ARCHITECTURE (Matthew standing directive, S131)
 ## ═══════════════════════════════════════════════════════════════════════════
 ## ONE CHAT DOES EVERYTHING. /kalshi-main is the ONLY Kalshi chat.
@@ -25,15 +30,24 @@
 ## ALL FUTURE KALSHI CHATS ARE FORBIDDEN FROM FORGETTING THIS. PERMANENT.
 ## ═══════════════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S149 wrap — 2026-03-27 ~22:25 UTC)
-  Bot RUNNING PID 40947 → /tmp/polybot_session148.log (never restarted S149)
+## BOT STATE (S150 — 2026-03-27 ~23:15 UTC)
+  Bot RUNNING PID 88935 → /tmp/polybot_session150.log
   All-time live P&L: +15.16 USD
   March 27 today (mandate Day 1 in progress): +1.36 USD (10 settled live, 9/10 = 90% WR)
     - expiry_sniper: 9/9 wins +4.36 USD today
-    - sol_drift: 0/1 wins -3.00 USD today (1 live bet lost, direction_filter="no" fired)
-  daily_sniper: 28/30 live settled. ⚡ FIRES ~23:00 UTC TONIGHT (~35 min from wrap)
+    - sol_drift: 0/1 wins -3.00 USD today
+  daily_sniper: 28/30 live settled. ⚡ FIRES IMMINENT. On bet 30: raise cap 1→5 USD.
   Post-guard clean bets: 82/100 (Gate at 100 → HARD_MAX auto-raise to 50 USD — pre-authorized)
-  Tests: 2001 passing (1 pre-existing failure — test_security shebang). Last commit: 6109521
+  Tests: 2001 passing (1 pre-existing failure — test_security shebang). Last commit: 4776a15
+
+  S150 KEY CHANGES (sizing mandate):
+  1. KELLY_FRACTION: 0.25 → 0.85 (85% Kelly for 5-day mandate)
+  2. ABSOLUTE_MAX_USD: 15.00 → 25.00
+  3. DEFAULT_MAX_LOSS_USD: 8.00 → 22.00 (kill-switch-safe max: ($200-$20)/8 = $22.50)
+  4. Stage 2 cap: 10→25 USD, pct 5%→11% ($22 at $200 bankroll)
+  5. Stage 3 cap: 15→25 USD, pct 4%→9%
+  Expected daily P&L: 42 bets × 93% WR × $1.91/win ≈ $13/day sniper
+    + daily_sniper@5 USD ≈ $6/day = ~$19/day total (mandate target: 15-25 USD)
 
   S149 KEY CHANGES:
   1. mandate_monitor.py deployed to scripts/ (CCA S199 delivery). Tracks mandate daily P&L.
@@ -97,12 +111,12 @@
   - 9 auto-guards from auto_guards.json (loaded at startup). 0 new guards S149.
   - HOUR BLOCK: frozenset({8}) — 08:xx UTC blocked (structural, S144 confirmed)
 
-  RESTART COMMAND (S150):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session150.log 2>&1 &
+  RESTART COMMAND (S151):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session151.log 2>&1 &
 
-  CRITICAL STARTUP CHECKS (S150):
-  - cat bot.pid → get PID. Then tail -5 /tmp/polybot_session148.log — MUST show recent entries.
-    If stale >15min: RESTART to session150.log (frozen process pattern).
+  CRITICAL STARTUP CHECKS (S151):
+  - cat bot.pid → get PID. Then tail -5 /tmp/polybot_session150.log — MUST show recent entries.
+    If stale >15min: RESTART to session151.log (frozen process pattern).
   - CUSUM: S=3.330 (stable). If S≥5.0 at startup: flag immediately.
   - daily_sniper: CHECK IMMEDIATELY if 30th bet settled since wrap.
     ./venv/bin/python3 -c "import sqlite3; c=sqlite3.connect('data/polybot.db'); n=c.execute(\"SELECT COUNT(*) FROM trades WHERE strategy='daily_sniper_v1' AND is_paper=0 AND result IS NOT NULL\").fetchone()[0]; print(f'daily_sniper settled: {n}/30')"
