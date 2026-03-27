@@ -64,10 +64,10 @@ class TestMaxLossCap(unittest.TestCase):
         result = calculate_size(**self._base_kwargs(), max_loss_usd=0.30)
         self.assertIsNone(result)
 
-    def test_max_loss_10_00_default_constant(self):
-        """Verify DEFAULT_MAX_LOSS_USD exists and equals 10.00 (raised S147 for 5-day mandate)."""
+    def test_max_loss_8_00_default_constant(self):
+        """Verify DEFAULT_MAX_LOSS_USD exists and equals 8.00 (CCA WR cliff analysis S148)."""
         from src.risk.sizing import DEFAULT_MAX_LOSS_USD
-        self.assertEqual(DEFAULT_MAX_LOSS_USD, 10.00)
+        self.assertEqual(DEFAULT_MAX_LOSS_USD, 8.00)
 
     def test_max_loss_interacts_with_stage_cap(self):
         """max_loss is applied after stage cap — tighter constraint wins."""
@@ -220,8 +220,8 @@ class TestExistingBehaviorPreserved(unittest.TestCase):
     def test_expiry_sniper_loop_max_loss_formula(self):
         """S140 regression: expiry_sniper_loop used min(_HARD_CAP, pct_max) bypassing
         DEFAULT_MAX_LOSS_USD. Fix: min(_HARD_CAP, pct_max, _MAX_LOSS).
-        At bankroll=208, MAX_PCT=0.08: pct_max=16.63. HARD_CAP=35 (S142). MAX_LOSS=10.00 (S147).
-        Correct result: 10.00 (DEFAULT_MAX_LOSS governs). Wrong (pre-fix) result: 16.63."""
+        At bankroll=208, MAX_PCT=0.08: pct_max=16.63. HARD_CAP=35 (S142). MAX_LOSS=8.00 (S148 CCA).
+        Correct result: 8.00 (DEFAULT_MAX_LOSS governs). Wrong (pre-fix) result: 16.63."""
         from src.risk.kill_switch import HARD_MAX_TRADE_USD, MAX_TRADE_PCT
         from src.risk.sizing import DEFAULT_MAX_LOSS_USD
         bankroll = 208.0
@@ -232,7 +232,7 @@ class TestExistingBehaviorPreserved(unittest.TestCase):
                            msg="pre-fix formula must exceed DEFAULT_MAX_LOSS (i.e. the bug was real)")
         # Post-fix (correct): trade_usd = min(HARD_CAP, pct_max, MAX_LOSS)
         correct = min(HARD_MAX_TRADE_USD, max(0.01, pct_max), DEFAULT_MAX_LOSS_USD)
-        self.assertAlmostEqual(correct, 10.00, places=2, msg="post-fix formula should give 10.00 USD")
+        self.assertAlmostEqual(correct, 8.00, places=2, msg="post-fix formula should give 8.00 USD")
 
 
 if __name__ == "__main__":
