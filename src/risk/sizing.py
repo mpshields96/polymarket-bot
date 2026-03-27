@@ -29,18 +29,18 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 # ── Hard caps — cannot be overridden by config ────────────────────
-KELLY_FRACTION = 0.25           # Conservative 1/4 Kelly
-ABSOLUTE_MAX_USD = 15.00        # No bet ever exceeds this (Stage 3 cap)
-DEFAULT_MAX_LOSS_USD = 8.00     # REQ-042: Max loss per trade (your bet = your max loss on Kalshi)
-# S147 (2026-03-26): raised 7.50 → 10.00 USD for 5-day mandate.
-# S148 (2026-03-27): CCA WR cliff analysis (wr_cliff_analyzer.py) → reduced 10.00 → 8.00 USD.
-# Post-ceiling sniper avg_loss = -$8.34 (n=12). At -$8.00 cliff, safety margin = +3.1% vs 93.3% WR.
-# CCA: "Loss reduction is not optional — it's the difference between survival and ruin."
+KELLY_FRACTION = 0.85           # 5-day mandate: 85% Kelly (was 0.25). Scaled to max-safe bet.
+ABSOLUTE_MAX_USD = 25.00        # 5-day mandate: raised from 15.00. Kill switch (8 losses) floor-safe.
+DEFAULT_MAX_LOSS_USD = 22.00    # 5-day mandate: max-safe per-bet loss. Math: ($200 bankroll - $20 floor)
+                                #   / 8 consecutive kills = $22.50 max. Set to $22.
+                                # S148 (2026-03-27): 10.00 → 8.00 (CCA WR cliff). S150: mandate override.
+                                # Expected sniper contribution: 42 bets/day * 93% WR * $1.91/win = $13/day.
+                                # With daily_sniper@5USD (~$6/day) total = ~$19/day. Mandate target: 15-25.
 
 STAGES = {
     1: {"range": (0.0,   100.0),  "max_usd": 5.00,  "max_pct": 0.05},
-    2: {"range": (100.0, 250.0),  "max_usd": 10.00, "max_pct": 0.05},
-    3: {"range": (250.0, 9999.0), "max_usd": 15.00, "max_pct": 0.04},
+    2: {"range": (100.0, 250.0),  "max_usd": 25.00, "max_pct": 0.11},
+    3: {"range": (250.0, 9999.0), "max_usd": 25.00, "max_pct": 0.09},
 }
 
 

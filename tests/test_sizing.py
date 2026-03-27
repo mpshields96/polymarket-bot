@@ -43,8 +43,8 @@ class TestMaxLossCap(unittest.TestCase):
         """When max_loss_usd is None (default), sizing works as before."""
         result = calculate_size(**self._base_kwargs())
         self.assertIsNotNone(result)
-        # Stage 2 (bankroll $200): max $10 or 5% of $200 = $10
-        self.assertLessEqual(result.recommended_usd, 10.00)
+        # Stage 2 (bankroll $200): max $25 or 11% of $200 = $22
+        self.assertLessEqual(result.recommended_usd, 25.00)
 
     def test_max_loss_limiting_factor(self):
         """When max_loss is the binding constraint, limiting_factor says so."""
@@ -64,10 +64,10 @@ class TestMaxLossCap(unittest.TestCase):
         result = calculate_size(**self._base_kwargs(), max_loss_usd=0.30)
         self.assertIsNone(result)
 
-    def test_max_loss_8_00_default_constant(self):
-        """Verify DEFAULT_MAX_LOSS_USD exists and equals 8.00 (CCA WR cliff analysis S148)."""
+    def test_max_loss_default_constant(self):
+        """Verify DEFAULT_MAX_LOSS_USD exists and equals 22.00 (S150 5-day mandate sizing)."""
         from src.risk.sizing import DEFAULT_MAX_LOSS_USD
-        self.assertEqual(DEFAULT_MAX_LOSS_USD, 8.00)
+        self.assertEqual(DEFAULT_MAX_LOSS_USD, 22.00)
 
     def test_max_loss_interacts_with_stage_cap(self):
         """max_loss is applied after stage cap — tighter constraint wins."""
@@ -164,7 +164,7 @@ class TestExistingBehaviorPreserved(unittest.TestCase):
             edge_pct=0.20, bankroll_usd=150.0,
         )
         self.assertIsNotNone(result)
-        self.assertLessEqual(result.recommended_usd, 10.00)
+        self.assertLessEqual(result.recommended_usd, 25.00)  # S150: raised to 25
         self.assertEqual(result.stage, 2)
 
     def test_stage_3_cap(self):
@@ -173,7 +173,7 @@ class TestExistingBehaviorPreserved(unittest.TestCase):
             edge_pct=0.20, bankroll_usd=500.0,
         )
         self.assertIsNotNone(result)
-        self.assertLessEqual(result.recommended_usd, 15.00)
+        self.assertLessEqual(result.recommended_usd, 25.00)  # S150: raised to 25
         self.assertEqual(result.stage, 3)
 
     def test_no_edge_returns_none(self):
@@ -220,11 +220,11 @@ class TestExistingBehaviorPreserved(unittest.TestCase):
     def test_expiry_sniper_loop_max_loss_formula(self):
         """S140 regression: expiry_sniper_loop used min(_HARD_CAP, pct_max) bypassing
         DEFAULT_MAX_LOSS_USD. Fix: min(_HARD_CAP, pct_max, _MAX_LOSS).
-        At bankroll=208, MAX_PCT=0.08: pct_max=16.63. HARD_CAP=35 (S142). MAX_LOSS=8.00 (S148 CCA).
-        Correct result: 8.00 (DEFAULT_MAX_LOSS governs). Wrong (pre-fix) result: 16.63."""
+        At bankroll=280, MAX_PCT=0.08: pct_max=22.39. HARD_CAP=35 (S142). MAX_LOSS=22.00 (S150 mandate).
+        Correct result: 22.00 (DEFAULT_MAX_LOSS governs). Wrong (pre-fix) result: 22.39."""
         from src.risk.kill_switch import HARD_MAX_TRADE_USD, MAX_TRADE_PCT
         from src.risk.sizing import DEFAULT_MAX_LOSS_USD
-        bankroll = 208.0
+        bankroll = 280.0
         pct_max = round(bankroll * MAX_TRADE_PCT, 2) - 0.01
         # Pre-fix (wrong): trade_usd = min(HARD_CAP, pct_max) — MAX_LOSS bypassed
         wrong = min(HARD_MAX_TRADE_USD, max(0.01, pct_max))
@@ -232,7 +232,8 @@ class TestExistingBehaviorPreserved(unittest.TestCase):
                            msg="pre-fix formula must exceed DEFAULT_MAX_LOSS (i.e. the bug was real)")
         # Post-fix (correct): trade_usd = min(HARD_CAP, pct_max, MAX_LOSS)
         correct = min(HARD_MAX_TRADE_USD, max(0.01, pct_max), DEFAULT_MAX_LOSS_USD)
-        self.assertAlmostEqual(correct, 8.00, places=2, msg="post-fix formula should give 8.00 USD")
+        self.assertAlmostEqual(correct, DEFAULT_MAX_LOSS_USD, places=2,
+                               msg="post-fix formula should give DEFAULT_MAX_LOSS_USD")
 
 
 if __name__ == "__main__":

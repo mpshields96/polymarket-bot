@@ -220,7 +220,7 @@ class TestSizingSafety:
         from src.risk.sizing import calculate_size
         result = calculate_size(
             win_prob=0.75, payout_per_dollar=2.0,
-            edge_pct=0.20, bankroll_usd=100.0
+            edge_pct=0.20, bankroll_usd=99.0  # Stage 1: bankroll < 100.0
         )
         assert result is not None
         assert result.recommended_usd <= 5.00
