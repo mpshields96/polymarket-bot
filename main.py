@@ -1138,7 +1138,7 @@ async def crypto_daily_loop(
 # ── Daily sniper loop (KXBTCD near-expiry paper sniping) ──────────────
 
 _DAILY_SNIPER_POLL_SEC = 60   # 60s poll — needs to catch entry in 30-90min window
-_DAILY_SNIPER_LIVE_CAP_USD = 1.0  # Conservative live cap for initial ramp-up (CCA REQ-035)
+_DAILY_SNIPER_LIVE_CAP_USD = 5.0  # S150 ABSOLUTE FREEDOM: SPRT lambda=+3.833 at 28 bets — raised from 1.0. ~+6 USD/day.
 _ECONOMICS_SNIPER_POLL_SEC = 300  # 5-min poll — 48h window, no urgency
 _SPORTS_SNIPER_POLL_SEC = 180     # 3-min poll — games evolve fast, catch entries
 _SPORTS_SNIPER_PAPER_CAP_USD = 5.0  # Paper cap during calibration (30-bet gate)
