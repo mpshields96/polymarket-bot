@@ -61,10 +61,23 @@ LLM_MAX_TOKENS = 512
 # Categories to scan: series_ticker prefixes
 CATEGORY_SERIES = {
     "politics": [
-        # No specific series — scan broadly and filter by title keywords
+        # CCA REQ-17 response (S229 Update 74) — weekly/daily cadence, highest-value series
+        "KX538APPROVE",   # Weekly approval polling (FiveThirtyEight aggregator)
+        "KXAPRPOTUS",     # Weekly approval (second independent aggregator)
+        "KXEOWEEK",       # Weekly executive order count — objective resolution
+        "KXTRUMPACT",     # Daily/weekly executive actions — high-frequency signal
+        "KXNEWTARIFFS",   # Monthly tariff announcements — policy-driven edge
+        "KXTRUTHSOCIAL",  # Daily Truth Social post count — machine-verifiable
+        "KXFULLLIDBEFORE8PM",  # Daily press briefing timing — objective
     ],
     "economics": [
         "KXFEDDECISION", "KXCPI",
+    ],
+    "geopolitics": [
+        # CCA REQ-17 response (S229 Update 74) — high volume, systematic resolution
+        "KXUKRAINE",      # Ukraine conflict resolution — high volume
+        "KXKHAMENEIOUT",  # Iran leadership — 50M+ USD volume, episodic
+        "KXUSUNSCVETO",   # UN Security Council votes — objective resolution
     ],
 }
 
