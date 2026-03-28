@@ -4087,140 +4087,33 @@ async def main():
     # Signal frequency is low (~0 signals/week — HFTs price KXBTC15M same minute as BTC move)
     # but statistical edge is valid (66.7% accuracy, 13.5% edge). Bets fire when signal clears
     # threshold; daily loss limit is the primary risk governor.
-    trade_task = asyncio.create_task(
-        trading_loop(
-            kalshi=kalshi,
-            btc_feed=btc_feed,
-            strategy=strategy,
-            kill_switch=kill_switch,
-            db=db,
-            live_executor_enabled=False,  # S154: BANNED — KXBTC15M is a 15-min crypto market (PERMANENTLY BANNED)
-            live_confirmed=live_confirmed,
-            btc_series_ticker=btc_series_ticker,
-            loop_name="trading",
-            initial_delay_sec=0.0,
-            max_daily_bets=max_daily_bets_live,
-            slippage_ticks=paper_slippage_ticks,
-            fill_probability=paper_fill_probability,
-            trade_lock=_live_trade_lock,
-            btc_move_condition=_btc_move_condition,
-        ),
-        name="trading_loop",
-    )
+    # btc_lag: DISABLED S156 — KXBTC15M permanently banned from live, paper data serves no purpose
+    trade_task = asyncio.create_task(asyncio.sleep(0), name="trading_loop_disabled_15min_ban")
     # ETH lag: PAPER-ONLY — returned to paper 2026-03-01 (graduation criteria not met:
     # 0/30 paper trades completed before live promotion — process violation).
     # Re-promote to live only after: 30+ settled paper trades + Brier < 0.25.
     # See .planning/PRINCIPLES.md — graduation criteria are mandatory, not suggestions.
-    eth_lag_task = asyncio.create_task(
-        trading_loop(
-            kalshi=kalshi,
-            btc_feed=eth_feed,
-            strategy=eth_lag_strategy,
-            kill_switch=kill_switch,
-            db=db,
-            live_executor_enabled=False,
-            live_confirmed=live_confirmed,
-            btc_series_ticker=eth_series_ticker,
-            loop_name="eth_trading",
-            initial_delay_sec=7.0,
-            max_daily_bets=max_daily_bets_paper,
-            slippage_ticks=paper_slippage_ticks,
-            fill_probability=paper_fill_probability,
-            trade_lock=None,
-            btc_move_condition=_btc_move_condition,
-        ),
-        name="eth_lag_loop",
-    )
+    # eth_lag: DISABLED S156 — KXETH15M permanently banned from live, paper data serves no purpose
+    eth_lag_task = asyncio.create_task(asyncio.sleep(0), name="eth_lag_loop_disabled_15min_ban")
     # BTC drift: STAGE 1 LIVE (promoted Session 41: 42/30 bets, Brier 0.249 — graduated).
     # calibration_max_usd removed: Kelly + HARD_MAX_TRADE_USD ($5) now governs bet size.
     # Daily loss limit is the primary risk governor.
     _DRIFT_CALIBRATION_CAP_USD = 0.01   # still used by XRP drift (still in calibration phase). SOL promoted to Stage 1 (S48).
-    drift_task = asyncio.create_task(
-        trading_loop(
-            kalshi=kalshi,
-            btc_feed=btc_feed,
-            strategy=drift_strategy,
-            kill_switch=kill_switch,
-            db=db,
-            live_executor_enabled=False,  # S154: BANNED — KXBTC15M is a 15-min crypto market (PERMANENTLY BANNED)
-            live_confirmed=live_confirmed,
-            btc_series_ticker=btc_series_ticker,
-            loop_name="drift",
-            initial_delay_sec=15.0,
-            max_daily_bets=0,  # unlimited — daily loss limit governs
-            slippage_ticks=paper_slippage_ticks,
-            fill_probability=paper_fill_probability,
-            trade_lock=_live_trade_lock,
-            calibration_max_usd=_DRIFT_CALIBRATION_CAP_USD,  # S60: demoted to micro-live. 54 bets, 48% win rate, -11.12 USD. Losing real money.
-            # direction_filter: YES signals have 30% win rate (6/20, p=3.7%) vs NO at 61%
-            # (14/23). Upward BTC drift is already priced into Kalshi YES market by HFTs
-            # before our signal fires — the edge is illusory. Downward drift is slower to
-            # price in and retains real edge. Restrict to NO-only until YES edge recovers.
-            direction_filter="no",
-            btc_move_condition=_btc_move_condition,
-            maker_mode=True,  # S65: post_only=True, 30s expiration. Saves ~75% on fees (~5c/trade).
-        ),
-        name="drift_loop",
-    )
+    # btc_drift: DISABLED S156 — KXBTC15M permanently banned from live, paper data serves no purpose
+    drift_task = asyncio.create_task(asyncio.sleep(0), name="drift_loop_disabled_15min_ban")
     # ETH drift: STAGE 1 (graduated Session 44 — 30/30 live bets, Brier 0.255 < 0.30 threshold).
     # Kelly + $5 HARD_MAX governs bet size. calibration_max_usd removed.
     # Session 36 original: micro-live, 1 contract/bet (~$0.35-0.65) for data collection.
     # Stage 1 promotion: 30 live bets + Brier 0.255 confirmed by --graduation-status 2026-03-10.
-    eth_drift_task = asyncio.create_task(
-        trading_loop(
-            kalshi=kalshi,
-            btc_feed=eth_feed,
-            strategy=eth_drift_strategy,
-            kill_switch=kill_switch,
-            db=db,
-            live_executor_enabled=False,  # S154: BANNED — KXETH15M is a 15-min crypto market (PERMANENTLY BANNED)
-            live_confirmed=live_confirmed,
-            btc_series_ticker=eth_series_ticker,
-            loop_name="eth_drift",
-            initial_delay_sec=22.0,
-            max_daily_bets=0,  # unlimited — daily loss limit governs
-            slippage_ticks=paper_slippage_ticks,
-            fill_probability=paper_fill_probability,
-            trade_lock=_live_trade_lock,
-            calibration_max_usd=_DRIFT_CALIBRATION_CAP_USD,  # S60: demoted to micro-live. 87 bets, 49% win rate, -16.24 USD. Biggest P&L drag.
-            btc_move_condition=_btc_move_condition,
-            # S53: direction_filter="yes" — YES side: 36 bets 61.1% wins +0.711 USD/bet EV
-            # NO side: 31 bets 48.4% wins -0.212 USD/bet EV. Z=1.04, p=0.148. 67 bets total
-            # (≥30 per side — meets PRINCIPLES.md threshold). Same pattern as btc/sol reversed.
-            # Estimated +2.54 USD/day. Re-evaluate at 30+ YES-only settled bets.
-            direction_filter="yes",
-            maker_mode=True,  # S65: post_only=True, 30s expiration. Saves ~75% on fees (~5c/trade).
-        ),
-        name="eth_drift_loop",
-    )
+    # eth_drift: DISABLED S156 — KXETH15M permanently banned from live, paper data serves no purpose
+    eth_drift_task = asyncio.create_task(asyncio.sleep(0), name="eth_drift_loop_disabled_15min_ban")
     # SOL drift: STAGE 1 — promoted S48 per Matthew explicit instruction.
     # Brier 0.181 (best signal across all strategies, well below 0.25 gate).
     # 16/30 live bets at promotion — Matthew explicitly authorized Stage 1 before 30-bet gate.
     # calibration_max_usd removed: Kelly + HARD_MAX_TRADE_USD ($5) now governs bet size.
     # KXSOL15M series, stagger 29s.
-    sol_drift_task = asyncio.create_task(
-        trading_loop(
-            kalshi=kalshi,
-            btc_feed=sol_feed,
-            strategy=sol_drift_strategy,
-            kill_switch=kill_switch,
-            db=db,
-            live_executor_enabled=False,  # S154: BANNED — KXSOL15M is a 15-min crypto market (PERMANENTLY BANNED)
-            live_confirmed=live_confirmed,
-            btc_series_ticker="KXSOL15M",
-            loop_name="sol_drift",
-            initial_delay_sec=29.0,
-            max_daily_bets=0,  # unlimited — daily loss limit governs
-            slippage_ticks=paper_slippage_ticks,
-            fill_probability=paper_fill_probability,
-            trade_lock=_live_trade_lock,
-            calibration_max_usd=3.0,   # S141: 50-bet re-enable trial, CCA REQ-044. Cap at 3 USD/bet. Remove after 50 settled live bets.
-            btc_move_condition=_btc_move_condition,
-            direction_filter="no",  # S51: NO wins 11/11 (100%), YES only 63.6% — filter YES bets
-            maker_mode=True,  # S98: post_only=True, 30s expiration. Same as btc/eth drift. Saves ~75% on fees.
-        ),
-        name="sol_drift_loop",
-    )
+    # sol_drift: DISABLED S156 — KXSOL15M permanently banned from live, paper data serves no purpose
+    sol_drift_task = asyncio.create_task(asyncio.sleep(0), name="sol_drift_loop_disabled_15min_ban")
     # XRP drift permanently removed (S141 — Matthew directive: XRP banned forever).
     # xrp_drift_task replaced with a no-op placeholder to preserve gather() structure.
     xrp_drift_task = asyncio.create_task(asyncio.sleep(0), name="xrp_drift_loop_disabled")
@@ -4228,25 +4121,8 @@ async def main():
     # Payoff structure: bet YES@52-65c or NO@35-44c. Win ~= Lose (symmetric). Different from expiry_sniper.
     # Signal: order book depth asymmetry (>65% YES depth → buy YES, <35% → buy NO).
     # Asymmetric filter from S90: YES@52-65c (63% WR), NO@35-44c (50% WR). p=0.011.
-    btc_imbalance_task = asyncio.create_task(
-        trading_loop(
-            kalshi=kalshi,
-            btc_feed=btc_feed,
-            strategy=btc_imbalance_strategy,
-            kill_switch=kill_switch,
-            db=db,
-            live_executor_enabled=False,  # S154: BANNED — KXBTC15M is a 15-min crypto market (PERMANENTLY BANNED from live)
-            live_confirmed=live_confirmed,
-            btc_series_ticker=btc_series_ticker,
-            loop_name="btc_imbalance",
-            initial_delay_sec=36.0,
-            max_daily_bets=max_daily_bets_paper,
-            slippage_ticks=paper_slippage_ticks,
-            fill_probability=paper_fill_probability,
-            btc_move_condition=_btc_move_condition,
-        ),
-        name="btc_imbalance_loop",
-    )
+    # btc_imbalance: DISABLED S156 — KXBTC15M permanently banned from live, paper data serves no purpose
+    btc_imbalance_task = asyncio.create_task(asyncio.sleep(0), name="btc_imbalance_loop_disabled_15min_ban")
     # ETH orderbook imbalance: STAGE 1 LIVE — promoted Session 41 (41/30 bets — graduated).
     # Signal: orderbook depth ratio >0.65 (YES-heavy) or <0.35 (NO-heavy) = directional edge.
     # Brier n/a — imbalance doesn't produce win_prob, but 41 paper bets at 35-65¢ guard.
@@ -4256,26 +4132,8 @@ async def main():
     # Brier 0.340 at 15 live bets — 27% systematic calibration error confirmed.
     # Model predicts 67% win, actual is ~40%. Disabled live until model is recalibrated.
     # Watchdog originally set for bet 22 but evidence conclusive at bet 15.
-    eth_imbalance_task = asyncio.create_task(
-        trading_loop(
-            kalshi=kalshi,
-            btc_feed=eth_feed,
-            strategy=eth_imbalance_strategy,
-            kill_switch=kill_switch,
-            db=db,
-            live_executor_enabled=False,  # DISABLED — Brier 0.340 (Session 47)
-            live_confirmed=live_confirmed,
-            btc_series_ticker=eth_series_ticker,
-            loop_name="eth_imbalance",
-            initial_delay_sec=36.0,
-            max_daily_bets=max_daily_bets_live,
-            slippage_ticks=paper_slippage_ticks,
-            fill_probability=paper_fill_probability,
-            trade_lock=_live_trade_lock,
-            btc_move_condition=_btc_move_condition,
-        ),
-        name="eth_imbalance_loop",
-    )
+    # eth_imbalance: DISABLED S156 — KXETH15M permanently banned from live, paper data serves no purpose
+    eth_imbalance_task = asyncio.create_task(asyncio.sleep(0), name="eth_imbalance_loop_disabled_15min_ban")
     # Weather forecast: paper-only, polls every 5 min, stagger 43s
     weather_series = config.get("strategy", {}).get("weather", {}).get("series_ticker", "HIGHNY")
     weather_task = asyncio.create_task(
@@ -4343,24 +4201,8 @@ async def main():
         name="unemployment_loop",
     )
     # SOL lag: paper-only, KXSOL15M series, stagger 65s
-    sol_task = asyncio.create_task(
-        trading_loop(
-            kalshi=kalshi,
-            btc_feed=sol_feed,
-            strategy=sol_lag_strategy,
-            kill_switch=kill_switch,
-            db=db,
-            live_executor_enabled=False,
-            live_confirmed=False,
-            btc_series_ticker="KXSOL15M",
-            loop_name="sol_lag",
-            initial_delay_sec=65.0,
-            max_daily_bets=max_daily_bets_paper,
-            slippage_ticks=paper_slippage_ticks,
-            fill_probability=paper_fill_probability,
-        ),
-        name="sol_lag_loop",
-    )
+    # sol_lag: DISABLED S156 — KXSOL15M permanently banned from live, paper data serves no purpose
+    sol_task = asyncio.create_task(asyncio.sleep(0), name="sol_lag_loop_disabled_15min_ban")
     settle_task = asyncio.create_task(
         settlement_loop(kalshi=kalshi, db=db, kill_switch=kill_switch,
                         drift_model=_drift_model, calibrator=_calibrator),
@@ -4468,21 +4310,8 @@ async def main():
     # Academic basis: Becker (2026) — makers earn +1.12% structural vs takers -1.12%.
     # Paper phase: 15 fills needed (lowered from 30 S143 — at 1-2/day, 30-fill = 12+ days).
     # CCA REQ-039 implementation. Live gate: fill_rate >= 40% AND WR within expiry_sniper CI.
-    maker_sniper_task = asyncio.create_task(
-        maker_sniper_loop(
-            kalshi=kalshi,
-            btc_feed=btc_feed,
-            eth_feed=eth_feed,
-            sol_feed=sol_feed,
-            xrp_feed=xrp_feed,
-            db=db,
-            kill_switch=kill_switch,
-            initial_delay_sec=135.0,   # stagger: between daily_sniper (120s) and economics_sniper (180s)
-            max_daily_bets=5,
-        ),
-        name="maker_sniper_loop",
-    )
-    logger.info("Maker sniper loop started (paper-only, 90-94c FLB, 1c offset, 30-fill gate)")
+    # maker_sniper: DISABLED S156 — targets KXBTC/ETH/SOL/XRP15M, permanently banned from live
+    maker_sniper_task = asyncio.create_task(asyncio.sleep(0), name="maker_sniper_loop_disabled_15min_ban")
 
     # ── Copy-trade loop (Polymarket PRIMARY strategy) ─────────────────
     # Paper-only. Polls top whale wallets every 5 min, applies decoy filters,
@@ -4512,23 +4341,8 @@ async def main():
     # Academic basis: favorite-longshot bias — heavy favorites close >90% of time.
     # Source: processoverprofit.blog V7 (clean rebuild — NOT their NightShark/JS code).
     # Live path uses price_guard_min=1, price_guard_max=99 (operates at 87-99c).
-    expiry_sniper_task = asyncio.create_task(
-        expiry_sniper_loop(
-            kalshi=kalshi,
-            btc_feed=btc_feed,
-            eth_feed=eth_feed,
-            sol_feed=sol_feed,
-            xrp_feed=xrp_feed,
-            db=db,
-            kill_switch=kill_switch,
-            initial_delay_sec=110.0,   # stagger after copy_trade (80s) + sports_futures (95s)
-            live_executor_enabled=False,  # S154: DISABLED — payoff asymmetry (-15 USD losses vs +1.50 USD wins) causes consistent daily losses. Switching to orderbook_imbalance (balanced 52c payoff structure).
-            live_confirmed=live_confirmed,
-            trade_lock=_live_trade_lock,
-            max_daily_bets=0,
-        ),
-        name="expiry_sniper_loop",
-    )
+    # expiry_sniper: DISABLED S156 — KXBTC/ETH/SOL/XRP15M permanently banned from live, paper data serves no purpose
+    expiry_sniper_task = asyncio.create_task(asyncio.sleep(0), name="expiry_sniper_loop_disabled_15min_ban")
     _sniper_mode = "LIVE" if (live_mode and live_confirmed) else "paper-only"
     logger.info("Expiry sniper loop started (%s BTC/ETH/SOL/XRP 15M, 90c+ threshold, 10s poll, NO daily cap)", _sniper_mode)
 
