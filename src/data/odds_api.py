@@ -221,6 +221,9 @@ class SportsFeed:
     async def get_nhl_games(self) -> List[OddsGame]:
         return await self._fetch("icehockey_nhl")
 
+    async def get_mlb_games(self) -> List[OddsGame]:
+        return await self._fetch("baseball_mlb")
+
     # ── Championship futures ─────────────────────────────────────────
 
     async def get_nba_championship(self) -> List[ChampionshipOdds]:

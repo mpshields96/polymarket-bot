@@ -107,9 +107,101 @@ _NHL_CITY_MAP = {
 }
 
 
+_MLB_CITY_MAP = {
+    "Arizona": "Arizona Diamondbacks",
+    "Atlanta": "Atlanta Braves",
+    "Baltimore": "Baltimore Orioles",
+    "Boston": "Boston Red Sox",
+    "Chicago C": "Chicago Cubs",
+    "Chicago S": "Chicago White Sox",
+    "Cincinnati": "Cincinnati Reds",
+    "Cleveland": "Cleveland Guardians",
+    "Colorado": "Colorado Rockies",
+    "Detroit": "Detroit Tigers",
+    "Houston": "Houston Astros",
+    "Kansas City": "Kansas City Royals",
+    "Los Angeles D": "Los Angeles Dodgers",
+    "Los Angeles A": "Los Angeles Angels",
+    "Miami": "Miami Marlins",
+    "Milwaukee": "Milwaukee Brewers",
+    "Minnesota": "Minnesota Twins",
+    "New York M": "New York Mets",
+    "New York Y": "New York Yankees",
+    "Oakland": "Oakland Athletics",
+    "Philadelphia": "Philadelphia Phillies",
+    "Pittsburgh": "Pittsburgh Pirates",
+    "San Diego": "San Diego Padres",
+    "San Francisco": "San Francisco Giants",
+    "Seattle": "Seattle Mariners",
+    "St. Louis": "St. Louis Cardinals",
+    "Tampa Bay": "Tampa Bay Rays",
+    "Texas": "Texas Rangers",
+    "Toronto": "Toronto Blue Jays",
+    "Washington": "Washington Nationals",
+}
+
+# Reverse maps: Kalshi ticker codes (e.g. "HOU") → city key in the city maps above
+_NBA_CODE_TO_CITY = {
+    "ATL": "Atlanta", "BOS": "Boston", "BKN": "Brooklyn",
+    "CHA": "Charlotte", "CHI": "Chicago", "CLE": "Cleveland",
+    "DAL": "Dallas", "DEN": "Denver", "DET": "Detroit",
+    "GSW": "Golden State", "HOU": "Houston", "IND": "Indiana",
+    "LAC": "Los Angeles C", "LAL": "Los Angeles L",
+    "MEM": "Memphis", "MIA": "Miami", "MIL": "Milwaukee",
+    "MIN": "Minnesota", "NOP": "New Orleans", "NYK": "New York",
+    "OKC": "Oklahoma City", "ORL": "Orlando", "PHI": "Philadelphia",
+    "PHX": "Phoenix", "POR": "Portland", "SAC": "Sacramento",
+    "SAS": "San Antonio", "TOR": "Toronto", "UTA": "Utah",
+    "WAS": "Washington",
+}
+
+_NHL_CODE_TO_CITY = {
+    "ANA": "Anaheim", "BOS": "Boston", "BUF": "Buffalo",
+    "CGY": "Calgary", "CAR": "Carolina", "CHI": "Chicago",
+    "COL": "Colorado", "CBJ": "Columbus", "DAL": "Dallas",
+    "DET": "Detroit", "EDM": "Edmonton", "FLA": "Florida",
+    "LAK": "Los Angeles", "MIN": "Minnesota", "MTL": "Montreal",
+    "NSH": "Nashville", "NJD": "New Jersey", "NYI": "New York I",
+    "NYR": "New York R", "OTT": "Ottawa", "PHI": "Philadelphia",
+    "PIT": "Pittsburgh", "SJS": "San Jose", "SEA": "Seattle",
+    "STL": "St. Louis", "TBL": "Tampa Bay", "TOR": "Toronto",
+    "UTA": "Utah", "VAN": "Vancouver", "VGK": "Vegas",
+    "WSH": "Washington", "WPG": "Winnipeg",
+}
+
+_MLB_CODE_TO_CITY = {
+    "ARI": "Arizona", "ATL": "Atlanta", "BAL": "Baltimore",
+    "BOS": "Boston", "CHC": "Chicago C", "CWS": "Chicago S",
+    "CIN": "Cincinnati", "CLE": "Cleveland", "COL": "Colorado",
+    "DET": "Detroit", "HOU": "Houston", "KCR": "Kansas City",
+    "LAD": "Los Angeles D", "LAA": "Los Angeles A",
+    "MIA": "Miami", "MIL": "Milwaukee", "MIN": "Minnesota",
+    "NYM": "New York M", "NYY": "New York Y", "OAK": "Oakland",
+    "PHI": "Philadelphia", "PIT": "Pittsburgh", "SDP": "San Diego",
+    "SFG": "San Francisco", "SEA": "Seattle", "STL": "St. Louis",
+    "TBR": "Tampa Bay", "TEX": "Texas", "TOR": "Toronto",
+    "WSN": "Washington",
+}
+
+
+def _code_to_city(code: str, sport: str) -> Optional[str]:
+    """Convert a Kalshi ticker team code (e.g. 'HOU') to city name (e.g. 'Houston')."""
+    if sport == "basketball_nba":
+        return _NBA_CODE_TO_CITY.get(code)
+    elif sport == "icehockey_nhl":
+        return _NHL_CODE_TO_CITY.get(code)
+    else:  # baseball_mlb
+        return _MLB_CODE_TO_CITY.get(code)
+
+
 def _resolve_team(kalshi_name: str, sport: str) -> Optional[str]:
     """Map Kalshi city/short name → sports feed full team name."""
-    mapping = _NBA_CITY_MAP if sport == "basketball_nba" else _NHL_CITY_MAP
+    if sport == "basketball_nba":
+        mapping = _NBA_CITY_MAP
+    elif sport == "icehockey_nhl":
+        mapping = _NHL_CITY_MAP
+    else:  # baseball_mlb
+        mapping = _MLB_CITY_MAP
     # Exact match first
     if kalshi_name in mapping:
         return mapping[kalshi_name]

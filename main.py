@@ -2046,6 +2046,296 @@ def _announce_live_bet(result: dict, strategy_name: str) -> None:
         pass  # notification is best-effort; never block the trading loop
 
 
+# ── Kalshi sports game-winner bookmaker arb loop ─────────────────────
+
+_SPORTS_GAME_POLL_SEC = 300         # 5-min poll — games added throughout the day
+_SPORTS_GAME_LIVE_CAP_USD = 10.0    # Conservative live cap (new strategy ramp-up)
+_SPORTS_GAME_PAPER_CAP_USD = 5.0    # Paper cap
+
+
+async def sports_game_loop(
+    kalshi,
+    db,
+    kill_switch,
+    initial_delay_sec: float = 90.0,
+    max_daily_bets: int = 8,
+    live_executor_enabled: bool = False,
+    live_confirmed: bool = False,
+    trade_lock: Optional[asyncio.Lock] = None,
+    paper_slippage_ticks: int = 1,
+    paper_fill_probability: float = 1.0,
+):
+    """
+    Pre-game NBA/NHL/MLB game-winner bookmaker arbitrage loop.
+
+    Compares Kalshi KXNBAGAME/KXNHLGAME/KXMLBGAME prices to sharp bookmaker
+    consensus (Pinnacle/DraftKings/FanDuel). Bets when Kalshi misprices a team
+    by >5% vs sharp consensus.
+
+    COMPLETELY DIFFERENT FROM 15-MIN CRYPTO (WHICH IS PERMANENTLY BANNED):
+    - Pre-game only — not in-game, not 15-minute direction markets
+    - Balanced prices: 15-80c (not 90c+, no FLB payoff asymmetry)
+    - Symmetric payoffs: risk ~= reward
+    - Signal: external consensus (bookmaker line) vs Kalshi price
+    - Edge: Kalshi retail crowd overweights favorites, underprices underdogs
+    - Markets: KXNBAGAME, KXNHLGAME, KXMLBGAME (game-winner binary)
+
+    Series: KXNBAGAME, KXNHLGAME, KXMLBGAME
+    Poll: every 5 minutes (games added/removed throughout day)
+    Price range: 15-80c (balanced payoff structure, not near-certainty)
+    Live cap: _SPORTS_GAME_LIVE_CAP_USD per bet
+    """
+    from src.data.odds_api import SportsFeed
+    from src.strategies.sports_game import SportsGameStrategy, _code_to_city
+    from src.strategies.sports_sniper import parse_kalshi_game_ticker
+    from src.execution.paper import PaperExecutor
+    import contextlib
+
+    _SPORT_SERIES = {
+        "basketball_nba": "KXNBAGAME",
+        "icehockey_nhl": "KXNHLGAME",
+        "baseball_mlb": "KXMLBGAME",
+    }
+    _SPORT_LABELS = {
+        "basketball_nba": "NBA",
+        "icehockey_nhl": "NHL",
+        "baseball_mlb": "MLB",
+    }
+    _PRICE_MIN = 15   # cents — skip near-zero prices
+    _PRICE_MAX = 80   # cents — skip near-certainty (that's the banned 90c+ territory)
+
+    try:
+        feed = SportsFeed.load_from_env()
+    except RuntimeError as exc:
+        logger.warning("[sports_game] %s — loop disabled", exc)
+        return
+
+    strategy_map = {
+        "basketball_nba": SportsGameStrategy(
+            name="sports_game_nba_v1", sport="basketball_nba",
+            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=2, min_volume=100,
+        ),
+        "icehockey_nhl": SportsGameStrategy(
+            name="sports_game_nhl_v1", sport="icehockey_nhl",
+            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=2, min_volume=100,
+        ),
+        "baseball_mlb": SportsGameStrategy(
+            name="sports_game_mlb_v1", sport="baseball_mlb",
+            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=2, min_volume=100,
+        ),
+    }
+
+    paper_execs = {
+        sport: PaperExecutor(
+            db=db,
+            strategy_name=strategy_map[sport].name,
+            slippage_ticks=paper_slippage_ticks,
+            fill_probability=paper_fill_probability,
+        )
+        for sport in strategy_map
+    }
+
+    is_paper_mode = not (live_executor_enabled and live_confirmed)
+    _mode_label = "paper" if is_paper_mode else "LIVE"
+    logger.info(
+        "[sports_game] Started — %s NBA/NHL/MLB pre-game bookmaker arb (min_edge=5%%, prices=%d-%dc)",
+        _mode_label, _PRICE_MIN, _PRICE_MAX,
+    )
+
+    if initial_delay_sec > 0:
+        await asyncio.sleep(initial_delay_sec)
+
+    _bet_tickers_today: set = set()
+    _last_date = None
+
+    while True:
+        try:
+            if kill_switch.is_hard_stopped:
+                logger.debug("[sports_game] Hard stop active — skipping")
+                await asyncio.sleep(_SPORTS_GAME_POLL_SEC)
+                continue
+
+            # Reset daily dedup at midnight UTC
+            _today_utc = datetime.now(timezone.utc).date()
+            if _today_utc != _last_date:
+                _bet_tickers_today.clear()
+                _last_date = _today_utc
+
+            # Daily cap check across all three sports
+            _total_today = sum(
+                db.count_trades_today(strategy=strategy_map[sp].name, is_paper=is_paper_mode)
+                for sp in strategy_map
+            )
+            if _total_today >= max_daily_bets:
+                logger.info("[sports_game] Daily %s cap (%d/%d) reached",
+                            _mode_label, _total_today, max_daily_bets)
+                await asyncio.sleep(_SPORTS_GAME_POLL_SEC)
+                continue
+
+            # Fetch bookmaker odds (15-min cache — low credit burn)
+            nba_games = await feed.get_nba_games()
+            nhl_games = await feed.get_nhl_games()
+            mlb_games = await feed.get_mlb_games()
+            odds_by_sport = {
+                "basketball_nba": nba_games,
+                "icehockey_nhl": nhl_games,
+                "baseball_mlb": mlb_games,
+            }
+
+            logger.debug("[sports_game] Odds: %d NBA, %d NHL, %d MLB | quota: %s",
+                         len(nba_games), len(nhl_games), len(mlb_games), feed.quota_status())
+
+            # Scan each sport's open Kalshi markets
+            for sport_key, strategy in strategy_map.items():
+                games = odds_by_sport[sport_key]
+                if not games:
+                    logger.debug("[sports_game] No %s odds — skip", _SPORT_LABELS[sport_key])
+                    continue
+
+                series = _SPORT_SERIES[sport_key]
+                try:
+                    markets = await kalshi.get_markets(
+                        series_ticker=series, status="open", limit=200
+                    )
+                except Exception as e:
+                    logger.warning("[sports_game] %s market fetch failed: %s", series, e)
+                    continue
+
+                if not markets:
+                    logger.debug("[sports_game] No open %s markets", series)
+                    continue
+
+                paper_exec = paper_execs[sport_key]
+                current_bankroll = db.latest_bankroll() or 50.0
+
+                for market in markets:
+                    ticker = market.ticker
+                    if ticker in _bet_tickers_today:
+                        continue
+
+                    # Price range gate: 15-80c only (NOT the banned 90c+ near-certainty range)
+                    yes_p = market.yes_price or 0
+                    if yes_p < _PRICE_MIN or yes_p > _PRICE_MAX:
+                        continue
+
+                    # Volume gate
+                    if (market.volume or 0) < 100:
+                        continue
+
+                    # Dedup: skip if already have open position
+                    if db.has_open_position(ticker=ticker, is_paper=is_paper_mode):
+                        continue
+
+                    # Parse ticker to get YES-side city name
+                    parsed = parse_kalshi_game_ticker(ticker)
+                    if not parsed:
+                        continue
+                    yes_city = _code_to_city(parsed["team"], sport_key)
+                    if not yes_city:
+                        logger.debug("[sports_game] Unknown code %s in %s", parsed["team"], ticker)
+                        continue
+
+                    # Generate signal (strategy handles team matching + edge calc)
+                    signal = strategy.generate_signal(
+                        market=market,
+                        odds_games=games,
+                        yes_side_team=yes_city,
+                    )
+                    if signal is None:
+                        continue
+
+                    if not is_paper_mode:
+                        # ═══ LIVE PATH ═══════════════════════════════════════
+                        _live_price = market.yes_price if signal.side == "yes" else market.no_price
+                        _MAX_SLIP = 4  # sports markets can gap 3-4c between polls
+                        if _live_price < signal.price_cents - _MAX_SLIP:
+                            logger.warning("[sports_game] %s: price slipped %dc — skip",
+                                           ticker, signal.price_cents - _live_price)
+                            continue
+
+                        try:
+                            orderbook = await kalshi.get_orderbook(ticker)
+                        except Exception as ob_exc:
+                            logger.warning("[sports_game] Orderbook fetch failed: %s", ob_exc)
+                            continue
+
+                        from src.risk.kill_switch import MAX_TRADE_PCT as _MAX_PCT
+                        _pct_max = round(current_bankroll * _MAX_PCT, 2) - 0.01
+                        trade_usd = min(_SPORTS_GAME_LIVE_CAP_USD, max(0.01, _pct_max))
+
+                        _lock_ctx = trade_lock if trade_lock is not None else contextlib.nullcontext()
+                        async with _lock_ctx:
+                            ok, block_reason = kill_switch.check_order_allowed(
+                                trade_usd=trade_usd,
+                                current_bankroll_usd=current_bankroll,
+                                minutes_remaining=None,
+                            )
+                            if not ok:
+                                logger.info("[sports_game] Kill switch blocked: %s", block_reason)
+                                continue
+
+                            from src.execution import live as live_mod
+                            result = await live_mod.execute(
+                                signal=signal,
+                                market=market,
+                                orderbook=orderbook,
+                                trade_usd=trade_usd,
+                                kalshi=kalshi,
+                                db=db,
+                                live_confirmed=live_confirmed,
+                                strategy_name=strategy.name,
+                                price_guard_min=_PRICE_MIN,
+                                price_guard_max=_PRICE_MAX,
+                                max_slippage_cents=_MAX_SLIP,
+                            )
+                            if result:
+                                kill_switch.record_trade()
+                                _bet_tickers_today.add(ticker)
+                                logger.info(
+                                    "[sports_game] LIVE BET: %s %s@%dc | edge=%.1f%% | %s | %.2f USD",
+                                    ticker, signal.side.upper(), signal.price_cents,
+                                    signal.edge_pct * 100, signal.reason, trade_usd,
+                                )
+                                _announce_live_bet(
+                                    strategy_name=strategy.name,
+                                    ticker=ticker,
+                                    side=signal.side,
+                                    price_cents=signal.price_cents,
+                                    trade_usd=trade_usd,
+                                )
+                    else:
+                        # ═══ PAPER PATH ════════════════════════════════════
+                        ok, block_reason = kill_switch.check_paper_order_allowed(
+                            trade_usd=_SPORTS_GAME_PAPER_CAP_USD,
+                            current_bankroll_usd=current_bankroll,
+                        )
+                        if not ok:
+                            logger.info("[sports_game] Kill switch blocked paper: %s", block_reason)
+                            continue
+
+                        result = paper_exec.execute(
+                            ticker=signal.ticker,
+                            side=signal.side,
+                            size_usd=_SPORTS_GAME_PAPER_CAP_USD,
+                            price_cents=signal.price_cents,
+                        )
+                        if result:
+                            _bet_tickers_today.add(ticker)
+                            logger.info(
+                                "[sports_game] PAPER: %s %s@%dc | edge=%.1f%% | %s",
+                                ticker, signal.side.upper(), signal.price_cents,
+                                signal.edge_pct * 100, signal.reason,
+                            )
+
+        except asyncio.CancelledError:
+            logger.info("[sports_game] Loop cancelled — shutting down")
+            return
+        except Exception as e:
+            logger.error("[sports_game] Unexpected error: %s", e, exc_info=True)
+
+        await asyncio.sleep(_SPORTS_GAME_POLL_SEC)
+
+
 # ── Polymarket sports-futures mispricing loop ─────────────────────────
 
 async def sports_futures_loop(
@@ -3775,7 +4065,7 @@ async def main():
             strategy=strategy,
             kill_switch=kill_switch,
             db=db,
-            live_executor_enabled=live_mode,
+            live_executor_enabled=False,  # S154: BANNED — KXBTC15M is a 15-min crypto market (PERMANENTLY BANNED)
             live_confirmed=live_confirmed,
             btc_series_ticker=btc_series_ticker,
             loop_name="trading",
@@ -3823,7 +4113,7 @@ async def main():
             strategy=drift_strategy,
             kill_switch=kill_switch,
             db=db,
-            live_executor_enabled=live_mode,
+            live_executor_enabled=False,  # S154: BANNED — KXBTC15M is a 15-min crypto market (PERMANENTLY BANNED)
             live_confirmed=live_confirmed,
             btc_series_ticker=btc_series_ticker,
             loop_name="drift",
@@ -3854,7 +4144,7 @@ async def main():
             strategy=eth_drift_strategy,
             kill_switch=kill_switch,
             db=db,
-            live_executor_enabled=live_mode,
+            live_executor_enabled=False,  # S154: BANNED — KXETH15M is a 15-min crypto market (PERMANENTLY BANNED)
             live_confirmed=live_confirmed,
             btc_series_ticker=eth_series_ticker,
             loop_name="eth_drift",
@@ -3886,7 +4176,7 @@ async def main():
             strategy=sol_drift_strategy,
             kill_switch=kill_switch,
             db=db,
-            live_executor_enabled=live_mode,
+            live_executor_enabled=False,  # S154: BANNED — KXSOL15M is a 15-min crypto market (PERMANENTLY BANNED)
             live_confirmed=live_confirmed,
             btc_series_ticker="KXSOL15M",
             loop_name="sol_drift",
@@ -3916,7 +4206,7 @@ async def main():
             strategy=btc_imbalance_strategy,
             kill_switch=kill_switch,
             db=db,
-            live_executor_enabled=live_mode,  # S154: ENABLED LIVE
+            live_executor_enabled=False,  # S154: BANNED — KXBTC15M is a 15-min crypto market (PERMANENTLY BANNED from live)
             live_confirmed=live_confirmed,
             btc_series_ticker=btc_series_ticker,
             loop_name="btc_imbalance",
@@ -4213,6 +4503,28 @@ async def main():
     _sniper_mode = "LIVE" if (live_mode and live_confirmed) else "paper-only"
     logger.info("Expiry sniper loop started (%s BTC/ETH/SOL/XRP 15M, 90c+ threshold, 10s poll, NO daily cap)", _sniper_mode)
 
+    # ── Sports game-winner bookmaker arb loop (Kalshi) ───────────────
+    # Pre-game NBA/NHL/MLB bookmaker arbitrage. Bets when Kalshi misprices a
+    # team vs sharp consensus. Price range 15-80c (NOT 90c+ — balanced payoffs).
+    # COMPLETELY DIFFERENT from 15-min crypto markets (which are PERMANENTLY BANNED).
+    sports_game_task = asyncio.create_task(
+        sports_game_loop(
+            kalshi=kalshi,
+            db=db,
+            kill_switch=kill_switch,
+            initial_delay_sec=90.0,
+            max_daily_bets=8,
+            live_executor_enabled=live_mode,
+            live_confirmed=live_confirmed,
+            trade_lock=_live_trade_lock,
+            paper_slippage_ticks=paper_slippage_ticks,
+            paper_fill_probability=paper_fill_probability,
+        ),
+        name="sports_game_loop",
+    )
+    _sg_mode = "LIVE" if (live_mode and live_confirmed) else "paper"
+    logger.info("Sports game loop started (%s NBA/NHL/MLB pre-game arb, 5-min poll, 15-80c)", _sg_mode)
+
     # ── Sports-futures mispricing loop (Polymarket supplemental) ─────
     # Paper-only. Compares PM championship futures to bookmaker consensus.
     # 30-min poll; 6-hr feed cache keeps credit usage ~30-90/month.
@@ -4263,6 +4575,7 @@ async def main():
         eth_daily_task.cancel()
         sol_daily_task.cancel()
         copy_task.cancel()
+        sports_game_task.cancel()
         sports_futures_task.cancel()
         expiry_sniper_task.cancel()
         daily_sniper_task.cancel()
@@ -4279,7 +4592,7 @@ async def main():
             xrp_drift_task, btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task,
             unemployment_task, sol_task, settle_task,
             btc_daily_task, eth_daily_task, sol_daily_task, copy_task,
-            sports_futures_task,
+            sports_game_task, sports_futures_task,
             expiry_sniper_task,
             daily_sniper_task,
             economics_sniper_task,
@@ -4293,7 +4606,7 @@ async def main():
             "xrp_drift", "btc_imbalance", "eth_imbalance", "weather", "fomc",
             "unemployment", "sol_lag", "settle",
             "btc_daily", "eth_daily", "sol_daily", "copy_trade",
-            "sports_futures", "expiry_sniper", "daily_sniper", "economics_sniper",
+            "sports_game", "sports_futures", "expiry_sniper", "daily_sniper", "economics_sniper",
             "maker_sniper", "sports_sniper",
         ]
         for _tname, _result in zip(_task_names, results):
@@ -4322,6 +4635,7 @@ async def main():
         eth_daily_task.cancel()
         sol_daily_task.cancel()
         copy_task.cancel()
+        sports_game_task.cancel()
         sports_futures_task.cancel()
         expiry_sniper_task.cancel()
         daily_sniper_task.cancel()
@@ -4333,7 +4647,7 @@ async def main():
             xrp_drift_task, btc_imbalance_task, eth_imbalance_task, weather_task, fomc_task,
             unemployment_task, sol_task, settle_task,
             btc_daily_task, eth_daily_task, sol_daily_task, copy_task,
-            sports_futures_task,
+            sports_game_task, sports_futures_task,
             expiry_sniper_task,
             daily_sniper_task,
             economics_sniper_task,
