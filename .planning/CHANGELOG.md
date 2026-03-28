@@ -1,5 +1,57 @@
 # POLYMARKET-BOT CHANGELOG
 
+## S158 WRAP — 2026-03-28 ~20:40 UTC (monitoring — mandate day 2 complete)
+
+### SELF-RATING: A-
+
+**WINS:**
+- MANDATE DAY 2 CRUSHED: +60.04 USD live today (42 settled, 100% WR). Target was 15-25 USD.
+- NHL triple win: OTT NO +12.65 + NYI YES +9.80 + FLA NO +8.93 = +31.38 USD windfall from sports_game_v1.
+- KXETHD paper sniper built: eth_daily_sniper_v1 active via parameterized daily_sniper_loop. Factory + 5 tests added. Paper-only, 5/day cap. Zero financial risk, identical FLB mechanism to BTC sniper.
+- CCA REQ-18 implemented: sports_game cap reduced 10→2 USD (calibration sizing — n<5 at time of reduction). Prevents single-bet wipeout of daily income during calibration phase.
+- daily_sniper SPRT confirmed: lambda=+15.205, edge strongly confirmed. 39 live settled today at 100% WR.
+- All-time P&L: +51.69 USD (was +19.71 at session start — +31.98 USD gained today).
+- 2022 tests passing.
+
+**LOSSES:**
+- False bot-dead alarm: ps aux grep pipe + new log file not-yet-existing caused && chain exit 1 — triggered unnecessary restart attempt. Bot was alive (PID 20023) the whole time. Fix: always use `kill -0 PID` for existence check, not grep-based approach.
+- bot.pid was deleted during the false-alarm restart sequence — had to manually restore with `echo 20023 > bot.pid`.
+- Test failure on first eth_sniper test: YES@92c + negative drift is inconsistent (strategy expects NO@92c for negative drift). Fixed by correcting test to use no_price=92. Added 5 min before catching.
+
+**GRADE: A-** — mandate crushed (+60 vs 15-25 target), two builds shipped (KXETHD sniper + REQ-18), all systems clean. Minor missteps (false alarm, test fix) prevent A.
+
+**ONE THING NEXT CHAT MUST DO DIFFERENTLY:** Use `kill -0 PID` not grep-pipe for bot liveness checks. The grep pipe with && will silently fail if the log file doesn't exist yet or is empty.
+
+**ONE THING THAT WOULD HAVE MADE MORE MONEY SOONER:** Sports_game was sized at 10 USD when REQ-18 arrived — the NHL bets were already open. Earlier cap reduction would have exposed less capital during calibration. REQ-18 was filed S157 but not implemented until S158.
+
+### STRATEGY ANALYZER INSIGHTS (scripts/strategy_analyzer.py --brief)
+- All-time: +51.69 USD (85% WR, 1567 bets)
+- Today: +60.04 USD (100% WR, 42 live settled bets)
+- Target: 73.31 USD to +125 USD milestone
+- SNIPER: Profitable buckets: 90-94c | Guarded: 95-98c (historical losses blocked)
+- btc_drift_v1: NEUTRAL — 80 live bets, 50% WR, -9.53 USD [DIRECTION: filter to 'no' side]
+- eth_drift_v1: UNDERPERFORMING — 46% WR, trend DECLINING. Paper-only correct.
+- sol_drift_v1: HEALTHY — 47 live bets, 66% WR, -15.68 USD (paper-only correct — 15-min ban)
+
+### GOAL PROGRESS
+- All-time live P&L: +51.69 USD
+- Distance to +125 USD milestone: 73.31 USD remaining
+- At ~30 USD/day (daily_sniper pace), ~2-3 days
+- At S158 pace (60 USD/day with sports_game outperformance), ~1-2 days
+- Highest-leverage action: keep daily_sniper running clean through Day 3 + Day 4; sports_game calibration to n=30 for cap raise
+
+### BUILDS
+1. CCA REQ-18: sports_game cap 10→2 USD. Commit 0c49994.
+2. KXETHD paper sniper: make_eth_daily_sniper() factory + parameterized daily_sniper_loop (series_ticker, loop_name, coin_feed params). 5 new tests. Commit 2ca2ca1.
+3. SESSION_HANDOFF + CHANGELOG mid-session updates. Commits 073f90c, cd591d2.
+
+### MANDATE STATUS
+- Day 1 (March 27): +6.56 USD (settled data)
+- Day 2 (March 28): +60.04 USD CRUSHED (42 live settled, 100% WR)
+- Days remaining: deadline April 3 (extended). 5 more days to prove SUSTAIN.
+
+---
+
 ## S157 WRAP — 2026-03-28 ~19:20 UTC (monitoring — mandate day 2 continued)
 
 ### SELF-RATING: B+
