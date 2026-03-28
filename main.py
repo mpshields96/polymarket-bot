@@ -4417,7 +4417,7 @@ async def main():
             db=db,
             kill_switch=kill_switch,
             initial_delay_sec=120.0,
-            max_daily_bets=10,
+            max_daily_bets=max_daily_bets_live,  # S156: wired to config (was hardcoded 10)
             live_executor_enabled=True,
             live_confirmed=live_confirmed,
             trade_lock=_live_trade_lock,
