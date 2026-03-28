@@ -9283,3 +9283,67 @@ WOULD HAVE MADE MORE MONEY EARLIER: Checking if any sports game slots were avail
 - Monthly target: 250 USD (self-sustaining for Claude Max20)
 - At 15-25 USD/day × 20 trading days: 300-500 USD/month achievable
 - Highest-leverage action: Daily sniper is the engine. Keep it running. Let compound time work.
+
+---
+
+## Session 158 (2026-03-28, S158 monitoring) — +32.0 USD session | All-time: +51.69 USD
+
+### Context
+- Day 2 of 5-day mandate (15-25 USD/day ACHIEVE AND SUSTAIN)
+- Bot running PID 50933 → session158.log
+- Starting P&L: +19.71 USD all-time
+
+### Key Events
+
+**ALL 3 NHL BETS WON — +31.38 USD windfall:**
+- KXNHLGAME-26MAR28OTTTB-OTT NO: +12.65 USD (Ottawa won)
+- KXNHLGAME-26MAR28FLANYI-NYI YES: +9.80 USD (NY Islanders won)
+- KXNHLGAME-26MAR28FLANYI-FLA NO: +8.93 USD (same game — double exposure, both won)
+- Day 2 total: +42.02 USD (2.8x the 15 USD mandate target)
+- WHY: Double exposure (FLA NO + NYI YES on same game) amplified win. Dedup now active.
+
+**Builds:**
+1. sports_game cap 10 USD → 2 USD (CCA REQ-18: n<5, insufficient calibration). Commit 0c49994.
+2. KXETHD paper sniper built and active. Commit 2ca2ca1:
+   - make_eth_daily_sniper() factory (eth_daily_sniper_v1 name)
+   - daily_sniper_loop parameterized (series_ticker, loop_name, coin_feed params)
+   - ETH session open: 2026.07 USD. Paper-only, 5/day max.
+   - 5 new tests (2022 total, all passing)
+3. SESSION_HANDOFF updated with all state.
+
+**Analytics:**
+- DRIFT ALERT: eth_drift_v1 (CUSUM S=15.0) — paper-only, already disabled. No action.
+- Auto-guards: 0 new guards (all watch buckets p > 0.2)
+- daily_sniper hit 30/30 daily cap at 20:26 UTC. Resets at midnight UTC.
+- SPRT lambda=+15.205 for daily_sniper — edge extremely confirmed.
+- Bankroll: 164.53 USD. Clean bets: 38/50 (12 more to HARD_MAX gate).
+
+### Graduation Status
+- daily_sniper_v1: LIVE, 30+ bets today, 97.7% WR all-time. SPRT lambda=+15.205.
+- eth_daily_sniper_v1: PAPER, 0 bets (just started). Calibration pending.
+- sports_game: n=5 settled (3W/2L). Cap reduced to 2 USD/bet.
+- All 15-min crypto: BANNED from live. Paper data accumulating.
+- HARD_MAX gate: 38/50 clean bets → 12 more to unlock 40 USD raise
+
+### Self-Rating: A-
+WINS:
+- Day 2 mandate CRUSHED: +42.02 USD (target was 15-25 USD)
+- All-time P&L: +51.69 USD (was +19.71 — gained +32 in one session)
+- KXETHD paper sniper built and deployed (gate was long overdue)
+- sports_game cap reduced (CCA REQ-18 implemented responsibly)
+- 0 frozen process events this session
+- 73.31 USD remaining to +125 USD milestone
+
+LOSSES:
+- False alarm on "bot dead" (ps aux grep issue) caused unnecessary restart
+- Double exposure (FLA/NYI) won but was a risk we shouldn't repeat (dedup now prevents)
+
+NEXT CHAT MUST: Monitor daily_sniper Day 3 (resets midnight UTC = 7pm CDT tonight).
+ETH paper sniper first bets expected tomorrow. sports_game calibration ongoing at 2 USD/bet.
+
+### Goal Progress
+- All-time P&L: +51.69 USD
+- Distance to +125 USD goal: 73.31 USD
+- At ~30 USD/day daily_sniper expected: ~2-3 more days to goal
+- Monthly target: 300-500 USD (15-25/day × 20 trading days)
+- Day 1: +6.56 USD | Day 2: +42.02 USD | Running 2-day average: +24.29 USD/day
