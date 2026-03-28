@@ -2165,6 +2165,7 @@ async def sports_game_loop(
         await asyncio.sleep(initial_delay_sec)
 
     _bet_tickers_today: set = set()
+    _bet_games_today: set = set()   # game-level dedup: prevents betting both sides of same game
     _last_date = None
 
     while True:
@@ -2178,7 +2179,15 @@ async def sports_game_loop(
             _today_utc = datetime.now(timezone.utc).date()
             if _today_utc != _last_date:
                 _bet_tickers_today.clear()
+                _bet_games_today.clear()
                 _last_date = _today_utc
+
+            # Rebuild game-level dedup from DB (survives restarts)
+            # e.g. KXNHLGAME-26MAR28FLANYI-NYI → game_key "KXNHLGAME-26MAR28FLANYI"
+            _open_tickers = db.open_live_tickers_for_strategy_prefix("sports_game", is_paper=is_paper_mode)
+            for _ot in _open_tickers:
+                _gk = "-".join(_ot.split("-")[:-1]) if _ot.count("-") >= 2 else _ot
+                _bet_games_today.add(_gk)
 
             # Daily cap check across all three sports
             _total_today = sum(
@@ -2278,6 +2287,12 @@ async def sports_game_loop(
                         logger.debug("[sports_game] Unknown code %s in %s", parsed["team"], ticker)
                         continue
 
+                    # Game-level dedup: skip if we already bet on either side of this game today
+                    _game_key = "-".join(ticker.split("-")[:-1]) if ticker.count("-") >= 2 else ticker
+                    if _game_key in _bet_games_today:
+                        logger.debug("[sports_game] Game already bet today — skip %s", ticker)
+                        continue
+
                     # Generate signal (strategy handles team matching + edge calc)
                     signal = strategy.generate_signal(
                         market=market,
@@ -2334,6 +2349,7 @@ async def sports_game_loop(
                             if result:
                                 kill_switch.record_trade()
                                 _bet_tickers_today.add(ticker)
+                                _bet_games_today.add(_game_key)
                                 logger.info(
                                     "[sports_game] LIVE BET: %s %s@%dc | edge=%.1f%% | %s | %.2f USD",
                                     ticker, signal.side.upper(), signal.price_cents,
@@ -2358,6 +2374,7 @@ async def sports_game_loop(
                         )
                         if result:
                             _bet_tickers_today.add(ticker)
+                            _bet_games_today.add(_game_key)
                             logger.info(
                                 "[sports_game] PAPER: %s %s@%dc | edge=%.1f%% | %s",
                                 ticker, signal.side.upper(), signal.price_cents,

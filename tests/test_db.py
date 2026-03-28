@@ -927,3 +927,56 @@ class TestPostGuardCleanBets:
         assert db.post_guard_clean_bets(max_loss_cents=750) == 2
         # custom (500): -600 exceeds 500 → resets → count = 1
         assert db.post_guard_clean_bets(max_loss_cents=500) == 1
+
+
+# ── open_live_tickers_for_strategy_prefix ─────────────────────────────────
+
+class TestOpenLiveTickersForStrategyPrefix:
+    def test_returns_open_tickers_for_prefix(self, db):
+        """Returns tickers with unsettled bets matching strategy prefix."""
+        db.save_trade(
+            ticker="KXNHLGAME-26MAR28FLANYI-NYI", side="yes", action="buy",
+            price_cents=52, count=100, cost_usd=9.80,
+            strategy="sports_game_nhl_v1", edge_pct=0.12, win_prob=0.63, is_paper=False,
+        )
+        db.save_trade(
+            ticker="KXNHLGAME-26MAR28FLANYI-FLA", side="no", action="buy",
+            price_cents=48, count=100, cost_usd=9.69,
+            strategy="sports_game_nhl_v1", edge_pct=0.09, win_prob=0.63, is_paper=False,
+        )
+        tickers = db.open_live_tickers_for_strategy_prefix("sports_game", is_paper=False)
+        assert set(tickers) == {
+            "KXNHLGAME-26MAR28FLANYI-NYI",
+            "KXNHLGAME-26MAR28FLANYI-FLA",
+        }
+
+    def test_excludes_settled_trades(self, db):
+        """Settled trades are not returned."""
+        tid = db.save_trade(
+            ticker="KXNHLGAME-26MAR28FLANYI-NYI", side="yes", action="buy",
+            price_cents=52, count=100, cost_usd=9.80,
+            strategy="sports_game_nhl_v1", edge_pct=0.12, win_prob=0.63, is_paper=False,
+        )
+        db.settle_trade(tid, result="yes", pnl_cents=800)
+        tickers = db.open_live_tickers_for_strategy_prefix("sports_game", is_paper=False)
+        assert tickers == []
+
+    def test_excludes_paper_bets_when_live_requested(self, db):
+        """Paper bets not returned when is_paper=False."""
+        db.save_trade(
+            ticker="KXNHLGAME-26MAR28FLANYI-NYI", side="yes", action="buy",
+            price_cents=52, count=100, cost_usd=9.80,
+            strategy="sports_game_nhl_v1", edge_pct=0.12, win_prob=0.63, is_paper=True,
+        )
+        tickers = db.open_live_tickers_for_strategy_prefix("sports_game", is_paper=False)
+        assert tickers == []
+
+    def test_excludes_different_strategy(self, db):
+        """Tickers for other strategies are not returned."""
+        db.save_trade(
+            ticker="KXBTC15M-26MAR28-TEST", side="yes", action="buy",
+            price_cents=92, count=100, cost_usd=9.20,
+            strategy="expiry_sniper_v1", edge_pct=0.03, win_prob=0.95, is_paper=False,
+        )
+        tickers = db.open_live_tickers_for_strategy_prefix("sports_game", is_paper=False)
+        assert tickers == []

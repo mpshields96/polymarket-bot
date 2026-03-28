@@ -305,3 +305,36 @@ def test_odds_api_feed_loads_key(monkeypatch):
     monkeypatch.setenv("SDATA_KEY", "test-key-123")
     feed = OddsAPIFeed.load_from_env()
     assert feed.api_key == "test-key-123"
+
+
+# ── Game-level dedup key extraction ─────────────────────────────────────────
+
+def _game_key(ticker: str) -> str:
+    """Mirrors the game_key logic in sports_game_loop."""
+    return "-".join(ticker.split("-")[:-1]) if ticker.count("-") >= 2 else ticker
+
+
+def test_game_key_same_game_different_team():
+    """Both tickers for the same NHL game produce the same game key."""
+    key1 = _game_key("KXNHLGAME-26MAR28FLANYI-NYI")
+    key2 = _game_key("KXNHLGAME-26MAR28FLANYI-FLA")
+    assert key1 == key2 == "KXNHLGAME-26MAR28FLANYI"
+
+
+def test_game_key_different_games():
+    """Different NHL games produce different game keys."""
+    key1 = _game_key("KXNHLGAME-26MAR28FLANYI-NYI")
+    key2 = _game_key("KXNHLGAME-26MAR28OTTTB-OTT")
+    assert key1 != key2
+
+
+def test_game_key_nba():
+    """NBA tickers produce correct game key."""
+    key1 = _game_key("KXNBAGAME-26MAR27ATLBOS-BOS")
+    key2 = _game_key("KXNBAGAME-26MAR27ATLBOS-ATL")
+    assert key1 == key2 == "KXNBAGAME-26MAR27ATLBOS"
+
+
+def test_game_key_fallback_no_hyphens():
+    """Tickers without enough hyphens return ticker as-is."""
+    assert _game_key("BADTICKER") == "BADTICKER"

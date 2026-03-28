@@ -389,6 +389,20 @@ class DB:
         row = self._conn.execute(query, params).fetchone()
         return (row[0] or 0) > 0
 
+    def open_live_tickers_for_strategy_prefix(
+        self, strategy_prefix: str, is_paper: bool = False
+    ) -> list:
+        """Return list of tickers with open (unsettled) positions for strategies matching prefix.
+
+        Used for game-level dedup in sports_game_loop: prevents betting both sides of the
+        same game through separate market tickers (e.g. KXNHLGAME-DATE-NYI vs ...-FLA).
+        """
+        row = self._conn.execute(
+            "SELECT ticker FROM trades WHERE strategy LIKE ? AND result IS NULL AND is_paper = ?",
+            (strategy_prefix + "%", int(is_paper)),
+        ).fetchall()
+        return [r[0] for r in row]
+
     def win_rate(self, is_paper: Optional[bool] = None, limit: int = 100) -> Optional[float]:
         """Return win rate (0.0–1.0) over last `limit` settled trades, or None."""
         query = "SELECT result, side FROM trades WHERE result IS NOT NULL"
