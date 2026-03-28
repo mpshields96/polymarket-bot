@@ -251,23 +251,29 @@ async def fetch_target_markets(
 ) -> List[Market]:
     """Fetch open markets in target categories."""
     all_markets = []
-    cursor = None
-    page = 0
 
-    while True:
-        page += 1
-        markets = await client.get_markets(status="open", limit=100, cursor=cursor)
-        if not markets:
-            break
-        all_markets.extend(markets)
-        # Pagination: check if we got a full page
-        if len(markets) < 100:
-            break
-        # Use the last market's ticker as a cursor hint
-        # (actual cursor handling depends on API response)
-        cursor = None  # Kalshi pagination via cursor in response
-        if page >= 20:  # Safety limit: 2000 markets max
-            break
+    # Fetch using series_ticker for categories that have explicit series
+    fetched_series: set = set()
+    categories_to_scan = [category_filter] if category_filter else list(CATEGORY_SERIES.keys())
+
+    for cat in categories_to_scan:
+        series_list = CATEGORY_SERIES.get(cat, [])
+        for series in series_list:
+            if series in fetched_series:
+                continue
+            fetched_series.add(series)
+            markets = await client.get_markets(series_ticker=series, status="open", limit=200)
+            all_markets.extend(markets)
+
+    # Also do a broad keyword scan for categories without explicit series (e.g. politics)
+    has_empty_series = any(
+        not CATEGORY_SERIES.get(c, [])
+        for c in categories_to_scan
+    )
+    if has_empty_series:
+        # Fetch a broad sample of open markets (no server-side pagination available)
+        broad = await client.get_markets(status="open", limit=200)
+        all_markets.extend(broad)
 
     # Filter by category
     filtered = []
@@ -367,9 +373,11 @@ async def run_scan(
 
     # Initialize Kalshi client
     from src.auth.kalshi_auth import load_from_env as load_kalshi_auth
+    import os
     auth = load_kalshi_auth()
-    client = KalshiClient(auth)
-    await client.connect()
+    base_url = os.getenv("KALSHI_API_URL", "https://api.elections.kalshi.com/trade-api/v2")
+    client = KalshiClient(auth, base_url=base_url)
+    await client.start()
 
     # Initialize LLM client based on provider
     llm_client = None
