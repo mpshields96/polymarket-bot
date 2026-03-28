@@ -113,8 +113,13 @@
   - FIRST: check today's P&L vs mandate target (15-25 USD):
     ./venv/bin/python3 -c "import sqlite3,calendar; from datetime import datetime; c=sqlite3.connect('data/polybot.db'); ts=calendar.timegm(datetime.utcnow().replace(hour=0,minute=0,second=0,microsecond=0).timetuple()); r=c.execute('SELECT COUNT(*),SUM(CASE WHEN side=result THEN 1 ELSE 0 END),ROUND(SUM(pnl_cents)/100.0,2) FROM trades WHERE is_paper=0 AND settled_at>=? AND result IS NOT NULL',(ts,)).fetchone(); print(f'Today: {r[0]} settled | {r[1]} wins | {r[2]} USD')"
     If below 15 USD with <4hr left in UTC day: under ABSOLUTE FREEDOM — find more bets NOW.
-  - cat ~/.claude/cross-chat/CCA_TO_POLYBOT.md | tail -50 (check for new deliveries)
-  - Check CODEX_OBSERVATIONS.md for any Codex code review notes.
+  - cat ~/.claude/cross-chat/CCA_TO_POLYBOT.md | tail -80 (check for new deliveries + Codex relays)
+  - cat CODEX_OBSERVATIONS.md (mandatory — Codex code review findings. OPEN items need action.)
+  - cat ~/.claude/cross-chat/CODEX_TO_CLAUDE.md | tail -30 (via CCA relay — Codex durable notes to CCA)
+  NOTE: 3-WAY BRIDGE ACTIVE (S157). Codex ↔ CCA ↔ Kalshi. CCA is the router.
+    Kalshi writes to: CODEX_OBSERVATIONS.md (Codex reads), POLYBOT_TO_CCA.md (CCA reads)
+    Codex writes to: CODEX_OBSERVATIONS.md (Kalshi reads), CODEX_TO_CLAUDE.md (CCA reads)
+    Every session: write fresh ack to CODEX_OBSERVATIONS.md + POLYBOT_TO_CCA.md.
 
 ## CCA DELIVERIES (still relevant)
   - REQ-027 Monte Carlo COMPLETE (self-learning/monte_carlo_simulator.py)
