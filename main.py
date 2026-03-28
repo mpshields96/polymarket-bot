@@ -1473,7 +1473,18 @@ async def daily_sniper_loop(
                         logger.warning("[daily_sniper] Orderbook fetch failed for %s: %s", ticker, ob_exc)
                         continue
 
-                    # Sizing: conservative 1 USD cap for daily sniper ramp-up
+                    # Post-orderbook ceiling guard: YES ask (100 - best NO bid) may exceed
+                    # the ceiling even when YES bid passed the pre-check. Bug: trade 12711
+                    # placed at 95c when bid=93c passed ceiling check of <94 (S156).
+                    _yes_ask = orderbook.yes_ask() if signal.side == "yes" else orderbook.no_ask()
+                    if _yes_ask is not None and _yes_ask >= DAILY_SNIPER_MAX_PRICE_CENTS:
+                        logger.debug(
+                            "[daily_sniper] %s: ask %dc >= ceiling %dc — skip (post-orderbook guard)",
+                            ticker, _yes_ask, DAILY_SNIPER_MAX_PRICE_CENTS,
+                        )
+                        continue
+
+                    # Sizing: Kelly-bounded by PCT cap, hard-capped at live cap
                     from src.risk.kill_switch import MAX_TRADE_PCT as _MAX_PCT
                     _pct_max = round(current_bankroll * _MAX_PCT, 2) - 0.01
                     trade_usd = min(_DAILY_SNIPER_LIVE_CAP_USD, max(0.01, _pct_max))

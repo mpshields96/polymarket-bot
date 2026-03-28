@@ -395,10 +395,10 @@ class TestDailySniperLiveSignature:
         sig = inspect.signature(_main.daily_sniper_loop)
         assert sig.parameters["trade_lock"].default is None
 
-    def test_live_cap_constant_is_five_dollars(self):
-        """_DAILY_SNIPER_LIVE_CAP_USD must be 5.0 USD (S150 ABSOLUTE FREEDOM — SPRT confirmed at 28 bets)."""
+    def test_live_cap_constant_is_ten_dollars(self):
+        """_DAILY_SNIPER_LIVE_CAP_USD must be 10.0 USD (S156 ABSOLUTE FREEDOM — SPRT lambda=+5.317 at 38 bets, mandate 15-25 USD/day)."""
         import main as _main
-        assert _main._DAILY_SNIPER_LIVE_CAP_USD == 5.0
+        assert _main._DAILY_SNIPER_LIVE_CAP_USD == 10.0
 
     def test_is_paper_mode_both_false(self):
         """is_paper_mode = not (False and False) = True."""
