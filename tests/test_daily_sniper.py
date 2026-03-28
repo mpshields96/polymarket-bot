@@ -26,6 +26,7 @@ from src.platforms.kalshi import Market
 from src.strategies.daily_sniper import (
     DAILY_SNIPER_MAX_PRICE_CENTS,
     make_daily_sniper,
+    make_eth_daily_sniper,
 )
 
 
@@ -427,3 +428,52 @@ class TestDailySniperLiveSignature:
         live_confirmed = True
         is_paper_mode = not (live_executor_enabled and live_confirmed)
         assert is_paper_mode is False
+
+
+# ── ETH daily sniper factory ──────────────────────────────────────────────────
+
+
+class TestEthDailySniperFactory:
+    def test_eth_strategy_name_is_eth_daily_sniper_v1(self):
+        strat = make_eth_daily_sniper()
+        assert strat.name == "eth_daily_sniper_v1"
+
+    def test_eth_sniper_has_same_time_gate_as_btc(self):
+        """ETH uses same 90-minute window as BTC daily sniper."""
+        btc = make_daily_sniper()
+        eth = make_eth_daily_sniper()
+        assert eth._max_seconds_remaining == btc._max_seconds_remaining
+
+    def test_eth_sniper_has_same_hard_skip_as_btc(self):
+        """ETH uses same 30s hard skip as BTC daily sniper."""
+        btc = make_daily_sniper()
+        eth = make_eth_daily_sniper()
+        assert eth._hard_skip_seconds == btc._hard_skip_seconds
+
+    def test_eth_sniper_fires_on_kxethd_market(self):
+        """ETH sniper generates signals on KXETHD-style markets."""
+        from datetime import datetime, timedelta, timezone
+        strat = make_eth_daily_sniper()
+        now = datetime.now(timezone.utc)
+        close_time = (now + timedelta(seconds=1800)).isoformat()
+        from src.platforms.kalshi import Market
+        market = Market(
+            ticker="KXETHD-26MAR2817-T2050.00",
+            title="Will ETH be above $2,050 at 5 PM UTC?",
+            event_ticker="KXETHD",
+            status="open",
+            yes_price=8,
+            no_price=92,  # NO at 92c = ETH expected below threshold
+            volume=5000,
+            close_time=close_time,
+            open_time=(now - timedelta(hours=12)).isoformat(),
+        )
+        # Negative drift (ETH moved down) + NO@92c = consistent FLB signal
+        signal = strat.generate_signal(market=market, coin_drift_pct=-0.01)
+        assert signal is not None
+        assert signal.side == "no"
+
+    def test_eth_and_btc_snipers_have_different_names(self):
+        btc = make_daily_sniper()
+        eth = make_eth_daily_sniper()
+        assert btc.name != eth.name

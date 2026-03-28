@@ -1318,30 +1318,34 @@ async def daily_sniper_loop(
     live_executor_enabled: bool = False,
     live_confirmed: bool = False,
     trade_lock: Optional[asyncio.Lock] = None,
+    series_ticker: str = "KXBTCD",
+    loop_name: str = "daily_sniper",
+    coin_feed=None,
 ):
     """
-    KXBTCD near-expiry sniping loop.
+    KXBTCD near-expiry sniping loop (also supports KXETHD via series_ticker/coin_feed params).
 
-    Targets KXBTCD daily threshold markets when YES or NO price is 90-94c
+    Targets daily threshold markets when YES or NO price is 90-94c
     AND settlement is within 90 minutes AND coin direction is consistent.
 
     Academic basis: same favorite-longshot bias (FLB) as expiry_sniper_v1.
     CCA REQ-026: academic validation. 10/30 paper bets settled. Now live with 1 USD cap.
 
-    Series: KXBTCD only (BTC daily threshold). KXETHD/KXSOLD can be added
-    after KXBTCD validates (same code, different series_ticker + feed).
-
+    Series: KXBTCD (default). Pass series_ticker="KXETHD" + coin_feed=eth_feed for ETH.
     Price ceiling: 94c (consistent with live sniper ceiling, S130).
-    Drift reference: session_open = BTC price at midnight UTC (same as crypto_daily_loop).
+    Drift reference: session_open = coin price at midnight UTC.
     Live sizing: _DAILY_SNIPER_LIVE_CAP_USD (1 USD hard cap, conservative ramp-up).
     """
-    from src.strategies.daily_sniper import make_daily_sniper, DAILY_SNIPER_MAX_PRICE_CENTS
+    from src.strategies.daily_sniper import make_daily_sniper, make_eth_daily_sniper, DAILY_SNIPER_MAX_PRICE_CENTS
+
+    # Use coin_feed if provided (ETH path), otherwise fall back to btc_feed (BTC path)
+    _feed = coin_feed if coin_feed is not None else btc_feed
     from src.execution.paper import PaperExecutor
     from datetime import date as _date
     import yaml as _yaml
     import contextlib
 
-    strategy = make_daily_sniper()
+    strategy = make_eth_daily_sniper() if series_ticker == "KXETHD" else make_daily_sniper()
     paper_exec = PaperExecutor(
         db=db,
         strategy_name=strategy.name,
@@ -1350,14 +1354,15 @@ async def daily_sniper_loop(
     )
 
     if initial_delay_sec > 0:
-        logger.info("[daily_sniper] Startup delay %.0fs (stagger)", initial_delay_sec)
+        logger.info("[%s] Startup delay %.0fs (stagger)", loop_name, initial_delay_sec)
         await asyncio.sleep(initial_delay_sec)
 
     is_paper_mode = not (live_executor_enabled and live_confirmed)
     _mode_label = "paper" if is_paper_mode else "LIVE"
     logger.info(
-        "[daily_sniper] Started — %s KXBTCD 90-94c near-expiry sniping (cap=%.2f USD)",
-        _mode_label, _DAILY_SNIPER_LIVE_CAP_USD if not is_paper_mode else strategy.PAPER_CALIBRATION_USD,
+        "[%s] Started — %s %s 90-94c near-expiry sniping (cap=%.2f USD)",
+        loop_name, _mode_label, series_ticker,
+        _DAILY_SNIPER_LIVE_CAP_USD if not is_paper_mode else strategy.PAPER_CALIBRATION_USD,
     )
 
     session_open: Optional[float] = None
@@ -1366,14 +1371,14 @@ async def daily_sniper_loop(
     while True:
         try:
             if kill_switch.is_hard_stopped:
-                logger.debug("[daily_sniper] Hard stop active — skipping poll")
+                logger.debug("[%s] Hard stop active — skipping poll", loop_name)
                 await asyncio.sleep(60)
                 continue
 
-            # ── Current BTC spot price ────────────────────────────────
-            spot = btc_feed.current_price() if not btc_feed.is_stale else None
+            # ── Current coin spot price ───────────────────────────────
+            spot = _feed.current_price() if not _feed.is_stale else None
             if spot is None or spot <= 0:
-                logger.debug("[daily_sniper] BTC feed stale — waiting")
+                logger.debug("[%s] Coin feed stale — waiting", loop_name)
                 await asyncio.sleep(_DAILY_SNIPER_POLL_SEC)
                 continue
 
@@ -1383,26 +1388,26 @@ async def daily_sniper_loop(
                 session_open = spot
                 session_open_date = today_utc
                 logger.info(
-                    "[daily_sniper] Session open reset: $%.2f (UTC date %s)",
-                    session_open, today_utc,
+                    "[%s] Session open reset: $%.2f (UTC date %s)",
+                    loop_name, session_open, today_utc,
                 )
 
             coin_drift_pct = (spot - session_open) / session_open if session_open > 0 else 0.0
 
-            # ── Fetch KXBTCD markets ──────────────────────────────────
+            # ── Fetch markets ─────────────────────────────────────────
             try:
                 markets = await kalshi.get_markets(
-                    series_ticker="KXBTCD",
+                    series_ticker=series_ticker,
                     status="open",
                     limit=500,
                 )
             except Exception as e:
-                logger.warning("[daily_sniper] Market fetch failed: %s", e)
+                logger.warning("[%s] Market fetch failed: %s", loop_name, e)
                 await asyncio.sleep(_DAILY_SNIPER_POLL_SEC)
                 continue
 
             if not markets:
-                logger.debug("[daily_sniper] No open KXBTCD markets found")
+                logger.debug("[%s] No open %s markets found", loop_name, series_ticker)
                 await asyncio.sleep(_DAILY_SNIPER_POLL_SEC)
                 continue
 
@@ -1428,7 +1433,7 @@ async def daily_sniper_loop(
 
                 # Dedup: skip if already have open position
                 if db.has_open_position(ticker=ticker, is_paper=is_paper_mode):
-                    logger.debug("[daily_sniper] Already have open position for %s — skip", ticker)
+                    logger.debug("[%s] Already have open position for %s — skip", loop_name, ticker)
                     continue
 
                 # Daily bet cap
@@ -1438,8 +1443,8 @@ async def daily_sniper_loop(
                     )
                     if today_count >= max_daily_bets:
                         logger.info(
-                            "[daily_sniper] Daily %s cap (%d/%d) reached",
-                            _mode_label, today_count, max_daily_bets,
+                            "[%s] Daily %s cap (%d/%d) reached",
+                            loop_name, _mode_label, today_count, max_daily_bets,
                         )
                         break
 
@@ -1452,8 +1457,8 @@ async def daily_sniper_loop(
                     _MAX_SLIPPAGE_CENTS = 3
                     if _live_price < signal.price_cents - _MAX_SLIPPAGE_CENTS:
                         logger.warning(
-                            "[daily_sniper] %s %s: price slipped %dc (signal=%dc, now=%dc) — skip",
-                            ticker, signal.side.upper(),
+                            "[%s] %s %s: price slipped %dc (signal=%dc, now=%dc) — skip",
+                            loop_name, ticker, signal.side.upper(),
                             signal.price_cents - _live_price, signal.price_cents, _live_price,
                         )
                         continue
@@ -1461,8 +1466,8 @@ async def daily_sniper_loop(
                     # Fee floor: skip if execution price ≥ 99c (0 net per contract)
                     if _live_price >= 99:
                         logger.info(
-                            "[daily_sniper] %s %s: price at %dc — skip (99c+ = 0 net)",
-                            ticker, signal.side.upper(), _live_price,
+                            "[%s] %s %s: price at %dc — skip (99c+ = 0 net)",
+                            loop_name, ticker, signal.side.upper(), _live_price,
                         )
                         continue
 
@@ -1470,7 +1475,7 @@ async def daily_sniper_loop(
                     try:
                         orderbook = await kalshi.get_orderbook(ticker)
                     except Exception as ob_exc:
-                        logger.warning("[daily_sniper] Orderbook fetch failed for %s: %s", ticker, ob_exc)
+                        logger.warning("[%s] Orderbook fetch failed for %s: %s", loop_name, ticker, ob_exc)
                         continue
 
                     # Post-orderbook ceiling guard: YES ask (100 - best NO bid) may exceed
@@ -1479,8 +1484,8 @@ async def daily_sniper_loop(
                     _yes_ask = orderbook.yes_ask() if signal.side == "yes" else orderbook.no_ask()
                     if _yes_ask is not None and _yes_ask >= DAILY_SNIPER_MAX_PRICE_CENTS:
                         logger.debug(
-                            "[daily_sniper] %s: ask %dc >= ceiling %dc — skip (post-orderbook guard)",
-                            ticker, _yes_ask, DAILY_SNIPER_MAX_PRICE_CENTS,
+                            "[%s] %s: ask %dc >= ceiling %dc — skip (post-orderbook guard)",
+                            loop_name, ticker, _yes_ask, DAILY_SNIPER_MAX_PRICE_CENTS,
                         )
                         continue
 
@@ -1498,7 +1503,7 @@ async def daily_sniper_loop(
                             minutes_remaining=None,
                         )
                         if not ok:
-                            logger.info("[daily_sniper] Kill switch blocked live order: %s", block_reason)
+                            logger.info("[%s] Kill switch blocked live order: %s", loop_name, block_reason)
                             continue
 
                         from src.execution import live as live_mod
@@ -1519,9 +1524,9 @@ async def daily_sniper_loop(
                             kill_switch.record_trade()
                             secs_left = strategy._seconds_remaining(market) or 0
                             logger.info(
-                                "[daily_sniper] [LIVE] BUY %s %s @ %d¢ %.2f USD"
+                                "[%s] [LIVE] BUY %s %s @ %d¢ %.2f USD"
                                 " | drift=%+.3f%% | %ds left | trade_id=%s",
-                                ticker, signal.side.upper(),
+                                loop_name, ticker, signal.side.upper(),
                                 result.get("price_cents", 0),
                                 result["cost_usd"],
                                 coin_drift_pct * 100,
@@ -1536,7 +1541,7 @@ async def daily_sniper_loop(
                         current_bankroll_usd=current_bankroll,
                     )
                     if not ok:
-                        logger.info("[daily_sniper] Kill switch blocked paper order: %s", block_reason)
+                        logger.info("[%s] Kill switch blocked paper order: %s", loop_name, block_reason)
                         continue
 
                     result = paper_exec.execute(
@@ -1549,9 +1554,9 @@ async def daily_sniper_loop(
                     if result:
                         secs_left = strategy._seconds_remaining(market) or 0
                         logger.info(
-                            "[daily_sniper] [paper] BUY %s %s @ %d¢ USD %.2f"
+                            "[%s] [paper] BUY %s %s @ %d¢ USD %.2f"
                             " | drift=%+.3f%% | %ds left | trade_id=%s",
-                            ticker, signal.side.upper(), signal.price_cents,
+                            loop_name, ticker, signal.side.upper(), signal.price_cents,
                             strategy.PAPER_CALIBRATION_USD,
                             coin_drift_pct * 100,
                             secs_left,
@@ -1559,10 +1564,10 @@ async def daily_sniper_loop(
                         )
 
         except asyncio.CancelledError:
-            logger.info("[daily_sniper] Loop cancelled — exiting")
+            logger.info("[%s] Loop cancelled — exiting", loop_name)
             break
         except Exception as exc:
-            logger.warning("[daily_sniper] Unexpected error: %s", exc, exc_info=True)
+            logger.warning("[%s] Unexpected error: %s", loop_name, exc, exc_info=True)
 
         await asyncio.sleep(_DAILY_SNIPER_POLL_SEC)
 
@@ -4301,6 +4306,29 @@ async def main():
         ),
         name="daily_sniper_loop",
     )
+
+    # ── ETH daily sniper loop (KXETHD near-expiry paper sniping) ─────────
+    # Paper-only until 30+ bets + Brier < 0.30 validate FLB on ETH daily markets.
+    # Same mechanism as daily_sniper_v1 (BTC). KXETHD volume: 64K (S51 probe).
+    # CCA REQ-62: KXETHD analysis pending. Stagger 150s (after daily_sniper 120s + buffer).
+    eth_daily_sniper_task = asyncio.create_task(
+        daily_sniper_loop(
+            kalshi=kalshi,
+            btc_feed=btc_feed,
+            db=db,
+            kill_switch=kill_switch,
+            initial_delay_sec=150.0,
+            max_daily_bets=5,
+            live_executor_enabled=False,
+            live_confirmed=live_confirmed,
+            trade_lock=None,
+            series_ticker="KXETHD",
+            loop_name="eth_daily_sniper",
+            coin_feed=eth_feed,
+        ),
+        name="eth_daily_sniper_loop",
+    )
+    logger.info("ETH daily sniper loop started (paper-only, KXETHD, 90-94c, 90min window)")
 
     # ── Economics sniper loop (KXCPI/KXGDP FLB — paper-only K2) ─────────
     # Paper-only. Targets KXCPI-*/KXGDP-* at 88-93c within 48h of settlement.

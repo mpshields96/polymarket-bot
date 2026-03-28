@@ -50,5 +50,20 @@ def make_daily_sniper() -> ExpirySniperStrategy:
     )
 
 
+def make_eth_daily_sniper() -> ExpirySniperStrategy:
+    """
+    Return ExpirySniperStrategy configured for KXETHD daily threshold markets.
+
+    Same FLB mechanism as daily_sniper_v1 (KXBTCD). Paper-only until 30+ bets
+    and Brier < 0.30. KXETHD validated at 64K volume (S51 probe — sufficient
+    for systematic sniping at 90-93c price range).
+    """
+    return ExpirySniperStrategy(
+        max_seconds_remaining=_DAILY_SNIPER_MAX_SECONDS,
+        hard_skip_seconds=_DAILY_SNIPER_HARD_SKIP_SECONDS,
+        name_override="eth_daily_sniper_v1",
+    )
+
+
 # Exported constant so the loop can import it without magic numbers
 DAILY_SNIPER_MAX_PRICE_CENTS: int = _DAILY_SNIPER_MAX_PRICE_CENTS
