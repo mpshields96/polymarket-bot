@@ -2206,7 +2206,13 @@ async def sports_game_loop(
             _now_ts = datetime.now(timezone.utc)
 
             def _future_games(games):
-                """Keep only games that start within the next 72 hours (not already played >30min)."""
+                """Keep only games that start within the next 72 hours and haven't started yet.
+
+                Using 5-min cutoff (not 30-min): our signal uses PRE-GAME bookmaker consensus.
+                Betting 30+ min into a game means Kalshi live price reflects in-game score while
+                our signal is stale — false edge. Only bet when game is upcoming or within 5 min
+                of scheduled start (handles minor delays).
+                """
                 future = []
                 for g in games:
                     if not g.commence_time:
@@ -2215,9 +2221,8 @@ async def sports_game_loop(
                         # commence_time is ISO8601 UTC, e.g. "2026-03-28T23:00:00Z"
                         from datetime import datetime as _dt
                         ct = _dt.fromisoformat(g.commence_time.replace("Z", "+00:00"))
-                        # Allow games that start within 72 hours (Kalshi lists games 2+ days out)
-                        # but exclude games already started >30min ago
-                        _cutoff = _now_ts - timedelta(minutes=30)
+                        # Allow games not yet started (or < 5 min after scheduled start for delays)
+                        _cutoff = _now_ts - timedelta(minutes=5)
                         _horizon = _now_ts + timedelta(hours=72)
                         if ct > _cutoff and ct < _horizon:
                             future.append(g)
