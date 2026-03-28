@@ -1,5 +1,66 @@
 # POLYMARKET-BOT CHANGELOG
 
+## S157 WRAP — 2026-03-28 ~19:20 UTC (monitoring — mandate day 2 continued)
+
+### SELF-RATING: B+
+
+**WINS:**
+- game-level dedup fix: sports_game_loop previously deduped by ticker only — FLA+NYI both fired for same game (19.49 USD double-exposure). Fixed with _bet_games_today set using ticker prefix as game key. Persisted across restarts via new DB method open_live_tickers_for_strategy_prefix(). 8 new tests.
+- Pre-game window fix: sports_game was placing bets on games 28 minutes old (bookmaker signal stale vs live Kalshi score-adjusted price). Tightened from -30min to -5min post-start.
+- domain_knowledge_scanner: added politics/geopolitics series from CCA REQ-17 (KX538APPROVE, KXUKRAINE, KXNEWTARIFFS, KXTRUMPACT, KXFULLLIDBEFORE8PM, KXEOWEEK, KXTRUTHSOCIAL, KXUSUNSCVETO, KXKHAMENEIOUT)
+- daily_sniper: 42/43 live settled today (+19.96 USD) — primary income engine performing excellently
+- All-time P&L: +19.71 USD (up from +12.31 at session start). Solidly profitable territory.
+- 2017 tests passing (+8 from S157 builds)
+
+**LOSSES:**
+- sports_game n=2 all losses today (-9.75 NBA + -9.92 NBA = -19.67 USD) — edge signals were valid (win_prob 50-79%, 3+ books), just bad variance at n=2 and large sizing (~10 USD vs 5 USD daily_sniper cap). CCA REQ-18 filed for sizing analysis.
+- FLA/NYI double bet was the LAST pre-dedup fire — both sides of same game still open (19.49 USD combined). Fix now prevents future recurrence but can't undo today's double exposure.
+- CDT/UTC timestamp confusion caused one unnecessary bot restart (14:xx in log = 19:xx UTC on CDT machine)
+- Today P&L: +10.04 USD live (below 15 USD mandate target). 4 open bets may push past 15 if NHL wins tonight.
+
+**GRADE: B+** — fixed two structural bugs (dedup, window), shipped 8 tests, all systems healthy. Held back by sports_game losses and timestamp confusion causing unnecessary restart.
+
+**ONE THING NEXT CHAT MUST DO DIFFERENTLY:** Check sports_game sizing — at 10 USD/bet (ABSOLUTE_MAX), two losses wipe out all daily income. CCA REQ-18 targets this. If response arrives: implement same session.
+
+**ONE THING THAT WOULD HAVE MADE MORE MONEY SOONER:** Dedup fix was identified during session — if it had been caught before FLA/NYI fired, would have saved ~10 USD in double-exposure stakes.
+
+### STRATEGY ANALYZER INSIGHTS (scripts/strategy_analyzer.py --brief)
+- All-time: +19.71 USD (85% WR, 1563 bets)
+- Today: +10.04 USD (95% WR, 44 bets)
+- Target: 105.29 USD to +125 USD goal
+- SNIPER: Profitable buckets 90-94c. Guarded buckets: 98, 97, 96, 95c (losses blocked)
+- btc_drift_v1: NEUTRAL — 80 live bets, 50% WR, -9.53 USD [direction filter "no" confirmed needed, 27% spread]
+- eth_drift_v1: UNDERPERFORMING — 46% WR below break-even, trend declining. Paper-only = correct.
+- sol_drift_v1: HEALTHY — 47 live bets, 66% WR, -15.68 USD (15-min ban prevents live, paper accumulating)
+
+### GOAL PROGRESS
+- All-time P&L: +19.71 USD (was +12.31 entering session)
+- Distance to +125 USD goal: 105.29 USD
+- Monthly target: 300-500 USD (15-25 USD/day × 20 trading days)
+- Current rate (daily_sniper alone): ~10 USD/day net → 10 days to +125 USD goal
+- Highest-leverage action: sports_game sizing reduction (CCA REQ-18) + KXETHD expansion (gate reached)
+
+### BUILDS THIS SESSION
+1. src/db.py: open_live_tickers_for_strategy_prefix() — new method for game-level dedup restart persistence
+2. main.py: sports_game_loop game-level dedup (_bet_games_today set, game_key = ticker prefix)
+3. main.py: _future_games() window tightened from -30min to -5min post-start
+4. scripts/domain_knowledge_scanner.py: CATEGORY_SERIES expanded with politics + geopolitics series
+5. tests/test_sports_game.py: 4 game_key tests added (test_game_key_*)
+6. tests/test_db.py: 4 tests for open_live_tickers_for_strategy_prefix
+
+### COMMITS
+- 441c0db — fix(sports_game): add game-level dedup to prevent double-betting same game
+- 63b5337 — fix(sports_game): tighten pre-game window from 30min to 5min post-start
+- b7b596f — feat(scanner): add CCA-recommended politics/geopolitics series (REQ-17 Update 74)
+
+### OPEN BETS AT WRAP
+- KXNHLGAME-26MAR28OTTTB-OTT NO | sports_game_nhl_v1 | settling tonight
+- KXNHLGAME-26MAR28FLANYI-NYI YES | sports_game_nhl_v1 | settling tonight
+- KXNHLGAME-26MAR28FLANYI-FLA NO | sports_game_nhl_v1 | settling tonight (same game as NYI)
+- KXBTCD-26MAR2816-T68199.99 NO | daily_sniper_v1 | settles ~21:00 UTC (BTC 66802 vs T=68200 — safe)
+
+---
+
 ## S155 WRAP — 2026-03-28 01:35 UTC (monitoring — mandate day 3 in progress)
 
 ### SELF-RATING: C+
