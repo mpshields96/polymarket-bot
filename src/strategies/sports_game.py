@@ -26,10 +26,12 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
-from src.platforms.kalshi import Market
 from src.strategies.base import BaseStrategy, Signal
+
+if TYPE_CHECKING:
+    from src.platforms.kalshi import Market
 
 logger = logging.getLogger(__name__)
 
@@ -212,6 +214,16 @@ def _resolve_team(kalshi_name: str, sport: str) -> Optional[str]:
     return None
 
 
+def _resolve_market_subtitles(market: "Market", sport: str) -> tuple[Optional[str], Optional[str]]:
+    """Resolve full yes/no team names from Kalshi market subtitles when present."""
+    raw = getattr(market, "raw", {}) or {}
+    yes_label = raw.get("yes_sub_title") or raw.get("yes_subtitle") or ""
+    no_label = raw.get("no_sub_title") or raw.get("no_subtitle") or ""
+    yes_team = _resolve_team(yes_label, sport) if yes_label else None
+    no_team = _resolve_team(no_label, sport) if no_label else None
+    return yes_team, no_team
+
+
 def _parse_title(title: str) -> Optional[tuple[str, str]]:
     """
     'Houston at Miami Winner?' → ('Houston', 'Miami')   [away, home]
@@ -244,7 +256,7 @@ class SportsGameStrategy(BaseStrategy):
 
     def generate_signal(
         self,
-        market: Market,
+        market: "Market",
         odds_games: list,               # list[OddsGame] from SportsFeed
         yes_side_team: Optional[str] = None,  # parsed from ticker suffix
     ) -> Optional[Signal]:
@@ -253,7 +265,7 @@ class SportsGameStrategy(BaseStrategy):
         odds_games: current odds from SportsFeed.get_nba_games() or get_nhl_games()
         yes_side_team: Kalshi city name for the YES side (parsed from ticker)
         """
-        if not odds_games or not yes_side_team:
+        if not odds_games:
             return None
 
         # Parse market title to get both team names
@@ -270,10 +282,38 @@ class SportsGameStrategy(BaseStrategy):
             logger.debug("[sports_game] No team mapping: away=%s home=%s", away_kalshi, home_kalshi)
             return None
 
-        # YES side is the team in the ticker suffix
-        yes_odds_name = _resolve_team(yes_side_team, self.sport)
+        subtitle_yes_team, subtitle_no_team = _resolve_market_subtitles(market, self.sport)
+
+        # YES side is ideally sourced from Kalshi's subtitle metadata.
+        # Fall back to the ticker suffix mapping when the API response lacks subtitles.
+        yes_odds_name = subtitle_yes_team
+        if yes_odds_name and yes_side_team:
+            ticker_yes_team = _resolve_team(yes_side_team, self.sport)
+            if ticker_yes_team and ticker_yes_team != yes_odds_name:
+                logger.warning(
+                    "[sports_game] YES-side mismatch for %s: ticker=%s subtitle=%s — skip",
+                    market.ticker, ticker_yes_team, yes_odds_name,
+                )
+                return None
+        elif not yes_odds_name and yes_side_team:
+            yes_odds_name = _resolve_team(yes_side_team, self.sport)
+
         if not yes_odds_name:
-            logger.debug("[sports_game] No mapping for YES team: %s", yes_side_team)
+            logger.debug("[sports_game] No mapping for YES team: %s", yes_side_team or "(missing)")
+            return None
+
+        expected_teams = {away_odds_name, home_odds_name}
+        if yes_odds_name not in expected_teams:
+            logger.warning(
+                "[sports_game] YES team %s not in parsed matchup %s vs %s — skip",
+                yes_odds_name, away_odds_name, home_odds_name,
+            )
+            return None
+        if subtitle_no_team and subtitle_no_team not in expected_teams:
+            logger.warning(
+                "[sports_game] NO team %s not in parsed matchup %s vs %s — skip",
+                subtitle_no_team, away_odds_name, home_odds_name,
+            )
             return None
 
         # Find matching sports feed game
@@ -303,6 +343,7 @@ class SportsGameStrategy(BaseStrategy):
 
         # Kalshi price (YES side)
         kalshi_yes = (market.yes_price or 0) / 100.0   # cents → fraction
+        kalshi_no = 1.0 - kalshi_yes
 
         # Edge calculation: consensus_prob vs what Kalshi is offering
         # If consensus > kalshi_yes: YES is underpriced → BUY YES
@@ -315,13 +356,16 @@ class SportsGameStrategy(BaseStrategy):
         fee = self._KALSHI_FEE_PCT * (1.0 - kalshi_yes)
         net_edge_yes = edge_yes - fee
 
-        edge_no = (1.0 - consensus_prob) - (1.0 - kalshi_yes)
+        consensus_no = 1.0 - consensus_prob
+        edge_no = consensus_no - kalshi_no
         fee_no = self._KALSHI_FEE_PCT * kalshi_yes
         net_edge_no = edge_no - fee_no
 
         logger.debug(
-            "[sports_game] %s YES=%d¢ consensus=%.1f%% edge_yes=%.1f%% edge_no=%.1f%% books=%d",
-            market.ticker, int(kalshi_yes * 100), consensus_prob * 100,
+            "[sports_game] %s match=%s @ %s | yes_team=%s | YES=%d¢ vs fair=%.1f%% | NO=%d¢ vs fair=%.1f%% | edge_yes=%.1f%% edge_no=%.1f%% books=%d",
+            market.ticker, game.away_team, game.home_team, yes_odds_name,
+            int(kalshi_yes * 100), consensus_prob * 100,
+            int(kalshi_no * 100), consensus_no * 100,
             net_edge_yes * 100, net_edge_no * 100, game.num_books,
         )
 
@@ -334,8 +378,8 @@ class SportsGameStrategy(BaseStrategy):
                 confidence=min(0.9, game.num_books / 5.0),
                 price_cents=market.yes_price or 50,
                 reason=(
-                    f"{yes_odds_name} consensus={consensus_prob:.0%} "
-                    f"vs Kalshi={kalshi_yes:.0%} ({game.num_books} books)"
+                    f"{yes_odds_name} YES consensus={consensus_prob:.0%} "
+                    f"vs Kalshi YES={kalshi_yes:.0%} ({game.num_books} books)"
                 ),
             )
 
@@ -348,8 +392,10 @@ class SportsGameStrategy(BaseStrategy):
                 confidence=min(0.9, game.num_books / 5.0),
                 price_cents=market.no_price or 50,
                 reason=(
-                    f"{yes_odds_name} overpriced: consensus={consensus_prob:.0%} "
-                    f"vs Kalshi={kalshi_yes:.0%} ({game.num_books} books)"
+                    f"{yes_odds_name} YES overpriced: consensus={consensus_prob:.0%} "
+                    f"vs Kalshi YES={kalshi_yes:.0%}; "
+                    f"NO fair={consensus_no:.0%} vs Kalshi NO={kalshi_no:.0%} "
+                    f"({game.num_books} books)"
                 ),
             )
 

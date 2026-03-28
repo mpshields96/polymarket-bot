@@ -224,6 +224,10 @@ class SportsFeed:
     async def get_mlb_games(self) -> List[OddsGame]:
         return await self._fetch("baseball_mlb")
 
+    async def get_ncaab_games(self) -> List[OddsGame]:
+        """NCAA Men's Basketball tournament game odds (March Madness h2h)."""
+        return await self._fetch("basketball_ncaab")
+
     # ── Championship futures ─────────────────────────────────────────
 
     async def get_nba_championship(self) -> List[ChampionshipOdds]:

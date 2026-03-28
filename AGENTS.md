@@ -90,6 +90,12 @@ adjust a parameter after a losing period — read PRINCIPLES.md first.
 `python main.py --report` - today's P&L
 `python main.py --reset-killswitch` - reset hard stop after reviewing KILL_SWITCH_EVENT.log
 
+## Codex Cross-Chat Rule
+- If Codex changes this repo, Codex must notify both CCA and Kalshi.
+- Immediate path: send a CCA desktop queue note plus Kalshi relay note(s).
+- Durable path: append the outcome to `/Users/matthewshields/Projects/ClaudeCodeAdvancements/CODEX_TO_CLAUDE.md`.
+- Do not assume CCA or Kalshi will learn about the change indirectly later.
+
 ## Architecture rules (non-negotiable)
 - One file, one job. If the job has "and" in it, split it.
 - No `await` in `src/risk/` — kill switch and sizing are strictly synchronous

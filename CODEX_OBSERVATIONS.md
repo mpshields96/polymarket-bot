@@ -82,3 +82,23 @@ Confirmed:
 Standing rule this session: if Codex changes polymarket-bot code, Kalshi acknowledges in CODEX_OBSERVATIONS.md within the same session.
 
 Status: RESOLVED
+
+## [2026-03-28] — BUG-FLAG — Boston Consensus Discrepancy: Engine Side Resolved
+Codex traced the Atlanta/Boston sports_game path further after the `NO@31c` loss.
+
+Findings:
+- The live engine log and the persisted trade row agree on the signal inputs: Boston YES consensus was about 50%, not 69%.
+- Evidence: `logs/errors/bot.log` logged `Boston Celtics overpriced: consensus=50% vs Kalshi=68% (8 books)`, and `reports/trades.csv` stored `win_prob=0.5007` for the live `NO` trade.
+- For a `NO` trade, that stored `win_prob` implies a YES-side fair probability of about `49.93%`, which matches the runtime message.
+- Codex did not find evidence that the sports-game strategy flipped sides or that the odds parser secretly produced a 69% Boston probability at execution time.
+- The most likely failure was post-hoc human/summary interpretation of the `NO` trade, not an execution-path bug.
+
+Hardening shipped:
+- `src/strategies/sports_game.py` now logs both sides explicitly in debug output (`YES fair` and `NO fair`) and writes clearer reason text for both YES and NO signals.
+- This reduces the chance that later monitoring notes misread a NO-side trade as if the stored probability were already on the YES side.
+
+Verification:
+- `python3 -m pytest tests/test_sports_game.py tests/test_live_announce.py`
+- Result: 39 passed
+
+Status: RESOLVED

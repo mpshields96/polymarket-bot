@@ -16,6 +16,16 @@ Branch: codex/<task-name>
 Push: yes/no
 ```
 
+## Coordination Rule
+
+If Codex changes anything in `polymarket-bot`, notify both:
+- CCA desktop
+- Kalshi chat(s)
+
+Use the CCA bridge tooling for immediate visibility, and leave a durable CCA
+note when the change matters across sessions. Do not assume one lane will relay
+for the other later.
+
 ## Safe commands (always okay)
 
 ```

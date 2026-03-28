@@ -2022,7 +2022,11 @@ async def settlement_loop(kalshi, db, kill_switch, drift_model=None, calibrator=
 # ── Live bet announcement ─────────────────────────────────────────────
 
 
-def _announce_live_bet(result: dict, strategy_name: str) -> None:
+def _announce_live_bet(
+    result: Optional[dict] = None,
+    strategy_name: str = "",
+    **legacy_kwargs,
+) -> None:
     """
     Fire a prominent log banner and macOS Reminders notification when a live bet is placed.
 
@@ -2031,11 +2035,15 @@ def _announce_live_bet(result: dict, strategy_name: str) -> None:
     """
     import subprocess
 
-    side = result["side"].upper()
-    ticker = result["ticker"]
-    cost = result["cost_usd"]
-    fill = result.get("fill_price_cents", result.get("price_cents", 0))
-    trade_id = result.get("trade_id", "?")
+    payload = dict(result or {})
+    if legacy_kwargs:
+        payload.update(legacy_kwargs)
+
+    side = str(payload["side"]).upper()
+    ticker = payload["ticker"]
+    cost = payload["cost_usd"]
+    fill = payload.get("fill_price_cents", payload.get("price_cents", 0))
+    trade_id = payload.get("trade_id", "?")
 
     sep = "=" * 62
     logger.info(sep)
@@ -4341,10 +4349,9 @@ async def main():
     # Academic basis: favorite-longshot bias — heavy favorites close >90% of time.
     # Source: processoverprofit.blog V7 (clean rebuild — NOT their NightShark/JS code).
     # Live path uses price_guard_min=1, price_guard_max=99 (operates at 87-99c).
-    # expiry_sniper: DISABLED S156 — KXBTC/ETH/SOL/XRP15M permanently banned from live, paper data serves no purpose
+    # expiry_sniper: DISABLED S156 — KXBTC/ETH/SOL/XRP15M permanently banned from live AND paper (Matthew S154 directive)
     expiry_sniper_task = asyncio.create_task(asyncio.sleep(0), name="expiry_sniper_loop_disabled_15min_ban")
-    _sniper_mode = "LIVE" if (live_mode and live_confirmed) else "paper-only"
-    logger.info("Expiry sniper loop started (%s BTC/ETH/SOL/XRP 15M, 90c+ threshold, 10s poll, NO daily cap)", _sniper_mode)
+    logger.info("Expiry sniper loop DISABLED — KXBTC/ETH/SOL/XRP 15M permanently banned (live + paper, S154)")
 
     # ── Sports game-winner bookmaker arb loop (Kalshi) ───────────────
     # Pre-game NBA/NHL/MLB bookmaker arbitrage. Bets when Kalshi misprices a

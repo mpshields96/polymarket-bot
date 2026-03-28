@@ -1,6 +1,11 @@
 """Tests for sports_game strategy and odds_api feed."""
+import sys
+import types
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+sys.modules.setdefault("aiohttp", types.SimpleNamespace())
 
 from src.strategies.sports_game import (
     SportsGameStrategy,
@@ -24,6 +29,7 @@ def _market(ticker="KXNBAGAME-26FEB28HOUMIA-HOU", title="Houston at Miami Winner
     m.yes_price = yes_price
     m.no_price = no_price
     m.volume = volume
+    m.raw = {}
     return m
 
 
@@ -153,6 +159,18 @@ def test_signal_no_edge():
     sig = strategy.generate_signal(market, games, yes_side_team="Houston")
     assert sig is not None
     assert sig.side == "no"
+    assert "Kalshi YES=90%" in sig.reason
+    assert "NO fair=30%" in sig.reason
+
+
+def test_signal_yes_reason_labels_yes_side_explicitly():
+    strategy = SportsGameStrategy(sport="basketball_nba", min_edge_pct=0.05, min_books=2)
+    market = _market(yes_price=67, volume=500)
+    games = [_game(home="Miami Heat", away="Houston Rockets", home_prob=0.20, away_prob=0.80)]
+    sig = strategy.generate_signal(market, games, yes_side_team="Houston")
+    assert sig is not None
+    assert sig.side == "yes"
+    assert sig.reason == "Houston Rockets YES consensus=80% vs Kalshi YES=67% (3 books)"
 
 
 def test_signal_insufficient_edge():
@@ -192,6 +210,25 @@ def test_signal_no_yes_team():
     market = _market()
     games = [_game()]
     sig = strategy.generate_signal(market, games, yes_side_team=None)
+    assert sig is None
+
+
+def test_signal_uses_raw_yes_subtitle_without_ticker_hint():
+    strategy = SportsGameStrategy(sport="basketball_nba", min_edge_pct=0.05, min_books=2)
+    market = _market(yes_price=67, volume=500)
+    market.raw = {"yes_sub_title": "Houston", "no_sub_title": "Miami"}
+    games = [_game(home="Miami Heat", away="Houston Rockets", home_prob=0.20, away_prob=0.80)]
+    sig = strategy.generate_signal(market, games, yes_side_team=None)
+    assert sig is not None
+    assert sig.side == "yes"
+
+
+def test_signal_skips_when_ticker_and_subtitle_yes_side_disagree():
+    strategy = SportsGameStrategy(sport="basketball_nba", min_edge_pct=0.05, min_books=2)
+    market = _market(yes_price=67, volume=500)
+    market.raw = {"yes_sub_title": "Miami", "no_sub_title": "Houston"}
+    games = [_game(home="Miami Heat", away="Houston Rockets", home_prob=0.20, away_prob=0.80)]
+    sig = strategy.generate_signal(market, games, yes_side_team="Houston")
     assert sig is None
 
 

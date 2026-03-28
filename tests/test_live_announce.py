@@ -111,3 +111,15 @@ class TestAnnounceLiveBet:
         with patch("subprocess.run"):
             # Should not raise (fill price resolution)
             main_mod._announce_live_bet(result, strategy_name="btc_drift_v1")
+
+    def test_legacy_keyword_call_still_works(self):
+        """Backward compatibility: older callers may pass trade fields as kwargs."""
+        with patch("subprocess.run"):
+            main_mod._announce_live_bet(
+                strategy_name="sports_game_nba_v1",
+                ticker="KXNBAGAME-TEST",
+                side="no",
+                cost_usd=9.92,
+                fill_price_cents=31,
+                trade_id="abc123",
+            )

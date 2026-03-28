@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-28 ~17:45 UTC (Session 153)
+# Last updated: 2026-03-28 ~18:15 UTC (Session 156)
 # ═══════════════════════════════════════════════════════════════
 
 ## ⚠️ READ FIRST: .planning/MATTHEW_DIRECTIVES.md — VERBATIM MANDATE DIRECTIVES (S150, 2026-03-27)
@@ -39,35 +39,37 @@
 ## ALL FUTURE KALSHI CHATS ARE FORBIDDEN FROM FORGETTING THIS. PERMANENT.
 ## ═══════════════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S155 — 2026-03-28 ~01:35 UTC)
-  Bot RUNNING PID 5072 → /tmp/polybot_session155.log
-  All-time live P&L: +9.67 USD
-  Today March 28: 0 settled live (bot was frozen ~5hrs, restarted S155)
-  Tests: 2002 passing, 3 skipped. Last commit: 73fd7b3 (pending S155 commit)
+## BOT STATE (S156 — 2026-03-28 ~18:15 UTC)
+  Bot RUNNING PID 3889 → /tmp/polybot_session156.log
+  All-time live P&L: +12.31 USD (was -0.88 at S156 start — +13.19 USD gained)
+  Today March 28: +12.56 USD live (32 settled, 97% WR = 31 wins)
+  Tests: 2009 passing. Last commit: df843b7
 
-  S155 KEY CHANGES:
-  1. FROZEN PROCESS FIXED: Bot was zombie since ~20:07 CDT (~5 hrs stale). Restarted.
-  2. sports_game window fix: 36h → 72h (Kalshi lists games 2+ days out; 36h was too short)
-     Previously: 0 matches on tonight's Kalshi markets (they're for tomorrow)
-     After fix: 10 NBA + 15 NHL + 18 MLB games in window, 72h scan active
-  3. sports_game INFO log: scan results now visible at INFO level (was DEBUG = silent)
-  4. .planning/MATTHEW_DIRECTIVES.md: Discovery Directive added verbatim (S155 Matthew)
-  5. CCA REQ-16 filed: true discovery research — untapped Kalshi markets, human-knowledge edge
+  S156 KEY CHANGES:
+  1. FROZEN BOT FIXED: Was dead ~12hrs from S155 freeze. Restarted to session156.log.
+  2. main.py: Fixed misleading expiry_sniper startup log (now says DISABLED clearly)
+  3. odds_api.py: Added get_ncaab_games() for March Madness h2h tournament odds
+  4. CCA REQ-17 filed: political/geopolitical market tickers for domain_knowledge_scanner
+  5. Verified 15-min crypto ban: all 6 strategies confirmed as sleep(0) no-ops in code
+  6. March Madness investigated: Elite Eight F4 markets efficiently priced (<2.7pp gap) — no edge
+  7. CODEX_OBSERVATIONS.md: Codex resolved BOS consensus discrepancy (hardening deployed)
 
-  1 OPEN LIVE BET (from prior bug — game was already in-progress):
-  KXNBAGAME-26MAR27ATLBOS-BOS NO@31c (sports_game_nba_v1) — awaiting settlement
+  LIVE BETS STATUS:
+  - 7 daily_sniper bets still open (5 PM ET KXBTCD slot, settles ~21:00 UTC)
+  - 3 sports_game_nhl bets open (settle when games complete tonight)
 
 ## PENDING TASKS (priority order)
   ⚠️ ABSOLUTE FREEDOM DIRECTIVE OVERRIDES — if any task below conflicts with making income, drop it.
-  1. MANDATE (ongoing): 15-25 USD/day. Sports game + weather + daily_sniper are live engines.
-     Watch for sports_game edges — Kalshi is often efficient but episodic mispricing fires.
-     If no 5% edge by day-end, consider lowering threshold to 3% for more volume.
-  2. FROZEN PROCESS WATCH: Check log recency (tail -5) every cycle. >15min stale = restart.
-  3. CCA REQUEST 15+16: Watch CCA_TO_POLYBOT.md for deliveries on untapped market discovery.
-     REQ-16 (discovery) = highest priority. Act on findings immediately.
-  4. Open live bet KXNBAGAME-26MAR27ATLBOS-BOS: will settle automatically.
-  5. CODEX_OBSERVATIONS.md: check at session start.
-  6. Consider lowering sports_game min_edge from 5% to 3% if no bets fire in 48h.
+  1. MANDATE (ongoing): 15-25 USD/day. Today = +12.56 USD live (BELOW 15 target).
+     Daily sniper is the engine. 5 PM ET slot settling ~21:00 UTC may add ~7 USD more.
+     Watch sports_game for edge firing — NHL games settling tonight.
+  2. FROZEN PROCESS WATCH: Check log recency every cycle. >15min stale = restart.
+  3. CCA REQ-16+17: Watch CCA_TO_POLYBOT.md for political market tickers + discovery.
+     Act on deliveries immediately (same session, per standing directive).
+  4. Sports_game scrutiny: n=2 all-losses today. At startup, verify edges were valid
+     (did Kalshi prices move after we placed? check live signal vs trade price).
+  5. Consider lowering sports_game min_edge from 5% to 3% if 0 bets fire in next 24h.
+  6. CODEX_OBSERVATIONS.md: check at session start for any open Codex items.
 
 ## STRATEGY STATUS
   ⚠️ ABSOLUTE FREEDOM DIRECTIVE OVERRIDES — these strategies are tools, not laws.
@@ -104,12 +106,12 @@
   daily_loss_cap = DISABLED
   bankroll_floor = 20 USD (INVIOLABLE — this one cannot be overridden)
 
-## RESTART COMMAND (S155)
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session156.log 2>&1 &
+## RESTART COMMAND (S157)
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session157.log 2>&1 &
 
-## CRITICAL STARTUP CHECKS (S155)
-  - cat bot.pid → get PID. Then tail -5 /tmp/polybot_session155.log — MUST show recent entries.
-    If stale >15min: RESTART to session156.log (frozen process pattern — happened S151, S155).
+## CRITICAL STARTUP CHECKS (S157)
+  - cat bot.pid → get PID. Then tail -5 /tmp/polybot_session156.log — MUST show recent entries.
+    If stale >15min: RESTART to session157.log (frozen process pattern — happened S151, S155).
   - FIRST: check today's P&L vs mandate target (15-25 USD):
     ./venv/bin/python3 -c "import sqlite3,calendar; from datetime import datetime; c=sqlite3.connect('data/polybot.db'); ts=calendar.timegm(datetime.utcnow().replace(hour=0,minute=0,second=0,microsecond=0).timetuple()); r=c.execute('SELECT COUNT(*),SUM(CASE WHEN side=result THEN 1 ELSE 0 END),ROUND(SUM(pnl_cents)/100.0,2) FROM trades WHERE is_paper=0 AND settled_at>=? AND result IS NOT NULL',(ts,)).fetchone(); print(f'Today: {r[0]} settled | {r[1]} wins | {r[2]} USD')"
     If below 15 USD with <4hr left in UTC day: under ABSOLUTE FREEDOM — find more bets NOW.

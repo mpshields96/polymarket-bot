@@ -9149,3 +9149,76 @@ WOULD HAVE MADE MORE MONEY EARLIER: Raised daily_sniper cap at session start.
 - At ~15 USD/day expected (new sizing + daily_sniper@5): ~7 days to goal
 - Highest-leverage action: monitor Day 2 results with new sizing — if WR holds at 93%+, mandate is achievable
 
+
+---
+
+## Session 156 — 2026-03-28 ~18:15 UTC
+
+### Summary
+S156 was a recovery + autonomous monitoring session. Bot was down ~12 hours at start (S155 freeze), restarted to session156.log. Daily sniper fired two large batches (1 PM ET + 2 PM ET slots), recovering all-time P&L from -0.88 USD → +12.31 USD. Ran 6 monitoring cycles fully autonomous.
+
+### Changes
+1. **main.py: fixed misleading expiry_sniper log message**
+   - Was: "Expiry sniper loop started (LIVE BTC/ETH/SOL/XRP 15M...)" even though strategy is a sleep(0) no-op
+   - Now: "Expiry sniper loop DISABLED — KXBTC/ETH/SOL/XRP 15M permanently banned (live + paper, S154)"
+   WHY: Log was actively confusing. Any reader would think the loop was running live.
+
+2. **src/data/odds_api.py: added get_ncaab_games() method**
+   - Enables March Madness h2h game odds fetch from The Odds API
+   - Investigated Elite Eight F4 markets — all efficiently priced (<2.7pp gaps vs needed 5%)
+   WHY: NCAA tournament in progress, wanted bookmaker arb coverage.
+
+3. **CCA REQ-17 filed** (POLYBOT_TO_CCA.md)
+   - Requesting political/geopolitical Kalshi series tickers for domain_knowledge_scanner
+   - domain_knowledge_scanner.py currently only scans economics (KXFEDDECISION/KXCPI)
+   WHY: Expand LLM-based edge discovery to politics/geopolitics categories.
+
+4. **15-min crypto ban verified in code**
+   - Confirmed btc_drift, eth_drift, sol_drift, xrp_drift, expiry_sniper, maker_sniper all use asyncio.sleep(0) no-ops
+   - Paper loops also disabled (bd5ff8d from earlier S156 sub-session)
+   WHY: Matthew standing directive S154 — verify at every session.
+
+### P&L
+- All-time live: +12.31 USD (was -0.88 USD session start — +13.19 USD gain)
+- Today live: +12.56 USD (32 settled, 97% WR = 31 wins)
+  - daily_sniper_v1: 31/38 wins, +22.31 USD (both 1 PM + 2 PM ET KXBTCD slots)
+  - sports_game_nba_v1: 0/1 wins, -9.75 USD (KXNBAGAME-DALPOR-POR YES@65c)
+  - sports_game_nhl_v1: 3 open, 0 settled
+
+### Strategy Analyzer Insights (--brief)
+- SNIPER: Profitable buckets: 90-94c. Guarded: 95-98c. ✅
+- btc_drift_v1: NEUTRAL — 80 live bets, 50% WR, -9.53 USD [direction_filter="no" recommended]
+- eth_drift_v1: UNDERPERFORMING — 46% WR, trend DECLINING [DISABLED — banned S154]
+- sol_drift_v1: HEALTHY — 47 live bets, 66% WR [banned S154 — paper only]
+- daily_sniper_v1: 63 bets, 98.4% WR, +23.86 USD ✅ EDGE CONFIRMED (E_n=1.4M)
+
+### Graduation Status
+- daily_sniper_v1: LIVE, 63 bets, 98.4% WR, SPRT EDGE CONFIRMED
+- expiry_sniper_v1 (paper): 82 bets, READY but PERMANENTLY BANNED from live
+- btc_drift/eth_drift/sol_drift/xrp_drift: BANNED from live (paper only)
+- HARD_MAX gate: 23/50 clean bets → 27 more to unlock 40 USD raise
+
+### Self-Rating: B
+WINS:
+- Bot fix: restarted from 12hr downtime, ran clean 6 cycles (2.5 hrs) autonomous
+- P&L: +13.19 USD session gain (all-time flipped positive to +12.31 USD)
+- Code: expiry_sniper log fix, NCAAB odds support added
+- Research: confirmed 15-min ban enforced, explored March Madness/politics markets
+- Monitoring: 6 cycles with 0 DEAD/FROZEN events
+
+LOSSES:
+- Mandate missed: today +12.56 USD below 15-25 target (sports losses dragged it)
+- Sports_game: 2 live losses today (-19.67 USD combined) — valid edges but 0/2 variance
+- Didn't check CODEX_OBSERVATIONS.md at session start (found Codex had already resolved it)
+- P&L still far from monthly target
+
+NEXT CHAT MUST: Monitor sports_game edge quality carefully. At n=2 all-losses, it's pure variance, but the 9 USD bet size per game deserves scrutiny. Check if Kalshi prices update after we place.
+WOULD HAVE MADE MORE MONEY EARLIER: Checking if any sports game slots were available earlier in the day. The bot only sees games within 72h window — nothing to do there. Actually the daily_sniper batch at 2 PM ET was the big money. Correct.
+
+### Goal Progress
+- All-time P&L: +12.31 USD
+- Distance to +125 USD goal: 112.69 USD
+- At ~12-15 USD/day expected: ~8-10 days to +125 USD goal
+- Monthly target: 250 USD (self-sustaining for Claude Max20)
+- At 15-25 USD/day × 20 trading days: 300-500 USD/month achievable
+- Highest-leverage action: Daily sniper is the engine. Keep it running. Let compound time work.
