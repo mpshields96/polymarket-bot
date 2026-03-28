@@ -26,7 +26,7 @@ import logging
 import math
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -2173,9 +2173,32 @@ async def sports_game_loop(
                 continue
 
             # Fetch bookmaker odds (15-min cache — low credit burn)
-            nba_games = await feed.get_nba_games()
-            nhl_games = await feed.get_nhl_games()
-            mlb_games = await feed.get_mlb_games()
+            # Filter to future games only (commence_time > now - 30min) to avoid
+            # betting on games already in-progress or completed
+            _now_ts = datetime.now(timezone.utc)
+
+            def _future_games(games):
+                """Keep only games that start within the next 36 hours (not already played)."""
+                future = []
+                for g in games:
+                    if not g.commence_time:
+                        continue
+                    try:
+                        # commence_time is ISO8601 UTC, e.g. "2026-03-28T23:00:00Z"
+                        from datetime import datetime as _dt
+                        ct = _dt.fromisoformat(g.commence_time.replace("Z", "+00:00"))
+                        # Allow games that start within 36 hours (but not already started > 30min ago)
+                        _cutoff = _now_ts - timedelta(minutes=30)
+                        _horizon = _now_ts + timedelta(hours=36)
+                        if ct > _cutoff and ct < _horizon:
+                            future.append(g)
+                    except Exception:
+                        future.append(g)  # keep if we can't parse time
+                return future
+
+            nba_games = _future_games(await feed.get_nba_games())
+            nhl_games = _future_games(await feed.get_nhl_games())
+            mlb_games = _future_games(await feed.get_mlb_games())
             odds_by_sport = {
                 "basketball_nba": nba_games,
                 "icehockey_nhl": nhl_games,
