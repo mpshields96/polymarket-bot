@@ -2068,7 +2068,7 @@ def _announce_live_bet(
 # ── Kalshi sports game-winner bookmaker arb loop ─────────────────────
 
 _SPORTS_GAME_POLL_SEC = 300         # 5-min poll — games added throughout the day
-_SPORTS_GAME_LIVE_CAP_USD = 10.0    # Conservative live cap (new strategy ramp-up)
+_SPORTS_GAME_LIVE_CAP_USD = 2.0     # Reduced cap (CCA REQ-18: n<30, calibrating)
 _SPORTS_GAME_PAPER_CAP_USD = 5.0    # Paper cap
 
 
