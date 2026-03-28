@@ -1002,3 +1002,24 @@ Strategy: Target near-expiry YES@90-94c in politics/entertainment
   Same sniper logic, different asset class
   Need: market probe to find qualifying contracts + volume check
 Status: REQ-028 to CCA still pending political market scan
+
+## [2026-03-25] Consensus width signal for sniper (from Titanium-Agentic recon)
+Titanium-Agentic has a "consensus_width" feature (std_dev of book prices across N books).
+Kalshi analog: bid/ask spread + orderbook depth at entry.
+Hypothesis: tight spread (bid=93c, ask=94c, depth=50K) = stronger FLB signal than
+wide spread (bid=88c, ask=96c, depth=2K). Could gate sniper on min_depth and max_spread.
+Would require fetching orderbook data at signal time (we have it — Kalshi provides depth).
+Currently unused as filter. Could reduce losses on thin-market entries.
+Status: IDEA — needs data analysis first. Do NOT build before 30+ bets analyzing spread correlation with outcome.
+Filed: REQ-037 to CCA when sniper spread data is available.
+
+## [2026-03-25] CCA signal pipeline integration (MT-26, 6 modules, 201 tests)
+CCA has already built: regime_detector, calibration_bias, cross_platform_signal,
+dynamic_kelly, macro_regime, fear_greed_filter, signal_pipeline orchestrator.
+These are NOT deployed to the polybot yet. Could enhance:
+  - dynamic Kelly sizing (regime-aware bet sizing)
+  - calibration bias correction per market state
+  - macro/fear regime filtering (avoid bets during high-fear periods)
+Prerequisite: sniper performing consistently at Stage 2+ before adding complexity.
+CCA can help adapt to polybot architecture when ready (per UPDATE 33).
+Status: FUTURE — do not build before sniper has 30+ live bets at Stage 2.

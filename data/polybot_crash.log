@@ -1,0 +1,38 @@
+
+=== CRASH 2026-03-25 04:03:21 UTC ===
+Traceback (most recent call last):
+  File "/Users/matthewshields/Projects/polymarket-bot/main.py", line 3918, in <module>
+    asyncio.run(main())
+    ~~~~~~~~~~~^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/matthewshields/Projects/polymarket-bot/main.py", line 3707, in main
+    trade_lock=trade_lock,
+               ^^^^^^^^^^
+NameError: name 'trade_lock' is not defined. Did you mean: 'trade_task'?
+
+=== CRASH 2026-03-25 22:45:00 UTC ===
+Traceback (most recent call last):
+  File "/Users/matthewshields/Projects/polymarket-bot/main.py", line 4170, in <module>
+    asyncio.run(main())
+    ~~~~~~~~~~~^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/matthewshields/Projects/polymarket-bot/main.py", line 3494, in main
+    for _drift_strat in [drift_strategy, eth_drift_strategy, sol_drift_strategy, xrp_drift_strategy]:
+                                                                                 ^^^^^^^^^^^^^^^^^^
+NameError: name 'xrp_drift_strategy' is not defined. Did you mean: 'eth_drift_strategy'?

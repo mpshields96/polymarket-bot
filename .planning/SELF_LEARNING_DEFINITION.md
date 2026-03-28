@@ -1,9 +1,14 @@
-# What Self-Learning Actually Means — Standing Directive
+# What Self-Learning Actually Means — Standing Directive (KALSHI BOT ONLY)
 # Matthew's explicit directive, S129 (2026-03-24)
 # "Smarter, smoother, more capable, more accurate, more innovative,
 #  better critical thinking."
+#
+# SCOPE: This directive applies to the Kalshi bot specifically.
+# CCA is a separate general AI agent / self-learning project with broader scope —
+# analysis tools, research pipelines, and intelligence systems are appropriate for CCA.
+# CCA's job is deep research and delivery. The Kalshi bot decides what to wire in.
 
-## What Self-Learning IS
+## What Self-Learning IS (for the Kalshi bot)
 
 Self-learning means the bot gets objectively better at its core function
 over time without human intervention. The measure is P&L and win rate —

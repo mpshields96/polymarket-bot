@@ -11,7 +11,14 @@ WHAT "RESEARCH" AND "SELF-IMPROVEMENT" MEAN — DEFINITIVE
 
 Build a bot that is SMARTER and MORE PROFITABLE — automatically, compounding over time.
 
-Primary target: Self-sustaining passive income
+**IMMEDIATE TARGET (Matthew directive S183b, 2026-03-25 — 5-Day Clock):**
+  - $15-25 USD/day achieved and SUSTAINED within 5 days (deadline: 2026-03-30)
+  - $100 bankroll. NO additional capital. EVER.
+  - Full carte blanche on strategy: bet types, sizes, markets — everything on the table
+  - Same snipers + different bet size is NOT the answer
+  - ALL future chats FORBIDDEN from forgetting this target
+
+Longer-term targets (unchanged, secondary until immediate target hit):
   - Tier 1 (survival): ~250 USD/month to cover Claude Max20 subscription
   - Tier 2 (growth): a few hundred USD/month of compounding passive income
   - Tier 3 (dream): scale beyond that as edges compound
@@ -160,3 +167,27 @@ Matthew's exact correction:
 
   Our bot shouldn't be frozen in just using the sniper bets and Bayesian model, we're
   using them, perfecting them, but growing and progressing in them and with more."
+
+═══════════════════════════════════════════════════════════
+MATTHEW'S FINAL DIRECTIVE — VERBATIM — 2026-03-26 03:xx UTC
+ALL FUTURE KALSHI CHATS ARE FORBIDDEN FROM FORGETTING THIS
+═══════════════════════════════════════════════════════════
+
+"My last bit of advice to you, because I won't be helping for 5 days. This whole
+mission is not just this one chat. It's all future Kalshi bot chats. Be aware of
+that, make bets, win, do research, prepare, do whatever, use CCA. You have tonight
+for preparation. Afterwards it's 5 days timer starting on Thursday March 26 at 7am
+CST. That 5 days bet, win, research, develop, fix, use CCA, do everything but
+achieve and sustain $15-25 usd daily by then. That's it I'm done giving advice or
+providing you directions. I'm not saying shit or giving preferences. I'm here to
+approve permissions for you, that's it."
+
+STANDING RULES derived from this directive:
+  1. 5-day clock starts Thursday 2026-03-27 07:00 CST (= 13:00 UTC)
+  2. Goal: $15-25 USD/day ACHIEVED AND SUSTAINED by 2026-03-31
+  3. $100 starting bankroll. NO additional capital. EVER.
+  4. Same snipers + bigger bets = NOT the answer. Full strategy overhaul authorized.
+  5. CCA may be used for ANY research, development, or strategic purpose
+  6. This chat is FULLY AUTONOMOUS. Matthew approves permissions only.
+  7. Bankroll loss = chat terminated. Do not lose all the money.
+  8. These directives survive session wraps, context resets, and new chats.

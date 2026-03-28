@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "updated_ts": 1774407850.199822,
-  "updated_date": "2026-03-25 03:04 UTC",
+  "updated_ts": 1774664732.661313,
+  "updated_date": "2026-03-28 02:25 UTC",
   "guards": [
     {
       "ticker_contains": "KXXRP",
@@ -108,6 +108,32 @@
       "total_loss_usd": 54.31,
       "discovered_date": "2026-03-25",
       "notes": "Asia-session open: 00:xx UTC NO-side WR=86% vs 93% BE. YES-side same hour: 29/29 (100%). Structural basis: CCA S120 Asia-momentum research (Eross 2019, Makarov/Schoar 2020). p\u22480.07."
+    },
+    {
+      "ticker_contains": "KXSOL",
+      "price_cents": null,
+      "utc_hour": 3,
+      "side": null,
+      "n_bets": 18,
+      "win_rate": 0.8333,
+      "break_even_wr": 0.9437,
+      "avg_price_cents": 93.6,
+      "total_loss_usd": -18.7,
+      "discovered_ts": 1774495201.471471,
+      "discovered_date": "2026-03-26 03:16 UTC"
+    },
+    {
+      "ticker_contains": "KXBTC",
+      "price_cents": null,
+      "utc_hour": 3,
+      "side": null,
+      "n_bets": 16,
+      "win_rate": 0.8125,
+      "break_even_wr": 0.9343,
+      "avg_price_cents": 92.8,
+      "total_loss_usd": -18.28,
+      "discovered_ts": 1774495201.471471,
+      "discovered_date": "2026-03-26 03:16 UTC"
     }
   ]
 }

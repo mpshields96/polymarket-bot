@@ -2331,13 +2331,7 @@ async def sports_game_loop(
                                     ticker, signal.side.upper(), signal.price_cents,
                                     signal.edge_pct * 100, signal.reason, trade_usd,
                                 )
-                                _announce_live_bet(
-                                    strategy_name=strategy.name,
-                                    ticker=ticker,
-                                    side=signal.side,
-                                    price_cents=signal.price_cents,
-                                    trade_usd=trade_usd,
-                                )
+                                _announce_live_bet(result, strategy_name=strategy.name)
                     else:
                         # ═══ PAPER PATH ════════════════════════════════════
                         ok, block_reason = kill_switch.check_paper_order_allowed(
