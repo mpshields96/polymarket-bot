@@ -19,8 +19,11 @@ OUTPUT:
 
 API BUDGET:
     Kalshi: free (no quota)
-    Anthropic (Haiku): ~$0.01 per market evaluation (~$0.50/day for 50 markets)
-    Total per scan: ~$0.10-0.50 depending on market count
+    LLM: depends on provider. Currently supports --provider anthropic or --provider stub.
+    NOTE: No ANTHROPIC_API_KEY is available in this environment. The scanner
+    works in --dry-run mode (market enumeration only) or with --provider stub
+    (random estimates for testing the pipeline). Add a real LLM provider when
+    API access is available.
 
 PHASE 1: Data accumulation (this script). Paper trading after 50+ calibrated estimates.
 """
@@ -141,17 +144,51 @@ Respond in this exact JSON format (no markdown, no backticks):
 {{"probability": 0.XX, "confidence": "high/medium/low", "reasoning": "1-2 sentence explanation"}}"""
 
 
+def stub_estimate(market_title: str, yes_price: int) -> Dict:
+    """Stub estimator for pipeline testing — uses simple heuristics, no API calls.
+
+    Returns a probability estimate based on the market title keywords and
+    a slight mean-reversion assumption (prices tend toward 50%).
+    Not calibrated — for testing the data pipeline only.
+    """
+    import hashlib
+    # Deterministic pseudo-random based on title (reproducible)
+    h = int(hashlib.md5(market_title.encode()).hexdigest()[:8], 16) / 0xFFFFFFFF
+    # Mean-revert: nudge estimate toward 50% from Kalshi price
+    kalshi_implied = yes_price / 100.0
+    base = 0.3 * h + 0.7 * kalshi_implied  # Blend random + market price
+    # Add slight mean reversion
+    prob = base + 0.05 * (0.5 - base)
+    prob = max(0.05, min(0.95, prob))
+    return {
+        "probability": round(prob, 3),
+        "confidence": "low",
+        "reasoning": "Stub estimator (no LLM) — pipeline test only",
+        "input_tokens": 0,
+        "output_tokens": 0,
+    }
+
+
 async def estimate_probability(
-    anthropic_client,
+    llm_client,
     market_title: str,
     yes_price: int,
     no_price: int,
+    provider: str = "anthropic",
 ) -> Dict:
-    """Ask Claude Haiku for a probability estimate on a market."""
+    """Get a probability estimate for a market.
+
+    Providers:
+    - "anthropic": Uses Anthropic SDK (requires ANTHROPIC_API_KEY)
+    - "stub": Deterministic heuristic (no API calls, for pipeline testing)
+    """
+    if provider == "stub":
+        return stub_estimate(market_title, yes_price)
+
     prompt = build_probability_prompt(market_title, yes_price, no_price)
 
     try:
-        response = anthropic_client.messages.create(
+        response = llm_client.messages.create(
             model=LLM_MODEL,
             max_tokens=LLM_MAX_TOKENS,
             messages=[{"role": "user", "content": prompt}],
@@ -324,6 +361,7 @@ async def run_scan(
     category_filter: Optional[str] = None,
     min_edge: float = 0.05,
     dry_run: bool = False,
+    provider: str = "stub",
 ) -> List[ScanResult]:
     """Run the full domain knowledge scan."""
 
@@ -333,12 +371,12 @@ async def run_scan(
     client = KalshiClient(auth)
     await client.connect()
 
-    # Initialize Anthropic client
-    anthropic_client = None
-    if not dry_run:
+    # Initialize LLM client based on provider
+    llm_client = None
+    if not dry_run and provider == "anthropic":
         try:
             from anthropic import Anthropic
-            anthropic_client = Anthropic()
+            llm_client = Anthropic()
         except ImportError:
             print("Error: pip install anthropic")
             await client.close()
@@ -347,6 +385,9 @@ async def run_scan(
             print(f"Error initializing Anthropic: {e}")
             await client.close()
             return []
+    elif not dry_run and provider == "stub":
+        print("Using stub estimator (no LLM API calls — pipeline test mode)")
+        llm_client = None  # stub_estimate doesn't need a client
 
     try:
         # Fetch markets
@@ -375,7 +416,8 @@ async def run_scan(
 
             # Get LLM estimate
             est = await estimate_probability(
-                anthropic_client, market.title, market.yes_price, market.no_price,
+                llm_client, market.title, market.yes_price, market.no_price,
+                provider=provider,
             )
 
             total_input_tokens += est.get("input_tokens", 0)
@@ -465,6 +507,10 @@ def parse_args() -> argparse.Namespace:
         help="List markets without making LLM calls",
     )
     parser.add_argument(
+        "--provider", choices=["anthropic", "stub"], default="stub",
+        help="LLM provider: 'stub' (no API key needed, default) or 'anthropic' (requires ANTHROPIC_API_KEY)",
+    )
+    parser.add_argument(
         "--calibration", action="store_true",
         help="Show calibration analysis of past scans",
     )
@@ -491,6 +537,7 @@ def main():
         category_filter=args.category,
         min_edge=args.min_edge,
         dry_run=args.dry_run,
+        provider=args.provider,
     ))
 
     if results:

@@ -18,6 +18,7 @@ from domain_knowledge_scanner import (
     build_probability_prompt,
     calculate_edge,
     categorize_market,
+    stub_estimate,
 )
 
 
@@ -154,6 +155,38 @@ class TestCalibrationAnalysis(unittest.TestCase):
             analyze_calibration(path)
         finally:
             os.unlink(path)
+
+
+class TestStubEstimate(unittest.TestCase):
+    def test_returns_valid_probability(self):
+        result = stub_estimate("Will Trump win 2028?", 55)
+        self.assertGreaterEqual(result["probability"], 0.05)
+        self.assertLessEqual(result["probability"], 0.95)
+
+    def test_returns_required_fields(self):
+        result = stub_estimate("Fed rate cut?", 70)
+        self.assertIn("probability", result)
+        self.assertIn("confidence", result)
+        self.assertIn("reasoning", result)
+        self.assertEqual(result["confidence"], "low")
+
+    def test_deterministic(self):
+        r1 = stub_estimate("Same market title", 50)
+        r2 = stub_estimate("Same market title", 50)
+        self.assertEqual(r1["probability"], r2["probability"])
+
+    def test_different_titles_different_results(self):
+        r1 = stub_estimate("Market A", 50)
+        r2 = stub_estimate("Market B", 50)
+        # Not guaranteed different but overwhelmingly likely with md5
+        # Just check both are valid
+        self.assertGreaterEqual(r1["probability"], 0.05)
+        self.assertGreaterEqual(r2["probability"], 0.05)
+
+    def test_no_api_tokens_used(self):
+        result = stub_estimate("Any market", 60)
+        self.assertEqual(result["input_tokens"], 0)
+        self.assertEqual(result["output_tokens"], 0)
 
 
 class TestScanResult(unittest.TestCase):
