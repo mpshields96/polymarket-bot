@@ -39,55 +39,51 @@
 ## ALL FUTURE KALSHI CHATS ARE FORBIDDEN FROM FORGETTING THIS. PERMANENT.
 ## ═══════════════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S153 — 2026-03-28 ~17:45 UTC)
-  Bot RUNNING PID 95371 → /tmp/polybot_session153.log
-  All-time live P&L: +40.17 USD
-  March 28 Day 2 (ended 17:45 UTC, still running): +26.37 USD (40 settled, 39W/1L, 97.5% WR)
-    - expiry_sniper: 18/18 wins +19.35 USD
-    - daily_sniper: 10/10 wins +4.30 USD
-    - sol_drift: 12 bets pending settlement
-  Tests: 2002 passing, 3 skipped. Last commit: TBD (S153 test fixes pending)
-  Post-guard clean streak: 113/200 (next gate at 200 → HARD_MAX auto-raise to 60 USD)
+## BOT STATE (S154 — 2026-03-28 ~19:40 UTC)
+  Bot RUNNING PID 93047 → /tmp/polybot_session154b.log
+  All-time live P&L: +9.67 USD (DB authoritative — prior summary had incorrect figure)
+  Today March 28: 0 settled live so far (bot restarted mid-session during major pivot)
+  Tests: 2002 passing, 3 skipped. Last commit: 73fd7b3
 
-  S153 KEY CHANGES:
-  1. HARD_MAX auto-raised 35→50 USD (gate 100 post-guard clean bets reached at 108 — pre-authorized)
-  2. test_kill_switch.py: tests updated for HARD_MAX=50 USD
-  3. test_security.py: test renamed + updated for 50 USD; shebang false positive fix
-  4. AGENTS.md created (Codex CLI integration — reads project rules)
-  5. CODEX_OBSERVATIONS.md created (Codex review output file — check each session)
-  6. MATTHEW_DIRECTIVES.md: monthly income directive + compounding extrapolation appended
-  7. Deadline extended to April 3 (downtime allowance from Matthew)
-  8. SPRT/CUSUM: expiry_sniper EDGE CONFIRMED (lambda=+17.538, E_n=41M, CUSUM S=2.030)
-     daily_sniper EDGE CONFIRMED (lambda=+5.317, E_n=203.8)
-     eth_drift DRIFT ALERT (S=15.0) — already DISABLED, not a blocker
-  9. Day 2 mandate target MET: +26.37 USD (above 25 ceiling)
+  S154 KEY CHANGES — MAJOR STRATEGIC PIVOT:
+  1. ALL 15-MINUTE CRYPTO MARKETS PERMANENTLY BANNED FROM LIVE (Matthew standing directive)
+     Banned: btc_lag, eth_lag, sol_lag, btc_drift, eth_drift, sol_drift, btc_imbalance,
+             eth_imbalance, expiry_sniper, maker_sniper — all live_executor_enabled=False
+     Reason: 3 consecutive days of losses despite high WR. FLB payoff asymmetry at 90c+
+     destroyed daily income. NOT a statistics problem — structural dead end.
+     Saved to: memory/feedback_15min_crypto_permanent_ban.md + learnings.md (severity 3)
+  2. sports_game_loop BUILT AND LIVE:
+     Pre-game NBA/NHL/MLB bookmaker arb. Price range 15-80c (NOT 90c+).
+     Signal: Kalshi vs sharp bookmaker consensus (Pinnacle/DraftKings/FanDuel).
+     Edge: retail crowd overweights favorites, underprices underdogs.
+     Min edge: 5%. Live-enabled. Cap: 10 USD/bet.
+  3. MLB support added: SportsFeed.get_mlb_games() + MLB city map + MLB code-to-city map
+  4. commence_time filter: only bets on games starting within next 36 hours (not already played)
+  5. CCA REQ-15 filed: economics markets audit + sports game validation + multi-day crypto ranges
 
 ## PENDING TASKS (priority order)
-  ⚠️ ABSOLUTE FREEDOM DIRECTIVE OVERRIDES — if any task below conflicts with making 15-25 USD/day, drop it and find a better bet instead.
-  1. MANDATE DAY 3 (March 29): Target 15-25 USD. Check P&L vs mandate at startup.
-     Day 1: +6.56 USD. Day 2: +26.37 USD. Compounding working — all-time +40.17 USD.
-  2. FROZEN PROCESS WATCH: Check log recency (tail -5) every cycle. ps alone misses frozen.
-     Freeze pattern: log stale >15min = restart to session154.log.
-  3. Post-guard clean bets: 113/200. 87 more → gate fires → HARD_MAX auto-raises to 60 USD.
-     Pre-authorized by Matthew (S140/S142/S153 pattern). Just log when it fires.
-  4. CODEX_OBSERVATIONS.md: check at session start. Codex may have filed code review notes.
-  5. CCA audit request (UPDATE 59): bet_analytics.py P&L pipeline integrity. Run and respond.
-  6. CCA REQUEST → REQ-027 simulation tools: push every session if not delivered.
-  7. Monthly income compounding: at current rate (~20 USD/day), ~12 days to self-sustaining (250 USD/month).
+  ⚠️ ABSOLUTE FREEDOM DIRECTIVE OVERRIDES — if any task below conflicts with making income, drop it.
+  1. MANDATE (ongoing): 15-25 USD/day. Sports game loop is now primary live engine.
+     Monitor first few sports_game bets (settle next day typically — pre-game bets).
+  2. FROZEN PROCESS WATCH: Check log recency (tail -5) every cycle. >15min stale = restart.
+  3. CCA REQUEST 15: Economics markets audit + sports game validation (REQ-15A/B/C filed).
+     Push CCA hard — these are the next untapped edges with correct payoff structure.
+  4. CODEX_OBSERVATIONS.md: check at session start.
+  5. Payoff framework: apply to all future strategy research — natural price range must be 20-75c.
 
 ## STRATEGY STATUS
   ⚠️ ABSOLUTE FREEDOM DIRECTIVE OVERRIDES — these strategies are tools, not laws.
+  ⚠️ ALL 15-MINUTE CRYPTO MARKETS PERMANENTLY BANNED FROM LIVE. No exceptions. Ever.
 
-  - expiry_sniper_v1: PRIMARY ENGINE. SPRT lambda=+17.538, E_n=41M EDGE CONFIRMED. CUSUM S=2.030 stable.
-    Ceiling: 93c BTC/SOL, 95c ETH. Floor: 90c. 08:xx blocked.
-    Day 2: 18/18 wins +19.35 USD.
-  - daily_sniper_v1: LIVE (5 USD cap). SPRT lambda=+5.317, E_n=203.8 EDGE CONFIRMED.
-    38 settled, 97.4% WR, +5.35 USD all-time. Cap confirmed at 5 USD.
-  - sol_drift_v1: LIVE. SPRT lambda=+2.277 edge confirmed. CUSUM S=1.800 stable.
-  - sports_sniper_v1: PAPER-ONLY. ESPN polling every 3 min. 0/20 fills.
+  - sports_game_v1 (NBA/NHL/MLB): NEW LIVE ENGINE. 5-min poll, 15-80c, 5% edge threshold.
+    First bets today (March 28). Settlement typically next day.
+  - daily_sniper_v1: LIVE (5 USD cap). SPRT edge confirmed. 38 settled. 97.4% WR.
+    ⚠️ Note: KXBTCD IS a daily crypto threshold market (NOT a 15-min direction market). ALLOWED.
+  - weather: LIVE. HIGHNY/KXHIGHCHI etc. Signal fires regularly.
   - economics_sniper_v1: PAPER-ONLY. First bets April 8 (KXCPI).
-  - eth_drift_v1: DISABLED (min_drift_pct=9.99). DRIFT ALERT S=15.0 — expected (disabled for this reason).
-  - btc_drift_v1/xrp_drift_v1: DISABLED (min_drift_pct=9.99).
+  - sports_sniper_v1: PAPER-ONLY. ESPN polling. 0/20 fills. (This is FLB at 90c+ — same banned payoff structure. Keep paper for data only.)
+  - expiry_sniper_v1: PAPER-ONLY. PERMANENTLY BANNED from live.
+  - All 15-min crypto strategies (btc_drift, sol_drift, btc_imbalance etc): PAPER data only. LIVE=BANNED.
 
 ## GUARDS ACTIVE (11 total)
   - IL-33: KXXRP GLOBAL BLOCK (PERMANENT — XRP forever banned, Matthew explicit)
