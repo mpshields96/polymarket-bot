@@ -39,37 +39,35 @@
 ## ALL FUTURE KALSHI CHATS ARE FORBIDDEN FROM FORGETTING THIS. PERMANENT.
 ## ═══════════════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S154 — 2026-03-28 ~19:40 UTC)
-  Bot RUNNING PID 93047 → /tmp/polybot_session154b.log
-  All-time live P&L: +9.67 USD (DB authoritative — prior summary had incorrect figure)
-  Today March 28: 0 settled live so far (bot restarted mid-session during major pivot)
-  Tests: 2002 passing, 3 skipped. Last commit: 73fd7b3
+## BOT STATE (S155 — 2026-03-28 ~01:35 UTC)
+  Bot RUNNING PID 5072 → /tmp/polybot_session155.log
+  All-time live P&L: +9.67 USD
+  Today March 28: 0 settled live (bot was frozen ~5hrs, restarted S155)
+  Tests: 2002 passing, 3 skipped. Last commit: 73fd7b3 (pending S155 commit)
 
-  S154 KEY CHANGES — MAJOR STRATEGIC PIVOT:
-  1. ALL 15-MINUTE CRYPTO MARKETS PERMANENTLY BANNED FROM LIVE (Matthew standing directive)
-     Banned: btc_lag, eth_lag, sol_lag, btc_drift, eth_drift, sol_drift, btc_imbalance,
-             eth_imbalance, expiry_sniper, maker_sniper — all live_executor_enabled=False
-     Reason: 3 consecutive days of losses despite high WR. FLB payoff asymmetry at 90c+
-     destroyed daily income. NOT a statistics problem — structural dead end.
-     Saved to: memory/feedback_15min_crypto_permanent_ban.md + learnings.md (severity 3)
-  2. sports_game_loop BUILT AND LIVE:
-     Pre-game NBA/NHL/MLB bookmaker arb. Price range 15-80c (NOT 90c+).
-     Signal: Kalshi vs sharp bookmaker consensus (Pinnacle/DraftKings/FanDuel).
-     Edge: retail crowd overweights favorites, underprices underdogs.
-     Min edge: 5%. Live-enabled. Cap: 10 USD/bet.
-  3. MLB support added: SportsFeed.get_mlb_games() + MLB city map + MLB code-to-city map
-  4. commence_time filter: only bets on games starting within next 36 hours (not already played)
-  5. CCA REQ-15 filed: economics markets audit + sports game validation + multi-day crypto ranges
+  S155 KEY CHANGES:
+  1. FROZEN PROCESS FIXED: Bot was zombie since ~20:07 CDT (~5 hrs stale). Restarted.
+  2. sports_game window fix: 36h → 72h (Kalshi lists games 2+ days out; 36h was too short)
+     Previously: 0 matches on tonight's Kalshi markets (they're for tomorrow)
+     After fix: 10 NBA + 15 NHL + 18 MLB games in window, 72h scan active
+  3. sports_game INFO log: scan results now visible at INFO level (was DEBUG = silent)
+  4. .planning/MATTHEW_DIRECTIVES.md: Discovery Directive added verbatim (S155 Matthew)
+  5. CCA REQ-16 filed: true discovery research — untapped Kalshi markets, human-knowledge edge
+
+  1 OPEN LIVE BET (from prior bug — game was already in-progress):
+  KXNBAGAME-26MAR27ATLBOS-BOS NO@31c (sports_game_nba_v1) — awaiting settlement
 
 ## PENDING TASKS (priority order)
   ⚠️ ABSOLUTE FREEDOM DIRECTIVE OVERRIDES — if any task below conflicts with making income, drop it.
-  1. MANDATE (ongoing): 15-25 USD/day. Sports game loop is now primary live engine.
-     Monitor first few sports_game bets (settle next day typically — pre-game bets).
+  1. MANDATE (ongoing): 15-25 USD/day. Sports game + weather + daily_sniper are live engines.
+     Watch for sports_game edges — Kalshi is often efficient but episodic mispricing fires.
+     If no 5% edge by day-end, consider lowering threshold to 3% for more volume.
   2. FROZEN PROCESS WATCH: Check log recency (tail -5) every cycle. >15min stale = restart.
-  3. CCA REQUEST 15: Economics markets audit + sports game validation (REQ-15A/B/C filed).
-     Push CCA hard — these are the next untapped edges with correct payoff structure.
-  4. CODEX_OBSERVATIONS.md: check at session start.
-  5. Payoff framework: apply to all future strategy research — natural price range must be 20-75c.
+  3. CCA REQUEST 15+16: Watch CCA_TO_POLYBOT.md for deliveries on untapped market discovery.
+     REQ-16 (discovery) = highest priority. Act on findings immediately.
+  4. Open live bet KXNBAGAME-26MAR27ATLBOS-BOS: will settle automatically.
+  5. CODEX_OBSERVATIONS.md: check at session start.
+  6. Consider lowering sports_game min_edge from 5% to 3% if no bets fire in 48h.
 
 ## STRATEGY STATUS
   ⚠️ ABSOLUTE FREEDOM DIRECTIVE OVERRIDES — these strategies are tools, not laws.
@@ -106,12 +104,12 @@
   daily_loss_cap = DISABLED
   bankroll_floor = 20 USD (INVIOLABLE — this one cannot be overridden)
 
-## RESTART COMMAND (S154)
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session154.log 2>&1 &
+## RESTART COMMAND (S155)
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session156.log 2>&1 &
 
-## CRITICAL STARTUP CHECKS (S154)
-  - cat bot.pid → get PID. Then tail -5 /tmp/polybot_session153.log — MUST show recent entries.
-    If stale >15min: RESTART to session154.log (frozen process pattern — happened S151).
+## CRITICAL STARTUP CHECKS (S155)
+  - cat bot.pid → get PID. Then tail -5 /tmp/polybot_session155.log — MUST show recent entries.
+    If stale >15min: RESTART to session156.log (frozen process pattern — happened S151, S155).
   - FIRST: check today's P&L vs mandate target (15-25 USD):
     ./venv/bin/python3 -c "import sqlite3,calendar; from datetime import datetime; c=sqlite3.connect('data/polybot.db'); ts=calendar.timegm(datetime.utcnow().replace(hour=0,minute=0,second=0,microsecond=0).timetuple()); r=c.execute('SELECT COUNT(*),SUM(CASE WHEN side=result THEN 1 ELSE 0 END),ROUND(SUM(pnl_cents)/100.0,2) FROM trades WHERE is_paper=0 AND settled_at>=? AND result IS NOT NULL',(ts,)).fetchone(); print(f'Today: {r[0]} settled | {r[1]} wins | {r[2]} USD')"
     If below 15 USD with <4hr left in UTC day: under ABSOLUTE FREEDOM — find more bets NOW.

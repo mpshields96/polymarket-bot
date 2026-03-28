@@ -148,6 +148,35 @@ But it doesn't stay linear — the bet size compounds with bankroll (8% PCT cap)
 HARD_MAX ceiling hits in ~21 days at current pace. Next gate (200 clean bets → 60 USD) loosens it.
 Self-sustaining milestone (250 USD/month for Claude Max20): reached within ~12-13 trading days.
 
+## DISCOVERY DIRECTIVE + SPORTS BETTING WARNING — 2026-03-28 (Session 155)
+
+Matthew's prompt (verbatim):
+"Sorry I stepped out. Thinking while I was driving. I agree with upholding the 15-minute
+crypto market ban, either we weren't doing it right or the market is a bust. You have to
+consider a bunch of people have a shit ton of bots or AI even on reddit alone also doing
+the 15-minute crypto market. We're fighting bots in most markets but we're essentially
+fighting all of them in that market particularly. Perhaps something about the data just
+draws most AI/LLMs into it somehow. We can always steal and clone parts or all of the
+betting model in the agentic-rd-sandbox subfolder if we ever want to go full dive and
+finish the sportsbetting model properly. Otherwise I stick with the goal of discovery and
+finding the untapped market/new edges on Kalshi. We need to consider things that other
+LLMs/AI maybe aren't. That's a loaded question and I don't know the answer for it, I'm
+sure other people have told their LLMs to think differently than others, I just don't know
+what the magic code is to crack that. True discovery/origination for an untapped market/new
+edges or just a market that can easily be manipulated into solid actual profit. But not
+profit in the same way of the sniper or the 15-minute crypto market. We learned the hard
+away our analytics don't see the pattern or couldn't catch it sooner, I think a few weeks
+of stagnant results was evidence enough but would've been nice if we had the abilities to
+catch that sooner instead of wasting several weeks. The prime directive holds true in that
+I need 125 usd to afford the Claude subscription, that wasn't just motivation I genuinely
+can't afford it. Anyways either find the new market/new edges on Kalshi. Either as part of
+that or the backup plan, we have an Odds API account with thousands of credits at our
+disposal if we decide to reinvent the wheel into sportsbetting. I'll make my final note
+before I ask you to submit this prompt verbatim to the matthew directives md file. And
+that note is, if you consider the sportsbetting angle again, just please objectively
+recognize that the betting model where I left it wasn't working yet, and I'd fear for
+similar stagnant results as the sniper crypto bets. Go forward carefully."
+
 ## WHAT THIS MEANS FOR ALL FUTURE KALSHI CHATS (PERMANENT STANDING DIRECTIVE)
 
 1. The goal is NOT "hit 15-25 once." The goal is a monthly income of a few hundred USD.

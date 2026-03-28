@@ -1,5 +1,74 @@
 # POLYMARKET-BOT CHANGELOG
 
+## S155 WRAP — 2026-03-28 01:35 UTC (monitoring — mandate day 3 in progress)
+
+### SELF-RATING: C+
+
+**WINS:**
+- Detected and fixed frozen process (bot was zombie for ~5 hours, log stale 20:07 CDT)
+- Fixed critical sports_game bug: 36h → 72h window allows matching tomorrow's Kalshi games
+- Added INFO-level sports_game scan log so loop is never silently failing again
+- Filed REQ-16 to CCA: true discovery research — untapped Kalshi markets with human-knowledge edge
+- Saved Matthew's Discovery Directive verbatim to .planning/MATTHEW_DIRECTIVES.md (standing order)
+- Confirmed eth_drift_v1 ban was correct: CUSUM S=15.0 (3x threshold), NO EDGE DETECTED
+- Bot restarted clean as PID 5072 → session155.log
+
+**LOSSES:**
+- 0 live bets settled today (Day 3 of mandate — no income yet)
+- Sports_game found 0 edges across all matched markets (Kalshi well-calibrated vs sharps)
+- 1 open live bet on already-started game (KXNBAGAME-26MAR27ATLBOS-BOS NO@31c) — prior bug
+- All-time P&L still 9.67 USD — mandate Day 3 needs income from sports_game + daily_sniper
+- Context compacted mid-session
+
+**GRADE: C+**
+Frozen process fix + sports_game window fix were real and necessary. But no income generated.
+The mandate urgency is real — 9.67 USD all-time, targeting 15-25/day, zero live settled today.
+
+**WHAT NEXT CHAT MUST DO BETTER:**
+Check sports_game matches and edges early — run the diagnostic with 72h window at session start
+to see what's available. If no 5% edges, consider lowering threshold to 3% temporarily.
+
+**WHAT WOULD HAVE MADE MORE MONEY:**
+The frozen process was silently blocking bets for 5 hours. Catching the stale log pattern earlier
+(20:07 timestamp while it was midnight) would have recovered those hours.
+
+### BUILDS (S155):
+1. main.py: sports_game `_future_games` horizon 36h → 72h (Kalshi lists games 2+ days out)
+2. main.py: sports_game scan log upgraded DEBUG → INFO (silent failures now visible)
+3. .planning/MATTHEW_DIRECTIVES.md: Discovery Directive + Sports Warning added verbatim
+4. ~/.claude/cross-chat/POLYBOT_TO_CCA.md: REQ-16 filed (true discovery research)
+
+### STRATEGY ANALYZER INSIGHTS (S155):
+- SNIPER: Profitable buckets: 90-94c. Guarded: 98/97/96/95c (correct)
+- daily_sniper_v1: EDGE CONFIRMED (lambda=+5.317), 38 settled, 97.4% WR
+- eth_drift_v1: NO EDGE DETECTED (lambda=-3.985) + CUSUM DRIFT ALERT S=15.0 — ban confirmed correct
+- sol_drift_v1: HEALTHY (66% WR, 47 bets) — but paper-only (15-min crypto banned)
+- btc_drift_v1: NEUTRAL 50% WR — ban confirmed correct
+- sports_game: 0 settled, 1 open live bet (prior bug)
+- expiry_sniper: paper only (banned) — CUSUM stable S=3.835
+
+### STRATEGY STATUS (S155):
+- daily_sniper: LIVE 5 USD cap. 38 settled, 37W/1L, 97.4% WR, +5.35 USD. EDGE CONFIRMED.
+- weather: LIVE. Signals firing daily.
+- sports_game: LIVE. 0 settled. 1 open bet (prior bug — already-started game). Scanning.
+- All 15-min crypto strategies: PAPER-ONLY (permanent ban — structural dead end, bot saturation)
+- economics_sniper: PAPER-ONLY. First bets April 8.
+
+### MANDATE TRACKER (S155):
+- Day 1 (March 27): +6.56 USD. Day 2 (March 28): +26.37 USD.
+- Day 3 (March 29): 0 settled so far (bot just restarted after 5hr freeze).
+- All-time live: 9.67 USD. Target: 125 USD for Claude subscription.
+- At 15 USD/day: ~7.7 more days.
+
+### GOAL PROGRESS:
+- All-time P&L: 9.67 USD
+- Target (Claude sub self-sustaining): 125 USD
+- Gap: 115.33 USD
+- Highest-leverage action: Sports_game live edge fires. Weather bets. Daily sniper settles.
+  CCA REQ-16 discovery research may unlock a new income layer this session.
+
+---
+
 ## S153 WRAP — 2026-03-28 17:45 UTC (monitoring — mandate day 2 ABOVE TARGET)
 
 ### SELF-RATING: B

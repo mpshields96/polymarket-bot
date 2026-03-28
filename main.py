@@ -2178,7 +2178,7 @@ async def sports_game_loop(
             _now_ts = datetime.now(timezone.utc)
 
             def _future_games(games):
-                """Keep only games that start within the next 36 hours (not already played)."""
+                """Keep only games that start within the next 72 hours (not already played >30min)."""
                 future = []
                 for g in games:
                     if not g.commence_time:
@@ -2187,9 +2187,10 @@ async def sports_game_loop(
                         # commence_time is ISO8601 UTC, e.g. "2026-03-28T23:00:00Z"
                         from datetime import datetime as _dt
                         ct = _dt.fromisoformat(g.commence_time.replace("Z", "+00:00"))
-                        # Allow games that start within 36 hours (but not already started > 30min ago)
+                        # Allow games that start within 72 hours (Kalshi lists games 2+ days out)
+                        # but exclude games already started >30min ago
                         _cutoff = _now_ts - timedelta(minutes=30)
-                        _horizon = _now_ts + timedelta(hours=36)
+                        _horizon = _now_ts + timedelta(hours=72)
                         if ct > _cutoff and ct < _horizon:
                             future.append(g)
                     except Exception:
@@ -2205,8 +2206,8 @@ async def sports_game_loop(
                 "baseball_mlb": mlb_games,
             }
 
-            logger.debug("[sports_game] Odds: %d NBA, %d NHL, %d MLB | quota: %s",
-                         len(nba_games), len(nhl_games), len(mlb_games), feed.quota_status())
+            logger.info("[sports_game] Scan: %d NBA, %d NHL, %d MLB odds games (72h window) | quota: %s",
+                        len(nba_games), len(nhl_games), len(mlb_games), feed.quota_status())
 
             # Scan each sport's open Kalshi markets
             for sport_key, strategy in strategy_map.items():
