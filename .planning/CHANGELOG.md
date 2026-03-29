@@ -9399,3 +9399,60 @@ ETH paper sniper first bets expected tomorrow. sports_game calibration ongoing a
 - At ~30 USD/day daily_sniper expected: ~2-3 more days to goal
 - Monthly target: 300-500 USD (15-25/day × 20 trading days)
 - Day 1: +6.56 USD | Day 2: +42.02 USD | Running 2-day average: +24.29 USD/day
+
+## S160 WRAP — 2026-03-29 ~03:35 UTC (monitoring — Day 3 eve, quiet period)
+
+### SELF-RATING: B+
+
+**WINS:**
+- 3+ hours continuous autonomous monitoring. Bot healthy throughout — PID 87224, log fresh every check.
+- Corrected sniper reset timing error: CST midnight = 06:00 UTC = 01:00 AM CDT (not 9 PM CDT as briefly miscalculated mid-session).
+- Guard stack verification: auto_guard_discovery confirmed 0 new guards, 11 unchanged. SPRT EDGE CONFIRMED daily_sniper lambda=+15.205. CUSUM stable S=3.835.
+- REQ-65 filed with CCA: pre-implementation risk check for 88c floor widening BEFORE touching live config. Correct behavior (no data at 88-89c = don't change without CCA validation).
+- Sports analysis: clarified that both NBA losses were at OLD 10 USD cap (pre CCA REQ-18). At 2 USD cap, NBA has 0 meaningful data points. NHL is 4/4 wins. Context preserved.
+- ETH paper sniper: 5/5 wins (91-93c). Early positive, n=5 too small for conclusions.
+- CCA updates 84-87 reviewed and actions logged to todos.md.
+
+**LOSSES:**
+- Sniper reset timing wrong for ~3 cycles (announced "27 min" when it was 4+ hours). Corrected only after DB timestamp query.
+- Context compaction forced session restart mid-monitoring — slight continuity break.
+
+**GRADE: B+** — Bot health maintained, useful analysis done during quiet window, correct conservative stance on config changes. Docked from A for timing miscalculation.
+
+**ONE THING next chat must do differently:** Compute sniper reset time via DB/python at session start rather than mental math.
+
+**ONE THING that would have made more money:** Nothing — bot was already at 50/50 cap, max Day 2 income achieved before this session began.
+
+### P&L
+- All-time live P&L: +69.89 USD (unchanged — quiet monitoring session)
+- Day 3 bets: 0 (sniper resets at 06:00 UTC = 01:00 CDT)
+- To +125 USD milestone: 55.11 USD remaining
+
+### Strategy Analyzer Insights (strategy_analyzer.py --brief)
+- All-time: +69.89 USD (85% WR, 1588 bets)
+- Today (UTC): +11.33 USD (100% WR, 12 bets — late-settling bets from Day 2)
+- SNIPER: Profitable buckets 90-94c. Guarded: 95-98c.
+- btc_drift_v1: NEUTRAL — 80 live bets, 50% WR, -9.53 USD (disabled, paper only)
+- eth_drift_v1: UNDERPERFORMING — 46% WR, trend DECLINING (disabled, DRIFT ALERT S=15.0)
+- sol_drift_v1: HEALTHY — 47 live bets, 66% WR (disabled, paper only — 15-min ban)
+
+### SPRT/CUSUM
+- daily_sniper: EDGE CONFIRMED lambda=+15.205, E-Value=4011876, CUSUM S=3.835 (stable)
+- eth_drift: NO EDGE lambda=-3.985, CUSUM DRIFT ALERT S=15.0 (disabled — expected)
+- btc_drift: ERODING E_n=0.354, CUSUM S=3.960 (disabled — paper only)
+
+### Goal Progress
+- All-time: +69.89 USD | To +125: 55.11 USD remaining
+- At ~30-50 USD/day (mandate pace): 1-2 days to +125 milestone
+- Highest-leverage action: Day 3 sniper volume. First bets fire at 06:00 UTC (01:00 CDT).
+
+### Pending CCA
+- REQ-65: 88c floor widening risk check (filed this session — awaiting response)
+- REQ-64: NBA loss investigation (pending)
+- REQ-63: DELIVERED (UPDATE 84) — volume expansion options identified
+- UPDATE 85: KXSOLD confirmed as viable third sniper target (future build)
+- UPDATE 86: Academic validation — daily_sniper IS theoretically optimal Kalshi strategy
+- UPDATE 87: Strike spread as volume predictor (>5K spread = 30+ bets day)
+
+### Next Chat Priority
+Day 3 sniper health. Watch first bets fire at 06:00 UTC. Verify counter resets from 50 to 0. Watch for CCA REQ-65 response before touching floor config.

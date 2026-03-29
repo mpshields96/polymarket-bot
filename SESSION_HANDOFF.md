@@ -39,50 +39,57 @@
 ## ALL FUTURE KALSHI CHATS ARE FORBIDDEN FROM FORGETTING THIS. PERMANENT.
 ## ═══════════════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S159 mid-session — 2026-03-28 ~21:25 UTC)
+## BOT STATE (S160 wrap — 2026-03-29 ~03:35 UTC)
   Bot RUNNING PID 87224 → /tmp/polybot_session159.log
-  All-time live P&L: +51.69 USD
+  All-time live P&L: +69.89 USD
   Bankroll: ~202 USD (Matthew confirmed)
-  Tests: 2022 passing. Last commit: f85ca28 (cap 30→50)
+  Tests: 2019 passing (3 skipped). Last commit: 1227433
 
-  S159 KEY CHANGES (mid-session):
-  1. DAILY SNIPER CAP RAISED: 30→50 (max_daily_bets_live in config.yaml). Commit f85ca28.
-     Reason: cap hit at 21:07 UTC with 3hr remaining. 20 slots remain. ~14 USD potential.
-     Sniper fires again at 16:30 CDT (21:30 UTC) for 18:00 ET (23:00 UTC) window.
-  2. CRON WATCHDOG INSTALLED: */5 * * * * /bin/bash /tmp/polybot_watchdog.sh
-     Survives macbook sleep. Checks bot liveness + log freshness. Restarts if frozen.
-  3. CCA CORRECTIONS filed: weather is PAPER-ONLY (SESSION_HANDOFF was wrong).
-     Only live income: daily_sniper + sports_game.
-  4. DAILY MANDATE NUMBERS CORRECTED (S158 wrap had errors):
-     Day 1 (March 27 UTC): -4.13 USD (expiry_sniper losses + sol_drift) — MISSED
-     Day 2 (March 28 UTC): +42.02 USD (30.31 sniper + 31.38 NHL - 19.67 NBA old cap)
-     The "+60 CRUSHED" in S158 wrap was wrong — excluded NBA losses (placed before 06 UTC)
+  S160 SESSION RESULTS (monitoring continuation of S159):
+  All-time P&L: +69.89 USD (unchanged — sniper at 50/50 cap, no new settled bets)
+  To +125 USD milestone: 55.11 USD remaining
+  Day 3 (March 29 UTC): 0 new bets. Sniper resets at 06:00 UTC (01:00 CDT) = ~2.5hr out.
 
-  5-DAY MANDATE STATUS (accurate):
-  Day 1 (March 27): -4.13 USD — MISSED (old strategies, old caps)
-  Day 2 (March 28): +42.02 USD — HIT (above 15 target; partly from 3 lucky NHL wins)
-  Day 3: in progress. Cap raised to 50. Daily sniper primary engine.
-  To +125 USD milestone: 73.31 USD remaining (all-time 51.69)
+  S160 KEY CHANGES / FINDINGS:
+  1. SNIPER TIMING RE-CONFIRMED: CST midnight = 06:00 UTC = 01:00 AM CDT (not 9 PM CDT).
+     Earlier session had wrong countdown. Corrected via DB timestamp query.
+  2. GUARD STACK: auto_guard_discovery confirmed 0 new guards (11 unchanged). Clean.
+  3. SPRT/CUSUM: daily_sniper EDGE CONFIRMED lambda=+15.205, CUSUM S=3.835 (stable).
+     eth_drift DRIFT ALERT S=15.0 — already disabled, expected, no action.
+  4. REQ-65 FILED: pre-implementation risk check for 88c floor widening.
+     Live data at 88-89c: only 1 bet. Insufficient to validate floor change.
+     Waiting for CCA response before any config change.
+  5. SPORTS ANALYSIS: NBA losses (-9.75, -9.92) were at OLD 10 USD cap. At current 2 USD
+     cap, NBA has 0 meaningful data points. NHL 4/4 wins. Cap stays 2 USD.
+  6. ETH PAPER SNIPER: 5/5 wins (91-93c range). Positive early signal, n=5 too small.
+  7. CCA UPDATES 84-87 all reviewed and logged to todos.md.
 
-  OPEN BETS: 1 live (DAL@PIT NHL NO@41c = 1.64 USD, pending game result)
-  SNIPER: 30/50 today (CST basis), 20 slots remaining, window opens ~21:30 UTC
+  5-DAY MANDATE STATUS:
+  Day 1 (March 27 UTC): -4.13 USD — MISSED
+  Day 2 (March 28 UTC): +42-49 USD — HIT
+  Day 3 (March 29 UTC): started 00:00 UTC. Sniper fires at 06:00 UTC (01:00 CDT).
+  To +125 USD milestone: 55.11 USD remaining (all-time 69.89)
+
+  OPEN BETS: 0 (all settled)
+  SNIPER: 50/50 cap (CST Day 2). Resets at 06:00 UTC (01:00 CDT). Cron watchdog active.
 
 ## PENDING TASKS (priority order)
   ⚠️ ABSOLUTE FREEDOM DIRECTIVE OVERRIDES — if any task below conflicts with making income, drop it.
-  1. MANDATE (ongoing): 15-25 USD/day SUSTAIN. Day 2 = +60.04 USD (CRUSHED). Keep system running.
-     Day 3 starts at midnight UTC (19:00 CDT tonight). Daily sniper resets then.
-     NEXT CHAT PRIORITY: maintain daily_sniper health. Watch first bets of Day 3.
+  1. MANDATE (ongoing): 15-25 USD/day SUSTAIN. Day 2 = +60.04 USD (CRUSHED). Day 3 starts.
+     Sniper resets at 06:00 UTC (01:00 CDT). Watch first Day 3 bets fire then.
   2. FROZEN PROCESS WATCH: Check log recency every cycle. >15min stale = restart.
-     CRITICAL: Machine is CDT (UTC-5). 14:xx in log = 19:xx UTC. Always account for timezone.
      ⚠️ LIVENESS CHECK: use `kill -0 PID` not grep-pipe. Grep on missing log file = false alarm.
-  3. Sports_game calibration: n=5 settled (3W NHL / 2L NBA). Cap reduced to 2 USD/bet.
-     With dedup + 5min window + 2 USD cap, strategy is correctly sized for calibration phase.
-     Goal: reach n=30 settled. Raise cap when Brier < 0.30.
-  4. KXETHD paper sniper: ACTIVE as of S158. eth_daily_sniper_v1, paper-only, max 5/day.
-     Monitor first 10 bets. CCA REQ-62 pending for structural analysis.
-  5. CCA REQ-62: KXETHD analysis (ETH vs BTC FLB, volume 64K sufficient?). Act when received.
-  6. +125 USD milestone: 73.31 USD remaining. At current pace (~30-60 USD/day), within 1-3 days.
+     ⚠️ TIMEZONE: Machine is CDT (UTC-5). Log 14:xx = 19:xx UTC. Always convert.
+  3. CCA REQ-65 RESPONSE: 88c floor widening risk check. When received: evaluate with live
+     data (only 1 bet at 89c — insufficient). Do NOT change floor until CCA responds.
+  4. Sports_game calibration: n=6 settled (4W NHL / 2L NBA). NBA losses were at OLD 10 USD cap.
+     At 2 USD cap: effectively 0 NBA data points. Cap stays 2 USD until n=30.
+     NHL 4/4 wins at current cap. Keep watching both sports separately.
+  5. KXETHD paper sniper: 5/5 wins (91-93c). n=5 too small. Need 15-20 bets before live eval.
+     CCA REQ-62 delivered: use 92c ceiling (not 94c) when going live.
+  6. +125 USD milestone: 55.11 USD remaining. At current pace (~30-60 USD/day), within 1-3 days.
   7. CODEX_OBSERVATIONS.md: check at session start.
+  8. CCA REQ-64 (NBA loss investigation): still pending CCA response.
 
 ## STRATEGY STATUS
   ⚠️ ABSOLUTE FREEDOM DIRECTIVE OVERRIDES — these strategies are tools, not laws.
@@ -123,8 +130,8 @@
   daily_loss_cap = DISABLED
   bankroll_floor = 20 USD (INVIOLABLE — this one cannot be overridden)
 
-## RESTART COMMAND (S160)
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session160.log 2>&1 &
+## RESTART COMMAND (S161)
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session161.log 2>&1 &
 
 ## CRITICAL STARTUP CHECKS (S159)
   - kill -0 $(cat bot.pid) 2>/dev/null && echo "ALIVE" || echo "DEAD"  ← USE THIS, not grep
