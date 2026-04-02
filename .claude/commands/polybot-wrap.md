@@ -61,8 +61,14 @@ D) MEMORY.md  [OPTIONAL — skip if short on budget]
    - Keep under 200 lines
 
 ═══════════════════════════════════════════════════
-STEP 4 — COMMIT
+STEP 4 — BATCH LEARNING + COMMIT
 ═══════════════════════════════════════════════════
+Run wrap helper (writes SESSION_RESUME.md + CHANGELOG + CCA journal in one pass):
+  ./venv/bin/python3 scripts/polybot_wrap_helper.py \
+    --session [N] --grade [A/B/C/D] \
+    --wins "[one sentence]" --losses "[one sentence]" \
+    --write
+
 ./venv/bin/python3 -m pytest tests/ -q  ← all must pass before commit
 git add SESSION_HANDOFF.md SESSION_RESUME.md .planning/CHANGELOG.md && git commit + push
 

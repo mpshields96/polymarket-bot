@@ -35,7 +35,7 @@ PROJECT_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = PROJECT_DIR / "data" / "polybot.db"
 BOT_PID_FILE = PROJECT_DIR / "bot.pid"
 SESSION_HANDOFF = PROJECT_DIR / "SESSION_HANDOFF.md"
-POLYBOT_INIT = Path.home() / ".claude" / "commands" / "polybot-init.md"
+SESSION_RESUME = PROJECT_DIR / "SESSION_RESUME.md"
 POLYBOT_AUTO = Path.home() / ".claude" / "commands" / "polybot-auto.md"
 CHANGELOG = PROJECT_DIR / ".planning" / "CHANGELOG.md"
 CCA_JOURNAL = Path.home() / "Projects" / "ClaudeCodeAdvancements" / "self-learning" / "journal.py"
@@ -354,33 +354,35 @@ def generate_changelog_entry(
 
 # ── File Writers ─────────────────────────────────────────────────────────────
 
-def update_main_chat_in_init(new_main_chat_block: str) -> bool:
-    """Replace the MAIN CHAT section in polybot-init.md."""
-    if not POLYBOT_INIT.exists():
-        print(f"WARNING: {POLYBOT_INIT} not found — skipping")
-        return False
+def update_session_resume(new_main_chat_block: str) -> bool:
+    """Write MAIN CHAT section to SESSION_RESUME.md (replaces polybot-init.md update)."""
+    try:
+        existing = SESSION_RESUME.read_text(encoding="utf-8") if SESSION_RESUME.exists() else ""
+    except Exception:
+        existing = ""
 
-    content = POLYBOT_INIT.read_text(encoding="utf-8")
-
-    # Find and replace the MAIN CHAT block
+    # Replace the MAIN CHAT block if present, otherwise prepend it
     start_marker = "--- MAIN CHAT"
     end_marker = "--- END MAIN CHAT PROMPT ---"
+    start_idx = existing.find(start_marker)
+    end_idx = existing.find(end_marker)
 
-    start_idx = content.find(start_marker)
-    end_idx = content.find(end_marker)
+    if start_idx != -1 and end_idx != -1:
+        new_content = (
+            existing[:start_idx]
+            + new_main_chat_block
+            + "\n"
+            + existing[end_idx + len(end_marker):]
+        )
+    else:
+        # Fresh file — write header + block
+        header = (
+            "SESSION RESUME — auto-updated by /polybot-wrap and /polybot-wrapresearch.\n"
+            "Do NOT edit manually. Read by /polybot-init at session start.\n\n"
+        )
+        new_content = header + new_main_chat_block + "\n" + existing
 
-    if start_idx == -1 or end_idx == -1:
-        print(f"ERROR: Could not find MAIN CHAT markers in polybot-init.md")
-        print(f"  Looking for: '{start_marker}' (found: {start_idx!=-1}) and '{end_marker}' (found: {end_idx!=-1})")
-        return False
-
-    new_content = (
-        content[:start_idx]
-        + new_main_chat_block
-        + "\n"
-        + content[end_idx:]   # keep end_marker in place (was dropping it, breaking next wrap)
-    )
-    POLYBOT_INIT.write_text(new_content, encoding="utf-8")
+    SESSION_RESUME.write_text(new_content, encoding="utf-8")
     return True
 
 
@@ -470,8 +472,8 @@ def main():
     # Write files if requested
     if args.write:
         print("\nWriting files...")
-        if update_main_chat_in_init(main_chat):
-            print(f"  ✓ {POLYBOT_INIT} MAIN CHAT updated")
+        if update_session_resume(main_chat):
+            print(f"  ✓ {SESSION_RESUME} MAIN CHAT updated")
         if append_changelog(changelog):
             print(f"  ✓ {CHANGELOG} entry prepended")
         if args.grade != "?":
@@ -513,7 +515,7 @@ def main():
     print(handoff_state)
 
     print("\n" + "=" * 60)
-    print("POLYBOT-INIT MAIN CHAT (auto-written if --write):")
+    print("SESSION_RESUME.md MAIN CHAT (auto-written if --write):")
     print("=" * 60)
     print(main_chat)
 
