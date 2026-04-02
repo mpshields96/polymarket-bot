@@ -1,0 +1,119 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add .gitignore)",
+      "Bash(git commit -m \"init: gitignore before anything else\")",
+      "Bash(git -C /Users/matthewshields/Projects/polymarket-bot status)",
+      "Bash(git -C /Users/matthewshields/Projects/polymarket-bot commit -m \"init: gitignore before anything else\")",
+      "Bash(git -C /Users/matthewshields/Projects/polymarket-bot add MASTER_LOG.md DECISIONS.md BLOCKERS.md ERRORS_AND_FIXES.md SESSION_HANDOFF.md USER_CONFIG.json)",
+      "Bash(git -C /Users/matthewshields/Projects/polymarket-bot commit -m \"CHECKPOINT_0: skeleton + documentation\")",
+      "Bash(git add MASTER_LOG.md DECISIONS.md BLOCKERS.md ERRORS_AND_FIXES.md SESSION_HANDOFF.md USER_CONFIG.json)",
+      "Bash(git commit -m \"CHECKPOINT_0: skeleton + documentation\")",
+      "Bash(git push -u origin main)",
+      "Bash(git clone https://github.com/Bh-Ayush/Kalshi-CryptoBot /Users/matthewshields/Projects/polymarket-bot/refs/kalshi-btc)",
+      "Bash(git clone https://github.com/sswadkar/kalshi-interface /Users/matthewshields/Projects/polymarket-bot/refs/kalshi-interface)",
+      "Bash(git clone https://github.com/vladmeer/kalshi-arbitrage-bot /Users/matthewshields/Projects/polymarket-bot/refs/kalshi-arb)",
+      "Bash(git clone https://github.com/Gabagool2-2/polymarket-trading-bot-python /Users/matthewshields/Projects/polymarket-bot/refs/poly-gabagool)",
+      "Bash(git clone https://github.com/djienne/Polymarket-bot /Users/matthewshields/Projects/polymarket-bot/refs/poly-apex)",
+      "Bash(git clone https://github.com/Polymarket/py-clob-client /Users/matthewshields/Projects/polymarket-bot/refs/poly-official)",
+      "Bash(git add INTEL.md ARCHITECTURE.md CHECKPOINT_0.md SESSION_HANDOFF.md .claude/settings.json)",
+      "Bash(git commit -m \"CHECKPOINT_0: intel + architecture complete\")",
+      "Bash(git push)",
+      "Bash(source venv/bin/activate)",
+      "Bash(timeout 75 python main.py)",
+      "Bash(python -c \":*)",
+      "Bash(python3 main.py --report)",
+      "Bash(python3 main.py --health)",
+      "Bash(python3 main.py --graduation-status)",
+      "mcp__scheduled-tasks__list_scheduled_tasks"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/matthewshields/Projects/polymarket-bot/scripts/peak_budget_hook.py"
+          },
+          {
+            "type": "command",
+            "command": "python3.13 /Users/matthewshields/Projects/ClaudeCodeAdvancements/context-monitor/hooks/alert.py"
+          },
+          {
+            "type": "command",
+            "command": "python3.13 /Users/matthewshields/Projects/ClaudeCodeAdvancements/context-monitor/hooks/tool_budget.py"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3.13 /Users/matthewshields/Projects/ClaudeCodeAdvancements/context-monitor/hooks/meter.py"
+          },
+          {
+            "type": "command",
+            "command": "python3.13 /Users/matthewshields/Projects/ClaudeCodeAdvancements/context-monitor/hooks/compact_anchor.py"
+          },
+          {
+            "type": "command",
+            "command": "python3.13 /Users/matthewshields/Projects/ClaudeCodeAdvancements/agent-guard/hooks/loop_guard.py"
+          },
+          {
+            "type": "command",
+            "command": "python3.13 /Users/matthewshields/Projects/ClaudeCodeAdvancements/self-learning/hooks/correction_capture.py"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/matthewshields/Projects/ClaudeCodeAdvancements/queue_hook.py"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3.13 /Users/matthewshields/Projects/ClaudeCodeAdvancements/context-monitor/hooks/pre_compact.py"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3.13 /Users/matthewshields/Projects/ClaudeCodeAdvancements/context-monitor/hooks/post_compact.py"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3.13 /Users/matthewshields/Projects/ClaudeCodeAdvancements/context-monitor/hooks/auto_handoff.py"
+          }
+        ]
+      }
+    ]
+  }
+}

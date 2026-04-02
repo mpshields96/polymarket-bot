@@ -118,10 +118,6 @@ If drought (all YES < 35c or > 65c): pivot to code work, don't idle.
 LIVE STRATEGY STANDINGS:
   [current standings from --graduation-status]
 
-FONT RULES (mandatory — violations = chat terminated):
-  RULE 1: NEVER markdown table syntax (| --- |)
-  RULE 2: NEVER dollar signs in prose. Use "40 USD" not "$40"
-
 Read in this order:
 1. POLYBOT_INIT.md
 2. SESSION_HANDOFF.md

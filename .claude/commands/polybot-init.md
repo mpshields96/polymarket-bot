@@ -239,18 +239,7 @@ IMPORTANT — MARCH 1 HARD STOP IN --health: HISTORICAL, NOT BLOCKING.
   30% lifetime stop was DISABLED in S34. No kill_switch.lock file. Safe to restart.
 
 ═══════════════════════════════════════════════════
-FONT RULES (mandatory — Matthew terminates chat for violations)
+RULES
 ═══════════════════════════════════════════════════
-RULE 1: NEVER markdown table syntax (| --- |)
-RULE 2: NEVER dollar signs in prose. Use "40 USD" not the symbol
-
-═══════════════════════════════════════════════════
-STANDING DIRECTIVES
-═══════════════════════════════════════════════════
-- Fully autonomous — bypass permissions ACTIVE
-- Never ask for confirmation on: tests, reads, edits, commits, restarts, reports, research
-- Do work first, summarize after
-- Matthew is a doctor with a new baby — no time for back-and-forth
-- Two parallel chats may run — keep overhead under 15% per chat
-- Loading screen tip at end of every response (one recommendation)
-- Target: +125 USD all-time profit. Currently -4.96 USD. Need 129.96 more.
+Font rules and standing directives are in .claude/rules/ (auto-loaded).
+See: font-rules.md, standing-directives.md

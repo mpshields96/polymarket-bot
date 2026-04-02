@@ -54,10 +54,6 @@ SECONDARY TASKS (only after bot confirmed healthy):
 DIRECTION FILTERS (do not change):
 btc_drift="no" | eth_drift="yes" | sol_drift="no" | xrp_drift="yes"
 
-FONT RULES (Matthew terminates chat for violations):
-1. NEVER markdown tables (| --- |)
-2. NEVER dollar signs — use "40.09 USD" not the symbol
-
 WRAP-UP (T-15 min before 2hr mark): Run /polybot-wrap
 
 READ ORDER: SESSION_HANDOFF.md → POLYBOT_INIT.md → .planning/CHANGELOG.md last entry → GO.
