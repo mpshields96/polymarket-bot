@@ -1,3 +1,25 @@
+## [ ] Deterministic culture/mention markets — paper phase (CCA REQ-66 / Market Research S163)
+**Added:** 2026-04-03 S163
+**Source:** CCA Market Research Delivery + REQ-66
+**Context:** CCA recommends paper-trading Top App / Spotify / Netflix / X-mention / Earnings Mention
+  markets. These settle from deterministic published sources (NWS, Apple Store, BLS).
+  Same FLB mechanism: market overestimates reversal probability near settlement.
+**Action:** Build paper adapter for KXEARNINGSMENTIONX* or Top App markets when ready to expand.
+  Gate: exhausted the sniper + ETH daily sniper growth path first. Log, don't build yet.
+**Priority:** LOW — post April 13 deadline item
+
+---
+
+## [ ] Economics sniper CPI April 10 — micro-live decision (CCA REQ-66 S163)
+**Added:** 2026-04-03 S163
+**Context:** economics_sniper paper phase runs April 8-9 (KXCPI-26MAR-T0.7 at ~89c).
+  CCA REQ-66 confirms: go LIVE April 10 at 3-5 USD if paper bets settle correctly April 8-9.
+  Pre-live checklist: check n>=2 paper wins, BLS release 08:30 ET April 10.
+  ACTION: On April 9, check DB for economics_sniper paper trades. If >=2 wins → flip live 3-5 USD.
+**Priority:** HIGH — April 13 deadline, new income source
+
+---
+
 ## [DONE] btc_drift: add price extremes filter (min/max price guard)
 **Completed:** 2026-03-01 Session 25 cont2 — tightened to 35-65¢ (commits 1a6c136 + tests). Applied to btc_lag.py too.
 
@@ -1023,3 +1045,45 @@ These are NOT deployed to the polybot yet. Could enhance:
 Prerequisite: sniper performing consistently at Stage 2+ before adding complexity.
 CCA can help adapt to polybot architecture when ready (per UPDATE 33).
 Status: FUTURE — do not build before sniper has 30+ live bets at Stage 2.
+
+## [2026-03-28] Add KXETHD to daily_sniper (S157 — expansion gate reached)
+KXBTCD daily_sniper validated: 80+ live bets, 98.6% WR, SPRT EDGE CONFIRMED, +27.66 USD.
+Code comment says: "KXETHD/KXSOLD can be added after KXBTCD validates" — GATE REACHED.
+KXETHD 5 PM ET slot has 64K volume (Session 51 confirmed). Same FLB edge mechanism.
+Implementation: pass series_ticker="KXETHD" + eth_feed to daily_sniper_loop (same function).
+Expected income uplift: +30-50% if KXETHD fires ~50% as often as KXBTCD at 90-94c.
+Gate: Read .planning/PRINCIPLES.md first. Start with paper calibration (10 bets) before live.
+Status: READY TO BUILD — use gsd:quick when monitoring downtime permits.
+
+## [2026-03-28] KXSOLD as third daily sniper target (CCA UPDATE 85)
+CCA confirmed KXSOLD (Solana daily threshold) as next expansion after KXETHD proves out.
+KXSOLD volume: smaller than KXETHD but same FLB mechanism. Strike spread predictor applies.
+Build order: KXBTCD (done, live) → KXETHD (paper active, 0 bets yet) → KXSOLD (future).
+Gate: KXETHD needs 20+ paper bets first, then live evaluation.
+Status: FUTURE — do not build until KXETHD paper phase completes.
+
+## [2026-03-28] ETH sniper ceiling: tighten 94c → 92c when going live (CCA REQ-62)
+CCA REQ-62 delivered: ETH volatility warrants 92c ceiling (not 94c).
+At 93-94c: ETH contracts face higher mean-reversion risk than BTC equivalent.
+Implementation: change `_DAILY_SNIPER_MAX_PRICE_CENTS = 94 → 92` for KXETHD in eth_daily_sniper_v1.
+Currently paper-only so low urgency. Apply before any KXETHD live promotion.
+Status: PENDING — implement in next scheduled restart (session160).
+
+## [2026-03-28] Strike spread as daily sniper volume predictor (CCA UPDATE 87)
+Strike spread (max_strike - min_strike for day's bets) predicts sniper volume:
+>$5K spread → 30+ bets (strong day, ~20+ USD income)
+<$3K spread → <15 bets (weak day, need sports_game/earnings backup)
+Operational use: check available KXBTCD strike range at day start to forecast income.
+Low-volume backup plan: sports_game 2 USD cap + earnings mentions (when available).
+Status: IDEA — implement as optional morning diagnostic (no code change to bot required).
+
+## [2026-04-03] REQ-65 implementation: paper_min_price=88c floor for daily_sniper
+CCA S255 delivered architecture: add paper_min_price config key separate from live_min_price.
+- paper path: trigger_price_cents=88 (accumulate 88-89c data)
+- live path: trigger_price_cents=90 (conservative live floor, unchanged)
+Implementation: modify make_daily_sniper() to accept optional trigger_price_cents param.
+In daily_sniper_loop: create strategy_paper (88c) + strategy_live (90c) instances separately.
+When is_paper_mode: evaluate with strategy_paper (88c floor, paper-record only)
+When not is_paper_mode: evaluate with strategy_live (90c floor, live-bet + standard paper-record)
+Gate: once paper n>=20-30 at 88-89c WR>=95%, revisit live floor change.
+Estimated: ~40 LOC + tests. Do when Matthew present or next research session.

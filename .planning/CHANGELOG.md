@@ -1,5 +1,27 @@
 # POLYMARKET-BOT CHANGELOG
 
+## S163 — 2026-04-03 ~05:45 UTC (monitoring — ETH daily sniper LIVE)
+
+### BUILD: ETH daily sniper promoted to LIVE (commit db9fae0)
+WHY: n=15 paper bets, 15/15 wins (100% WR). CCA REQ-62 validated KXETHD FLB.
+WHAT: max_price_cents param added to daily_sniper_loop. ETH uses 92c ceiling (not 94c).
+      live_executor_enabled=True, trade_lock=_live_trade_lock wired, max_daily_bets=5.
+      6 new tests in TestDailySniperMaxPriceCentsParam. 2025 total passing.
+GUARDS: IL-38 already has 92c ceiling for expiry_sniper. eth_daily_sniper_v1 is separate loop.
+
+### CCA DELIVERIES REVIEWED (REQ-66, Market Research, REQ-067)
+- REQ-66 outcome: CPI April 10 micro-live confirmed. UCL season-winner = skip (wrong FLB type).
+  Sports game-day timing = already working. MVE parlays = skip.
+- Market Research: weather promo still contested (SESSION_HANDOFF says dead end). Skip for now.
+  Deterministic culture/mention markets = log to todos, paper phase only.
+- REQ-067: kalshi-check tool hardened by CCA/Codex.
+
+### BOT STATE (S163 start)
+- Bot PID 44509 / session163.log
+- Today (UTC): 12 settled, 12W, 8.1 USD (pre-sniper reset window)
+- All-time: 120.21 USD (from S162 wrap, pre-today)
+- ETH daily sniper: FIRST LIVE BET PENDING (150s startup stagger, KXETHD 90-91c)
+
 ## S158 WRAP — 2026-03-28 ~20:40 UTC (monitoring — mandate day 2 complete)
 
 ### SELF-RATING: A-
