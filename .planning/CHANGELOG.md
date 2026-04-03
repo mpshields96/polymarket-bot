@@ -9,6 +9,17 @@ WHAT: max_price_cents param added to daily_sniper_loop. ETH uses 92c ceiling (no
       6 new tests in TestDailySniperMaxPriceCentsParam. 2025 total passing.
 GUARDS: IL-38 already has 92c ceiling for expiry_sniper. eth_daily_sniper_v1 is separate loop.
 
+### CCA DELIVERIES REVIEWED (REQ-068, REQ-069) — S163 mid-session 06:09 UTC
+- REQ-068: CPI readiness WATCH verdict. Keep economics_sniper paper-only through April 10 first cycle.
+  Run cpi_release_monitor.py April 10 08:28 ET. Confirm KXCPI markets open April 8.
+- REQ-069: Tonight's sports board — NBA (Pacers/Hornets, Bulls/Knicks, Hawks/Nets, Celtics/Bucks),
+  NHL (Blues/Ducks), MLB late. sports_game already LIVE + scanning. Auto-fires at game time.
+  No code action needed — strategy already wired correctly.
+
+### ETH DAILY SNIPER — FIRST LIVE BET (trade_id=14146)
+- NO KXETHD-26APR0303-T2099.99 @ 91c = 9.10 USD | drift=-0.252% | 3279s left | 01:05 CDT
+- Awaiting settlement. eth_live=1.
+
 ### CCA DELIVERIES REVIEWED (REQ-66, Market Research, REQ-067)
 - REQ-66 outcome: CPI April 10 micro-live confirmed. UCL season-winner = skip (wrong FLB type).
   Sports game-day timing = already working. MVE parlays = skip.

@@ -39,15 +39,41 @@
 ## ALL FUTURE KALSHI CHATS ARE FORBIDDEN FROM FORGETTING THIS. PERMANENT.
 ## ═══════════════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S162 wrap — 2026-04-03 05:15 UTC)
-  Bot RUNNING PID 12448 → /tmp/polybot_session161.log
-  All-time live P&L: +120.21 USD (today: +37.77 USD live, 50 settled, 100% WR)
-  Tests: 2019 passing (3 skipped). Last commit: d9669ef (pre-wrap)
+## BOT STATE (S163 wrap — 2026-04-03 06:27 UTC)
+  Bot STOPPED (Matthew directive). Restart to session164.log.
+  All-time live P&L: +120.21 USD (today: +50.32 USD, 65 settled, 100% WR UTC day)
+  2 live bets pending settlement at 07:00 UTC (trade 14145 KXBTCD + trade 14146 KXETHD)
+  Tests: 2025 passing (3 skipped). Last commit: 794caea
 
   ⚠️ APRIL 13 NEW DEADLINE (S162 — Matthew directive):
   "Figure out and succeed by April 13. Bet sports or ANY market. CCA + Codex help."
   ALL markets authorized. Expansion gate SUSPENDED. ONE RULE: bankroll > 20 USD.
   Success = sustained 15-25 USD/day + at least 1 new market type live by April 13.
+
+  S163 KEY FINDINGS:
+  1. ETH daily sniper PROMOTED TO LIVE (commit db9fae0). max_price_cents=92 (CCA REQ-62).
+     First live bet: NO KXETHD-26APR0303-T2099.99 @ 91c = 9.10 USD (trade 14146, pending 07:00 UTC).
+     2 live bets pending: 14145 (KXBTCD @ 93c = 9.30 USD) + 14146 (KXETHD @ 91c = 9.10 USD)
+  2. CCA REQ-068 received: CPI readiness WATCH. Keep economics_sniper paper-only through April 10 CPI.
+     Confirm KXCPI markets open April 8. Run cpi_release_monitor.py April 10 08:28 ET.
+  3. CCA REQ-069 received: tonight's sports board (NBA/NHL/MLB). sports_game already scanning.
+     No code action needed — auto-fires at game time (~7PM ET = 23:00 UTC).
+  4. CUSUM S=15 DRIFT ALERT on eth_drift_v1 — ALREADY DISABLED (min_drift_pct=9.99). Historical.
+  5. Guard stack: 0 new guards. All WATCH items p > 0.30. Clean.
+  6. HARD_MAX ramp: 124/200 clean bets. 76 more until 50→60 USD raise.
+  7. daily_sniper analytics: 166 bets, 99.4% WR, +101.90 USD, SPRT lambda=+24.315 (sky high).
+  8. Bot STOPPED per Matthew. 2 live bets pending settlement at 07:00 UTC.
+     If next session starts AFTER 07:00 UTC, query DB for trade 14145 + 14146 results.
+
+  PENDING TASKS (priority):
+  1. Confirm trade 14145 + 14146 settled (check after 07:00 UTC = 02:00 CDT)
+  2. Economics CPI: confirm KXCPI open April 8 + paper bets. Live decision April 9.
+  3. Sports game tonight (April 3 ET = April 4 UTC): NBA/NHL/MLB auto-fire ~7PM ET.
+  4. UCL April 7-8 soccer markets: CCA + Codex building infrastructure. Await response.
+  5. HARD_MAX ramp: 76 clean bets to next gate (50→60 USD).
+
+  RESTART COMMAND (Session 164):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session164.log 2>&1 &
 
   S162 KEY FINDINGS:
   1. Weather dead end CONFIRMED: DB WR 37-60% (Miami 37%). Miscalibrated model. Do NOT revisit.
