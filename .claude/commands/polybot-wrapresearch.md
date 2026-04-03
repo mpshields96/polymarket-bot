@@ -3,6 +3,9 @@ This is for research-focused sessions (edge discovery, scanner builds, data anal
 NOT for bot-monitoring sessions — use /polybot-wrap for those.
 Budget awareness: this wrap costs ~5% of session budget. Be efficient.
 
+CRITICAL PATH: Step 3A (edge research doc) → Step 3B (handoff) → Step 3C (changelog) →
+               Step 3D (SESSION_RESUME.md) → Step 4 (commit)
+
 ═══════════════════════════════════════════════════
 STEP 1 — BOT STATUS CHECK (quick — research sessions don't babysit the bot)
 ═══════════════════════════════════════════════════
@@ -54,18 +57,15 @@ C) .planning/CHANGELOG.md (APPEND ONLY — never truncate)
    - Self-rating from Step 2
    - Next research session's top priority
 
-D) .claude/commands/polybot-init.md → CURRENT STATE section
-   - Update: bot status, P&L, bankroll, test count, last commit
-   - Update: research state (new findings, dead ends, open leads)
-   - Update: "Last updated: Session [N]" line
-   - WRITE the MAIN CHAT PROMPT section (--- SESSION [N+1] START --- block)
-     with filled-in PID, P&L, graduation counts, current priorities
-   - WRITE the RESEARCH CHAT PROMPT section (--- SESSION [N+1] RESEARCH START --- block)
-     with filled-in top research priorities from this session's findings, dead ends, open leads
-   NOTE: Both prompts MUST be in polybot-init.md — Matthew does not feed prompts manually.
-   /polybot-init reads this file at session start and surfaces both prompts.
+D) SESSION_RESUME.md  ← WRITE RESEARCH PROMPT HERE (not polybot-init.md)
+   RESEARCH CHAT PROMPT block (--- SESSION [N+1] RESEARCH START ---):
+     - Top research priorities from this session's findings (ranked)
+     - Dead ends confirmed (do not re-investigate)
+     - Tools built this session (file paths + one-line descriptions)
+   Also update the MAIN CHAT PROMPT block if P&L or bot state changed.
+   NOTE: polybot-init.md no longer holds session prompts — SESSION_RESUME.md is canonical.
 
-E) MEMORY.md
+E) MEMORY.md  [OPTIONAL — skip if short on budget]
    (~/.claude/projects/-Users-matthewshields-Projects-polymarket-bot/memory/MEMORY.md)
    - Only update if research changed strategic understanding
    - New dead ends worth remembering
@@ -85,7 +85,7 @@ Do NOT commit large raw data files (JSON dumps > 1MB) — gitignore them.
 ═══════════════════════════════════════════════════
 STEP 5 — OUTPUT THE NEW CHAT PROMPT
 ═══════════════════════════════════════════════════
-Output a self-contained copy-paste block with this structure:
+Write this block to SESSION_RESUME.md (research section) AND output it for the record:
 
 --- SESSION [N+1] START ---
 Bot: [RUNNING PID X / STOPPED] | Last commit: [hash]
