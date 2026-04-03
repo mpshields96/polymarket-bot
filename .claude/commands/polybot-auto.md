@@ -17,10 +17,11 @@ WHAT THIS MEANS:
 MANDATORY STARTUP SEQUENCE:
 1. ps aux | grep "[m]ain.py" — must be exactly 1. If 0: restart. If 2+: kill all, restart.
 2. Read SESSION_HANDOFF.md — get bot PID + log path
-3. Read POLYBOT_INIT.md CURRENT STATUS
-4. venv/bin/python3 main.py --health — fix ANY blocker before proceeding
-5. venv/bin/python3 main.py --report — note P&L
-6. START AUTONOMOUS MONITORING LOOP IMMEDIATELY
+3. Read SESSION_RESUME.md — current chat prompt + priorities
+4. cat ~/.claude/cross-chat/CCA_TO_POLYBOT.md | tail -60 — implement any PENDING deliveries NOW
+5. venv/bin/python3 main.py --health — fix ANY blocker before proceeding
+6. venv/bin/python3 main.py --report — note P&L
+7. START AUTONOMOUS MONITORING LOOP IMMEDIATELY
 
 RESTART COMMAND (update session number):
 pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_sessionXX.log 2>&1 &
@@ -56,4 +57,4 @@ btc_drift="no" | eth_drift="yes" | sol_drift="no" | xrp_drift="yes"
 
 WRAP-UP (T-15 min before 2hr mark): Run /polybot-wrap
 
-READ ORDER: SESSION_HANDOFF.md → POLYBOT_INIT.md → .planning/CHANGELOG.md last entry → GO.
+READ ORDER: SESSION_HANDOFF.md → SESSION_RESUME.md → CCA_TO_POLYBOT.md → GO.
