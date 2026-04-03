@@ -213,13 +213,12 @@ RESPONSE FORMAT RULES (BOTH MANDATORY — Matthew terminates chat for violations
 ## EXPANSION ROADMAP (gate: confirmed live data + no kill switch events)
 ═══════════════════════════════════════════════════
   Priority order once expansion gate opens:
-  1. KXXRP15M drift — XRP 15-min direction, ~5,900 volume. Same code as sol_drift.
-     min_drift_pct ~0.10-0.12 (XRP ~2x BTC volatility). ~15 min to build once gate opens.
-  2. KXBTCD hourly live — btc_daily_v1 already paper. Promote once paper graduation met (30 bets).
+  1. KXBTCD hourly live — btc_daily_v1 already paper. Promote once paper graduation met (30 bets).
      Price-level bets (is BTC above/below $X at time T), 24 slots/day. Lower volume, wider spread.
      Run --graduation-status to check paper bet count and Brier for btc_daily_v1.
-  3. KXNBAGAME/KXNHLGAME — Kalshi game winners (skeleton built, disabled). Gate: sports_futures shows edge.
-  4. KXNBA3D, KXNBAPTS, etc — player props (new Session 36 discovery). Lower priority.
+  2. KXNBAGAME/KXNHLGAME — Kalshi game winners (skeleton built, disabled). Gate: sports_futures shows edge.
+  3. KXNBA3D, KXNBAPTS, etc — player props (new Session 36 discovery). Lower priority.
+  NOTE: KXXRP15M removed — XRP permanently banned (IL-33, Matthew explicit directive, S125).
   DO NOT BUILD any expansion item until gate criteria pass. Log ideas to .planning/todos.md.
 
 ### TOOLS CHEAT SHEET (community-sourced)
