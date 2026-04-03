@@ -34,8 +34,7 @@ Review BOUNDS.md checklist manually before editing. No hook.
 | File | Risk |
 |---|---|
 | `src/strategies/expiry_sniper.py` | Sniper parameters (90c trigger, 840s window) |
-| `src/strategies/btc_drift.py` | Live drift signal logic |
-| `src/strategies/eth_drift.py` | Live drift signal logic |
+| `src/strategies/btc_drift.py` | Drift signal logic (paper-only — banned from live) |
 | `src/db.py` | Financial records, calibration data |
 
 ---
@@ -45,14 +44,14 @@ Review BOUNDS.md checklist manually before editing. No hook.
 ### IL-1: LIVE_TRADING double-gate is mandatory
 
 **Rule:** `execute()` in `live.py` MUST check both `os.getenv("LIVE_TRADING") == "true"`
-(line 89) AND `live_confirmed=True` (line 96). Both checks must exist. Neither
+(line 127) AND `live_confirmed=True` (line 134). Both checks must exist. Neither
 can be removed or defaulted to True.
 
 **Why:** Defense-in-depth. Either can fail independently (env var typo, stale CLI flag)
 without the other failing. Session 20 had a silent path where `live_confirmed`
 was never set, allowing orders to fire with no operator acknowledgment.
 
-**Test:** `tests/test_live_executor.py::TestExecuteGuards` (guards at lines 89–99)
+**Test:** `tests/test_live_executor.py::TestExecuteGuards` (guards at lines 127–137)
 
 ---
 
@@ -72,7 +71,7 @@ exceeding the hourly rate limit by 1.
 
 ### IL-3: HARD_MAX_TRADE_USD may only be raised by explicit Matthew directive
 
-**Rule:** `HARD_MAX_TRADE_USD = 20.00` in `kill_switch.py` (line 39). Strategy loops
+**Rule:** `HARD_MAX_TRADE_USD = 50.00` in `kill_switch.py` (line 39). Strategy loops
 must clamp: `trade_usd = min(size_result.recommended_usd, HARD_MAX_TRADE_USD)`.
 No strategy code may pass a `trade_usd` larger than this constant.
 To raise the cap: Matthew must explicitly direct it, document it in CHANGELOG.md,
@@ -104,7 +103,7 @@ primary P&L engine. Do not touch.
 
 ### IL-5: Fee-floor guard must block 1c and 99c raw prices
 
-**Rule:** `live.py` lines 125–130:
+**Rule:** `live.py` lines 165–170:
 ```python
 if price_cents >= 99 or price_cents <= 1:
     return None
@@ -127,7 +126,7 @@ from `.env` / environment variables. Never hardcoded. The `.pem` file path must
 never appear in any log output (only filename logged, not full path contents).
 
 **Enforcement:** `src/auth/kalshi_auth.py` line 64 logs only `key_path.name` (filename)
-not `key_path.read_bytes()`. `load_from_env()` at line 117 validates env vars.
+not `key_path.read_bytes()`. `load_from_env()` at line 111 validates env vars.
 
 **Why:** Key leakage = unauthorized API access to real Kalshi account. RSA private key
 cannot be rotated without re-configuring Kalshi — it's permanent damage.
@@ -138,7 +137,7 @@ cannot be rotated without re-configuring Kalshi — it's permanent damage.
 
 ### IL-7: Canceled orders are never recorded as trades
 
-**Rule:** `live.py` lines 199–205: if `order.status == "canceled"`, return None
+**Rule:** `live.py` line 641: if `order.status == "canceled"`, return None
 without any DB write. This guard must survive all refactors.
 
 **Why:** A canceled-order recorded as a live bet corrupts: (1) calibration data and
@@ -153,7 +152,7 @@ Bug hit at Session 38.
 ### IL-8: Paper bets use is_paper=True, live bets use is_paper=False — never mix
 
 **Rule:** `db.save_trade()` must always receive the correct `is_paper` flag.
-Live executor always passes `is_paper=False` (live.py line 218).
+Live executor always passes `is_paper=False` (live.py line 660).
 Paper executor always passes `is_paper=True`.
 Kill switch: live loops call `check_order_allowed()`, paper loops call
 `check_paper_order_allowed()`. These must never be swapped.
@@ -168,7 +167,7 @@ during a soft kill wastes calibration data.
 
 ### IL-9: Money math uses floor truncation, never rounding up
 
-**Rule:** `sizing.py` line 136: `size = math.floor(size * 100) / 100`.
+**Rule:** `sizing.py` line 157: `size = math.floor(size * 100) / 100`.
 Must not be changed to `round()` or `math.ceil()`.
 
 **Why:** `round($4.7685)` → $4.77. Kill switch then checks $4.77 / $95.37 = 5.0016%
@@ -252,7 +251,7 @@ Revisit when bucket has 200+ bets at current bet size.
 
 ### IL-12: Kelly floor truncation must remain synchronized with kill switch pct cap
 
-**Rule:** `sizing.py` line 136: `size = math.floor(size * 100) / 100`.
+**Rule:** `sizing.py` line 157: `size = math.floor(size * 100) / 100`.
 The floored value must always satisfy `size / bankroll <= MAX_TRADE_PCT` at the same bankroll.
 The kill switch pct cap check in `check_order_allowed()` (line 174) evaluates the same value
 that sizing produces — they must agree. Never change `math.floor()` to `round()` or `math.ceil()`.
@@ -283,7 +282,7 @@ miscalibrated Brier scores, unreliable graduation data for several hours.
 
 ### IL-14: Settlement loop only calls record_win/record_loss for live trades
 
-**Rule:** `main.py` settlement_loop line 1192:
+**Rule:** `main.py` settlement_loop line 1975:
 ```python
 if not trade["is_paper"]:
     if won:
@@ -320,7 +319,7 @@ went through — exceeding the rate limit by 1.
 
 ### IL-16: _FIRST_RUN_CONFIRMED must be set True by main.py after startup confirmation
 
-**Rule:** `live.py` line 34 initializes `_FIRST_RUN_CONFIRMED = False`.
+**Rule:** `live.py` line 36 initializes `_FIRST_RUN_CONFIRMED = False`.
 After the operator types "CONFIRM" at the interactive startup prompt, `main.py` must set:
 ```python
 import src.execution.live as live_exec_mod
