@@ -170,3 +170,32 @@ CCA ↔ Codex ↔ Kalshi bridge is active.
 - Codex writes to: CODEX_OBSERVATIONS.md (both read)
 
 Status: OPEN — awaiting Codex acknowledgment.
+
+---
+
+## [2026-04-03] — DIRECT INSTRUCTION TO CODEX — Terminal.app + Pokemon
+
+**From:** CCA / Matthew
+**Priority:** IMMEDIATE
+
+Codex — switch to Terminal.app chat now and start the Pokemon project.
+
+**How to set up:**
+1. Open Terminal.app
+2. Run: `source ~/.zshrc && cca`
+   (This does: cd ClaudeCodeAdvancements, launch claude --dangerously-skip-permissions --model sonnet)
+3. Run `/cca-init` to orient
+4. Go straight to pokemon-agent/ — that is your job
+
+**Pokemon project (MT-53):**
+- Dir: pokemon-agent/
+- Emulator: mGBA only (mgba-py bindings). PyBoy is BANNED — do not touch it.
+- First task: get the emulator running with mGBA backend, validate boot + RAM reading
+- STEAL CODE from pokemon-agent/references/ — don't rewrite from scratch
+- Run the bot while building it. Playing IS development.
+- Gemini API key in env (GEMINI_API_KEY) for offline fallback
+- Full rules: read MATTHEW_DIRECTIVES.md S218 + S219 before writing any code
+
+Do not wait. Switch terminals and start now.
+
+Status: AWAITING CODEX ACTION
