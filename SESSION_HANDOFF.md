@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-03-28 ~20:40 UTC (Session 158 wrap)
+# Last updated: 2026-04-02 (S252 CCA init — bot status confirmed, CCA Phase 6 complete)
 # ═══════════════════════════════════════════════════════════════
 
 ## ⚠️ READ FIRST: .planning/MATTHEW_DIRECTIVES.md — VERBATIM MANDATE DIRECTIVES (S150, 2026-03-27)
@@ -39,18 +39,26 @@
 ## ALL FUTURE KALSHI CHATS ARE FORBIDDEN FROM FORGETTING THIS. PERMANENT.
 ## ═══════════════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S160 wrap — 2026-03-29 ~03:35 UTC)
-  Bot RUNNING PID 87224 → /tmp/polybot_session159.log
+## BOT STATE (S252 CCA init — 2026-04-02)
+  Bot RUNNING PID 12448 → /tmp/polybot_session161.log
+  (Previous state: PID 87224 / session159.log as of S160 wrap 2026-03-29)
   All-time live P&L: +69.89 USD
   Bankroll: ~202 USD (Matthew confirmed)
   Tests: 2019 passing (3 skipped). Last commit: 1227433
 
-  S160 SESSION RESULTS (monitoring continuation of S159):
-  All-time P&L: +69.89 USD (unchanged — sniper at 50/50 cap, no new settled bets)
-  To +125 USD milestone: 55.11 USD remaining
-  Day 3 (March 29 UTC): 0 new bets. Sniper resets at 06:00 UTC (01:00 CDT) = ~2.5hr out.
+  ⚠️ MANDATE DEADLINE: 2026-04-03 00:11 UTC — IMMINENT. Run --report to get current P&L.
+  All-time live P&L: +69.89 USD (last confirmed S160 — Kalshi chat has authoritative current value)
 
-  S160 KEY CHANGES / FINDINGS:
+  CCA PHASE 6 COMPLETE (S251 — 2026-04-02):
+  - polybot-init.md slimmed 15.4KB→1.9KB (startup commands extracted to SESSION_RESUME.md)
+  - SESSION_RESUME.md created + initialized with live state (polybot-wrap.md redirected to it)
+  - polybot-wrapresearch.md fixed, batch_wrap_learning kalshi domains added
+  - polybot-auto.md CCA comms check wired (every 3rd cycle)
+  - POLYBOT_INIT.md slimmed 105KB→42KB (this session, Chat 26A)
+
+  CCA PHASE 7 IN PROGRESS (Chats 26-30): see TODAYS_TASKS.md in ClaudeCodeAdvancements
+
+  S160 KEY FINDINGS (still relevant — from 2026-03-29):
   1. SNIPER TIMING RE-CONFIRMED: CST midnight = 06:00 UTC = 01:00 AM CDT (not 9 PM CDT).
      Earlier session had wrong countdown. Corrected via DB timestamp query.
   2. GUARD STACK: auto_guard_discovery confirmed 0 new guards (11 unchanged). Clean.
@@ -67,11 +75,12 @@
   5-DAY MANDATE STATUS:
   Day 1 (March 27 UTC): -4.13 USD — MISSED
   Day 2 (March 28 UTC): +42-49 USD — HIT
-  Day 3 (March 29 UTC): started 00:00 UTC. Sniper fires at 06:00 UTC (01:00 CDT).
-  To +125 USD milestone: 55.11 USD remaining (all-time 69.89)
+  Day 3 (March 29 UTC): started 00:00 UTC (S160 was monitoring this)
+  Days 4-7: UNKNOWN from CCA — run --report for current P&L
+  DEADLINE: 2026-04-03 00:11 UTC — Kalshi chat must verify mandate status
 
-  OPEN BETS: 0 (all settled)
-  SNIPER: 50/50 cap (CST Day 2). Resets at 06:00 UTC (01:00 CDT). Cron watchdog active.
+  OPEN BETS: unknown — verify with --health
+  SNIPER: verify current cap/status with --health + --graduation-status
 
 ## PENDING TASKS (priority order)
   ⚠️ ABSOLUTE FREEDOM DIRECTIVE OVERRIDES — if any task below conflicts with making income, drop it.
@@ -130,13 +139,14 @@
   daily_loss_cap = DISABLED
   bankroll_floor = 20 USD (INVIOLABLE — this one cannot be overridden)
 
-## RESTART COMMAND (S161)
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session161.log 2>&1 &
+## RESTART COMMAND (S252 — use session162 for next restart)
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session162.log 2>&1 &
 
-## CRITICAL STARTUP CHECKS (S159)
+## CRITICAL STARTUP CHECKS
   - kill -0 $(cat bot.pid) 2>/dev/null && echo "ALIVE" || echo "DEAD"  ← USE THIS, not grep
     ⚠️ NEVER use ps grep + && + tail — grep on missing log file = false alarm exit 1.
-    If stale >15min in log: RESTART to session159.log (frozen process pattern — happened S151, S155, S157, S158).
+    If stale >15min in log: RESTART (frozen process pattern — happened S151, S155, S157, S158).
+    Current log: /tmp/polybot_session161.log (PID 12448 as of S252 init)
     ⚠️ TIMEZONE: Machine is CDT (UTC-5). Log timestamps like 14:xx = 19:xx UTC. Always convert.
   - FIRST: check today's P&L vs mandate target (15-25 USD):
     ./venv/bin/python3 -c "import sqlite3,calendar; from datetime import datetime, timezone; c=sqlite3.connect('data/polybot.db'); ts=calendar.timegm(datetime.now(timezone.utc).replace(hour=0,minute=0,second=0,microsecond=0).timetuple()); r=c.execute('SELECT COUNT(*),SUM(CASE WHEN side=result THEN 1 ELSE 0 END),ROUND(SUM(pnl_cents)/100.0,2) FROM trades WHERE is_paper=0 AND settled_at>=? AND result IS NOT NULL',(ts,)).fetchone(); print(f'Today: {r[0]} settled | {r[1]} wins | {r[2]} USD')"
