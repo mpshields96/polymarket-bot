@@ -1321,6 +1321,7 @@ async def daily_sniper_loop(
     series_ticker: str = "KXBTCD",
     loop_name: str = "daily_sniper",
     coin_feed=None,
+    max_price_cents: Optional[int] = None,  # CCA REQ-62: ETH uses 92c ceiling, BTC uses 94c default
 ):
     """
     KXBTCD near-expiry sniping loop (also supports KXETHD via series_ticker/coin_feed params).
@@ -1337,6 +1338,9 @@ async def daily_sniper_loop(
     Live sizing: _DAILY_SNIPER_LIVE_CAP_USD (1 USD hard cap, conservative ramp-up).
     """
     from src.strategies.daily_sniper import make_daily_sniper, make_eth_daily_sniper, DAILY_SNIPER_MAX_PRICE_CENTS
+
+    # CCA REQ-62: ETH uses 92c ceiling, BTC uses default 94c. Resolved here after import.
+    _max_price = max_price_cents if max_price_cents is not None else DAILY_SNIPER_MAX_PRICE_CENTS
 
     # Use coin_feed if provided (ETH path), otherwise fall back to btc_feed (BTC path)
     _feed = coin_feed if coin_feed is not None else btc_feed
@@ -1415,12 +1419,13 @@ async def daily_sniper_loop(
             for market in markets:
                 ticker = market.ticker
 
-                # Ceiling check: skip markets where the favored side is AT or above 94c.
+                # Ceiling check: skip markets where the favored side is AT or above ceiling.
                 # Uses >= (not >) to account for 1-tick paper slippage:
                 #   bid=94c → execution=95c (above ceiling) → must block.
                 #   bid=93c → execution=94c (at ceiling) → allowed.
                 # Bug history: S131 fix: AND→max(). S132 fix: >→>= for slippage.
-                if max(market.yes_price, market.no_price) >= DAILY_SNIPER_MAX_PRICE_CENTS:
+                # CCA REQ-62: ETH uses _max_price=92, BTC uses _max_price=94 (default).
+                if max(market.yes_price, market.no_price) >= _max_price:
                     continue
 
                 # Generate signal (strategy handles time gate + floor + direction)
@@ -1482,10 +1487,10 @@ async def daily_sniper_loop(
                     # the ceiling even when YES bid passed the pre-check. Bug: trade 12711
                     # placed at 95c when bid=93c passed ceiling check of <94 (S156).
                     _yes_ask = orderbook.yes_ask() if signal.side == "yes" else orderbook.no_ask()
-                    if _yes_ask is not None and _yes_ask >= DAILY_SNIPER_MAX_PRICE_CENTS:
+                    if _yes_ask is not None and _yes_ask >= _max_price:
                         logger.debug(
                             "[%s] %s: ask %dc >= ceiling %dc — skip (post-orderbook guard)",
-                            loop_name, ticker, _yes_ask, DAILY_SNIPER_MAX_PRICE_CENTS,
+                            loop_name, ticker, _yes_ask, _max_price,
                         )
                         continue
 
@@ -4307,10 +4312,11 @@ async def main():
         name="daily_sniper_loop",
     )
 
-    # ── ETH daily sniper loop (KXETHD near-expiry paper sniping) ─────────
-    # Paper-only until 30+ bets + Brier < 0.30 validate FLB on ETH daily markets.
-    # Same mechanism as daily_sniper_v1 (BTC). KXETHD volume: 64K (S51 probe).
-    # CCA REQ-62: KXETHD analysis pending. Stagger 150s (after daily_sniper 120s + buffer).
+    # ── ETH daily sniper loop (KXETHD near-expiry live sniping) ─────────
+    # LIVE — CCA REQ-62 validated: n=15 paper bets, 15/15 wins (100% WR). FLB confirmed on KXETHD.
+    # 92c ceiling (not 94c): ETH near-expiry markets have tighter liquidity, CCA REQ-62 directive.
+    # KXETHD volume: 64K (S51 probe). Stagger 150s (after daily_sniper 120s + buffer).
+    # S163 flip: live_executor_enabled=True, trade_lock wired, max_price_cents=92.
     eth_daily_sniper_task = asyncio.create_task(
         daily_sniper_loop(
             kalshi=kalshi,
@@ -4319,16 +4325,17 @@ async def main():
             kill_switch=kill_switch,
             initial_delay_sec=150.0,
             max_daily_bets=5,
-            live_executor_enabled=False,
+            live_executor_enabled=True,
             live_confirmed=live_confirmed,
-            trade_lock=None,
+            trade_lock=_live_trade_lock,
             series_ticker="KXETHD",
             loop_name="eth_daily_sniper",
             coin_feed=eth_feed,
+            max_price_cents=92,
         ),
         name="eth_daily_sniper_loop",
     )
-    logger.info("ETH daily sniper loop started (paper-only, KXETHD, 90-94c, 90min window)")
+    logger.info("ETH daily sniper loop started (LIVE, KXETHD, 90-91c window, 92c ceiling, 10 USD cap)")
 
     # ── Economics sniper loop (KXCPI/KXGDP FLB — paper-only K2) ─────────
     # Paper-only. Targets KXCPI-*/KXGDP-* at 88-93c within 48h of settlement.

@@ -477,3 +477,48 @@ class TestEthDailySniperFactory:
         btc = make_daily_sniper()
         eth = make_eth_daily_sniper()
         assert btc.name != eth.name
+
+
+# ── max_price_cents parameter (CCA REQ-62 — ETH uses 92c ceiling, not 94c) ──────
+
+
+class TestDailySniperMaxPriceCentsParam:
+    """Verify daily_sniper_loop accepts max_price_cents param for per-series ceiling control.
+
+    CCA REQ-62: ETH daily sniper uses 92c ceiling (not 94c).
+    Default=None resolves to DAILY_SNIPER_MAX_PRICE_CENTS (94c) preserving BTC behavior.
+    """
+
+    def test_loop_accepts_max_price_cents_param(self):
+        """daily_sniper_loop must accept max_price_cents param."""
+        import inspect
+        import main as _main
+        sig = inspect.signature(_main.daily_sniper_loop)
+        assert "max_price_cents" in sig.parameters
+
+    def test_max_price_cents_defaults_to_none(self):
+        """max_price_cents must default to None (resolves to DAILY_SNIPER_MAX_PRICE_CENTS in loop)."""
+        import inspect
+        import main as _main
+        sig = inspect.signature(_main.daily_sniper_loop)
+        assert sig.parameters["max_price_cents"].default is None
+
+    def test_ceiling_filter_respects_92c_override(self):
+        """Ceiling filter helper must block YES@92c when ceiling=92 (ETH REQ-62 config)."""
+        mkt = _make_daily_market(yes_price=92, no_price=8, seconds_remaining=1800)
+        assert _ceiling_filter(mkt, ceiling=92) is True
+
+    def test_ceiling_filter_allows_91c_with_92c_ceiling(self):
+        """YES@91c must be allowed when ceiling=92 (one below ceiling)."""
+        mkt = _make_daily_market(yes_price=91, no_price=9, seconds_remaining=1800)
+        assert _ceiling_filter(mkt, ceiling=92) is False
+
+    def test_ceiling_filter_btc_default_allows_93c(self):
+        """Default 94c ceiling must still allow YES@93c (BTC behavior unchanged)."""
+        mkt = _make_daily_market(yes_price=93, no_price=7, seconds_remaining=1800)
+        assert _ceiling_filter(mkt) is False  # default ceiling=94
+
+    def test_ceiling_filter_btc_default_blocks_94c(self):
+        """Default 94c ceiling must still block YES@94c (BTC behavior unchanged)."""
+        mkt = _make_daily_market(yes_price=94, no_price=6, seconds_remaining=1800)
+        assert _ceiling_filter(mkt) is True  # default ceiling=94

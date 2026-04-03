@@ -29,7 +29,7 @@ IRON_LAWS = [
     ("IL-8",   "src/execution/live.py",   660, "is_paper=False",         "Live executor always is_paper=False"),
     ("IL-9",   "src/risk/sizing.py",      157, "math.floor",             "Kelly floor truncation"),
     ("IL-12",  "src/risk/kill_switch.py", 176, "pct_of_bankroll",        "Kill switch pct-of-bankroll cap"),
-    ("IL-14",  "main.py",                1975, "record_win",             "Settlement loop live-only accounting"),
+    ("IL-14",  "main.py",                1982, "record_win",             "Settlement loop live-only accounting"),
     ("IL-16",  "src/execution/live.py",    36, "_FIRST_RUN_CONFIRMED",   "First-run flag initialization"),
     ("IL-17a", "src/risk/kill_switch.py", 168, "HARD_MIN_BANKROLL_USD",  "Bankroll floor check first"),
     ("IL-17b", "src/risk/kill_switch.py", 173, "HARD_MAX_TRADE_USD",     "Per-trade hard cap check second"),
