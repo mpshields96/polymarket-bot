@@ -13,7 +13,7 @@ USAGE:
 
 RATE:   h2h games: ~1 credit/call.
         Championship outrights: ~1 credit per bookmaker per event.
-        Budget: hard cap 4000 credits/month for this bot (sub limit 20K/month).
+        Budget: hard cap 10000 credits/month for this bot (S162 — Matthew directive).
         Cache TTL: 900s (15 min) for games, 21,600s (6 hr) for championships.
 
 KEYS:   SDATA_KEY in .env
@@ -35,7 +35,7 @@ import aiohttp
 logger = logging.getLogger(__name__)
 
 _BASE = "https://api.the-odds-api.com/v4/sports"
-_MONTHLY_CREDIT_CAP = 4000         # raised S123 — Matthew directive (sub limit 20K/month)
+_MONTHLY_CREDIT_CAP = 10000        # raised S162 — Matthew directive (new limit 10K/month)
 _QUOTA_FILE = "data/sdata_quota.json"
 
 # Preferred bookmakers in priority order (sharpest lines first)
