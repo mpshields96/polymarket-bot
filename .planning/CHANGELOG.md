@@ -9456,3 +9456,44 @@ ETH paper sniper first bets expected tomorrow. sports_game calibration ongoing a
 
 ### Next Chat Priority
 Day 3 sniper health. Watch first bets fire at 06:00 UTC. Verify counter resets from 50 to 0. Watch for CCA REQ-65 response before touching floor config.
+
+---
+
+## Session 162 — 2026-04-03 (S162 main chat)
+
+### What changed
+- Odds API monthly cap raised: 4000 → 10,000 credits (Matthew S162 directive)
+- April 13 hard deadline set: diversify income beyond sniper. ANY market authorized.
+- Expansion gate SUSPENDED — no more waiting for drift validation. Find edges, deploy.
+
+### P&L
+- Today: +37.77 USD (50 settled, 50 wins, 100% WR) — daily_sniper only
+- All-time live: +120.21 USD | Session gain: +21.59 USD
+- +125 USD milestone: REACHED this session
+
+### Strategy Analyzer Insights
+- Sniper: profitable 90-94c, guarded 95-98c. EDGE CONFIRMED. SPRT lambda=+15.205.
+- btc_drift: NEUTRAL (80 bets, 50% WR). direction_filter="no" active.
+- eth_drift: UNDERPERFORMING (46% WR, declining). DISABLED — confirmed correct.
+- sol_drift: HEALTHY (47 bets, 66% WR). Still accumulating data.
+
+### Research findings
+- Weather dead end CONFIRMED: real WR 37-60% vs model-predicted 97%. Miscalibrated. Never revisit.
+- Sports timing: game-day markets (KXNBAGAME/KXNHLGAME/KXMLBGAME) open afternoon ET. Bot live, auto-fires.
+- ETH daily sniper: n=15 paper wins (15/15 = 100%). Live eval threshold reached.
+- CCA REQ-66 filed: UCL April 7-8 soccer sniper, CPI live April 10, MVE markets, sports timing.
+
+### Dead ends confirmed
+- Weather strategy: WR 37-60% with model claiming 97% edge. Do NOT re-investigate.
+
+### Grade: B-
+WINS: +37.77 USD day (mandate territory). +125 USD milestone hit. Weather dead end confirmed.
+      ETH sniper at live threshold. CCA request filed with April 13 plan.
+LOSSES: Sniper still sole income. No new markets deployed despite Matthew's clear directive.
+ONE THING: Next chat must promote ETH daily sniper live AND fire first economics/sports bet.
+
+### Next Chat Priority
+1. ETH daily sniper live: flip live_executor_enabled=True with 92c ceiling. ~5 LOC.
+2. Sports game: check DB ~18:00 UTC for first auto-fired bet.
+3. CCA REQ-66 response: UCL, CPI, sports timing.
+4. April 13: need 1+ new income source live by then.

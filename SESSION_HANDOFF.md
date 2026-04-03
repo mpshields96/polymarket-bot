@@ -39,21 +39,30 @@
 ## ALL FUTURE KALSHI CHATS ARE FORBIDDEN FROM FORGETTING THIS. PERMANENT.
 ## ═══════════════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S254 CCA — 2026-04-03 02:30 UTC)
+## BOT STATE (S162 wrap — 2026-04-03 05:15 UTC)
   Bot RUNNING PID 12448 → /tmp/polybot_session161.log
-  All-time live P&L: +88.32 USD (today: +5.88 USD live, 8 settled, 100% WR)
-  Tests: 2019 passing (3 skipped). Last commit: d9669ef
+  All-time live P&L: +120.21 USD (today: +37.77 USD live, 50 settled, 100% WR)
+  Tests: 2019 passing (3 skipped). Last commit: d9669ef (pre-wrap)
 
-  ⚠️ MANDATE DEADLINE PASSED: 2026-04-03 00:11 UTC (elapsed 2h ago).
-  All-time live P&L: +88.32 USD. Daily target was 15-25 USD SUSTAINED — verify full day history.
+  ⚠️ APRIL 13 NEW DEADLINE (S162 — Matthew directive):
+  "Figure out and succeed by April 13. Bet sports or ANY market. CCA + Codex help."
+  ALL markets authorized. Expansion gate SUSPENDED. ONE RULE: bankroll > 20 USD.
+  Success = sustained 15-25 USD/day + at least 1 new market type live by April 13.
 
-  CCA PHASE 7 COMPLETE (S253-S254 — 2026-04-02/03):
-  - polybot-autoresearch.md slimmed 21.7KB→4.5KB (79% reduction, RETIRED notice added)
-  - polybot-wrap.md slimmed 10.4KB→6.0KB (42% reduction, FINAL CHECKS + file size audit added)
-  - scripts/check_iron_laws.py created — 16 Iron Laws verified, exits 1 on stale/missing
-  - pre-commit hook wired to check_iron_laws.py (blocks commits on stale BOUNDS.md refs)
-  - polybot-auto.md: proactive CCA request triggers wired (guard n≥5 WR<BE, CUSUM≥3.0, comms>48hr)
-  - BOUNDS.md: 10 Iron Law line refs corrected (IL-1/3/5/6/7/8/9/12/14/16)
+  S162 KEY FINDINGS:
+  1. Weather dead end CONFIRMED: DB WR 37-60% (Miami 37%). Miscalibrated model. Do NOT revisit.
+  2. ETH daily sniper n=15 (15/15 wins). Live eval threshold reached. Use 92c ceiling (CCA REQ-62).
+  3. Sports game timing: game-day markets open afternoon ET — bot will auto-fire then. Working.
+  4. Odds API cap raised to 10,000 credits/month (was 4000). Matthew directive.
+  5. CCA REQUEST 66 filed: UCL April 7-8, CPI live April 10, sports timing, MVE markets.
+  6. Mandate deadline passed (April 3). New deadline April 13 — diversify income sources.
+  7. Sniper 50/50 daily cap hit at 05:11 UTC. 100% WR. +37.77 USD today alone.
+
+  STRATEGY ANALYZER INSIGHTS (S162):
+  - Sniper profitable buckets: 90-94c. Guarded: 95-98c. EDGE CONFIRMED.
+  - btc_drift: NEUTRAL (50% WR, -9.53 USD all-time). direction_filter="no" active.
+  - eth_drift: UNDERPERFORMING (46% WR, declining). DISABLED.
+  - sol_drift: HEALTHY (66% WR, -15.68 USD — still accumulating data).
 
   S160 KEY FINDINGS (still relevant — from 2026-03-29):
   1. SNIPER TIMING RE-CONFIRMED: CST midnight = 06:00 UTC = 01:00 AM CDT (not 9 PM CDT).
@@ -80,22 +89,22 @@
   SNIPER: verify current cap/status with --health + --graduation-status
 
 ## PENDING TASKS (priority order)
-  ⚠️ ABSOLUTE FREEDOM DIRECTIVE OVERRIDES — if any task below conflicts with making income, drop it.
-  1. MANDATE (ongoing): 15-25 USD/day SUSTAIN. Day 2 = +60.04 USD (CRUSHED). Day 3 starts.
-     Sniper resets at 06:00 UTC (01:00 CDT). Watch first Day 3 bets fire then.
-  2. FROZEN PROCESS WATCH: Check log recency every cycle. >15min stale = restart.
-     ⚠️ LIVENESS CHECK: use `kill -0 PID` not grep-pipe. Grep on missing log file = false alarm.
-     ⚠️ TIMEZONE: Machine is CDT (UTC-5). Log 14:xx = 19:xx UTC. Always convert.
-  3. CCA REQ-65 RESPONSE: 88c floor widening risk check. When received: evaluate with live
-     data (only 1 bet at 89c — insufficient). Do NOT change floor until CCA responds.
-  4. Sports_game calibration: n=6 settled (4W NHL / 2L NBA). NBA losses were at OLD 10 USD cap.
-     At 2 USD cap: effectively 0 NBA data points. Cap stays 2 USD until n=30.
-     NHL 4/4 wins at current cap. Keep watching both sports separately.
-  5. KXETHD paper sniper: 5/5 wins (91-93c). n=5 too small. Need 15-20 bets before live eval.
-     CCA REQ-62 delivered: use 92c ceiling (not 94c) when going live.
-  6. +125 USD milestone: 55.11 USD remaining. At current pace (~30-60 USD/day), within 1-3 days.
-  7. CODEX_OBSERVATIONS.md: check at session start.
-  8. CCA REQ-64 (NBA loss investigation): still pending CCA response.
+  ⚠️ APRIL 13 DEADLINE — diversify beyond sniper. CCA + Codex available. ANY market authorized.
+  1. ETH daily sniper LIVE PROMOTION: n=15 paper wins, all wins. Threshold reached.
+     Action: flip eth_daily_sniper_v1 live_executor_enabled=True with 92c ceiling. ~5 LOC change.
+     Gate: run pre-live audit (CLAUDE.md Step 5) first. This is the highest-leverage next action.
+  2. CPI economics sniper LIVE DECISION (April 9): paper mode fires April 8 on KXCPI.
+     If paper bet wins with edge >5%: flip live for April 10 CPI release.
+     CCA REQ-66 pending: waiting for response on CPI timing + UCL soccer.
+  3. Sports game auto-fire: game-day markets open afternoon ET. Bot already live — no action needed.
+     Monitor: check DB for first sports_game bet at ~18:00 UTC (1pm ET today).
+  4. UCL soccer sniper: April 7-8 (QF 2nd legs). CCA REQ-66 pending research.
+     Arsenal/Chelsea/Man City/Spurs matches. FLB at 90c+ late in game. Need CCA to confirm edge.
+  5. FROZEN PROCESS WATCH: check log recency every cycle. >15min stale = restart to session162.log.
+  6. CCA REQ-65 RESPONSE: 88c floor widening. Do NOT change floor until CCA responds.
+  7. REQ-65 implementation: paper_min_price=88c separate from live_min_price=90c (~40 LOC + tests).
+  8. CODEX_OBSERVATIONS.md: check at session start.
+  9. +125 USD milestone: HIT (120.21 USD all-time). Next: sustain 15-25 USD/day through April 13.
 
 ## STRATEGY STATUS
   ⚠️ ABSOLUTE FREEDOM DIRECTIVE OVERRIDES — these strategies are tools, not laws.
@@ -136,8 +145,8 @@
   daily_loss_cap = DISABLED
   bankroll_floor = 20 USD (INVIOLABLE — this one cannot be overridden)
 
-## RESTART COMMAND (S252 — use session162 for next restart)
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session162.log 2>&1 &
+## RESTART COMMAND (S162 wrap — use session163 for next restart)
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session163.log 2>&1 &
 
 ## CRITICAL STARTUP CHECKS
   - kill -0 $(cat bot.pid) 2>/dev/null && echo "ALIVE" || echo "DEAD"  ← USE THIS, not grep
