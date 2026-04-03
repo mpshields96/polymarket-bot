@@ -39,24 +39,21 @@
 ## ALL FUTURE KALSHI CHATS ARE FORBIDDEN FROM FORGETTING THIS. PERMANENT.
 ## ═══════════════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S252 CCA init — 2026-04-02)
+## BOT STATE (S254 CCA — 2026-04-03 02:30 UTC)
   Bot RUNNING PID 12448 → /tmp/polybot_session161.log
-  (Previous state: PID 87224 / session159.log as of S160 wrap 2026-03-29)
-  All-time live P&L: +69.89 USD
-  Bankroll: ~202 USD (Matthew confirmed)
-  Tests: 2019 passing (3 skipped). Last commit: 1227433
+  All-time live P&L: +88.32 USD (today: +5.88 USD live, 8 settled, 100% WR)
+  Tests: 2019 passing (3 skipped). Last commit: d9669ef
 
-  ⚠️ MANDATE DEADLINE: 2026-04-03 00:11 UTC — IMMINENT. Run --report to get current P&L.
-  All-time live P&L: +69.89 USD (last confirmed S160 — Kalshi chat has authoritative current value)
+  ⚠️ MANDATE DEADLINE PASSED: 2026-04-03 00:11 UTC (elapsed 2h ago).
+  All-time live P&L: +88.32 USD. Daily target was 15-25 USD SUSTAINED — verify full day history.
 
-  CCA PHASE 6 COMPLETE (S251 — 2026-04-02):
-  - polybot-init.md slimmed 15.4KB→1.9KB (startup commands extracted to SESSION_RESUME.md)
-  - SESSION_RESUME.md created + initialized with live state (polybot-wrap.md redirected to it)
-  - polybot-wrapresearch.md fixed, batch_wrap_learning kalshi domains added
-  - polybot-auto.md CCA comms check wired (every 3rd cycle)
-  - POLYBOT_INIT.md slimmed 105KB→42KB (this session, Chat 26A)
-
-  CCA PHASE 7 IN PROGRESS (Chats 26-30): see TODAYS_TASKS.md in ClaudeCodeAdvancements
+  CCA PHASE 7 COMPLETE (S253-S254 — 2026-04-02/03):
+  - polybot-autoresearch.md slimmed 21.7KB→4.5KB (79% reduction, RETIRED notice added)
+  - polybot-wrap.md slimmed 10.4KB→6.0KB (42% reduction, FINAL CHECKS + file size audit added)
+  - scripts/check_iron_laws.py created — 16 Iron Laws verified, exits 1 on stale/missing
+  - pre-commit hook wired to check_iron_laws.py (blocks commits on stale BOUNDS.md refs)
+  - polybot-auto.md: proactive CCA request triggers wired (guard n≥5 WR<BE, CUSUM≥3.0, comms>48hr)
+  - BOUNDS.md: 10 Iron Law line refs corrected (IL-1/3/5/6/7/8/9/12/14/16)
 
   S160 KEY FINDINGS (still relevant — from 2026-03-29):
   1. SNIPER TIMING RE-CONFIRMED: CST midnight = 06:00 UTC = 01:00 AM CDT (not 9 PM CDT).
