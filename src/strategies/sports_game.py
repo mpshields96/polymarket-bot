@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import logging
 import re
+import unicodedata
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, List, Optional
 
@@ -191,42 +192,42 @@ _MLB_CODE_TO_CITY = {
 # UCL/EPL/Bundesliga/La Liga/Serie A/Ligue 1 — expand as new tickers are observed.
 
 _SOCCER_CODE_TO_TEAM: dict[str, str] = {
-    # UCL 2025-26 QF teams (known from tickers)
+    # UCL 2025-26 QF teams — use Kalshi subtitle names for consistency
     "ARS": "Arsenal",
     "SPO": "Sporting CP",
     "BAY": "Bayern Munich",
-    "PSG": "Paris Saint Germain",
+    "BMU": "Bayern Munich",   # BMU = Bayern MUnich (NOT Borussia Dortmund)
+    "PSG": "PSG",             # Kalshi subtitle uses "PSG", not "Paris Saint Germain"
     "BAR": "Barcelona",
     "LIV": "Liverpool",
-    "BMU": "Borussia Dortmund",
     "BVB": "Borussia Dortmund",
-    "ATM": "Atletico Madrid",
+    "ATM": "Atletico",        # Kalshi subtitle uses "Atletico" (no "Madrid")
     "MCI": "Manchester City",
     "CFC": "Chelsea",
     "INT": "Internazionale",
     "REA": "Real Madrid",
+    "RMA": "Real Madrid",
     "BEN": "Benfica",
+    "SLB": "Benfica",
     "PSV": "PSV Eindhoven",
     "AJA": "Ajax",
     "JUV": "Juventus",
-    "ACM": "AC Milan",
-    "MIL": "AC Milan",
+    "ACM": "Milan",           # Kalshi subtitle uses "Milan" (not "AC Milan")
+    "MIL": "Milan",
     "NAP": "Napoli",
     "SEV": "Sevilla",
     "VIL": "Villarreal",
     "RBL": "RB Leipzig",
-    "LEI": "Bayer Leverkusen",
+    "LEV": "Bayer Leverkusen",
     "BDO": "Borussia Dortmund",
+    "DOR": "Borussia Dortmund",
     "FEY": "Feyenoord",
     "CLU": "Club Brugge",
     "CEL": "Celtic",
     "GIR": "Girona",
-    "SLB": "Benfica",
     "AST": "Aston Villa",
     "STU": "Stuttgart",
-    "YOU": "Juventus",
     "SHA": "Shakhtar Donetsk",
-    "GNK": "Girona",
     # EPL 2024-25
     "MUN": "Manchester United",
     "TOT": "Tottenham Hotspur",
@@ -248,23 +249,15 @@ _SOCCER_CODE_TO_TEAM: dict[str, str] = {
     # Bundesliga
     "BAM": "Bayern Munich",
     "BLE": "Bayer Leverkusen",
-    "DOR": "Borussia Dortmund",
-    "STG": "Stuttgart",
-    "GLA": "Borussia Monchengladbach",
     "MAI": "Mainz 05",
     "AUG": "Augsburg",
     "FRE": "Freiburg",
-    "WOL": "Wolfsburg",
     # La Liga
-    "MAD": "Real Madrid",
-    "ATC": "Atletico Madrid",
+    "ATC": "Atletico",
     "BET": "Real Betis",
     "SOC": "Real Sociedad",
     "OSA": "Osasuna",
-    "CEL": "Celta Vigo",
-    "RMA": "Real Madrid",
     # Serie A
-    "MIL": "AC Milan",
     "ITA": "Internazionale",
     "ROM": "Roma",
     "LAZ": "Lazio",
@@ -281,6 +274,19 @@ _SOCCER_CODE_TO_TEAM: dict[str, str] = {
     "LIL": "Lille",
     "LEN": "Lens",
     "STR": "Strasbourg",
+}
+
+# Normalise Kalshi subtitle short names → Odds API full names (for team matching).
+# Kalshi uses abbreviations; Odds API uses full international names.
+_SOCCER_NAME_TO_ODDS: dict[str, str] = {
+    "PSG": "Paris Saint Germain",
+    "Atletico": "Atletico Madrid",   # Odds API: "Atlético Madrid" — accent stripped in _match_game
+    "Atletico Madrid": "Atletico Madrid",
+    "Milan": "AC Milan",
+    "Inter": "Internazionale",
+    "Sporting CP": "Sporting CP",
+    "Man City": "Manchester City",
+    "Man United": "Manchester United",
 }
 
 _SOCCER_SPORTS: frozenset = frozenset({
@@ -308,10 +314,11 @@ def _code_to_city(code: str, sport: str) -> Optional[str]:
 def _resolve_team(kalshi_name: str, sport: str) -> Optional[str]:
     """Map Kalshi city/short name → sports feed full team name."""
     if sport in _SOCCER_SPORTS:
-        # Soccer: Kalshi uses full team names in titles (e.g. "Arsenal", "Bayern Munich").
-        # Odds API also uses full names. Pass through directly — _match_game does fuzzy
-        # substring matching so minor differences (FC prefix, "United" suffix) are handled.
-        return kalshi_name if kalshi_name else None
+        if not kalshi_name:
+            return None
+        # Normalise Kalshi subtitle short names to Odds API full names.
+        # e.g. "PSG" → "Paris Saint Germain", "Atletico" → "Atletico Madrid", "Milan" → "AC Milan"
+        return _SOCCER_NAME_TO_ODDS.get(kalshi_name, kalshi_name)
     if sport == "basketball_nba":
         mapping = _NBA_CITY_MAP
     elif sport == "icehockey_nhl":
@@ -523,14 +530,23 @@ class SportsGameStrategy(BaseStrategy):
         return None
 
 
+def _strip_accents(s: str) -> str:
+    """Remove Unicode accents for fuzzy matching (e.g. 'Atlético' → 'atletico')."""
+    return unicodedata.normalize("NFD", s).encode("ascii", "ignore").decode().lower()
+
+
 def _match_game(games: list, home: str, away: str) -> Optional[object]:
-    """Find the sports feed game matching home+away team names (case-insensitive partial)."""
-    home_l, away_l = home.lower(), away.lower()
+    """Find the sports feed game matching home+away team names (case-insensitive partial).
+
+    Accent-strips both sides so "Atletico Madrid" matches "Atlético Madrid" from Odds API.
+    """
+    home_l, away_l = _strip_accents(home), _strip_accents(away)
     for g in games:
-        if home_l in g.home_team.lower() and away_l in g.away_team.lower():
+        gh, ga = _strip_accents(g.home_team), _strip_accents(g.away_team)
+        if home_l in gh and away_l in ga:
             return g
         # Kalshi sometimes flips home/away designation
-        if home_l in g.away_team.lower() and away_l in g.home_team.lower():
+        if home_l in ga and away_l in gh:
             return g
     return None
 
