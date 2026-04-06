@@ -1614,9 +1614,9 @@ async def economics_sniper_loop(
         logger.info("[economics_sniper] Startup delay %.0fs (stagger)", initial_delay_sec)
         await asyncio.sleep(initial_delay_sec)
 
-    logger.info("[economics_sniper] Started — paper-only KXCPI/KXGDP 88-93c FLB sniping")
+    logger.info("[economics_sniper] Started — paper-only KXCPI/KXGDP/KXFED/KXUNRATE 88-93c FLB sniping")
 
-    _SERIES = ("KXCPI", "KXGDP")
+    _SERIES = ("KXCPI", "KXGDP", "KXFED", "KXUNRATE")
 
     while True:
         try:
@@ -1639,7 +1639,7 @@ async def economics_sniper_loop(
                     logger.debug("[economics_sniper] Fetch %s failed: %s", series, e)
 
             if not markets:
-                logger.debug("[economics_sniper] No open KXCPI/KXGDP markets found")
+                logger.debug("[economics_sniper] No open KXCPI/KXGDP/KXFED/KXUNRATE markets found")
                 await asyncio.sleep(_ECONOMICS_SNIPER_POLL_SEC)
                 continue
 
