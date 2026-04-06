@@ -47,17 +47,25 @@ _SERIES_SPORT = {
     "KXNHLGAME": "nhl",
     "KXMLBGAME": "mlb",
     "KXNFLGAME": "nfl",
+    "KXUCLGAME": "soccer_uefa_champs_league",
+    "KXEPLGAME": "soccer_epl",
+    "KXSERIEAGAME": "soccer_italy_serie_a",
+    "KXBUNDESLIGAGAME": "soccer_germany_bundesliga",
+    "KXLALIGAGAME": "soccer_spain_la_liga",
+    "KXLIGUE1GAME": "soccer_france_ligue_one",
 }
 
 # Regex to parse Kalshi game-winner tickers
-# Format: KXNBAGAME-26MAR27CHIOKC-CHI  (series-date+teams-team)
-# Teams are concatenated without separator; we derive the pair from the target team.
+# US sports: KXNBAGAME-26MAR27CHIOKC-CHI  (series-date+teams-team, 3-char codes)
+# Soccer:    KXUCLGAME-26APR07SPOARS-ARS  (same format, 3-char codes)
 _TICKER_RE = re.compile(
-    r"^(KXNBAGAME|KXNHLGAME|KXMLBGAME|KXNFLGAME)"  # series
-    r"-\d{2}[A-Z]{3}\d{2}"                           # date (e.g. 26MAR26)
-    r"(?:\d{4})?"                                     # optional time (e.g. 1315)
-    r"([A-Z]{4,8})"                                   # combined teams (e.g. CHIOKC)
-    r"-([A-Z]{2,4})$"                                 # target team (e.g. CHI)
+    r"^(KXNBAGAME|KXNHLGAME|KXMLBGAME|KXNFLGAME"     # US sports series
+    r"|KXUCLGAME|KXEPLGAME|KXSERIEAGAME"              # soccer series
+    r"|KXBUNDESLIGAGAME|KXLALIGAGAME|KXLIGUE1GAME)"   # soccer series (cont.)
+    r"-\d{2}[A-Z]{3}\d{2}"                            # date (e.g. 26APR07)
+    r"(?:\d{4})?"                                      # optional time (e.g. 1315)
+    r"([A-Z]{4,8})"                                    # combined teams (e.g. SPOARS)
+    r"-([A-Z]{2,4})$"                                  # target team (e.g. ARS)
 )
 
 

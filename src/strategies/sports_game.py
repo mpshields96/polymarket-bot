@@ -186,9 +186,118 @@ _MLB_CODE_TO_CITY = {
 }
 
 
+# ── Soccer team mappings ────────────────────────────────────────────────────
+# Kalshi 3-letter ticker code → name that fuzzy-matches Odds API team names.
+# UCL/EPL/Bundesliga/La Liga/Serie A/Ligue 1 — expand as new tickers are observed.
+
+_SOCCER_CODE_TO_TEAM: dict[str, str] = {
+    # UCL 2025-26 QF teams (known from tickers)
+    "ARS": "Arsenal",
+    "SPO": "Sporting CP",
+    "BAY": "Bayern Munich",
+    "PSG": "Paris Saint Germain",
+    "BAR": "Barcelona",
+    "LIV": "Liverpool",
+    "BMU": "Borussia Dortmund",
+    "BVB": "Borussia Dortmund",
+    "ATM": "Atletico Madrid",
+    "MCI": "Manchester City",
+    "CFC": "Chelsea",
+    "INT": "Internazionale",
+    "REA": "Real Madrid",
+    "BEN": "Benfica",
+    "PSV": "PSV Eindhoven",
+    "AJA": "Ajax",
+    "JUV": "Juventus",
+    "ACM": "AC Milan",
+    "MIL": "AC Milan",
+    "NAP": "Napoli",
+    "SEV": "Sevilla",
+    "VIL": "Villarreal",
+    "RBL": "RB Leipzig",
+    "LEI": "Bayer Leverkusen",
+    "BDO": "Borussia Dortmund",
+    "FEY": "Feyenoord",
+    "CLU": "Club Brugge",
+    "CEL": "Celtic",
+    "GIR": "Girona",
+    "SLB": "Benfica",
+    "AST": "Aston Villa",
+    "STU": "Stuttgart",
+    "YOU": "Juventus",
+    "SHA": "Shakhtar Donetsk",
+    "GNK": "Girona",
+    # EPL 2024-25
+    "MUN": "Manchester United",
+    "TOT": "Tottenham Hotspur",
+    "NEW": "Newcastle United",
+    "AVL": "Aston Villa",
+    "WHU": "West Ham United",
+    "BRI": "Brighton",
+    "BOU": "Bournemouth",
+    "FUL": "Fulham",
+    "WOL": "Wolverhampton Wanderers",
+    "EVE": "Everton",
+    "NOT": "Nottingham Forest",
+    "CRY": "Crystal Palace",
+    "BRE": "Brentford",
+    "IPS": "Ipswich Town",
+    "LEE": "Leeds United",
+    "SOU": "Southampton",
+    "LEI": "Leicester City",
+    # Bundesliga
+    "BAM": "Bayern Munich",
+    "BLE": "Bayer Leverkusen",
+    "DOR": "Borussia Dortmund",
+    "STG": "Stuttgart",
+    "GLA": "Borussia Monchengladbach",
+    "MAI": "Mainz 05",
+    "AUG": "Augsburg",
+    "FRE": "Freiburg",
+    "WOL": "Wolfsburg",
+    # La Liga
+    "MAD": "Real Madrid",
+    "ATC": "Atletico Madrid",
+    "BET": "Real Betis",
+    "SOC": "Real Sociedad",
+    "OSA": "Osasuna",
+    "CEL": "Celta Vigo",
+    "RMA": "Real Madrid",
+    # Serie A
+    "MIL": "AC Milan",
+    "ITA": "Internazionale",
+    "ROM": "Roma",
+    "LAZ": "Lazio",
+    "FIO": "Fiorentina",
+    "TOR": "Torino",
+    "BOL": "Bologna",
+    "GEN": "Genoa",
+    # Ligue 1
+    "MON": "Monaco",
+    "NIC": "Nice",
+    "LYO": "Lyon",
+    "MAR": "Marseille",
+    "REN": "Rennes",
+    "LIL": "Lille",
+    "LEN": "Lens",
+    "STR": "Strasbourg",
+}
+
+_SOCCER_SPORTS: frozenset = frozenset({
+    "soccer_epl",
+    "soccer_uefa_champs_league",
+    "soccer_germany_bundesliga",
+    "soccer_italy_serie_a",
+    "soccer_spain_la_liga",
+    "soccer_france_ligue_one",
+})
+
+
 def _code_to_city(code: str, sport: str) -> Optional[str]:
     """Convert a Kalshi ticker team code (e.g. 'HOU') to city name (e.g. 'Houston')."""
-    if sport == "basketball_nba":
+    if sport in _SOCCER_SPORTS:
+        return _SOCCER_CODE_TO_TEAM.get(code)
+    elif sport == "basketball_nba":
         return _NBA_CODE_TO_CITY.get(code)
     elif sport == "icehockey_nhl":
         return _NHL_CODE_TO_CITY.get(code)
@@ -198,6 +307,11 @@ def _code_to_city(code: str, sport: str) -> Optional[str]:
 
 def _resolve_team(kalshi_name: str, sport: str) -> Optional[str]:
     """Map Kalshi city/short name → sports feed full team name."""
+    if sport in _SOCCER_SPORTS:
+        # Soccer: Kalshi uses full team names in titles (e.g. "Arsenal", "Bayern Munich").
+        # Odds API also uses full names. Pass through directly — _match_game does fuzzy
+        # substring matching so minor differences (FC prefix, "United" suffix) are handled.
+        return kalshi_name if kalshi_name else None
     if sport == "basketball_nba":
         mapping = _NBA_CITY_MAP
     elif sport == "icehockey_nhl":
@@ -228,12 +342,19 @@ def _parse_title(title: str) -> Optional[tuple[str, str]]:
     """
     'Houston at Miami Winner?' → ('Houston', 'Miami')   [away, home]
     'Los Angeles C at Golden State Winner?' → ('Los Angeles C', 'Golden State')
+    'Sporting CP vs Arsenal Winner?' → ('Sporting CP', 'Arsenal')  [soccer "vs"]
     Returns (away, home) or None.
     """
-    m = re.match(r"^(.+?) at (.+?) Winner\?$", title.strip())
-    if not m:
-        return None
-    return m.group(1).strip(), m.group(2).strip()
+    t = title.strip()
+    # Standard US sports: "Away at Home Winner?"
+    m = re.match(r"^(.+?) at (.+?) Winner\?$", t)
+    if m:
+        return m.group(1).strip(), m.group(2).strip()
+    # Soccer: "Team A vs Team B Winner?"
+    m = re.match(r"^(.+?) vs (.+?) Winner\?$", t)
+    if m:
+        return m.group(1).strip(), m.group(2).strip()
+    return None
 
 
 # ── Strategy ─────────────────────────────────────────────────────────────────

@@ -2124,8 +2124,12 @@ async def sports_game_loop(
         "basketball_nba": "KXNBAGAME",
         "icehockey_nhl": "KXNHLGAME",
         "baseball_mlb": "KXMLBGAME",
-        "soccer_epl": "KXEPLGAME",              # EPL (CCA REQ-066 expansion)
-        "soccer_uefa_champs_league": "KXUCLGAME",  # UCL (CCA REQ-066)
+        "soccer_epl": "KXEPLGAME",
+        "soccer_uefa_champs_league": "KXUCLGAME",
+        "soccer_germany_bundesliga": "KXBUNDESLIGAGAME",
+        "soccer_italy_serie_a": "KXSERIEAGAME",
+        "soccer_spain_la_liga": "KXLALIGAGAME",
+        "soccer_france_ligue_one": "KXLIGUE1GAME",
     }
     _SPORT_LABELS = {
         "basketball_nba": "NBA",
@@ -2133,6 +2137,10 @@ async def sports_game_loop(
         "baseball_mlb": "MLB",
         "soccer_epl": "EPL",
         "soccer_uefa_champs_league": "UCL",
+        "soccer_germany_bundesliga": "Bundesliga",
+        "soccer_italy_serie_a": "Serie A",
+        "soccer_spain_la_liga": "La Liga",
+        "soccer_france_ligue_one": "Ligue 1",
     }
     _PRICE_MIN = 15   # cents — skip near-zero prices
     _PRICE_MAX = 80   # cents — skip near-certainty (that's the banned 90c+ territory)
@@ -2164,6 +2172,22 @@ async def sports_game_loop(
             name="sports_game_ucl_v1", sport="soccer_uefa_champs_league",
             min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=2, min_volume=100,
         ),
+        "soccer_germany_bundesliga": SportsGameStrategy(
+            name="sports_game_bundesliga_v1", sport="soccer_germany_bundesliga",
+            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=2, min_volume=100,
+        ),
+        "soccer_italy_serie_a": SportsGameStrategy(
+            name="sports_game_serie_a_v1", sport="soccer_italy_serie_a",
+            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=2, min_volume=100,
+        ),
+        "soccer_spain_la_liga": SportsGameStrategy(
+            name="sports_game_la_liga_v1", sport="soccer_spain_la_liga",
+            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=2, min_volume=100,
+        ),
+        "soccer_france_ligue_one": SportsGameStrategy(
+            name="sports_game_ligue1_v1", sport="soccer_france_ligue_one",
+            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=2, min_volume=100,
+        ),
     }
 
     paper_execs = {
@@ -2179,7 +2203,7 @@ async def sports_game_loop(
     is_paper_mode = not (live_executor_enabled and live_confirmed)
     _mode_label = "paper" if is_paper_mode else "LIVE"
     logger.info(
-        "[sports_game] Started — %s NBA/NHL/MLB/EPL/UCL pre-game bookmaker arb (min_edge=5%%, prices=%d-%dc)",
+        "[sports_game] Started — %s NBA/NHL/MLB + 6 soccer leagues pre-game arb (min_edge=5%%, prices=%d-%dc)",
         _mode_label, _PRICE_MIN, _PRICE_MAX,
     )
 
@@ -2257,17 +2281,26 @@ async def sports_game_loop(
             mlb_games = _future_games(await feed.get_mlb_games())
             epl_games = _future_games(await feed.get_epl_games())
             ucl_games = _future_games(await feed.get_ucl_games())
+            bundesliga_games = _future_games(await feed.get_bundesliga_games())
+            serie_a_games = _future_games(await feed.get_serie_a_games())
+            la_liga_games = _future_games(await feed.get_la_liga_games())
+            ligue1_games = _future_games(await feed.get_ligue1_games())
             odds_by_sport = {
                 "basketball_nba": nba_games,
                 "icehockey_nhl": nhl_games,
                 "baseball_mlb": mlb_games,
                 "soccer_epl": epl_games,
                 "soccer_uefa_champs_league": ucl_games,
+                "soccer_germany_bundesliga": bundesliga_games,
+                "soccer_italy_serie_a": serie_a_games,
+                "soccer_spain_la_liga": la_liga_games,
+                "soccer_france_ligue_one": ligue1_games,
             }
 
             logger.info(
-                "[sports_game] Scan: %d NBA, %d NHL, %d MLB, %d EPL, %d UCL odds games (72h window) | quota: %s",
+                "[sports_game] Scan: NBA=%d NHL=%d MLB=%d EPL=%d UCL=%d BUN=%d SER=%d LAL=%d L1=%d | quota: %s",
                 len(nba_games), len(nhl_games), len(mlb_games), len(epl_games), len(ucl_games),
+                len(bundesliga_games), len(serie_a_games), len(la_liga_games), len(ligue1_games),
                 feed.quota_status(),
             )
 

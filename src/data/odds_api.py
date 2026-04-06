@@ -236,6 +236,22 @@ class SportsFeed:
         """UEFA Champions League h2h game odds. 3-way devig (home/draw/away)."""
         return await self._fetch("soccer_uefa_champs_league")
 
+    async def get_bundesliga_games(self) -> List[OddsGame]:
+        """German Bundesliga h2h game odds. 3-way devig (home/draw/away)."""
+        return await self._fetch("soccer_germany_bundesliga")
+
+    async def get_serie_a_games(self) -> List[OddsGame]:
+        """Italian Serie A h2h game odds. 3-way devig (home/draw/away)."""
+        return await self._fetch("soccer_italy_serie_a")
+
+    async def get_la_liga_games(self) -> List[OddsGame]:
+        """Spanish La Liga h2h game odds. 3-way devig (home/draw/away)."""
+        return await self._fetch("soccer_spain_la_liga")
+
+    async def get_ligue1_games(self) -> List[OddsGame]:
+        """French Ligue 1 h2h game odds. 3-way devig (home/draw/away)."""
+        return await self._fetch("soccer_france_ligue_one")
+
     # ── Championship futures ─────────────────────────────────────────
 
     async def get_nba_championship(self) -> List[ChampionshipOdds]:
