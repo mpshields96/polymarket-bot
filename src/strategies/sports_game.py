@@ -27,6 +27,7 @@ import logging
 import re
 import unicodedata
 from dataclasses import dataclass
+from datetime import datetime, timezone, timedelta
 from typing import TYPE_CHECKING, List, Optional
 
 from src.strategies.base import BaseStrategy, Signal
@@ -444,8 +445,10 @@ class SportsGameStrategy(BaseStrategy):
             )
             return None
 
-        # Find matching sports feed game
-        game = _match_game(odds_games, home_odds_name, away_odds_name)
+        # Find matching sports feed game — pass ticker date so same-team multi-day
+        # series don't accidentally match the wrong game's odds.
+        kalshi_date = _parse_ticker_date(market.ticker)
+        game = _match_game(odds_games, home_odds_name, away_odds_name, kalshi_date)
         if not game:
             logger.debug("[sports_game] No odds match for %s vs %s", away_odds_name, home_odds_name)
             return None
@@ -535,20 +538,74 @@ def _strip_accents(s: str) -> str:
     return unicodedata.normalize("NFD", s).encode("ascii", "ignore").decode().lower()
 
 
-def _match_game(games: list, home: str, away: str) -> Optional[object]:
+_TICKER_DATE_RE = re.compile(r"\d{2}([A-Z]{3})(\d{2})(\d{2})(\d{2})")
+_MONTH_MAP = {
+    "JAN": 1, "FEB": 2, "MAR": 3, "APR": 4, "MAY": 5, "JUN": 6,
+    "JUL": 7, "AUG": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12,
+}
+# Kalshi sports game tickers embed game date+time: KXMLBGAME-26APR071845MILBOS
+# The pattern is YY MONTH DAY HH MM (all digits, no separators).
+# Non-game tickers (KXBTCD-26APR0617-T69999) don't follow this convention.
+# We require the series to contain "GAME" or the ticker to match a sports series.
+_SPORTS_TICKER_RE = re.compile(
+    r"KXMLBGAME|KXNBAGAME|KXNHLGAME|KXUCLGAME|KXEPLGAME|KXBUNGAME|KXSERGAME|KXLALGAME|KXL1GAME",
+    re.IGNORECASE,
+)
+
+
+def _parse_ticker_date(ticker: str) -> Optional[datetime]:
+    """Extract game start time from a Kalshi sports-game ticker.
+
+    KXMLBGAME-26APR071845MILBOS → 2026-04-07 18:45 UTC
+    Returns timezone-aware UTC datetime, or None for non-sports/unparseable tickers.
+    """
+    if not _SPORTS_TICKER_RE.search(ticker):
+        return None
+    m = _TICKER_DATE_RE.search(ticker)
+    if not m:
+        return None
+    month_str, day_str, hour_str, min_str = m.group(1), m.group(2), m.group(3), m.group(4)
+    month = _MONTH_MAP.get(month_str)
+    if not month:
+        return None
+    year = datetime.now(timezone.utc).year
+    try:
+        return datetime(year, month, int(day_str), int(hour_str), int(min_str),
+                        tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def _match_game(games: list, home: str, away: str,
+                kalshi_date: Optional[datetime] = None) -> Optional[object]:
     """Find the sports feed game matching home+away team names (case-insensitive partial).
 
     Accent-strips both sides so "Atletico Madrid" matches "Atlético Madrid" from Odds API.
+    When kalshi_date is provided, prefers games whose commence_time falls within ±1 day;
+    this prevents same-team games on adjacent days from producing false edge signals.
     """
     home_l, away_l = _strip_accents(home), _strip_accents(away)
+    candidates = []
     for g in games:
         gh, ga = _strip_accents(g.home_team), _strip_accents(g.away_team)
-        if home_l in gh and away_l in ga:
-            return g
-        # Kalshi sometimes flips home/away designation
-        if home_l in ga and away_l in gh:
-            return g
-    return None
+        if (home_l in gh and away_l in ga) or (home_l in ga and away_l in gh):
+            candidates.append(g)
+    if not candidates:
+        return None
+    if kalshi_date is None or len(candidates) == 1:
+        return candidates[0]
+    # With multiple candidates (e.g. same teams play 2 days in a row), pick the
+    # one whose commence_time is closest to kalshi_date.
+    def _date_diff(g: object) -> float:
+        ct = getattr(g, "commence_time", None)
+        if not ct:
+            return float("inf")
+        try:
+            game_dt = datetime.fromisoformat(ct.replace("Z", "+00:00"))
+            return abs((game_dt - kalshi_date).total_seconds())
+        except (ValueError, AttributeError):
+            return float("inf")
+    return min(candidates, key=_date_diff)
 
 
 # ── Factory ─────────────────────────────────────────────────────────────────

@@ -12,6 +12,7 @@ from src.strategies.sports_game import (
     _parse_title,
     _resolve_team,
     _match_game,
+    _parse_ticker_date,
     _strip_accents,
     _code_to_city,
     load_nba_from_config,
@@ -426,3 +427,72 @@ def test_match_game_soccer_psg():
     g = _game(home="Liverpool", away="Paris Saint Germain")
     result = _match_game([g], "Liverpool", "Paris Saint Germain")
     assert result is g
+
+
+# ── Date-aware match regression (S165 Milwaukee bug) ─────────────────────────
+
+def test_parse_ticker_date_mlb():
+    """Ticker KXMLBGAME-26APR071845MILBOS → April 7 2026 at 18:45 UTC."""
+    from datetime import datetime, timezone
+    dt = _parse_ticker_date("KXMLBGAME-26APR071845MILBOS")
+    assert dt is not None
+    assert dt.month == 4
+    assert dt.day == 7
+    assert dt.hour == 18
+    assert dt.minute == 45
+    assert dt.tzinfo == timezone.utc
+
+
+def test_parse_ticker_date_non_sports_returns_none():
+    """Non-sports tickers (KXBTCD) return None — they don't embed game times."""
+    assert _parse_ticker_date("KXBTCD-26APR0617-T69999") is None
+
+
+def test_parse_ticker_date_ucl():
+    """UCL game ticker parses correctly."""
+    from datetime import datetime, timezone
+    dt = _parse_ticker_date("KXUCLGAME-26APR071900SPOARS")
+    assert dt is not None
+    assert dt.month == 4
+    assert dt.day == 7
+    assert dt.hour == 19
+
+
+def test_match_game_date_filter_prefers_same_day():
+    """Regression: same matchup on consecutive days — picks game on ticker date.
+
+    Bug (S165): Boston vs Milwaukee Apr 6 (11 books, MIL 52.6%) was returned
+    instead of Apr 7 (3 books, MIL 41.5%) for a Kalshi market dated APR07.
+    This caused a false-edge live bet on Milwaukee with negative true edge.
+    """
+    from datetime import datetime, timezone
+    g_apr6 = OddsGame(
+        sport="baseball_mlb", game_id="g6",
+        home_team="Boston Red Sox", away_team="Milwaukee Brewers",
+        commence_time="2026-04-06T23:10:00Z",
+        home_prob=0.474, away_prob=0.526, num_books=11,
+    )
+    g_apr7 = OddsGame(
+        sport="baseball_mlb", game_id="g7",
+        home_team="Boston Red Sox", away_team="Milwaukee Brewers",
+        commence_time="2026-04-07T18:45:00Z",
+        home_prob=0.585, away_prob=0.415, num_books=3,
+    )
+    # Ticker KXMLBGAME-26APR071845MILBOS → Apr 7 at 18:45 UTC
+    kalshi_date = datetime(2026, 4, 7, 18, 45, tzinfo=timezone.utc)
+    result = _match_game([g_apr6, g_apr7], "Boston Red Sox", "Milwaukee Brewers", kalshi_date)
+    assert result is g_apr7, "Should prefer Apr 7 game when ticker says APR07 18:45"
+
+
+def test_match_game_no_date_returns_first():
+    """Without kalshi_date, returns the first matching game (backward compat)."""
+    g1 = OddsGame(sport="baseball_mlb", game_id="g1",
+                  home_team="Boston Red Sox", away_team="Milwaukee Brewers",
+                  commence_time="2026-04-06T23:10:00Z",
+                  home_prob=0.47, away_prob=0.53, num_books=11)
+    g2 = OddsGame(sport="baseball_mlb", game_id="g2",
+                  home_team="Boston Red Sox", away_team="Milwaukee Brewers",
+                  commence_time="2026-04-07T18:45:00Z",
+                  home_prob=0.58, away_prob=0.42, num_books=3)
+    result = _match_game([g1, g2], "Boston Red Sox", "Milwaukee Brewers", None)
+    assert result is g1
