@@ -228,6 +228,14 @@ class SportsFeed:
         """NCAA Men's Basketball tournament game odds (March Madness h2h)."""
         return await self._fetch("basketball_ncaab")
 
+    async def get_epl_games(self) -> List[OddsGame]:
+        """English Premier League h2h game odds. 3-way devig (home/draw/away)."""
+        return await self._fetch("soccer_epl")
+
+    async def get_ucl_games(self) -> List[OddsGame]:
+        """UEFA Champions League h2h game odds. 3-way devig (home/draw/away)."""
+        return await self._fetch("soccer_uefa_champs_league")
+
     # ── Championship futures ─────────────────────────────────────────
 
     async def get_nba_championship(self) -> List[ChampionshipOdds]:
@@ -402,9 +410,26 @@ def _parse_game(sport: str, raw: dict) -> Optional[OddsGame]:
             a_dec = outcomes.get(away, 0.0)
             if h_dec <= 1.0 or a_dec <= 1.0:
                 continue
+
             h_imp = _decimal_to_implied(h_dec)
             a_imp = _decimal_to_implied(a_dec)
-            h_norm, a_norm = _remove_vig(h_imp, a_imp)
+
+            # 3-way devig for soccer (home/draw/away). If a draw outcome is
+            # present, devig across all 3 to avoid overinflating home/away probs.
+            # Bug: ignoring draw on Arsenal vs Sporting → 2-way devig gives
+            # Arsenal 73% instead of correct 55%. See S164 fix.
+            draw_dec = outcomes.get("Draw", 0.0)
+            if draw_dec > 1.0:
+                d_imp = _decimal_to_implied(draw_dec)
+                total = h_imp + d_imp + a_imp
+                if total > 0:
+                    h_norm = h_imp / total
+                    a_norm = a_imp / total
+                else:
+                    h_norm, a_norm = 0.5, 0.5
+            else:
+                h_norm, a_norm = _remove_vig(h_imp, a_imp)
+
             home_probs.append(h_norm)
             away_probs.append(a_norm)
             if home_decimal == 0.0:

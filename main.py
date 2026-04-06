@@ -2078,7 +2078,7 @@ def _announce_live_bet(
 # ── Kalshi sports game-winner bookmaker arb loop ─────────────────────
 
 _SPORTS_GAME_POLL_SEC = 300         # 5-min poll — games added throughout the day
-_SPORTS_GAME_LIVE_CAP_USD = 2.0     # Reduced cap (CCA REQ-18: n<30, calibrating)
+_SPORTS_GAME_LIVE_CAP_USD = 3.0     # Raised 2->3 USD (CCA REQ-066: NHL 4/4, conservative raise)
 _SPORTS_GAME_PAPER_CAP_USD = 5.0    # Paper cap
 
 
@@ -2124,11 +2124,15 @@ async def sports_game_loop(
         "basketball_nba": "KXNBAGAME",
         "icehockey_nhl": "KXNHLGAME",
         "baseball_mlb": "KXMLBGAME",
+        "soccer_epl": "KXEPLGAME",              # EPL (CCA REQ-066 expansion)
+        "soccer_uefa_champs_league": "KXUCLGAME",  # UCL (CCA REQ-066)
     }
     _SPORT_LABELS = {
         "basketball_nba": "NBA",
         "icehockey_nhl": "NHL",
         "baseball_mlb": "MLB",
+        "soccer_epl": "EPL",
+        "soccer_uefa_champs_league": "UCL",
     }
     _PRICE_MIN = 15   # cents — skip near-zero prices
     _PRICE_MAX = 80   # cents — skip near-certainty (that's the banned 90c+ territory)
@@ -2152,6 +2156,14 @@ async def sports_game_loop(
             name="sports_game_mlb_v1", sport="baseball_mlb",
             min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=2, min_volume=100,
         ),
+        "soccer_epl": SportsGameStrategy(
+            name="sports_game_epl_v1", sport="soccer_epl",
+            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=2, min_volume=100,
+        ),
+        "soccer_uefa_champs_league": SportsGameStrategy(
+            name="sports_game_ucl_v1", sport="soccer_uefa_champs_league",
+            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=2, min_volume=100,
+        ),
     }
 
     paper_execs = {
@@ -2167,7 +2179,7 @@ async def sports_game_loop(
     is_paper_mode = not (live_executor_enabled and live_confirmed)
     _mode_label = "paper" if is_paper_mode else "LIVE"
     logger.info(
-        "[sports_game] Started — %s NBA/NHL/MLB pre-game bookmaker arb (min_edge=5%%, prices=%d-%dc)",
+        "[sports_game] Started — %s NBA/NHL/MLB/EPL/UCL pre-game bookmaker arb (min_edge=5%%, prices=%d-%dc)",
         _mode_label, _PRICE_MIN, _PRICE_MAX,
     )
 
@@ -2243,14 +2255,21 @@ async def sports_game_loop(
             nba_games = _future_games(await feed.get_nba_games())
             nhl_games = _future_games(await feed.get_nhl_games())
             mlb_games = _future_games(await feed.get_mlb_games())
+            epl_games = _future_games(await feed.get_epl_games())
+            ucl_games = _future_games(await feed.get_ucl_games())
             odds_by_sport = {
                 "basketball_nba": nba_games,
                 "icehockey_nhl": nhl_games,
                 "baseball_mlb": mlb_games,
+                "soccer_epl": epl_games,
+                "soccer_uefa_champs_league": ucl_games,
             }
 
-            logger.info("[sports_game] Scan: %d NBA, %d NHL, %d MLB odds games (72h window) | quota: %s",
-                        len(nba_games), len(nhl_games), len(mlb_games), feed.quota_status())
+            logger.info(
+                "[sports_game] Scan: %d NBA, %d NHL, %d MLB, %d EPL, %d UCL odds games (72h window) | quota: %s",
+                len(nba_games), len(nhl_games), len(mlb_games), len(epl_games), len(ucl_games),
+                feed.quota_status(),
+            )
 
             # Scan each sport's open Kalshi markets
             for sport_key, strategy in strategy_map.items():
