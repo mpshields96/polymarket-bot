@@ -3832,7 +3832,7 @@ def print_health(db) -> None:
         try:
             quota_data = _json.loads(sdata_path.read_text())
             used = quota_data.get("used", 0)
-            qlimit = quota_data.get("limit", 500)
+            qlimit = quota_data.get("limit", 10000)
             year = quota_data.get("year", "?")
             month = quota_data.get("month", "?")
             reset_str = f"{year}-{int(month)+1:02d}-01" if year != "?" and month != "?" else "next month"
