@@ -4135,6 +4135,30 @@ async def main():
     if args.reset_soft_stop:
         kill_switch.reset_soft_stop()
         logger.warning("[startup] --reset-soft-stop: consecutive loss counter cleared")
+
+    # ── Restore HARD_MAX ramp level from DB ───────────────────────────────
+    # Settlement loop fires raises only at exact gate values (50/100/200).
+    # Restarts after those gates were passed would reset HARD_MAX to base.
+    # This startup restore re-applies the highest earned gate level.
+    _pgcb_startup = db.post_guard_clean_bets()
+    import src.risk.kill_switch as _ks_mod_startup
+    from src.risk.kill_switch import set_hard_max_trade_usd as _set_hm_startup
+    _STARTUP_RAMP = [(200, 60.0), (100, 50.0), (50, 40.0)]  # descending: highest gate wins
+    for _gate_n, _gate_max in _STARTUP_RAMP:
+        if _pgcb_startup >= _gate_n:
+            if _gate_max > _ks_mod_startup.HARD_MAX_TRADE_USD:
+                _set_hm_startup(_gate_max)
+                logger.warning(
+                    "[startup] HARD_MAX RAMP RESTORED: %d post-guard clean bets → gate %d → HARD_MAX %.2f USD",
+                    _pgcb_startup, _gate_n, _gate_max,
+                )
+            else:
+                logger.info(
+                    "[startup] HARD_MAX ramp: %d clean bets, gate %d, HARD_MAX already %.2f USD — no change",
+                    _pgcb_startup, _gate_n, _ks_mod_startup.HARD_MAX_TRADE_USD,
+                )
+            break
+
     # Log kill switch health AFTER all restores — surfaces any active blocks immediately
     kill_switch.log_startup_status()
 
