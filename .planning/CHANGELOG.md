@@ -9530,3 +9530,44 @@ ONE THING: Next chat must promote ETH daily sniper live AND fire first economics
 2. Sports game: check DB ~18:00 UTC for first auto-fired bet.
 3. CCA REQ-66 response: UCL, CPI, sports timing.
 4. April 13: need 1+ new income source live by then.
+
+## Session 164 (continued wrap) — 2026-04-06 ~03:30 UTC
+
+### Builds
+1. Soccer name normalization fix (commit 3aa1379): _resolve_team soccer branch now applies
+   _SOCCER_NAME_TO_ODDS so both ticker-derived and subtitle-derived team names translate to
+   the same Odds API form (PSG→Paris Saint Germain, Atletico→Atletico Madrid, Milan→AC Milan).
+   _match_game now uses _strip_accents() for fuzzy matching (Atlético → atletico).
+   Result: UCL YES-side mismatch warnings gone. 3 live UCL bets placed within 2 min of restart.
+
+2. Soccer tests added (commit b40f103): 15 new tests covering _code_to_city for soccer codes
+   (BMU/PSG/ATM/ACM), _resolve_team soccer translation chain, _strip_accents, _match_game
+   accent-insensitive matching. Total tests: 2059 (was 2025 start of session, +34 this session).
+
+3. HARD_MAX startup ramp restore fix (commit bd5dd43): Settlement loop fires auto-raise only
+   when post_guard_clean_bets() exactly equals a gate value (50/100/200). Restarts after
+   passing a gate would silently reset HARD_MAX to base 50 USD. Fixed by adding startup read
+   of post_guard_clean_bets() and applying highest earned gate level — identical pattern to
+   daily/consecutive loss counter restores. At 136 clean bets, gate 100 (50 USD) correctly
+   confirmed already applied. 64 more clean bets to gate 200 (60 USD).
+
+### P&L
+- Today: +8.30 USD (12 settled, 12W, 100% WR) — early UTC day, sniper primary
+- All-time live: +128.51 USD (up from +120.21 USD start of S164)
+- Open bets: UCL x3 (settle April 14-15) + MLB x1 (settle April 7)
+
+### Strategy Analyzer Insights
+- Sniper: profitable 90-94c, guarded 95-98c. SPRT lambda=+24.315. Primary income engine.
+- btc_drift: NEUTRAL (80 bets, 50% WR). direction_filter="no" active.
+- eth_drift: UNDERPERFORMING (46% WR, declining). DISABLED — correct.
+- sol_drift: HEALTHY (47 bets, 66% WR). Still accumulating.
+
+### Grade: B+
+WINS: Soccer name normalization bug fixed — UCL markets live and betting. HARD_MAX startup
+      restore added (real bug: restarts were silently capping at 50 USD despite 136 clean bets).
+      +8.30 USD on short session. April 13 status: 3 live types (daily_sniper, eth_daily_sniper,
+      sports_game) active.
+LOSSES: Session ended early (Matthew stopped). Today's number still below 15 USD daily target
+         but it's early in the UTC day.
+ONE THING: Next chat should monitor UCL 1st leg games April 7-8. sports_game will auto-fire
+           pre-game arb bets. soccer_sniper runs paper during 88-93c windows.
