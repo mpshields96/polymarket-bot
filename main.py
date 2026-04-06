@@ -2154,39 +2154,39 @@ async def sports_game_loop(
     strategy_map = {
         "basketball_nba": SportsGameStrategy(
             name="sports_game_nba_v1", sport="basketball_nba",
-            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=1, min_volume=100,
+            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=3, min_volume=100,
         ),
         "icehockey_nhl": SportsGameStrategy(
             name="sports_game_nhl_v1", sport="icehockey_nhl",
-            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=1, min_volume=100,
+            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=3, min_volume=100,
         ),
         "baseball_mlb": SportsGameStrategy(
             name="sports_game_mlb_v1", sport="baseball_mlb",
-            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=1, min_volume=100,
+            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=3, min_volume=100,
         ),
         "soccer_epl": SportsGameStrategy(
             name="sports_game_epl_v1", sport="soccer_epl",
-            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=1, min_volume=100,
+            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=3, min_volume=100,
         ),
         "soccer_uefa_champs_league": SportsGameStrategy(
             name="sports_game_ucl_v1", sport="soccer_uefa_champs_league",
-            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=1, min_volume=100,
+            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=3, min_volume=100,
         ),
         "soccer_germany_bundesliga": SportsGameStrategy(
             name="sports_game_bundesliga_v1", sport="soccer_germany_bundesliga",
-            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=1, min_volume=100,
+            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=3, min_volume=100,
         ),
         "soccer_italy_serie_a": SportsGameStrategy(
             name="sports_game_serie_a_v1", sport="soccer_italy_serie_a",
-            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=1, min_volume=100,
+            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=3, min_volume=100,
         ),
         "soccer_spain_la_liga": SportsGameStrategy(
             name="sports_game_la_liga_v1", sport="soccer_spain_la_liga",
-            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=1, min_volume=100,
+            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=3, min_volume=100,
         ),
         "soccer_france_ligue_one": SportsGameStrategy(
             name="sports_game_ligue1_v1", sport="soccer_france_ligue_one",
-            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=1, min_volume=100,
+            min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=3, min_volume=100,
         ),
     }
 
