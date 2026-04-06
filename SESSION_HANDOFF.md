@@ -39,11 +39,36 @@
 ## ALL FUTURE KALSHI CHATS ARE FORBIDDEN FROM FORGETTING THIS. PERMANENT.
 ## ═══════════════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S163 wrap — 2026-04-03 06:27 UTC)
-  Bot STOPPED (Matthew directive). Restart to session164.log.
-  All-time live P&L: +120.21 USD (today: +50.32 USD, 65 settled, 100% WR UTC day)
-  2 live bets pending settlement at 07:00 UTC (trade 14145 KXBTCD + trade 14146 KXETHD)
-  Tests: 2025 passing (3 skipped). Last commit: 794caea
+## BOT STATE (S164 mid-session — 2026-04-06 02:55 UTC)
+  Bot RUNNING PID 23934. Log: /tmp/polybot_session164.log
+  All-time live P&L: +124.41 USD | Today (UTC April 6): early (sniper resets 06:00 UTC)
+  Tests: 2044 passing (3 skipped). Last commit: 512aef7
+
+  S164 KEY BUILDS (this session):
+  1. UCL in-play soccer_sniper BUILT + TESTED: src/strategies/soccer_sniper.py (19 tests)
+     Paper mode. Fires at 88-93c YES/NO during UCL games (FLB edge ~5-7%).
+     Expected_expiration_time from market.raw = actual game end (not close_time = safety buffer).
+     Wired into main.py as soccer_sniper_loop. First test: UCL QF 2nd legs April 7-8.
+  2. EPL + UCL sports_game integration (6 soccer leagues total):
+     KXEPLGAME + KXUCLGAME + KXBUNDESLIGAGAME + KXSERIEAGAME + KXLALIGAGAME + KXLIGUE1GAME
+     3-way devig bug FIXED (was 2-way, inflated Arsenal 55%→73%). Now correct.
+     Soccer team code maps added. _parse_title: "vs" variant for soccer.
+     Bot log confirms: "NBA/NHL/MLB + 6 soccer leagues pre-game arb"
+  3. NHL cap raised: 2.0→3.0 USD (4/4 wins). Auto-includes in paper_execs.
+  4. Trades 14145+14146 settled: both WON (BTC NO@93c +0.60, ETH NO@91c +0.80)
+  5. CCA REQ-068 filed: UPDATE 74 with full S164 build summary + UCL fixture questions
+
+  PENDING TASKS (priority):
+  1. UCL April 7-8: soccer_sniper runs paper. Watch for 88c+ signals during games.
+     April 7 ~19:00 UTC: UCL QF 2nd legs fire. Log will show "[soccer_sniper] SIGNAL".
+  2. CPI economics April 8: confirm KXCPI markets open. paper bets run automatically.
+  3. HARD_MAX ramp: 124/200 clean bets (76 more to 50→60 USD raise).
+  4. CCA REQ-068: waiting for UCL fixture details + Bundesliga/Serie A/La Liga schedule.
+  5. Arsenal KXUCL futures: CCA recommended 3-5 USD at ~26c before April 7.
+     Manual investigation needed — check KXUCL market price first.
+
+  RESTART COMMAND (Session 164):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session164.log 2>&1 &
 
   ⚠️ APRIL 13 NEW DEADLINE (S162 — Matthew directive):
   "Figure out and succeed by April 13. Bet sports or ANY market. CCA + Codex help."
