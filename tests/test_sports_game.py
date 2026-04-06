@@ -12,6 +12,8 @@ from src.strategies.sports_game import (
     _parse_title,
     _resolve_team,
     _match_game,
+    _strip_accents,
+    _code_to_city,
     load_nba_from_config,
     load_nhl_from_config,
 )
@@ -338,3 +340,89 @@ def test_game_key_nba():
 def test_game_key_fallback_no_hyphens():
     """Tickers without enough hyphens return ticker as-is."""
     assert _game_key("BADTICKER") == "BADTICKER"
+
+
+# ── Soccer team normalization ────────────────────────────────────────────────
+
+def test_parse_title_soccer_vs():
+    """Soccer 'vs' format parses correctly."""
+    away, home = _parse_title("Sporting CP vs Arsenal Winner?")
+    assert away == "Sporting CP"
+    assert home == "Arsenal"
+
+
+def test_parse_title_soccer_vs_multiword():
+    """Soccer 'vs' with multi-word team names."""
+    away, home = _parse_title("Bayern Munich vs Real Madrid Winner?")
+    assert away == "Bayern Munich"
+    assert home == "Real Madrid"
+
+
+def test_code_to_city_bmu_is_bayern():
+    """BMU ticker code maps to Bayern Munich (NOT Borussia Dortmund)."""
+    assert _code_to_city("BMU", "soccer_uefa_champs_league") == "Bayern Munich"
+
+
+def test_code_to_city_psg():
+    """PSG ticker code maps to 'PSG' (Kalshi subtitle spelling)."""
+    assert _code_to_city("PSG", "soccer_uefa_champs_league") == "PSG"
+
+
+def test_code_to_city_atm_atletico():
+    """ATM ticker code maps to 'Atletico' (Kalshi subtitle spelling)."""
+    assert _code_to_city("ATM", "soccer_uefa_champs_league") == "Atletico"
+
+
+def test_code_to_city_acm_milan():
+    """ACM ticker code maps to 'Milan' (Kalshi subtitle spelling, not 'AC Milan')."""
+    assert _code_to_city("ACM", "soccer_italy_serie_a") == "Milan"
+
+
+def test_resolve_team_soccer_psg_to_odds():
+    """PSG → 'Paris Saint Germain' (Odds API full name) for soccer."""
+    assert _resolve_team("PSG", "soccer_uefa_champs_league") == "Paris Saint Germain"
+
+
+def test_resolve_team_soccer_atletico_to_odds():
+    """Atletico → 'Atletico Madrid' (Odds API full name) for soccer."""
+    assert _resolve_team("Atletico", "soccer_uefa_champs_league") == "Atletico Madrid"
+
+
+def test_resolve_team_soccer_milan_to_odds():
+    """Milan → 'AC Milan' (Odds API full name) for Serie A."""
+    assert _resolve_team("Milan", "soccer_italy_serie_a") == "AC Milan"
+
+
+def test_resolve_team_soccer_passthrough():
+    """Teams not in the normalisation dict pass through unchanged."""
+    assert _resolve_team("Arsenal", "soccer_uefa_champs_league") == "Arsenal"
+    assert _resolve_team("Barcelona", "soccer_spain_la_liga") == "Barcelona"
+
+
+def test_resolve_team_soccer_none_returns_none():
+    """Empty string input returns None for soccer."""
+    assert _resolve_team("", "soccer_epl") is None
+
+
+def test_strip_accents_atletico():
+    """Accented 'Atlético' strips to 'atletico'."""
+    assert _strip_accents("Atlético") == "atletico"
+
+
+def test_strip_accents_ascii_passthrough():
+    """Plain ASCII names are lowercased and returned unchanged."""
+    assert _strip_accents("Arsenal") == "arsenal"
+
+
+def test_match_game_accent_insensitive():
+    """_match_game matches despite Unicode accents in Odds API team names."""
+    g = _game(home="Atlético Madrid", away="Barcelona")
+    result = _match_game([g], "Atletico Madrid", "Barcelona")
+    assert result is g
+
+
+def test_match_game_soccer_psg():
+    """Paris Saint Germain matches case-insensitively."""
+    g = _game(home="Liverpool", away="Paris Saint Germain")
+    result = _match_game([g], "Liverpool", "Paris Saint Germain")
+    assert result is g
