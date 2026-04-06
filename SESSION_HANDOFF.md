@@ -39,43 +39,66 @@
 ## ALL FUTURE KALSHI CHATS ARE FORBIDDEN FROM FORGETTING THIS. PERMANENT.
 ## ═══════════════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S164 wrap — 2026-04-06 03:29 UTC)
-  Bot RUNNING PID 41353. Log: /tmp/polybot_session164.log
-  All-time live P&L: +128.51 USD | Today (UTC April 6): 12 settled, 12W, 8.30 USD (100% WR)
-  Tests: 2059 passing (3 skipped). Last commit: bd5dd43
+## BOT STATE (S165 wrap — 2026-04-06 21:45 UTC)
+  Bot STOPPED (Matthew directive — going home). Log: /tmp/polybot_session165.log
+  All-time live P&L: +139.10 USD | Today CDT April 6: 10 settled, 10W, 7.38 USD (100% WR)
+  Tests: 2104 passing (3 skipped). Last commit: 534e3b6
+  HARD_MAX ramp: 150/200 clean bets (50 more to 60 USD gate)
 
-  S164 WRAP KEY BUILDS (full session):
-  1. UCL in-play soccer_sniper BUILT + TESTED: src/strategies/soccer_sniper.py (19 tests)
-  2. EPL + UCL sports_game integration (6 soccer leagues). 3-way devig bug fixed.
-  3. NHL cap raised 2.0→3.0 USD (4/4 wins). Soccer team code maps added.
-  4. Trades 14145+14146 settled: both WON (BTC NO@93c +0.60, ETH NO@91c +0.80)
-  5. Soccer name normalization FIX (commit 3aa1379): _SOCCER_NAME_TO_ODDS + accent-stripping.
-     RESULT: UCL markets live. 3 live UCL bets + 1 live MLB bet open.
-  6. CCA REQ-066/067 received + marked seen. REQ-068 filed. REQ-069 response awaited.
-  7. HARD_MAX startup ramp restore FIX (commit bd5dd43):
-     Settlement loop only fires at exact gate values (50/100/200). Restarts after those
-     gates silently reset HARD_MAX. Now reads post_guard_clean_bets() at startup and applies
-     highest earned gate. Result: 136 clean bets → gate 100 = 50 USD confirmed correct.
-     64 more clean bets needed for gate 200 = 60 USD.
+  S165 WRAP KEY BUILDS:
+  1. Phase 1 sports_math.py (commit 534e3b6): ported from agentic-rd-sandbox/core/math_engine.py
+     - nba_kill_switch(), nhl_kill_switch(), passes_collar/passes_collar_soccer()
+     - assign_grade() (A/B/C tiers), implied_probability(), no_vig_probability() (2-way + 3-way)
+     - 40 new tests in tests/test_sports_math.py
+  2. sports_game.py: [A/B/C] grade prefix added to all Signal reason strings
+  3. date-aware game matching (commit 7d8a251): _parse_ticker_date() prevents cross-day odds reuse
+  4. SDATA quota display fix (commit 143ec4e): default 500→10000 in --health
+  5. .planning/SPORTS_EXPANSION_PLAN.md: 6-phase roadmap for full agentic-rd-sandbox integration
+  6. CCA REQ-078 filed: multi-phase sports expansion mandate (4+ sessions of work)
+  7. New sniper bets placed today: KXETHD YES@91c x2 + KXBTCD NO@92c x2 (settle 22:00 UTC tonight)
+  8. New MLB bets: HOU YES@58c (Apr 8), MIN YES@47c (Apr 8), MIL YES@43c (Apr 7)
 
-  PENDING TASKS (priority):
-  1. UCL QF 1st leg April 7-8 (19:00 UTC): sports_game auto-fires pre-game arb bets.
-     April 7: Arsenal vs Sporting CP (3-0 up), Real Madrid vs Bayern Munich
-     April 8: Liverpool vs PSG, Barcelona vs Atletico Madrid
-     soccer_sniper fires paper during these games at 88-93c (FLB edge).
-  2. Open live bets to monitor:
-     trade 14215: NO KXUCLGAME-26APR15BMURMA-BMU @44c (Bayern vs RMA 2nd leg April 15)
-     trade 14216: YES KXUCLGAME-26APR14ATMBAR-BAR @48c (Barcelona vs Atletico April 14)
-     trade 14224: YES KXUCLGAME-26APR14LFCPSG-PSG @35c (PSG/Liverpool April 14)
-     trade 14208: YES KXMLBGAME-26APR071940DETMIN-MIN @44c (Minnesota Twins April 7)
-  3. CPI economics: confirm KXCPI markets open April 8. Paper bets run automatically.
-     Run cpi_release_monitor.py April 10 08:28 ET (run as background task).
-  4. HARD_MAX ramp: 136/200 clean bets (64 more to 50→60 USD raise).
-  5. CCA REQ-069 response: sports cap 3→5 USD, EPL timing, UFC schedule.
-  6. 2 stale CCA requests >7 days old — close or answer.
+  OPEN LIVE BETS (12 total):
+  SETTLING TONIGHT at 22:00 UTC (April 6):
+    14305: KXETHD-26APR0618-T2099.99 YES@91c → ETH above 2099.99 at 18:00 ET
+    14313: KXBTCD-26APR0618-T69899.99 NO@92c → BTC below 69899.99 at 18:00 ET
+    14314: KXETHD-26APR0618-T2139.99 YES@91c → ETH above 2139.99 at 18:00 ET (2nd ETH bet)
+    14315: KXBTCD-26APR0618-T69799.99 NO@92c → BTC below 69799.99 at 18:00 ET (2nd BTC bet)
+  IN PROGRESS (CHC game started ~16:10 ET):
+    14312: KXMLBGAME-26APR061610CHCTB-CHC YES@23c → Cubs win? (long shot)
+  SETTLING APRIL 7:
+    14208: KXMLBGAME-26APR071940DETMIN-MIN YES@44c → Minnesota Twins (19:40 ET)
+    14303: KXMLBGAME-26APR071845MILBOS-MIL YES@43c → Milwaukee Brewers (18:45 ET)
+  SETTLING APRIL 8:
+    14242: KXMLBGAME-26APR081510HOUCOL-HOU YES@58c → Houston Astros (15:10 ET)
+    14280: KXMLBGAME-26APR081940DETMIN-MIN YES@47c → Minnesota Twins (19:40 ET)
+  SETTLING APRIL 14-15 (UCL):
+    14215: KXUCLGAME-26APR15BMURMA-BMU NO@44c → Bayern Munich loses? (Apr 15)
+    14216: KXUCLGAME-26APR14ATMBAR-BAR YES@48c → Barcelona wins (Apr 14)
+    14224: KXUCLGAME-26APR14LFCPSG-PSG YES@35c → PSG wins (Apr 14)
 
-  RESTART COMMAND (Session 165):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session165.log 2>&1 &
+  PENDING TASKS (priority order):
+  1. RESTART BOT immediately at session start (bot stopped per Matthew)
+     RESTART COMMAND (Session 166): see below
+  2. Check sniper settlement: trades 14305/14313/14314/14315 settled at 22:00 UTC tonight
+  3. Sports game: UCL QF 2nd legs April 7 (Arsenal/RMA at 19:00 UTC) — sports_game auto-fires
+  4. Economics CPI: confirm KXCPI markets open April 8 → paper bets run automatically
+     Run: python3 scripts/cpi_release_monitor.py (background task April 10 08:28 ET)
+  5. Phase 2 sports expansion: port efficiency_feed.py from agentic-rd-sandbox (no API needed)
+     File: /Users/matthewshields/Projects/agentic-rd-sandbox/core/efficiency_feed.py (32K)
+     Wire adj_em into sports_game.py signal generation. Read SPORTS_EXPANSION_PLAN.md.
+  6. CCA REQ-078 response: CCA will deliver sports_math.py port validation + efficiency advice
+  7. HARD_MAX ramp: 150/200 clean bets (50 more to 60 USD gate)
+
+  ⚠️ SPORTS EXPANSION MANDATE (Matthew directive S165 — PERMANENT for all future chats):
+  "Steal and clone literally anything from agentic-rd-sandbox to help sportsbetting on Kalshi."
+  Source: /Users/matthewshields/Projects/agentic-rd-sandbox/core/
+  Plan: .planning/SPORTS_EXPANSION_PLAN.md (6 phases over multiple sessions)
+  CCA coordinates on Phases 2-5. Future Kalshi chats own wire-in + validation.
+  Phase 1 DONE. Phase 2 = efficiency_feed.py integration (next session).
+
+  RESTART COMMAND (Session 166):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session166.log 2>&1 &
 
   ⚠️ APRIL 13 NEW DEADLINE (S162 — Matthew directive):
   "Figure out and succeed by April 13. Bet sports or ANY market. CCA + Codex help."

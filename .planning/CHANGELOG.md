@@ -1,5 +1,53 @@
 # POLYMARKET-BOT CHANGELOG
 
+## S165 — 2026-04-06 ~21:45 UTC (monitoring + sports expansion Phase 1)
+
+### P&L: +7.38 USD today CDT (10 settled, 10/10 wins, 100% WR)
+All-time: +139.10 USD (1679 settled, 86% WR)
+Bot STOPPED per Matthew directive. 12 open bets.
+Tests: 2104 passing (was 2064, +40 this session)
+
+### BUILD: Phase 1 sports_math.py — agentic-rd-sandbox kill switches ported (commit 534e3b6)
+WHY: Matthew directive S165 — "steal and clone literally anything from agentic-rd-sandbox
+to help sportsbetting on Kalshi." Phase 1 = pure math layer, no external APIs.
+WHAT:
+  src/strategies/sports_math.py (NEW, 269 lines):
+    - implied_probability(), no_vig_probability() (2-way + 3-way devig)
+    - passes_collar() / passes_collar_soccer() (standard -180/+150 vs expanded -250/+400)
+    - assign_grade() — A (≥3.5%), B (≥1.5%), C (≥0.5%), NEAR_MISS tiers
+    - nba_kill_switch() — rest disadvantage + B2B flagging
+    - nhl_kill_switch() — backup goalie kill + B2B flag
+    - american_odds_from_prob() utility
+  sports_game.py: [A/B/C] grade prefix added to all Signal reason strings (visible in DB/logs)
+  tests/test_sports_math.py (NEW, 40 tests): full coverage of all functions
+  .planning/SPORTS_EXPANSION_PLAN.md: 6-phase roadmap over multiple sessions
+  CCA REQ-078 filed: coordinates Phase 2-5 builds
+RESULT: All signals now labeled A/B/C. Kill switch functions ready for Phase 2 wire-in
+  (NBA B2B needs schedule data; NHL goalie needs nhl_data.py port in Phase 3).
+
+### BUILD: Date-aware game matching (commit 7d8a251)
+WHY: DET vs MIN played both April 7 AND April 8. Without fix, April 8 odds could
+be used for April 7 game (different pitchers/odds).
+WHAT: _parse_ticker_date() extracts game datetime from Kalshi sports ticker.
+  _match_game() filters Odds API results to ±12h window around kalshi_date.
+  5 new tests in test_sports_game.py.
+
+### FIX: SDATA quota display (commit 143ec4e)
+WHY: --health showed 347/500 (69%) instead of 347/10000 (3.5%). Wrong default.
+WHAT: main.py health section: default 500→10000 when "limit" key missing from sdata_quota.json.
+
+### Strategy Analyzer Insights (S165):
+  - daily_sniper: Profitable buckets 90-94c. Guarded: 98/97/96/95c. SPRT lambda=+24.315 (edge confirmed)
+  - btc_drift_v1: NEUTRAL 80 bets 50% WR, filter="no" side. DISABLED (min_drift=9.99).
+  - eth_drift_v1: UNDERPERFORMING 46% WR DECLINING. DISABLED.
+  - sol_drift_v1: HEALTHY 47 bets 66% WR. DISABLED (min_drift=9.99).
+  - 7/11 strategies graduation-ready (all blocked by design: 15-min crypto ban + expansion gate lifted)
+
+### OPEN STATUS (entering S166):
+  SETTLING TONIGHT 22:00 UTC: KXETHD YES@91c x2, KXBTCD NO@92c x2
+  SPORTS Apr 7: MIL YES@43c, MIN YES@44c | Apr 8: HOU YES@58c, MIN YES@47c
+  UCL Apr 14-15: BAR YES@48c, PSG YES@35c, BMU NO@44c
+
 ## S163 — 2026-04-03 ~05:45 UTC (monitoring — ETH daily sniper LIVE)
 
 ### BUILD: ETH daily sniper promoted to LIVE (commit db9fae0)
