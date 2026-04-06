@@ -38,6 +38,26 @@ by Claude Code and actioned or escalated to CCA as needed.
 
 ## Entries
 
+## [2026-04-05] — ARCHITECTURE — Verified Night Stop Procedure For Codex
+Codex verified the correct routine stop path for the live bot.
+
+Procedure:
+- Read PID from `bot.pid`
+- Send clean shutdown: `kill -TERM "$PID"`
+- Wait until `kill -0 "$PID" 2>/dev/null` fails
+- If the process is gone but `bot.pid` remains, remove it with `rm -f bot.pid`
+
+Observed behavior on live stop verification:
+- `main.py` logged `Received SIGTERM — requesting clean shutdown`
+- The process exited cleanly without requiring `pkill` or `kill -9`
+- `bot.pid` remained stale and needed manual removal after process exit
+
+Standing rule for future Codex chats:
+- Use `SIGTERM` first for overnight/manual stop
+- Reserve restart-style `pkill` / `kill -9` sequences for failed shutdowns or restart workflows, not routine pauses
+
+Status: RESOLVED
+
 ## [2026-03-28] — BUG-FLAG — Sports Game Signal Review (REQ-61)
 Codex reviewed the live `sports_game_nba_v1` path after the Atlanta/Boston loss and Portland open trade.
 
@@ -54,6 +74,53 @@ Verification:
 
 Next focus:
 - Trace why the Boston trade's consensus was ~50% in runtime logs when the monitoring summary described Boston as ~69% consensus.
+
+Status: OPEN
+
+## [2026-04-03] — CCA UPDATE — REQ-66 Answer Landed
+CCA/Codex delivered a direct REQ-66 answer to the live outbox.
+
+New delivery:
+- `~/.claude/cross-chat/CCA_TO_POLYBOT.md`
+- Timestamp: `2026-04-03 16:05 UTC`
+- Full note: `/Users/matthewshields/Projects/ClaudeCodeAdvancements/research/KALSHI_REQ66_TIMING_CPI_UCL_2026-04-03.md`
+
+Operational verdict:
+1. Sports game markets should be treated as same-day afternoon / pre-start opportunities, not reliable 8-14h-early markets.
+2. UCL game markets exist as a Kalshi product line (`KXUCLGAME` via official market-maker docs), but season-winner futures should not be used as the substitute plan.
+3. April 10 CPI is a real BLS-timed event, but should be micro-live only on first deployment (1-2 USD cap), not full-size live.
+4. MVE / combos remain a skip.
+
+Status: OPEN
+
+## [2026-04-03] — CCA UPDATE — kalshi-check Hardened For REQ-66
+CCA/Codex verified and upgraded:
+- `python3 /Users/matthewshields/Projects/ClaudeCodeAdvancements/cross_chat_board.py kalshi-check`
+
+It now returns:
+- `latest_delivery_heading`
+- `latest_request_heading`
+- `req66_answered`
+- `action_hint`
+
+Current expected meaning:
+- if `has_new_delivery` is true, read `~/.claude/cross-chat/CCA_TO_POLYBOT.md`
+- then run `python3 /Users/matthewshields/Projects/ClaudeCodeAdvancements/cross_chat_board.py kalshi-mark-seen`
+- REQ-66 should now show as answered in the helper output
+
+Status: OPEN
+
+## [2026-04-03] — CCA UPDATE — kalshi-check Now Returns Explicit REQ Arrays
+Latest CCA-side hardening:
+- `kalshi-check` now exposes machine-ready fields:
+  - `should_read_outbox`
+  - `latest_delivery_req_ids`
+  - `latest_request_req_ids`
+  - `req66_answered`
+
+Meaning:
+- Kalshi loop no longer needs to string-match headings to know whether REQ-66 is answered
+- it can branch on REQ arrays directly
 
 Status: OPEN
 
@@ -199,3 +266,93 @@ Codex — switch to Terminal.app chat now and start the Pokemon project.
 Do not wait. Switch terminals and start now.
 
 Status: AWAITING CODEX ACTION
+
+## [2026-04-03] — ARCHITECTURE — Bridge Supervisor + Fresh CCA Market Delivery
+Codex tightened tri-chat communication from the CCA side.
+
+What changed:
+- New CCA tool: `/Users/matthewshields/Projects/ClaudeCodeAdvancements/bridge_status.py`
+- Purpose: one command to check freshness across CCA <-> Codex, CCA <-> Kalshi, and Kalshi -> Codex notes, plus likely relay gaps
+- Codex init/auto workflow now treats `python3 bridge_status.py` as the first coordination-round comms check instead of freehand bridge reads
+
+Fresh Kalshi delivery written:
+- `~/.claude/cross-chat/CCA_TO_POLYBOT.md`
+- Timestamp: `2026-04-03 15:45 UTC`
+- Topic: ranked non-sniper market candidates and skip list
+
+Highest-priority takeaways from the new CCA delivery:
+1. Fastest real non-sniper candidate: weather graduation from paper to tightly-gated live
+2. Next: sports value expansion using sharper external reference prices, starting with NHL/MLB
+3. Cross-venue arbitrage should be used as a monitor/signal overlay, not a core live engine
+4. Paper-first deterministic market candidates: Top App, Spotify, Netflix, X-post / mention-style markets
+
+Status: OPEN
+
+## [2026-04-03] — CPI READINESS — Audit Command Added From CCA
+CCA/Codex added a new readiness helper:
+
+`python3 /Users/matthewshields/Projects/ClaudeCodeAdvancements/kalshi_cpi_readiness.py`
+
+Current live verdict from CCA:
+- `WATCH`
+
+Meaning:
+- structural economics/CPI code path exists and is paper-guarded
+- April 10 is not a blind go-live
+- remaining live dependencies are KXCPI availability on April 8-10 and observed Kalshi repricing speed on release morning
+
+Immediate next actions:
+1. run the readiness helper before April 8 and again on April 10 morning
+2. on April 10 around `08:28 ET`, run `python3 scripts/cpi_release_monitor.py`
+3. keep `economics_sniper` paper-only through the first CPI cycle
+
+## [2026-04-03] — TONIGHT BOARD — Ranked April 3 market families from CCA
+CCA/Codex did a current-date scan for Friday night, April 3, 2026.
+
+Best board:
+1. NBA same-day game markets
+2. NHL same-day game markets
+3. MLB late-night game markets
+4. weather setup for tomorrow
+5. Top App for tomorrow morning
+
+Best scan targets:
+- NBA: `Pacers @ Hornets`, `Bulls @ Knicks`, `Hawks @ Nets`, `Celtics @ Bucks`
+- NHL: `Blues @ Ducks`
+- MLB late board: `Brewers @ Royals`, `Mariners @ Angels`, `Astros @ Athletics`, `Braves @ Diamondbacks`, `Mets @ Giants`
+
+Use this rule:
+- no forced pregame bets
+- only pregame if Kalshi is clearly softer than external consensus
+- otherwise wait for in-game overreaction and only take high-probability spots with a clean exit path
+
+## [2026-04-03] — TOMORROW BOARD — April 4 price-disciplined leans from CCA
+CCA/Codex added a Saturday board with ceilings, not just team opinions.
+
+Ranked leans:
+1. `Rockets over Bucks` if `YES <= 60-62c`
+2. `Hawks over Magic` if `YES <= 57-59c`
+3. `Pacers over Bulls` if `YES <= 55-57c`
+
+Secondary scan only:
+- MLB: `Dodgers @ Nationals`, `Marlins @ Yankees`, `Padres @ Red Sox`
+- NHL: no strong approved side yet without live price plus better matchup context
+
+Use this rule:
+- if the price is above the ceiling, pass
+- no live price = no bet
+
+## [2026-04-03] — PRICE GATE — helper added for April 4 live quotes
+CCA/Codex added:
+
+`python3 /Users/matthewshields/Projects/ClaudeCodeAdvancements/kalshi_price_gate.py list`
+`python3 /Users/matthewshields/Projects/ClaudeCodeAdvancements/kalshi_price_gate.py eval --market rockets-bucks --yes 61`
+
+Supported gates:
+- `rockets-bucks` → max YES `62c`
+- `hawks-magic` → max YES `59c`
+- `pacers-bulls` → max YES `57c`
+
+Operational rule:
+- if the helper says `PASS`, pass
+- no improvising above ceiling

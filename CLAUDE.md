@@ -179,6 +179,9 @@ DO NOT: fix symptoms without finding root cause
 - **`config` is NOT in scope inside `trading_loop()` or any loop function** — only exists in `main()`. Pass needed values as params (e.g. `slippage_ticks: int = 1`). Bug hit all 6 paper executor paths in Session 18.
 - **macOS notifications**: `osascript display notification` is unreliable from subprocess on newer macOS (Terminal not in System Settings Notifications). Use Reminders app instead: `tell application "Reminders" to make new reminder`
 - `bot.pid` is written at startup and removed on clean shutdown — prevents dual instances; if it exists after a crash, delete it before restarting
+- **STOP PROCEDURE (night / manual pause)**: use clean shutdown first, not `pkill` or `kill -9`. Run:
+  `PID=$(cat bot.pid) && kill -TERM "$PID"`
+  then wait until `kill -0 "$PID" 2>/dev/null` fails. After exit, if `bot.pid` still exists, remove it as stale state with `rm -f bot.pid`. Verified by Codex on 2026-04-05: process handled SIGTERM cleanly (`Received SIGTERM — requesting clean shutdown`), then exited; only the stale pid file required manual cleanup. Always verify no live process remains before removing `bot.pid`.
 - The binding constraint for a signal is `min_edge_pct` (4% as of Session 20), NOT `min_btc_move_pct` — need ~0.32% BTC in 60s at current settings
 - `settlement_loop` must pass `kill_switch` AND must call `record_win()`/`record_loss()` for LIVE trades ONLY (`if not trade["is_paper"]:`) — paper losses must NOT count toward daily limit
 - Live mode requires BOTH `--live` flag AND `LIVE_TRADING=true` in .env; then user must type `CONFIRM` at runtime prompt — all three gates required

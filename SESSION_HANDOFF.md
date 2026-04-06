@@ -206,6 +206,12 @@
 ## RESTART COMMAND (S162 wrap — use session163 for next restart)
   pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session163.log 2>&1 &
 
+## STOP COMMAND (verified by Codex 2026-04-05)
+  PID=$(cat bot.pid) && kill -TERM "$PID"
+  Then wait until `kill -0 "$PID" 2>/dev/null` fails.
+  If the process is gone but `bot.pid` still exists, run `rm -f bot.pid`.
+  Do NOT use `pkill`/`kill -9` for routine overnight stop unless clean shutdown fails.
+
 ## CRITICAL STARTUP CHECKS
   - kill -0 $(cat bot.pid) 2>/dev/null && echo "ALIVE" || echo "DEAD"  ← USE THIS, not grep
     ⚠️ NEVER use ps grep + && + tail — grep on missing log file = false alarm exit 1.
