@@ -173,7 +173,8 @@ def test_signal_yes_reason_labels_yes_side_explicitly():
     sig = strategy.generate_signal(market, games, yes_side_team="Houston")
     assert sig is not None
     assert sig.side == "yes"
-    assert sig.reason == "Houston Rockets YES consensus=80% vs Kalshi YES=67% (3 books)"
+    assert "[A]" in sig.reason
+    assert "Houston Rockets YES consensus=80% vs Kalshi YES=67% (3 books)" in sig.reason
 
 
 def test_signal_insufficient_edge():

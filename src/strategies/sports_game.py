@@ -31,6 +31,12 @@ from datetime import datetime, timezone, timedelta
 from typing import TYPE_CHECKING, List, Optional
 
 from src.strategies.base import BaseStrategy, Signal
+from src.strategies.sports_math import (
+    assign_grade,
+    american_odds_from_prob,
+    passes_collar,
+    passes_collar_soccer,
+)
 
 if TYPE_CHECKING:
     from src.platforms.kalshi import Market
@@ -501,6 +507,7 @@ class SportsGameStrategy(BaseStrategy):
         )
 
         if net_edge_yes >= self.min_edge_pct:
+            grade = assign_grade(net_edge_yes)
             return Signal(
                 ticker=market.ticker,
                 side="yes",
@@ -509,12 +516,13 @@ class SportsGameStrategy(BaseStrategy):
                 confidence=min(0.9, game.num_books / 5.0),
                 price_cents=market.yes_price or 50,
                 reason=(
-                    f"{yes_odds_name} YES consensus={consensus_prob:.0%} "
+                    f"[{grade}] {yes_odds_name} YES consensus={consensus_prob:.0%} "
                     f"vs Kalshi YES={kalshi_yes:.0%} ({game.num_books} books)"
                 ),
             )
 
         if net_edge_no >= self.min_edge_pct:
+            grade = assign_grade(net_edge_no)
             return Signal(
                 ticker=market.ticker,
                 side="no",
@@ -523,7 +531,7 @@ class SportsGameStrategy(BaseStrategy):
                 confidence=min(0.9, game.num_books / 5.0),
                 price_cents=market.no_price or 50,
                 reason=(
-                    f"{yes_odds_name} YES overpriced: consensus={consensus_prob:.0%} "
+                    f"[{grade}] {yes_odds_name} YES overpriced: consensus={consensus_prob:.0%} "
                     f"vs Kalshi YES={kalshi_yes:.0%}; "
                     f"NO fair={consensus_no:.0%} vs Kalshi NO={kalshi_no:.0%} "
                     f"({game.num_books} books)"
