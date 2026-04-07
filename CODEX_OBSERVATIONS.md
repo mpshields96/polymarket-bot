@@ -356,3 +356,33 @@ Supported gates:
 Operational rule:
 - if the helper says `PASS`, pass
 - no improvising above ceiling
+
+## [2026-04-06] — ARCHITECTURE — Unified Kalshi Visibility Report Added
+Codex implemented one authoritative visibility layer instead of adding another discovery path.
+
+Shipped:
+- `scripts/kalshi_visibility_report.py`
+- `tests/test_kalshi_visibility_report.py`
+- extracted reusable audit/scout helpers in:
+  - `scripts/audit_all_kalshi_markets.py`
+  - `scripts/kalshi_series_scout.py`
+
+What the new report answers:
+- total open Kalshi markets/events/series
+- covered vs uncovered open series
+- live-bot-visible sports game series today
+- same-day vs days-out sports counts
+- same-day visible vs skipped sports series
+- non-sports scout candidates
+- edge-scanner coverage summary
+
+Important normalization baked in:
+- canonicalizes stale series aliases like `KXNCAAMBGAME -> KXNCAABGAME`
+- treats research-only UFC coverage as not yet visible to the active bot
+
+Verification:
+- `source venv/bin/activate && python3 -m pytest tests/test_kalshi_visibility_report.py -q`
+- `source venv/bin/activate && python3 -m pytest tests/test_edge_scanner.py -q`
+- Result: 37 passed
+
+Status: OPEN

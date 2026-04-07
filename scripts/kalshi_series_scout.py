@@ -77,6 +77,54 @@ def is_dead_end(ticker: str) -> bool:
     dead_patterns = ["15M", "COPYTRADING", "VANITY", "MICRO"]
     return any(p in ticker.upper() for p in dead_patterns)
 
+def select_candidates(
+    markets: list[dict],
+    min_volume: int = 50_000,
+    horizon_days: int = 7,
+    now: datetime | None = None,
+) -> list[dict]:
+    """Filter open-market payloads into ranked expansion candidates."""
+    now = now or datetime.now(timezone.utc)
+    candidates = []
+
+    for market in markets:
+        ticker = market.get("ticker", "")
+        series = market.get("series_ticker", ticker.split("-")[0] if "-" in ticker else ticker)
+        volume = market.get("volume", 0) or 0
+        close_time = market.get("close_time", "")
+
+        if volume < min_volume:
+            continue
+        if any(series.startswith(covered) or ticker.startswith(covered) for covered in COVERED_SERIES):
+            continue
+        if is_dead_end(series):
+            continue
+
+        try:
+            close_dt = datetime.fromisoformat(close_time.replace("Z", "+00:00"))
+            if close_dt < now:
+                continue
+        except (ValueError, AttributeError):
+            pass
+
+        candidates.append({
+            "series": series,
+            "ticker": ticker,
+            "volume": volume,
+            "category": classify_series(series),
+            "close_time": close_time,
+            "title": market.get("title", ""),
+        })
+
+    by_series: dict[str, dict] = {}
+    for candidate in candidates:
+        series = candidate["series"]
+        if series not in by_series or candidate["volume"] > by_series[series]["volume"]:
+            by_series[series] = candidate
+
+    return sorted(by_series.values(), key=lambda x: x["volume"], reverse=True)
+
+
 def scout(api_key: str, min_volume: int = 50_000, horizon_days: int = 7) -> list[dict]:
     """
     Fetch all Kalshi series, filter for viable expansion candidates.
@@ -88,13 +136,9 @@ def scout(api_key: str, min_volume: int = 50_000, horizon_days: int = 7) -> list
         print("ERROR: requests not available. Install via: pip install requests")
         sys.exit(1)
 
-    now = datetime.now(timezone.utc)
-    cutoff = now + timedelta(days=horizon_days)
-
     headers = {"Authorization": f"Bearer {api_key}"}
     base_url = "https://api.elections.kalshi.com/trade-api/v2"
-
-    candidates = []
+    all_markets = []
     cursor = None
     page = 0
 
@@ -114,42 +158,7 @@ def scout(api_key: str, min_volume: int = 50_000, horizon_days: int = 7) -> list
         markets = data.get("markets", [])
         if not markets:
             break
-
-        for m in markets:
-            ticker = m.get("ticker", "")
-            series = m.get("series_ticker", ticker.split("-")[0] if "-" in ticker else ticker)
-            volume = m.get("volume", 0) or 0
-            close_time = m.get("close_time", "")
-
-            # Filter 1: volume threshold
-            if volume < min_volume:
-                continue
-
-            # Filter 2: not already covered
-            if any(series.startswith(c) or ticker.startswith(c) for c in COVERED_SERIES):
-                continue
-
-            # Filter 3: not a confirmed dead end
-            if is_dead_end(series):
-                continue
-
-            # Filter 4: must close within horizon (or long-dated futures)
-            try:
-                close_dt = datetime.fromisoformat(close_time.replace("Z", "+00:00"))
-                if close_dt < now:  # already expired
-                    continue
-            except (ValueError, AttributeError):
-                pass  # no close_time → include (futures style)
-
-            category = classify_series(series)
-            candidates.append({
-                "series": series,
-                "ticker": ticker,
-                "volume": volume,
-                "category": category,
-                "close_time": close_time,
-                "title": m.get("title", ""),
-            })
+        all_markets.extend(markets)
 
         cursor = data.get("cursor")
         if not cursor:
@@ -158,14 +167,11 @@ def scout(api_key: str, min_volume: int = 50_000, horizon_days: int = 7) -> list
         if page > 100:  # safety cap
             break
 
-    # Deduplicate by series (keep highest volume representative)
-    by_series: dict[str, dict] = {}
-    for c in candidates:
-        s = c["series"]
-        if s not in by_series or c["volume"] > by_series[s]["volume"]:
-            by_series[s] = c
-
-    return sorted(by_series.values(), key=lambda x: x["volume"], reverse=True)
+    return select_candidates(
+        all_markets,
+        min_volume=min_volume,
+        horizon_days=horizon_days,
+    )
 
 def format_report(candidates: list[dict], run_date: str) -> str:
     lines = [

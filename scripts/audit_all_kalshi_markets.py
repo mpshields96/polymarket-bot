@@ -161,6 +161,161 @@ def analyze_spread(market: dict) -> float:
     return -1  # unknown
 
 
+def build_audit_report(all_series: list, all_events: list, all_markets: list) -> dict:
+    """Build the structured audit report used by the CLI and visibility layer."""
+    series_lookup = {}
+    for series in all_series:
+        ticker = series.get("ticker", "")
+        series_lookup[ticker] = {
+            "title": series.get("title", ""),
+            "category": series.get("category", "unknown"),
+            "tags": series.get("tags", []),
+            "frequency": series.get("frequency", ""),
+            "settlement_sources": series.get("settlement_sources", []),
+        }
+
+    series_stats = defaultdict(lambda: {
+        "count": 0,
+        "total_volume": 0,
+        "prices": [],
+        "spreads": [],
+        "titles": set(),
+        "event_tickers": set(),
+    })
+    for market in all_markets:
+        series_ticker = market.get("series_ticker", "") or "UNKNOWN"
+        event_ticker = market.get("event_ticker", "") or ""
+        volume = extract_volume(market)
+        price = extract_yes_price(market)
+        spread = analyze_spread(market)
+        title = market.get("title", "") or market.get("subtitle", "") or ""
+
+        series_stats[series_ticker]["count"] += 1
+        series_stats[series_ticker]["total_volume"] += volume
+        series_stats[series_ticker]["prices"].append(price)
+        if spread >= 0:
+            series_stats[series_ticker]["spreads"].append(spread)
+        series_stats[series_ticker]["titles"].add(title[:80])
+        series_stats[series_ticker]["event_tickers"].add(event_ticker)
+
+    event_categories = {}
+    for event in all_events:
+        event_ticker = event.get("event_ticker", "")
+        event_categories[event_ticker] = {
+            "category": event.get("category", "") or event.get("series_ticker", ""),
+            "title": event.get("title", ""),
+        }
+
+    sorted_series = sorted(
+        series_stats.items(),
+        key=lambda item: item[1]["total_volume"],
+        reverse=True,
+    )
+
+    series_breakdown = []
+    for series_ticker, stats in sorted_series:
+        prices = stats["prices"]
+        avg_price = sum(prices) / len(prices) if prices else 0
+        near_50_count = sum(1 for price in prices if 35 <= price <= 65)
+        near_50_pct = round(100 * near_50_count / len(prices)) if prices else 0
+
+        category = series_lookup.get(series_ticker, {}).get("category", "")
+        if not category:
+            for event_ticker in stats["event_tickers"]:
+                if event_ticker in event_categories:
+                    category = event_categories[event_ticker].get("category", "")
+                    break
+
+        sample_title = list(stats["titles"])[0][:50] if stats["titles"] else ""
+        series_breakdown.append({
+            "series": series_ticker,
+            "market_count": stats["count"],
+            "total_volume": stats["total_volume"],
+            "avg_price_cents": round(avg_price, 1),
+            "near_50c_count": near_50_count,
+            "near_50c_pct": near_50_pct,
+            "category": category,
+            "sample_title": sample_title,
+            "avg_spread": round(sum(stats["spreads"]) / len(stats["spreads"]), 1) if stats["spreads"] else -1,
+        })
+
+    category_rollup = defaultdict(
+        lambda: {"series_count": 0, "market_count": 0, "total_volume": 0, "near_50c": 0, "total_mkts": 0}
+    )
+    for row in series_breakdown:
+        category = row["category"] or "uncategorized"
+        category_rollup[category]["series_count"] += 1
+        category_rollup[category]["market_count"] += row["market_count"]
+        category_rollup[category]["total_volume"] += row["total_volume"]
+        category_rollup[category]["near_50c"] += row["near_50c_count"]
+        category_rollup[category]["total_mkts"] += row["market_count"]
+
+    sorted_categories = sorted(
+        category_rollup.items(),
+        key=lambda item: item[1]["total_volume"],
+        reverse=True,
+    )
+    category_rollup_dict = {category: stats for category, stats in sorted_categories}
+
+    opportunities = [
+        row for row in series_breakdown
+        if row["total_volume"] > 1000 and row["near_50c_pct"] > 20
+    ]
+    opportunities.sort(key=lambda row: row["total_volume"], reverse=True)
+
+    return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "total_series": len(all_series),
+        "total_open_events": len(all_events),
+        "total_open_markets": len(all_markets),
+        "series_breakdown": series_breakdown,
+        "category_rollup": category_rollup_dict,
+        "opportunities": opportunities,
+    }
+
+
+def print_audit_report(report: dict) -> None:
+    """Print the human-readable audit summary."""
+    print("\n" + "=" * 70)
+    print("ANALYSIS")
+    print("=" * 70)
+
+    print(f"\n{'SERIES':<20} {'MKTS':>5} {'VOLUME':>12} {'AVG_PRICE':>10} {'NEAR_50c':>8} {'CATEGORY':<30} SAMPLE_TITLE")
+    print("-" * 130)
+    for row in report["series_breakdown"]:
+        line = (
+            f"{row['series']:<20} {row['market_count']:>5} {row['total_volume']:>12,} "
+            f"{row['avg_price_cents']:>9.1f}c {row['near_50c_count']:>4}({row['near_50c_pct']:>2}%) "
+            f"{row['category']:<30} {row['sample_title']}"
+        )
+        print(line)
+
+    print(f"\n\n{'='*70}")
+    print("CATEGORY ROLLUP")
+    print(f"{'='*70}")
+    print(f"\n{'CATEGORY':<30} {'SERIES':>7} {'MARKETS':>8} {'VOLUME':>14} {'NEAR_50c':>10}")
+    print("-" * 80)
+    for category, stats in report["category_rollup"].items():
+        near_50_pct = round(100 * stats["near_50c"] / stats["total_mkts"]) if stats["total_mkts"] else 0
+        print(
+            f"{category:<30} {stats['series_count']:>7} {stats['market_count']:>8} "
+            f"{stats['total_volume']:>14,} {stats['near_50c']:>6}({near_50_pct:>2}%)"
+        )
+
+    print(f"\n\n{'='*70}")
+    print("OPPORTUNITY ANALYSIS — series with volume + near-50c pricing")
+    print("(High near-50c% = uncertain outcomes = potential edge)")
+    print(f"{'='*70}")
+    print(f"\n{'SERIES':<20} {'VOLUME':>12} {'NEAR_50c%':>10} {'AVG_SPREAD':>10} {'CATEGORY':<25} TITLE")
+    print("-" * 110)
+    for row in report["opportunities"]:
+        spread_str = f"{row['avg_spread']:.1f}c" if row["avg_spread"] >= 0 else "n/a"
+        print(
+            f"{row['series']:<20} {row['total_volume']:>12,} {row['near_50c_pct']:>8}% "
+            f"{spread_str:>10} {row['category']:<25} {row['sample_title']}"
+        )
+
+
 async def main():
     print("=" * 70)
     print("FULL KALSHI MARKET AUDIT")
@@ -185,18 +340,6 @@ async def main():
         print("\n--- Fetching all series ---")
         all_series = await fetch_all_series(client)
         print(f"  Total series: {len(all_series)}")
-
-        # Build series lookup
-        series_lookup = {}
-        for s in all_series:
-            ticker = s.get("ticker", "")
-            series_lookup[ticker] = {
-                "title": s.get("title", ""),
-                "category": s.get("category", "unknown"),
-                "tags": s.get("tags", []),
-                "frequency": s.get("frequency", ""),
-                "settlement_sources": s.get("settlement_sources", []),
-            }
 
         # 3. Fetch all open events
         print("\n--- Fetching all open events ---")
@@ -223,133 +366,11 @@ async def main():
             json.dump(all_series, f, indent=2, default=str)
         print("  Saved raw series data to data/kalshi_all_series_raw.json")
 
-        # ── ANALYSIS ─────────────────────────────────────────────────
+        audit_report = build_audit_report(all_series, all_events, all_markets)
+        print_audit_report(audit_report)
 
-        print("\n" + "=" * 70)
-        print("ANALYSIS")
-        print("=" * 70)
-
-        # Group by series ticker prefix (e.g., KXBTC15M -> crypto, HIGHNY -> weather)
-        series_stats = defaultdict(lambda: {
-            "count": 0,
-            "total_volume": 0,
-            "prices": [],
-            "spreads": [],
-            "titles": set(),
-            "event_tickers": set(),
-        })
-
-        for m in all_markets:
-            series_ticker = m.get("series_ticker", "") or "UNKNOWN"
-            event_ticker = m.get("event_ticker", "") or ""
-            vol = extract_volume(m)
-            price = extract_yes_price(m)
-            spread = analyze_spread(m)
-            title = m.get("title", "") or m.get("subtitle", "") or ""
-
-            series_stats[series_ticker]["count"] += 1
-            series_stats[series_ticker]["total_volume"] += vol
-            series_stats[series_ticker]["prices"].append(price)
-            if spread >= 0:
-                series_stats[series_ticker]["spreads"].append(spread)
-            series_stats[series_ticker]["titles"].add(title[:80])
-            series_stats[series_ticker]["event_tickers"].add(event_ticker)
-
-        # Also try to extract category from events
-        event_categories = {}
-        for e in all_events:
-            eticker = e.get("event_ticker", "")
-            cat = e.get("category", "") or e.get("series_ticker", "")
-            title = e.get("title", "")
-            event_categories[eticker] = {"category": cat, "title": title}
-
-        # Sort by volume descending
-        sorted_series = sorted(
-            series_stats.items(),
-            key=lambda x: x[1]["total_volume"],
-            reverse=True,
-        )
-
-        print(f"\n{'SERIES':<20} {'MKTS':>5} {'VOLUME':>12} {'AVG_PRICE':>10} {'NEAR_50c':>8} {'CATEGORY':<30} SAMPLE_TITLE")
-        print("-" * 130)
-
-        report_lines = []
-        for series, stats in sorted_series:
-            count = stats["count"]
-            vol = stats["total_volume"]
-            prices = stats["prices"]
-            avg_price = sum(prices) / len(prices) if prices else 0
-            near_50 = sum(1 for p in prices if 35 <= p <= 65)  # in our sweet spot
-            near_50_pct = round(100 * near_50 / len(prices)) if prices else 0
-
-            # Look up category from series_lookup
-            cat = series_lookup.get(series, {}).get("category", "")
-            if not cat:
-                # Try from first event
-                for et in stats["event_tickers"]:
-                    if et in event_categories:
-                        cat = event_categories[et].get("category", "")
-                        break
-
-            sample_title = list(stats["titles"])[0][:50] if stats["titles"] else ""
-
-            line = f"{series:<20} {count:>5} {vol:>12,} {avg_price:>9.1f}c {near_50:>4}({near_50_pct:>2}%) {cat:<30} {sample_title}"
-            print(line)
-            report_lines.append({
-                "series": series,
-                "market_count": count,
-                "total_volume": vol,
-                "avg_price_cents": round(avg_price, 1),
-                "near_50c_count": near_50,
-                "near_50c_pct": near_50_pct,
-                "category": cat,
-                "sample_title": sample_title,
-                "avg_spread": round(sum(stats["spreads"]) / len(stats["spreads"]), 1) if stats["spreads"] else -1,
-            })
-
-        # Category rollup
-        print(f"\n\n{'='*70}")
-        print("CATEGORY ROLLUP")
-        print(f"{'='*70}")
-        cat_stats = defaultdict(lambda: {"series_count": 0, "market_count": 0, "total_volume": 0, "near_50c": 0, "total_mkts": 0})
-        for r in report_lines:
-            cat = r["category"] or "uncategorized"
-            cat_stats[cat]["series_count"] += 1
-            cat_stats[cat]["market_count"] += r["market_count"]
-            cat_stats[cat]["total_volume"] += r["total_volume"]
-            cat_stats[cat]["near_50c"] += r["near_50c_count"]
-            cat_stats[cat]["total_mkts"] += r["market_count"]
-
-        sorted_cats = sorted(cat_stats.items(), key=lambda x: x[1]["total_volume"], reverse=True)
-        print(f"\n{'CATEGORY':<30} {'SERIES':>7} {'MARKETS':>8} {'VOLUME':>14} {'NEAR_50c':>10}")
-        print("-" * 80)
-        for cat, cs in sorted_cats:
-            n50_pct = round(100 * cs["near_50c"] / cs["total_mkts"]) if cs["total_mkts"] else 0
-            print(f"{cat:<30} {cs['series_count']:>7} {cs['market_count']:>8} {cs['total_volume']:>14,} {cs['near_50c']:>6}({n50_pct:>2}%)")
-
-        # OPPORTUNITY ANALYSIS — wide spreads + high volume = tradeable inefficiency
-        print(f"\n\n{'='*70}")
-        print("OPPORTUNITY ANALYSIS — series with volume + near-50c pricing")
-        print("(High near-50c% = uncertain outcomes = potential edge)")
-        print(f"{'='*70}")
-        opportunities = [r for r in report_lines if r["total_volume"] > 1000 and r["near_50c_pct"] > 20]
-        opportunities.sort(key=lambda x: x["total_volume"], reverse=True)
-        print(f"\n{'SERIES':<20} {'VOLUME':>12} {'NEAR_50c%':>10} {'AVG_SPREAD':>10} {'CATEGORY':<25} TITLE")
-        print("-" * 110)
-        for r in opportunities:
-            spread_str = f"{r['avg_spread']:.1f}c" if r["avg_spread"] >= 0 else "n/a"
-            print(f"{r['series']:<20} {r['total_volume']:>12,} {r['near_50c_pct']:>8}% {spread_str:>10} {r['category']:<25} {r['sample_title']}")
-
-        # Save full report
         with open("data/kalshi_audit_report.json", "w") as f:
-            json.dump({
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "total_series": len(all_series),
-                "total_open_events": len(all_events),
-                "total_open_markets": len(all_markets),
-                "series_breakdown": report_lines,
-                "category_rollup": {cat: stats for cat, stats in sorted_cats},
-            }, f, indent=2, default=str)
+            json.dump(audit_report, f, indent=2, default=str)
         print(f"\n\nFull report saved to data/kalshi_audit_report.json")
 
     finally:
