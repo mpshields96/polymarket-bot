@@ -2117,6 +2117,7 @@ async def sports_game_loop(
     from src.data.odds_api import SportsFeed
     from src.strategies.sports_game import SportsGameStrategy, _code_to_city
     from src.strategies.sports_sniper import parse_kalshi_game_ticker
+    from src.strategies.sports_game import _parse_ticker_date as _sg_parse_ticker_date
     from src.execution.paper import PaperExecutor
     import contextlib
 
@@ -2152,6 +2153,11 @@ async def sports_game_loop(
     except RuntimeError as exc:
         logger.warning("[sports_game] %s — loop disabled", exc)
         return
+
+    # Sports that are paper-only regardless of global live_executor_enabled.
+    # NBA: disabled live S166 — 0% WR on 2 bets (-19.67 USD), cause unknown.
+    # Re-enable after investigating the 2 losing tickers and running 10+ clean paper bets.
+    _PAPER_ONLY_SPORTS: frozenset = frozenset({"basketball_nba"})
 
     strategy_map = {
         "basketball_nba": SportsGameStrategy(
@@ -2227,12 +2233,14 @@ async def sports_game_loop(
                 await asyncio.sleep(_SPORTS_GAME_POLL_SEC)
                 continue
 
-            # Reset daily dedup at midnight UTC
-            _today_utc = datetime.now(timezone.utc).date()
-            if _today_utc != _last_date:
+            # Reset daily dedup at midnight CST (= 06:00 UTC).
+            # CST = UTC-6; aligns with count_trades_today() CST boundary.
+            _now_utc = datetime.now(timezone.utc)
+            _today_cst = (_now_utc - timedelta(hours=6)).date()
+            if _today_cst != _last_date:
                 _bet_tickers_today.clear()
                 _bet_games_today.clear()
-                _last_date = _today_utc
+                _last_date = _today_cst
 
             # Rebuild game-level dedup from DB (survives restarts)
             # e.g. KXNHLGAME-26MAR28FLANYI-NYI → game_key "KXNHLGAME-26MAR28FLANYI"
@@ -2258,12 +2266,15 @@ async def sports_game_loop(
             _now_ts = datetime.now(timezone.utc)
 
             def _future_games(games):
-                """Keep only games that start within the next 72 hours and haven't started yet.
+                """Keep only games that start within the next 24 hours and haven't started yet.
 
                 Using 5-min cutoff (not 30-min): our signal uses PRE-GAME bookmaker consensus.
                 Betting 30+ min into a game means Kalshi live price reflects in-game score while
                 our signal is stale — false edge. Only bet when game is upcoming or within 5 min
                 of scheduled start (handles minor delays).
+
+                24h horizon (was 72h): prevents April 8-9 games from burning the daily cap
+                when April 6 games exist. Today's games are always bet first.
                 """
                 future = []
                 for g in games:
@@ -2275,7 +2286,7 @@ async def sports_game_loop(
                         ct = _dt.fromisoformat(g.commence_time.replace("Z", "+00:00"))
                         # Allow games not yet started (or < 5 min after scheduled start for delays)
                         _cutoff = _now_ts - timedelta(minutes=5)
-                        _horizon = _now_ts + timedelta(hours=72)
+                        _horizon = _now_ts + timedelta(hours=24)
                         if ct > _cutoff and ct < _horizon:
                             future.append(g)
                     except Exception:
@@ -2335,6 +2346,18 @@ async def sports_game_loop(
                 paper_exec = paper_execs[sport_key]
                 current_bankroll = db.latest_bankroll() or 50.0
 
+                # Per-sport live override: some sports forced to paper regardless of global mode.
+                _sport_is_paper = is_paper_mode or sport_key in _PAPER_ONLY_SPORTS
+                if sport_key in _PAPER_ONLY_SPORTS and not is_paper_mode:
+                    logger.debug("[sports_game] %s is paper-only (live disabled)", _SPORT_LABELS[sport_key])
+
+                # Sort by game start time ascending — today's games evaluated first.
+                # Prevents future-day games from burning the daily cap before tonight's games.
+                markets = sorted(
+                    markets,
+                    key=lambda m: _sg_parse_ticker_date(m.ticker) or datetime.max.replace(tzinfo=timezone.utc),
+                )
+
                 for market in markets:
                     ticker = market.ticker
                     if ticker in _bet_tickers_today:
@@ -2349,8 +2372,19 @@ async def sports_game_loop(
                     if (market.volume or 0) < 100:
                         continue
 
+                    # In-game guard: skip Kalshi markets whose game start time is already past.
+                    # Prevents betting on games already 5+ minutes in progress.
+                    # Bug S166: bot placed bets at 23:46 UTC on games that started at 18:10 UTC.
+                    _kalshi_game_dt = _sg_parse_ticker_date(ticker)
+                    if _kalshi_game_dt is not None and _kalshi_game_dt < (_now_ts - timedelta(minutes=5)):
+                        logger.warning(
+                            "[sports_game] SKIPPING IN-GAME %s (started %s UTC, now %s UTC)",
+                            ticker, _kalshi_game_dt.strftime("%H:%M"), _now_ts.strftime("%H:%M"),
+                        )
+                        continue
+
                     # Dedup: skip if already have open position
-                    if db.has_open_position(ticker=ticker, is_paper=is_paper_mode):
+                    if db.has_open_position(ticker=ticker, is_paper=_sport_is_paper):
                         continue
 
                     # Parse ticker to get YES-side city name
@@ -2377,7 +2411,7 @@ async def sports_game_loop(
                     if signal is None:
                         continue
 
-                    if not is_paper_mode:
+                    if not _sport_is_paper:
                         # ═══ LIVE PATH ═══════════════════════════════════════
                         _live_price = market.yes_price if signal.side == "yes" else market.no_price
                         _MAX_SLIP = 4  # sports markets can gap 3-4c between polls
@@ -2450,9 +2484,10 @@ async def sports_game_loop(
                         if result:
                             _bet_tickers_today.add(ticker)
                             _bet_games_today.add(_game_key)
+                            _paper_label = "PAPER (live-disabled)" if sport_key in _PAPER_ONLY_SPORTS else "PAPER"
                             logger.info(
-                                "[sports_game] PAPER: %s %s@%dc | edge=%.1f%% | %s",
-                                ticker, signal.side.upper(), signal.price_cents,
+                                "[sports_game] %s: %s %s@%dc | edge=%.1f%% | %s",
+                                _paper_label, ticker, signal.side.upper(), signal.price_cents,
                                 signal.edge_pct * 100, signal.reason,
                             )
 
@@ -4563,7 +4598,9 @@ async def main():
     # LIVE — CCA REQ-62 validated: n=15 paper bets, 15/15 wins (100% WR). FLB confirmed on KXETHD.
     # 92c ceiling (not 94c): ETH near-expiry markets have tighter liquidity, CCA REQ-62 directive.
     # KXETHD volume: 64K (S51 probe). Stagger 150s (after daily_sniper 120s + buffer).
-    # S163 flip: live_executor_enabled=True, trade_lock wired, max_price_cents=92.
+    # S166: live_executor_enabled=False — ETH at 91c ceiling has EV=-0.50/bet (7 bets, -4.11 USD).
+    # Re-enable after lowering max_price_cents to 85-88c and validating 10+ paper bets.
+    # S163 original flip: live_executor_enabled=True, but structural loser at 91c.
     eth_daily_sniper_task = asyncio.create_task(
         daily_sniper_loop(
             kalshi=kalshi,
@@ -4572,7 +4609,7 @@ async def main():
             kill_switch=kill_switch,
             initial_delay_sec=150.0,
             max_daily_bets=5,
-            live_executor_enabled=True,
+            live_executor_enabled=False,
             live_confirmed=live_confirmed,
             trade_lock=_live_trade_lock,
             series_ticker="KXETHD",
