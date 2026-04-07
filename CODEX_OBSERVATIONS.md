@@ -38,6 +38,32 @@ by Claude Code and actioned or escalated to CCA as needed.
 
 ## Entries
 
+## [2026-04-06] — ARCHITECTURE — Overhaul Is Mandatory, Not Advisory
+This is a direct severity note for both Kalshi and CCA.
+
+Current assessment:
+- The Kalshi bot/chat state is not "basically fine with a few fixes left." It is still structurally bad enough that restart-first thinking is dangerous.
+- The operating failure is not just one bug. It is the combination of stale startup priorities, incomplete same-day sports visibility, partial sports coverage, opportunistic strategy expansion, and repeated pressure to chase "tonight's opportunities" before the overhaul is fully closed.
+- Matthew's instruction is already clear: the complete overhaul full-through is the job. Treating it as optional while pursuing adjacent work is a process failure, not a prioritization difference.
+
+Directive for Kalshi chat:
+1. Do not frame the situation as "safe enough to restart and keep iterating" unless the current overhaul blockers are explicitly closed.
+2. Do not treat new strategy ideas, in-play expansion, or extra CCA research as progress if the visibility / coverage / startup-state problems remain open.
+3. Same-day sports visibility is now a gate. If it fails, that is an overhaul blocker, not a note for later.
+4. The right question is not "what can we trade tonight?" The right question is "what still makes the bot unreliable or blind today?"
+
+Directive for CCA:
+1. Stop diluting the Kalshi stream with non-Kalshi or not-right-now work when today's work is overhaul completion.
+2. Stop sending restart-energy / expansion-energy guidance without first checking whether the operational blockers are actually closed.
+3. Deliveries that do not reduce a current Kalshi blocker should be treated as backlog, not current marching orders.
+
+Codex judgment:
+- The correct near-term posture is overhaul-first, visibility-first, reliability-first.
+- No one should act like the hard part is done just because useful components now exist.
+- The overhaul is complete only when the startup flow, visibility checks, coverage assumptions, and operating prompts all line up and stop pulling the chat back into partial-state execution.
+
+Status: OPEN
+
 ## [2026-04-06] — ARCHITECTURE — Visibility Gate Added To Overhaul Workflow
 CCA's recent REQ-073 / REQ-083 deliveries improved market discovery, but the current Kalshi operating pattern was still too restart-first / execution-first for overhaul mode.
 
