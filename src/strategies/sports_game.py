@@ -37,6 +37,7 @@ from src.strategies.sports_math import (
     passes_collar,
     passes_collar_soccer,
 )
+from src.strategies.efficiency_feed import get_efficiency_gap
 
 if TYPE_CHECKING:
     from src.platforms.kalshi import Market
@@ -468,6 +469,11 @@ class SportsGameStrategy(BaseStrategy):
             logger.debug("[sports_game] Low volume %d on %s", market.volume or 0, market.ticker)
             return None
 
+        # Efficiency gap (0-20 scale): home advantage signal from team ratings.
+        # Gap > 10 = home team stronger; Gap < 10 = away team stronger; 10 = even.
+        # Surfaced in signal reason for logging/calibration. Does not filter bets.
+        eff_gap = get_efficiency_gap(home_team=game.home_team, away_team=game.away_team)
+
         # Determine consensus prob for the YES side
         if yes_odds_name == game.home_team:
             consensus_prob = game.home_prob
@@ -499,11 +505,11 @@ class SportsGameStrategy(BaseStrategy):
         net_edge_no = edge_no - fee_no
 
         logger.debug(
-            "[sports_game] %s match=%s @ %s | yes_team=%s | YES=%d¢ vs fair=%.1f%% | NO=%d¢ vs fair=%.1f%% | edge_yes=%.1f%% edge_no=%.1f%% books=%d",
+            "[sports_game] %s match=%s @ %s | yes_team=%s | YES=%d¢ vs fair=%.1f%% | NO=%d¢ vs fair=%.1f%% | edge_yes=%.1f%% edge_no=%.1f%% books=%d eff_gap=%.1f",
             market.ticker, game.away_team, game.home_team, yes_odds_name,
             int(kalshi_yes * 100), consensus_prob * 100,
             int(kalshi_no * 100), consensus_no * 100,
-            net_edge_yes * 100, net_edge_no * 100, game.num_books,
+            net_edge_yes * 100, net_edge_no * 100, game.num_books, eff_gap,
         )
 
         if net_edge_yes >= self.min_edge_pct:
@@ -517,7 +523,8 @@ class SportsGameStrategy(BaseStrategy):
                 price_cents=market.yes_price or 50,
                 reason=(
                     f"[{grade}] {yes_odds_name} YES consensus={consensus_prob:.0%} "
-                    f"vs Kalshi YES={kalshi_yes:.0%} ({game.num_books} books)"
+                    f"vs Kalshi YES={kalshi_yes:.0%} ({game.num_books} books) "
+                    f"eff_gap={eff_gap:.1f}"
                 ),
             )
 
@@ -534,7 +541,7 @@ class SportsGameStrategy(BaseStrategy):
                     f"[{grade}] {yes_odds_name} YES overpriced: consensus={consensus_prob:.0%} "
                     f"vs Kalshi YES={kalshi_yes:.0%}; "
                     f"NO fair={consensus_no:.0%} vs Kalshi NO={kalshi_no:.0%} "
-                    f"({game.num_books} books)"
+                    f"({game.num_books} books) eff_gap={eff_gap:.1f}"
                 ),
             )
 
@@ -556,9 +563,14 @@ _MONTH_MAP = {
 # Non-game tickers (KXBTCD-26APR0617-T69999) don't follow this convention.
 # We require the series to contain "GAME" or the ticker to match a sports series.
 _SPORTS_TICKER_RE = re.compile(
-    r"KXMLBGAME|KXNBAGAME|KXNHLGAME|KXUCLGAME|KXEPLGAME|KXBUNGAME|KXSERGAME|KXLALGAME|KXL1GAME|KXNCAABGAME",
+    r"KXMLBGAME|KXNBAGAME|KXNHLGAME|KXUCLGAME|KXEPLGAME"
+    r"|KXBUNDESLIGAGAME|KXSERIEAGAME|KXLALIGAGAME|KXLIGUE1GAME|KXNCAABGAME",
     re.IGNORECASE,
 )
+
+# Maximum date distance (seconds) between a Kalshi ticker date and the matched Odds API game.
+# If the closest candidate is farther than this, treat it as no match (fail-closed).
+_MAX_MATCH_DISTANCE_SEC = 25 * 3600  # 25 hours
 
 
 def _parse_ticker_date(ticker: str) -> Optional[datetime]:
