@@ -1268,22 +1268,27 @@ async def sports_sniper_loop(
                     if not signal:
                         continue
 
-                    # Check kill switch (paper path)
-                    if not kill_switch.check_paper_order_allowed():
-                        logger.info("[sports_sniper] Kill switch blocking paper bet")
-                        continue
-
                     # Size: flat paper cap
                     from src.risk.sizing import calculate_size, DEFAULT_MAX_LOSS_USD
                     from src.risk.kill_switch import HARD_MAX_TRADE_USD
                     payout = 100.0 / yes_price_cents  # payout per dollar (simplified)
+                    _bankroll = db.get_bankroll()
                     size_result = calculate_size(
                         payout_per_dollar=payout,
-                        bankroll_usd=db.get_bankroll(),
+                        bankroll_usd=_bankroll,
                         min_edge_pct=0.05,
                     )
                     trade_usd = min(size_result.recommended_usd, _SPORTS_SNIPER_PAPER_CAP_USD, HARD_MAX_TRADE_USD)
                     trade_usd = max(trade_usd, 0.50)  # floor 50c
+
+                    # Check kill switch (paper path) — after sizing so we have trade_usd
+                    ok, reason = kill_switch.check_paper_order_allowed(
+                        trade_usd=trade_usd,
+                        current_bankroll_usd=_bankroll,
+                    )
+                    if not ok:
+                        logger.info("[sports_sniper] Kill switch blocking paper bet: %s", reason)
+                        continue
 
                     result = paper_exec.execute(
                         ticker=ticker,
