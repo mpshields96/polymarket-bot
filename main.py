@@ -2093,7 +2093,7 @@ _SPORTS_GAME_LIVE_CAP_BY_SPORT: dict = {
     "basketball_nba":             0.0,   # paper-only (via _PAPER_ONLY_SPORTS — never reaches live path)
     "basketball_ncaab":           0.0,   # paper-only (via _PAPER_ONLY_SPORTS — never reaches live path)
     "icehockey_nhl":              3.0,   # proven edge, conservative cap
-    "baseball_mlb":               2.0,   # post-in-game-bug-fix clean run
+    "baseball_mlb":               0.0,   # PAPER-ONLY: efficiency model uses stale 2024 ERA, no 2025 pitcher data (S169)
     "soccer_epl":                 2.0,   # early stage
     "soccer_uefa_champs_league":  2.0,   # early stage
     "soccer_germany_bundesliga":  2.0,   # early stage
