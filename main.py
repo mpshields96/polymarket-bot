@@ -3227,11 +3227,12 @@ async def sports_inplay_sniper_loop(
 
                     if is_paper_mode:
                         from src.risk.sizing import calculate_size
+                        _payout = (100 - signal.price_cents) / signal.price_cents if signal.price_cents > 0 else 1.0
                         _size_result = calculate_size(
                             edge_pct=signal.edge_pct,
                             win_prob=signal.win_prob,
-                            current_bankroll_usd=current_bankroll,
-                            payout_per_dollar=None,
+                            bankroll_usd=current_bankroll,
+                            payout_per_dollar=_payout,
                             min_edge_pct=0.01,
                         )
                         _trade_usd = min(
