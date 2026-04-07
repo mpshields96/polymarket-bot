@@ -451,3 +451,155 @@ class TestSharpScoreWithInjuries:
         score_base = sharp_score_for_bet(0.08, efficiency_gap=12.0)
         score_with = sharp_score_for_bet(0.08, efficiency_gap=12.0, injury_reports=[r])
         assert score_with > score_base
+
+
+# ---------------------------------------------------------------------------
+# PDO + NHL goalie signal tests (Chat 40)
+# ---------------------------------------------------------------------------
+
+from src.strategies.sports_math import (
+    get_pdo_signal,
+    pdo_situational_pts,
+    pdo_kill_switch_from_snapshot,
+    nhl_kill_switch_signal,
+    _resolve_nba_team,
+    PDO_REGRESS_THRESHOLD,
+    PDO_RECOVER_THRESHOLD,
+    _PDO_SNAPSHOT,
+)
+
+
+class TestResolvNbaTeam:
+    def test_exact_full_name(self):
+        assert _resolve_nba_team("Oklahoma City Thunder") == "Oklahoma City Thunder"
+
+    def test_alias_thunder(self):
+        assert _resolve_nba_team("Thunder") == "Oklahoma City Thunder"
+
+    def test_alias_okc(self):
+        assert _resolve_nba_team("OKC") == "Oklahoma City Thunder"
+
+    def test_alias_cavs(self):
+        assert _resolve_nba_team("Cavs") == "Cleveland Cavaliers"
+
+    def test_unknown_returns_none(self):
+        assert _resolve_nba_team("Unknown Team FC") is None
+
+    def test_empty_returns_none(self):
+        assert _resolve_nba_team("") is None
+
+    def test_all_30_teams_in_snapshot(self):
+        assert len(_PDO_SNAPSHOT) == 30
+
+
+class TestGetPdoSignal:
+    def test_regress_team(self):
+        assert get_pdo_signal("Oklahoma City Thunder") == "REGRESS"
+
+    def test_recover_team(self):
+        assert get_pdo_signal("Washington Wizards") == "RECOVER"
+
+    def test_neutral_team(self):
+        assert get_pdo_signal("Miami Heat") == "NEUTRAL"
+
+    def test_unknown_is_neutral(self):
+        assert get_pdo_signal("Unknown Team FC") == "NEUTRAL"
+
+    def test_alias_works(self):
+        assert get_pdo_signal("Thunder") == "REGRESS"
+
+    def test_all_regress_above_threshold(self):
+        for name, pdo in _PDO_SNAPSHOT.items():
+            if pdo >= PDO_REGRESS_THRESHOLD:
+                assert get_pdo_signal(name) == "REGRESS", f"{name} PDO={pdo}"
+
+    def test_all_recover_below_threshold(self):
+        for name, pdo in _PDO_SNAPSHOT.items():
+            if pdo <= PDO_RECOVER_THRESHOLD:
+                assert get_pdo_signal(name) == "RECOVER", f"{name} PDO={pdo}"
+
+
+class TestPdoSituationalPts:
+    def test_max_mismatch_regress_vs_recover(self):
+        # OKC (REGRESS) vs Wizards (RECOVER)
+        assert pdo_situational_pts("Oklahoma City Thunder", "Washington Wizards") == 10.0
+
+    def test_max_mismatch_recover_vs_regress(self):
+        # Reverse order still 10 pts
+        assert pdo_situational_pts("Washington Wizards", "Oklahoma City Thunder") == 10.0
+
+    def test_signal_vs_neutral(self):
+        # OKC (REGRESS) vs Heat (NEUTRAL)
+        assert pdo_situational_pts("Oklahoma City Thunder", "Miami Heat") == 5.0
+
+    def test_neutral_vs_signal(self):
+        assert pdo_situational_pts("Miami Heat", "Washington Wizards") == 5.0
+
+    def test_both_neutral(self):
+        assert pdo_situational_pts("Miami Heat", "Atlanta Hawks") == 0.0
+
+    def test_both_regress_cancels(self):
+        # OKC + Celtics both REGRESS -> 0
+        assert pdo_situational_pts("Oklahoma City Thunder", "Boston Celtics") == 0.0
+
+
+class TestPdoKillSwitchFromSnapshot:
+    def test_regress_with_kills(self):
+        killed, reason = pdo_kill_switch_from_snapshot("Oklahoma City Thunder", "with")
+        assert killed is True
+        assert "KILL" in reason
+        assert "regress" in reason.lower()
+
+    def test_regress_against_flags(self):
+        killed, reason = pdo_kill_switch_from_snapshot("Oklahoma City Thunder", "against")
+        assert killed is False
+        assert "FLAG" in reason
+
+    def test_recover_against_kills(self):
+        killed, reason = pdo_kill_switch_from_snapshot("Washington Wizards", "against")
+        assert killed is True
+        assert "KILL" in reason
+
+    def test_recover_with_flags(self):
+        killed, reason = pdo_kill_switch_from_snapshot("Washington Wizards", "with")
+        assert killed is False
+        assert "FLAG" in reason
+
+    def test_neutral_no_action(self):
+        killed, reason = pdo_kill_switch_from_snapshot("Miami Heat", "with")
+        assert killed is False
+        assert reason == ""
+
+    def test_unknown_team_no_action(self):
+        killed, reason = pdo_kill_switch_from_snapshot("Unknown FC", "with")
+        assert killed is False
+        assert reason == ""
+
+
+class TestNhlKillSwitchSignal:
+    def test_home_backup_kills(self):
+        result = nhl_kill_switch_signal(home_goalie_starter=False, away_goalie_starter=True)
+        assert result["skip"] is True
+        assert "KILL" in result["reason"]
+
+    def test_away_backup_kills(self):
+        result = nhl_kill_switch_signal(home_goalie_starter=True, away_goalie_starter=False)
+        assert result["skip"] is True
+        assert "KILL" in result["reason"]
+
+    def test_both_starters_passes(self):
+        result = nhl_kill_switch_signal(home_goalie_starter=True, away_goalie_starter=True)
+        assert result["skip"] is False
+        assert result["reason"] == ""
+
+    def test_unconfirmed_flags_not_kills(self):
+        result = nhl_kill_switch_signal(
+            home_goalie_starter=True, away_goalie_starter=True,
+            home_goalie_confirmed=False
+        )
+        assert result["skip"] is False
+        assert "FLAG" in result["reason"]
+
+    def test_both_backups_kills(self):
+        result = nhl_kill_switch_signal(home_goalie_starter=False, away_goalie_starter=False)
+        assert result["skip"] is True

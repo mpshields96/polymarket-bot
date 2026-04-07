@@ -589,3 +589,263 @@ def situational_score_from_injuries(injury_reports: Optional[list]) -> float:
         if isinstance(r, InjuryReport) and r.signed_impact > 0:
             total += r.signed_impact
     return round(min(15.0, total), 1)
+
+
+# ---------------------------------------------------------------------------
+# NBA PDO regression signal (Chat 40)
+# Ported from agentic-rd-sandbox/core/nba_pdo.py — static snapshot only.
+# nba_api live-fetch dependency is NOT ported. Static dict updated each season.
+# ---------------------------------------------------------------------------
+
+PDO_BASELINE: float = 100.0
+PDO_REGRESS_THRESHOLD: float = 102.0   # overperforming luck -> expect regression
+PDO_RECOVER_THRESHOLD: float = 98.0    # underperforming luck -> expect recovery
+PDO_MIN_GAMES: int = 10                # sample size guard
+
+# Static PDO snapshot -- 2024-25 NBA season (mid-season estimates).
+# PDO = (team FG% + opponent save%) * 100. League average = 100.0 by identity.
+# Values >102 -> regression expected; <98 -> recovery expected.
+# UPDATE at season start (October) when full-season data available.
+_PDO_SNAPSHOT: dict = {
+    # Regression candidates (PDO > 102)
+    "Oklahoma City Thunder":    103.5,
+    "Cleveland Cavaliers":      102.8,
+    "Boston Celtics":           102.4,
+    "New York Knicks":          102.2,
+    # Neutral zone (PDO 98-102)
+    "Denver Nuggets":           101.5,
+    "Minnesota Timberwolves":   101.2,
+    "Memphis Grizzlies":        101.0,
+    "Golden State Warriors":    100.8,
+    "Milwaukee Bucks":          100.7,
+    "Houston Rockets":          100.6,
+    "Los Angeles Lakers":       100.4,
+    "Indiana Pacers":           100.3,
+    "Los Angeles Clippers":     100.1,
+    "Miami Heat":               100.0,
+    "Atlanta Hawks":             99.8,
+    "Dallas Mavericks":          99.7,
+    "Sacramento Kings":          99.6,
+    "Phoenix Suns":              99.5,
+    "New Orleans Pelicans":      99.4,
+    "Orlando Magic":             99.2,
+    "Toronto Raptors":           99.0,
+    "Brooklyn Nets":             98.8,
+    "Chicago Bulls":             98.5,
+    "Detroit Pistons":           98.3,
+    # Recovery candidates (PDO < 98)
+    "Portland Trail Blazers":    97.8,
+    "San Antonio Spurs":         97.5,
+    "Philadelphia 76ers":        97.2,
+    "Utah Jazz":                 97.0,
+    "Charlotte Hornets":         96.8,
+    "Washington Wizards":        96.5,
+}
+
+# Team name aliases -- avoids alias collisions with soccer (Spurs/Wolves namespaced here)
+_PDO_TEAM_ALIASES: dict = {
+    "thunder": "Oklahoma City Thunder",
+    "cavaliers": "Cleveland Cavaliers",
+    "cavs": "Cleveland Cavaliers",
+    "celtics": "Boston Celtics",
+    "knicks": "New York Knicks",
+    "nuggets": "Denver Nuggets",
+    "timberwolves": "Minnesota Timberwolves",
+    "wolves": "Minnesota Timberwolves",
+    "grizzlies": "Memphis Grizzlies",
+    "warriors": "Golden State Warriors",
+    "bucks": "Milwaukee Bucks",
+    "rockets": "Houston Rockets",
+    "lakers": "Los Angeles Lakers",
+    "pacers": "Indiana Pacers",
+    "clippers": "Los Angeles Clippers",
+    "heat": "Miami Heat",
+    "hawks": "Atlanta Hawks",
+    "mavericks": "Dallas Mavericks",
+    "mavs": "Dallas Mavericks",
+    "kings": "Sacramento Kings",
+    "suns": "Phoenix Suns",
+    "pelicans": "New Orleans Pelicans",
+    "magic": "Orlando Magic",
+    "raptors": "Toronto Raptors",
+    "nets": "Brooklyn Nets",
+    "bulls": "Chicago Bulls",
+    "pistons": "Detroit Pistons",
+    "blazers": "Portland Trail Blazers",
+    "nba_spurs": "San Antonio Spurs",
+    "spurs": "San Antonio Spurs",
+    "76ers": "Philadelphia 76ers",
+    "sixers": "Philadelphia 76ers",
+    "jazz": "Utah Jazz",
+    "hornets": "Charlotte Hornets",
+    "wizards": "Washington Wizards",
+    "okc": "Oklahoma City Thunder",
+}
+
+
+def _resolve_nba_team(name: str) -> Optional[str]:
+    """
+    Resolve a team name string to the canonical key in _PDO_SNAPSHOT.
+
+    Returns None for unknown teams (caller treats as NEUTRAL).
+
+    >>> _resolve_nba_team("Oklahoma City Thunder")
+    'Oklahoma City Thunder'
+    >>> _resolve_nba_team("Thunder")
+    'Oklahoma City Thunder'
+    >>> _resolve_nba_team("OKC")
+    'Oklahoma City Thunder'
+    >>> _resolve_nba_team("Unknown Team FC") is None
+    True
+    """
+    if not name:
+        return None
+    if name in _PDO_SNAPSHOT:
+        return name
+    lower = name.strip().lower()
+    if lower in _PDO_TEAM_ALIASES:
+        return _PDO_TEAM_ALIASES[lower]
+    last = lower.split()[-1] if lower else ""
+    if last in _PDO_TEAM_ALIASES:
+        return _PDO_TEAM_ALIASES[last]
+    return None
+
+
+def get_pdo_signal(team: str) -> str:
+    """
+    Return PDO signal for an NBA team: "REGRESS", "RECOVER", or "NEUTRAL".
+
+    Unknown teams return "NEUTRAL" (fail-safe).
+
+    >>> get_pdo_signal("Oklahoma City Thunder")
+    'REGRESS'
+    >>> get_pdo_signal("Washington Wizards")
+    'RECOVER'
+    >>> get_pdo_signal("Miami Heat")
+    'NEUTRAL'
+    >>> get_pdo_signal("Unknown Team FC")
+    'NEUTRAL'
+    """
+    canonical = _resolve_nba_team(team)
+    if canonical is None:
+        return "NEUTRAL"
+    pdo = _PDO_SNAPSHOT[canonical]
+    if pdo >= PDO_REGRESS_THRESHOLD:
+        return "REGRESS"
+    if pdo <= PDO_RECOVER_THRESHOLD:
+        return "RECOVER"
+    return "NEUTRAL"
+
+
+def pdo_situational_pts(home_team: str, away_team: str) -> float:
+    """
+    Compute PDO-based SITUATIONAL bonus pts (0-10) for a matchup.
+
+    Signal strength:
+      REGRESS vs RECOVER (max mismatch) -> 10 pts
+      One signal + NEUTRAL             ->  5 pts
+      Both NEUTRAL or same signal      ->  0 pts
+
+    >>> pdo_situational_pts("Oklahoma City Thunder", "Washington Wizards")
+    10.0
+    >>> pdo_situational_pts("Miami Heat", "Atlanta Hawks")
+    0.0
+    >>> pdo_situational_pts("Oklahoma City Thunder", "Miami Heat")
+    5.0
+    >>> pdo_situational_pts("Oklahoma City Thunder", "Cleveland Cavaliers")
+    0.0
+    """
+    home_sig = get_pdo_signal(home_team)
+    away_sig = get_pdo_signal(away_team)
+    signals = {home_sig, away_sig}
+    if "REGRESS" in signals and "RECOVER" in signals:
+        return 10.0
+    if home_sig != "NEUTRAL" and away_sig == "NEUTRAL":
+        return 5.0
+    if away_sig != "NEUTRAL" and home_sig == "NEUTRAL":
+        return 5.0
+    return 0.0
+
+
+def pdo_kill_switch_from_snapshot(
+    team: str,
+    bet_direction: str,
+) -> tuple:
+    """
+    PDO kill switch using static snapshot (no live API call).
+
+    Args:
+        team:          Canonical team name (or alias).
+        bet_direction: "with" (backing this team) or "against" (fading them).
+
+    Returns:
+        (True,  "KILL: reason") -- remove from pipeline
+        (False, "FLAG: reason") -- annotate but keep
+        (False, "")             -- no PDO signal
+
+    >>> pdo_kill_switch_from_snapshot("Oklahoma City Thunder", "with")
+    (True, 'KILL: PDO regress -- Oklahoma City Thunder overperforming luck (PDO 103.5)')
+    >>> pdo_kill_switch_from_snapshot("Washington Wizards", "with")
+    (False, 'FLAG: PDO recovery candidate -- Washington Wizards underperforming luck (PDO 96.5)')
+    >>> pdo_kill_switch_from_snapshot("Miami Heat", "with")
+    (False, '')
+    """
+    canonical = _resolve_nba_team(team)
+    if canonical is None:
+        return (False, "")
+    pdo = _PDO_SNAPSHOT[canonical]
+    signal = get_pdo_signal(canonical)
+    if signal == "NEUTRAL":
+        return (False, "")
+    direction = bet_direction.lower().strip()
+    if signal == "REGRESS":
+        if direction == "with":
+            return (True, f"KILL: PDO regress -- {canonical} overperforming luck (PDO {pdo})")
+        return (False, f"FLAG: PDO regress opponent -- {canonical} due for regression (PDO {pdo})")
+    # signal == "RECOVER"
+    if direction == "against":
+        return (True, f"KILL: PDO recovery -- fading {canonical} but they're due positive regression (PDO {pdo})")
+    return (False, f"FLAG: PDO recovery candidate -- {canonical} underperforming luck (PDO {pdo})")
+
+
+# ---------------------------------------------------------------------------
+# NHL goalie kill switch signal (Chat 40)
+# Wraps existing nhl_kill_switch() for both-team context.
+# ---------------------------------------------------------------------------
+
+def nhl_kill_switch_signal(
+    home_goalie_starter: bool,
+    away_goalie_starter: bool,
+    home_goalie_confirmed: bool = True,
+    away_goalie_confirmed: bool = True,
+) -> dict:
+    """
+    NHL kill switch given starter status for BOTH teams.
+
+    Returns dict with keys: skip (bool), reason (str).
+
+    Kill: either team has a confirmed backup -> skip immediately.
+    Flag: either team's goalie unconfirmed -> advisory only, don't skip.
+    Pass: both starters confirmed -> no action.
+
+    >>> nhl_kill_switch_signal(False, True)
+    {'skip': True, 'reason': 'KILL: Backup goalie confirmed -- skip NHL bet'}
+    >>> nhl_kill_switch_signal(True, False)
+    {'skip': True, 'reason': 'KILL: Backup goalie confirmed -- skip NHL bet'}
+    >>> nhl_kill_switch_signal(True, True)
+    {'skip': False, 'reason': ''}
+    >>> nhl_kill_switch_signal(True, True, home_goalie_confirmed=False)
+    {'skip': False, 'reason': 'FLAG: Goalie not yet confirmed -- require 8%+ edge'}
+    """
+    home_backup = not home_goalie_starter
+    away_backup = not away_goalie_starter
+
+    if home_backup or away_backup:
+        kill, reason = nhl_kill_switch(backup_goalie=True)
+        return {"skip": kill, "reason": reason}
+
+    if not home_goalie_confirmed or not away_goalie_confirmed:
+        _, reason = nhl_kill_switch(backup_goalie=False, goalie_confirmed=False)
+        return {"skip": False, "reason": reason}
+
+    return {"skip": False, "reason": ""}
