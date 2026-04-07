@@ -20,6 +20,8 @@ ps aux | grep "[m]ain.py"
 
 If --health shows any blocker preventing live bets: FIX IT BEFORE TOUCHING DOCS.
 If visibility gate fails: document the same-day skipped series and treat it as an open overhaul blocker.
+If the gate reports stale/corrupt/missing cache, rebuild deliberately with:
+  ./venv/bin/python3 scripts/kalshi_visibility_report.py --refresh-live --edge-mode cached --strict-same-day-sports
 
 ═══════════════════════════════════════════════════
 STEP 2 — OBJECTIVE SELF-RATING (be brutally honest)

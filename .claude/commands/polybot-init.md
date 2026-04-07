@@ -31,6 +31,8 @@ SESSION STARTUP SELF-REFLECTION (MANDATORY):
 MARKET VISIBILITY GATE (MANDATORY BEFORE STRATEGY PLANNING):
   ./venv/bin/python3 scripts/kalshi_visibility_report.py --edge-mode cached --strict-same-day-sports
   If this exits non-zero, review same-day visible vs skipped series before planning any sports work.
+  Default path is cache-only and startup-safe. If cache is stale/corrupt/missing, rebuild intentionally:
+  ./venv/bin/python3 scripts/kalshi_visibility_report.py --refresh-live --edge-mode cached --strict-same-day-sports
 
 ═══════════════════════════════════════════════════
 STEP 3 — ANNOUNCE STATE (2-3 lines max)

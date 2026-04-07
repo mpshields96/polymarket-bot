@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -37,11 +38,47 @@ def test_get_visibility_gate_reads_cached_report(tmp_path) -> None:
     )
 
     with patch.object(mod, "VISIBILITY_REPORT_JSON", report_path):
-        gate = mod.get_visibility_gate()
+        gate = mod.get_visibility_gate(
+            now=datetime(2026, 4, 6, 15, 30, tzinfo=timezone.utc)
+        )
 
     assert gate["status"] == "FAIL"
     assert gate["reason"] == "1 same-day sports market is open in skipped series: KXUFCFIGHT"
     assert gate["timestamp_display"] == "2026-04-06 15:00 UTC"
+
+
+def test_get_visibility_gate_rejects_corrupt_cached_report(tmp_path) -> None:
+    mod = _get_module()
+    report_path = tmp_path / "kalshi_visibility_report.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "timestamp": "2026-04-07T03:09:23.159456+00:00",
+                "exchange": {"open_markets": 466879, "open_events": 10000, "open_series": 1},
+                "coverage": {
+                    "open_series_count": 1,
+                    "uncovered_open_series_top": [
+                        {"series": "UNKNOWN", "total_volume": 987657234}
+                    ],
+                },
+                "sports": {
+                    "same_day_gate": {
+                        "ok": True,
+                        "status": "PASS",
+                        "reason": "No same-day sports markets are open.",
+                    }
+                },
+            }
+        )
+    )
+
+    with patch.object(mod, "VISIBILITY_REPORT_JSON", report_path):
+        gate = mod.get_visibility_gate(
+            now=datetime(2026, 4, 7, 3, 30, tzinfo=timezone.utc)
+        )
+
+    assert gate["status"] == "UNKNOWN"
+    assert "corrupt" in gate["reason"].lower()
 
 
 def test_generate_main_chat_prompt_includes_visibility_gate_summary() -> None:

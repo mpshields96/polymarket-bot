@@ -7,7 +7,7 @@ import argparse
 import asyncio
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -24,6 +24,7 @@ from scripts.kalshi_series_scout import COVERED_SERIES, select_candidates
 from src.platforms.kalshi import load_from_env as kalshi_load_from_env
 
 REPORT_TZ = ZoneInfo("America/Chicago")
+CACHE_MAX_AGE_MINUTES = 180
 SERIES_ALIASES = {
     "KXNCAAMBGAME": "KXNCAABGAME",
     "KXBUNGAME": "KXBUNDESLIGAGAME",
@@ -50,6 +51,117 @@ def _parse_market_close_time(market: dict) -> datetime | None:
         return datetime.fromisoformat(close_time.replace("Z", "+00:00"))
     except ValueError:
         return None
+
+
+def _parse_report_timestamp(raw_timestamp: str | None) -> datetime | None:
+    if not raw_timestamp:
+        return None
+    try:
+        return datetime.fromisoformat(raw_timestamp.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _validate_cached_report(report: dict) -> str | None:
+    sports = report.get("sports", {})
+    if not isinstance(sports.get("same_day_gate"), dict):
+        return "Cached visibility report missing same_day_gate."
+
+    exchange = report.get("exchange", {})
+    coverage = report.get("coverage", {})
+    open_markets = int(exchange.get("open_markets", 0) or 0)
+    open_series = int(coverage.get("open_series_count", exchange.get("open_series", 0)) or 0)
+    uncovered = coverage.get("uncovered_open_series_top") or []
+
+    if (
+        open_markets >= 1000
+        and open_series == 1
+        and uncovered
+        and (uncovered[0].get("series") or "").upper() == "UNKNOWN"
+    ):
+        return (
+            "Cached visibility report appears corrupt "
+            "(single UNKNOWN series dominates the exchange snapshot). "
+            "Rebuild with --refresh-live before relying on it."
+        )
+
+    return None
+
+
+def load_cached_visibility_report(
+    path: Path,
+    max_age_minutes: int = CACHE_MAX_AGE_MINUTES,
+    now: datetime | None = None,
+) -> tuple[dict | None, str | None]:
+    """Load a cached report if it is fresh and structurally usable."""
+    if not path.exists():
+        return None, (
+            "No cached visibility report. "
+            "Run scripts/kalshi_visibility_report.py --refresh-live before strategy planning."
+        )
+
+    try:
+        report = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return None, f"Cached visibility report unreadable: {exc}"
+
+    now = now or datetime.now(timezone.utc)
+    report_ts = _parse_report_timestamp(report.get("timestamp"))
+    if report_ts is None:
+        return None, "Cached visibility report missing a usable timestamp."
+
+    age = now - report_ts.astimezone(timezone.utc)
+    if age > timedelta(minutes=max_age_minutes) or (
+        report_ts.astimezone(REPORT_TZ).date() != now.astimezone(REPORT_TZ).date()
+    ):
+        return None, (
+            "Cached visibility report is stale "
+            f"({int(age.total_seconds() // 60)} minutes old). "
+            "Run scripts/kalshi_visibility_report.py --refresh-live before strategy planning."
+        )
+
+    validation_error = _validate_cached_report(report)
+    if validation_error:
+        return None, validation_error
+
+    return report, None
+
+
+def build_unavailable_visibility_report(reason: str, now: datetime | None = None) -> dict:
+    """Build a fail-closed report when no trustworthy cached snapshot exists."""
+    now = now or datetime.now(timezone.utc)
+    return {
+        "timestamp": now.isoformat(),
+        "exchange": {
+            "open_markets": 0,
+            "open_events": 0,
+            "open_series": 0,
+        },
+        "coverage": {
+            "open_series_count": 0,
+            "covered_open_series_count": 0,
+            "covered_open_series": [],
+            "uncovered_open_series_count": 0,
+            "uncovered_open_series_top": [],
+            "live_bot_visible_series_count": 0,
+            "live_bot_visible_series": [],
+        },
+        "sports": {
+            "same_day_market_count": 0,
+            "days_out_market_count": 0,
+            "same_day_visible_market_count": 0,
+            "same_day_skipped_market_count": 0,
+            "same_day_visible_series": [],
+            "same_day_skipped_series": [],
+            "edge_scan": _edge_scan_summary(None),
+            "same_day_gate": {
+                "ok": False,
+                "status": "UNKNOWN",
+                "reason": reason,
+            },
+        },
+        "non_sports_candidates": [],
+    }
 
 
 def _canonical_series_rows(series_breakdown: list[dict]) -> list[dict]:
@@ -366,22 +478,42 @@ def main() -> None:
     )
     parser.add_argument("--min-edge", type=float, default=0.02, help="Minimum edge threshold for live edge scan")
     parser.add_argument(
+        "--refresh-live",
+        action="store_true",
+        help="Explicitly rebuild the report from live Kalshi API data. Default path is cache-only and startup-safe.",
+    )
+    parser.add_argument(
+        "--cache-max-age-minutes",
+        type=int,
+        default=CACHE_MAX_AGE_MINUTES,
+        help="Maximum age for cached visibility data before startup treats it as stale.",
+    )
+    parser.add_argument(
         "--strict-same-day-sports",
         action="store_true",
         help="Exit non-zero if same-day sports markets are open in series the bot cannot currently see",
     )
     args = parser.parse_args()
 
-    report = asyncio.run(
-        generate_visibility_report(
-            min_volume=args.min_volume,
-            edge_mode=args.edge_mode,
-            min_edge=args.min_edge,
+    json_path = Path(args.json_output)
+    if args.refresh_live:
+        report = asyncio.run(
+            generate_visibility_report(
+                min_volume=args.min_volume,
+                edge_mode=args.edge_mode,
+                min_edge=args.min_edge,
+            )
         )
-    )
+    else:
+        report, cache_reason = load_cached_visibility_report(
+            json_path,
+            max_age_minutes=args.cache_max_age_minutes,
+        )
+        if report is None:
+            report = build_unavailable_visibility_report(cache_reason or "Visibility cache unavailable.")
+
     markdown = format_visibility_report(report)
 
-    json_path = Path(args.json_output)
     json_path.parent.mkdir(parents=True, exist_ok=True)
     with open(json_path, "w") as handle:
         json.dump(report, handle, indent=2, default=str)

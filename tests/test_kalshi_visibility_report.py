@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,6 +14,7 @@ from scripts.kalshi_visibility_report import (
     canonicalize_series_ticker,
     evaluate_same_day_sports_gate,
     format_visibility_report,
+    load_cached_visibility_report,
 )
 
 
@@ -215,3 +217,68 @@ def test_evaluate_same_day_sports_gate_passes_when_all_same_day_sports_are_visib
     assert gate["ok"] is True
     assert gate["status"] == "PASS"
     assert "All 4 same-day sports markets" in gate["reason"]
+
+
+def test_load_cached_visibility_report_rejects_stale_cache(tmp_path) -> None:
+    report_path = tmp_path / "kalshi_visibility_report.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "timestamp": "2026-04-06T12:00:00+00:00",
+                "exchange": {"open_markets": 7, "open_events": 8, "open_series": 5},
+                "coverage": {"open_series_count": 5, "uncovered_open_series_top": []},
+                "sports": {
+                    "same_day_gate": {
+                        "ok": True,
+                        "status": "PASS",
+                        "reason": "All same-day sports markets belong to visible series.",
+                    }
+                },
+                "non_sports_candidates": [],
+            }
+        )
+    )
+
+    report, reason = load_cached_visibility_report(
+        report_path,
+        max_age_minutes=180,
+        now=datetime(2026, 4, 6, 16, 0, tzinfo=timezone.utc),
+    )
+
+    assert report is None
+    assert "stale" in reason.lower()
+
+
+def test_load_cached_visibility_report_rejects_corrupt_unknown_series_snapshot(tmp_path) -> None:
+    report_path = tmp_path / "kalshi_visibility_report.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "timestamp": "2026-04-07T03:09:23.159456+00:00",
+                "exchange": {"open_markets": 466879, "open_events": 10000, "open_series": 1},
+                "coverage": {
+                    "open_series_count": 1,
+                    "uncovered_open_series_top": [
+                        {"series": "UNKNOWN", "total_volume": 987657234}
+                    ],
+                },
+                "sports": {
+                    "same_day_gate": {
+                        "ok": True,
+                        "status": "PASS",
+                        "reason": "No same-day sports markets are open.",
+                    }
+                },
+                "non_sports_candidates": [],
+            }
+        )
+    )
+
+    report, reason = load_cached_visibility_report(
+        report_path,
+        max_age_minutes=180,
+        now=datetime(2026, 4, 7, 3, 30, tzinfo=timezone.utc),
+    )
+
+    assert report is None
+    assert "corrupt" in reason.lower()

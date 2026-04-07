@@ -28,8 +28,9 @@ import sqlite3
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = PROJECT_DIR / "data" / "polybot.db"
@@ -40,6 +41,8 @@ POLYBOT_AUTO = Path.home() / ".claude" / "commands" / "polybot-auto.md"
 CHANGELOG = PROJECT_DIR / ".planning" / "CHANGELOG.md"
 CCA_JOURNAL = Path.home() / "Projects" / "ClaudeCodeAdvancements" / "self-learning" / "journal.py"
 VISIBILITY_REPORT_JSON = PROJECT_DIR / "data" / "kalshi_visibility_report.json"
+VISIBILITY_REPORT_MAX_AGE_MINUTES = 180
+REPORT_TZ = ZoneInfo("America/Chicago")
 
 # ── Data Collection ──────────────────────────────────────────────────────────
 
@@ -201,12 +204,40 @@ def _format_visibility_timestamp(raw_timestamp: str | None) -> str:
     return dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
 
-def get_visibility_gate() -> dict:
+def _cached_visibility_report_invalid_reason(report: dict) -> str | None:
+    exchange = report.get("exchange", {})
+    coverage = report.get("coverage", {})
+    open_markets = int(exchange.get("open_markets", 0) or 0)
+    open_series = int(coverage.get("open_series_count", exchange.get("open_series", 0)) or 0)
+    uncovered = coverage.get("uncovered_open_series_top") or []
+
+    if (
+        open_markets >= 1000
+        and open_series == 1
+        and uncovered
+        and (uncovered[0].get("series") or "").upper() == "UNKNOWN"
+    ):
+        return (
+            "Cached visibility report appears corrupt "
+            "(single UNKNOWN series dominates the exchange snapshot). "
+            "Rebuild with scripts/kalshi_visibility_report.py --refresh-live."
+        )
+
+    return None
+
+
+def get_visibility_gate(
+    now: datetime | None = None,
+    max_age_minutes: int = VISIBILITY_REPORT_MAX_AGE_MINUTES,
+) -> dict:
     """Read the latest cached visibility report gate result."""
     if not VISIBILITY_REPORT_JSON.exists():
         return {
             "status": "UNKNOWN",
-            "reason": "No cached visibility report. Run scripts/kalshi_visibility_report.py before strategy planning.",
+            "reason": (
+                "No cached visibility report. "
+                "Run scripts/kalshi_visibility_report.py --refresh-live before strategy planning."
+            ),
             "timestamp_display": "missing",
         }
 
@@ -219,19 +250,54 @@ def get_visibility_gate() -> dict:
             "timestamp_display": "unreadable",
         }
 
+    now = now or datetime.now(timezone.utc)
+    timestamp_display = _format_visibility_timestamp(report.get("timestamp"))
+    try:
+        report_ts = datetime.fromisoformat(report.get("timestamp", "").replace("Z", "+00:00"))
+    except ValueError:
+        report_ts = None
+
+    if report_ts is None:
+        return {
+            "status": "UNKNOWN",
+            "reason": "Cached visibility report missing a usable timestamp. Rerun the visibility report.",
+            "timestamp_display": timestamp_display,
+        }
+
+    age = now - report_ts.astimezone(timezone.utc)
+    if age > timedelta(minutes=max_age_minutes) or (
+        report_ts.astimezone(REPORT_TZ).date() != now.astimezone(REPORT_TZ).date()
+    ):
+        return {
+            "status": "UNKNOWN",
+            "reason": (
+                f"Cached visibility report is stale ({int(age.total_seconds() // 60)} minutes old). "
+                "Rebuild with scripts/kalshi_visibility_report.py --refresh-live."
+            ),
+            "timestamp_display": timestamp_display,
+        }
+
+    invalid_reason = _cached_visibility_report_invalid_reason(report)
+    if invalid_reason:
+        return {
+            "status": "UNKNOWN",
+            "reason": invalid_reason,
+            "timestamp_display": timestamp_display,
+        }
+
     sports = report.get("sports", {})
     gate = sports.get("same_day_gate", {})
     if not gate:
         return {
             "status": "UNKNOWN",
             "reason": "Cached visibility report missing same_day_gate. Rerun the visibility report.",
-            "timestamp_display": _format_visibility_timestamp(report.get("timestamp")),
+            "timestamp_display": timestamp_display,
         }
 
     return {
         "status": gate.get("status", "UNKNOWN"),
         "reason": gate.get("reason", "No gate reason recorded."),
-        "timestamp_display": _format_visibility_timestamp(report.get("timestamp")),
+        "timestamp_display": timestamp_display,
     }
 
 

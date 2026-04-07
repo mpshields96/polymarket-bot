@@ -14297,19 +14297,42 @@ id,placed_at,settled_at,ticker,strategy,side,action,price_cents,count,cost_usd,e
 14315,2026-04-06 21:34:12,2026-04-06 23:46:25,KXBTCD-26APR0618-T69799.99,daily_sniper_v1,no,buy,92,10,9.200000000000001,0.0037,0.91,live,no,0.7,True,100,0.1,0.8,0.7,3d33aaaf-fa7a-46df-9727-3efbce344b26,39c38151-5ac8-4b83-a56b-2ef52327e1bb
 14316,2026-04-06 23:46:49,,KXMLBGAME-26APR091340DETMIN-DET,sports_game_mlb_v1,yes,buy,54,5,2.7,0.0658,0.6008,live,,,,,,,,83ee9f79-937b-4c65-bb39-035efc169252,ca8a3e42-f66e-40a0-a76b-a097abec9826
 14317,2026-04-06 23:46:52,,KXMLBGAME-26APR081545PHISF-PHI,sports_game_mlb_v1,yes,buy,53,5,2.6500000000000004,0.055700000000000034,0.5814,live,,,,,,,,34fee60d-5444-4b02-bf8a-d9ba5250be4c,820ef73d-9200-475c-9a54-5794ddc67bb7
-14318,2026-04-06 23:46:55,,KXMLBGAME-26APR061940DETMIN-MIN,sports_game_mlb_v1,no,buy,43,6,2.58,0.13089999999999996,0.6008,live,,,,,,,,5bc820a2-12cb-46c5-9e16-f9116960d858,95249691-d99b-44ba-a60a-60f360279698
-14319,2026-04-06 23:46:55,,KXMLBGAME-26APR061845STLWSH-STL,sports_game_mlb_v1,yes,buy,25,12,3.0,0.19860000000000003,0.4918,live,,,,,,,,08b868d6-dfb3-487e-8ae1-5c24b44013ba,a07379c1-4e44-4e65-9f66-2d712310f8d6
-14320,2026-04-06 23:46:55,,KXMLBGAME-26APR061840SDPIT-PIT,sports_game_mlb_v1,yes,buy,46,6,2.7600000000000002,0.09019999999999997,0.5787,live,,,,,,,,b052dce4-fe80-4956-b5ab-9fadfc7fd234,501a800d-0ff6-4009-9c55-e41bba0319e1
-14321,2026-04-06 23:46:56,,KXMLBGAME-26APR061845MILBOS-MIL,sports_game_mlb_v1,yes,buy,20,15,3.0,0.1683,0.4243,live,,,,,,,,910e51a1-4f03-4f81-af6f-0efa91752e5b,1bbe0c59-d79f-43b7-8dbd-de0950c3b0dc
-14322,2026-04-06 23:46:56,,KXMLBGAME-26APR061840CINMIA-MIA,sports_game_mlb_v1,yes,buy,37,8,2.96,0.13689999999999997,0.5417,live,,,,,,,,a185b95e-9d01-459d-b964-af45d7436344,b42d7e6a-265e-4350-b235-c073b103230a
-14323,2026-04-06 23:46:57,,KXMLBGAME-26APR061810KCCLE-CLE,sports_game_mlb_v1,yes,buy,37,8,2.96,0.09629999999999997,0.5104,live,,,,,,,,84315b07-fc26-4a53-a6e9-659b97a1df6e,fc4b5182-7439-4857-9b9b-1de4f7653918
+14318,2026-04-06 23:46:55,2026-04-07 02:48:08,KXMLBGAME-26APR061940DETMIN-MIN,sports_game_mlb_v1,no,buy,43,6,2.58,0.13089999999999996,0.6008,live,yes,-2.58,False,0,0.0,-2.58,-2.58,5bc820a2-12cb-46c5-9e16-f9116960d858,95249691-d99b-44ba-a60a-60f360279698
+14319,2026-04-06 23:46:55,2026-04-07 02:36:27,KXMLBGAME-26APR061845STLWSH-STL,sports_game_mlb_v1,yes,buy,25,12,3.0,0.19860000000000003,0.4918,live,no,-3.0,False,0,0.0,-3.0,-3.0,08b868d6-dfb3-487e-8ae1-5c24b44013ba,a07379c1-4e44-4e65-9f66-2d712310f8d6
+14320,2026-04-06 23:46:55,2026-04-07 02:36:30,KXMLBGAME-26APR061840SDPIT-PIT,sports_game_mlb_v1,yes,buy,46,6,2.7600000000000002,0.09019999999999997,0.5787,live,no,-2.76,False,0,0.0,-2.76,-2.76,b052dce4-fe80-4956-b5ab-9fadfc7fd234,501a800d-0ff6-4009-9c55-e41bba0319e1
+14321,2026-04-06 23:46:56,2026-04-07 02:36:24,KXMLBGAME-26APR061845MILBOS-MIL,sports_game_mlb_v1,yes,buy,20,15,3.0,0.1683,0.4243,live,yes,11.7,True,100,0.3,12.0,11.7,910e51a1-4f03-4f81-af6f-0efa91752e5b,1bbe0c59-d79f-43b7-8dbd-de0950c3b0dc
+14322,2026-04-06 23:46:56,2026-04-07 02:36:29,KXMLBGAME-26APR061840CINMIA-MIA,sports_game_mlb_v1,yes,buy,37,8,2.96,0.13689999999999997,0.5417,live,no,-2.96,False,0,0.0,-2.96,-2.96,a185b95e-9d01-459d-b964-af45d7436344,b42d7e6a-265e-4350-b235-c073b103230a
+14323,2026-04-06 23:46:57,2026-04-07 02:36:23,KXMLBGAME-26APR061810KCCLE-CLE,sports_game_mlb_v1,yes,buy,37,8,2.96,0.09629999999999997,0.5104,live,no,-2.96,False,0,0.0,-2.96,-2.96,84315b07-fc26-4a53-a6e9-659b97a1df6e,fc4b5182-7439-4857-9b9b-1de4f7653918
 14324,2026-04-06 23:46:58,,tec-mlb-nlchamp-2026-09-27-atl,sports_futures_v1,no,buy,95,5,4.75,,,paper,,,,,,,,907fd2bf-7d17-4d59-97e3-1dab1a22e8c1,
 14325,2026-04-06 23:46:58,,tec-mlb-nlchamp-2026-09-27-phi,sports_futures_v1,no,buy,96,5,4.8,,,paper,,,,,,,,5bc22e70-752c-4b40-a035-d98590fa53ea,
 14326,2026-04-06 23:46:58,,tec-mlb-champ-2026-09-27-bos,sports_futures_v1,yes,buy,7,71,4.970000000000001,,,paper,,,,,,,,27f4a86e-7942-4c55-b021-6c7d17576174,
 14327,2026-04-06 23:46:58,,tec-mlb-alchamp-2026-09-27-bos,sports_futures_v1,yes,buy,11,45,4.95,,,paper,,,,,,,,9449ec28-62da-4f87-8d53-3b99c70d5564,
 14328,2026-04-06 23:46:58,,tec-mlb-alchamp-2026-09-27-hou,sports_futures_v1,no,buy,95,5,4.75,,,paper,,,,,,,,3b760c4c-0d71-47e5-a052-bb0987ca6bda,
 14329,2026-04-06 23:53:20,2026-04-07 00:03:57,KXBTCD-26APR0620-T68799.99,daily_sniper_v1,yes,buy,92,10,9.200000000000001,0.0043,0.92,live,yes,0.7,True,100,0.1,0.8,0.7,9af0f454-c78e-44fa-b779-b4feb93b57cb,a011e51d-72b6-41dd-9bba-270f1682cdd1
-14330,2026-04-07 00:01:25,,KXBTCD-26APR0621-T68499.99,daily_sniper_v1,yes,buy,93,10,9.3,0.0037,0.91,live,,,,,,,,33ae2df5-7ea7-4b79-913b-79eca3c53459,c32eb96a-a9df-41de-8e06-6f0b84f1bf0d
-14331,2026-04-07 00:01:27,,KXBTCD-26APR0621-T65799.99,daily_sniper_v1,yes,buy,92,10,9.200000000000001,0.0048,0.93,live,,,,,,,,64f42848-2e80-4f91-bece-ea977fd24c9f,fecb03e2-fb95-4602-8131-fb1e7724d474
-14332,2026-04-07 00:03:50,,KXETHD-26APR0621-T2039.99,eth_daily_sniper_v1,yes,buy,91,10,9.1,0.0043,0.92,live,,,,,,,,9eaf6aeb-9bb9-43fb-9b13-938e0c7d565c,d7f97c5b-21e2-4ed3-bb08-9f9eb1f3e55f
-14333,2026-04-07 00:07:29,,KXBTCD-26APR0621-T68599.99,daily_sniper_v1,yes,buy,90,11,9.9,0.0037,0.91,live,,,,,,,,6b639c41-1f22-4047-a376-97da144aecea,452f3e40-926a-4330-8fe6-10f238119cf3
+14330,2026-04-07 00:01:25,2026-04-07 02:36:24,KXBTCD-26APR0621-T68499.99,daily_sniper_v1,yes,buy,93,10,9.3,0.0037,0.91,live,yes,0.6,True,100,0.1,0.7,0.6,33ae2df5-7ea7-4b79-913b-79eca3c53459,c32eb96a-a9df-41de-8e06-6f0b84f1bf0d
+14331,2026-04-07 00:01:27,2026-04-07 02:36:22,KXBTCD-26APR0621-T65799.99,daily_sniper_v1,yes,buy,92,10,9.200000000000001,0.0048,0.93,live,yes,0.7,True,100,0.1,0.8,0.7,64f42848-2e80-4f91-bece-ea977fd24c9f,fecb03e2-fb95-4602-8131-fb1e7724d474
+14332,2026-04-07 00:03:50,2026-04-07 02:36:18,KXETHD-26APR0621-T2039.99,eth_daily_sniper_v1,yes,buy,91,10,9.1,0.0043,0.92,live,yes,0.8,True,100,0.1,0.9,0.8,9eaf6aeb-9bb9-43fb-9b13-938e0c7d565c,d7f97c5b-21e2-4ed3-bb08-9f9eb1f3e55f
+14333,2026-04-07 00:07:29,2026-04-07 02:36:24,KXBTCD-26APR0621-T68599.99,daily_sniper_v1,yes,buy,90,11,9.9,0.0037,0.91,live,yes,0.99,True,100,0.11,1.1,0.99,6b639c41-1f22-4047-a376-97da144aecea,452f3e40-926a-4330-8fe6-10f238119cf3
+14334,2026-04-07 02:36:06,,KXHIGHDEN-26APR07-B72.5,weather_den_v1,no,buy,91,19,17.29,,,paper,,,,,,,,fa8f045d-98f2-42ff-a9a9-ee9f1c9180db,
+14335,2026-04-07 02:36:48,,KXMLBGAME-26APR081235SDPIT-PIT,sports_game_mlb_v1,yes,buy,52,3,1.56,0.053399999999999954,0.5791,live,,,,,,,,60f11a13-505d-473e-a070-cccad68e8d77,a05a5bb9-fb03-4380-be2d-9d0ed1a0c657
+14336,2026-04-07 02:36:49,,KXMLBGAME-26APR081507LADTOR-LAD,sports_game_mlb_v1,no,buy,30,6,1.7999999999999998,0.06619999999999997,0.4152,live,,,,,,,,6151504f-ab49-4ab9-b26d-7253a6d76a49,d34e6689-dea5-433c-a9ef-027a774ef9a3
+14337,2026-04-07 02:36:57,,tec-mlb-nlchamp-2026-09-27-atl,sports_futures_v1,no,buy,95,5,4.75,,,paper,,,,,,,,e0faa413-3ddf-451e-b89d-5f1168ce9a5e,
+14338,2026-04-07 02:36:57,,tec-mlb-champ-2026-09-27-atl,sports_futures_v1,no,buy,97,5,4.85,,,paper,,,,,,,,d70cb32e-ce93-4667-bdd0-285f3e54d021,
+14339,2026-04-07 02:36:57,,tec-mlb-nlchamp-2026-09-27-phi,sports_futures_v1,no,buy,96,5,4.8,,,paper,,,,,,,,0d08f96f-addc-4816-b7db-5484be3a86b6,
+14340,2026-04-07 02:36:57,,tec-mlb-champ-2026-09-27-cle,sports_futures_v1,yes,buy,4,125,5.0,,,paper,,,,,,,,a8113f36-4d58-44d4-8c3b-6f9cdcdaafff,
+14341,2026-04-07 02:36:57,,tec-mlb-alchamp-2026-09-27-bos,sports_futures_v1,yes,buy,11,45,4.95,,,paper,,,,,,,,2286c98d-76ba-42b7-a677-41322f902019,
+14342,2026-04-07 02:36:57,,tec-mlb-alchamp-2026-09-27-hou,sports_futures_v1,no,buy,95,5,4.75,,,paper,,,,,,,,9b09461d-ff8e-4678-b21e-897070404284,
+14343,2026-04-07 02:42:07,,tec-mlb-nlchamp-2026-09-27-atl,sports_futures_v1,no,buy,95,5,4.75,,,paper,,,,,,,,ca1393d6-b5b9-4fbb-968c-85f45d585ae7,
+14344,2026-04-07 02:42:07,,tec-mlb-champ-2026-09-27-atl,sports_futures_v1,no,buy,97,5,4.85,,,paper,,,,,,,,3df830fe-67e8-4fa3-97ad-514dd5e1992f,
+14345,2026-04-07 02:42:07,,tec-mlb-nlchamp-2026-09-27-phi,sports_futures_v1,no,buy,96,5,4.8,,,paper,,,,,,,,cc4bcae3-5df4-4b80-b80f-0fdff059cae4,
+14346,2026-04-07 02:42:07,,tec-mlb-champ-2026-09-27-bos,sports_futures_v1,yes,buy,7,71,4.970000000000001,,,paper,,,,,,,,77f03094-0629-4a72-94b7-1e3436c5574e,
+14347,2026-04-07 02:42:07,,tec-mlb-alchamp-2026-09-27-hou,sports_futures_v1,no,buy,95,5,4.75,,,paper,,,,,,,,707dc7ae-1ec1-47c5-8612-cd10ba7d52d8,
+14348,2026-04-07 02:46:23,,tec-mlb-nlchamp-2026-09-27-phi,sports_futures_v1,no,buy,96,5,4.8,,,paper,,,,,,,,24d4d4be-b962-4a02-9e98-0742a7d8d765,
+14349,2026-04-07 02:46:23,,tec-mlb-champ-2026-09-27-cle,sports_futures_v1,yes,buy,4,125,5.0,,,paper,,,,,,,,b2712169-8d0e-4a71-a454-3baf89f09347,
+14350,2026-04-07 02:46:23,,tec-mlb-alchamp-2026-09-27-bos,sports_futures_v1,yes,buy,11,45,4.95,,,paper,,,,,,,,3d693022-cba0-4bae-8a84-33a24453df30,
+14351,2026-04-07 02:46:23,,tec-mlb-alchamp-2026-09-27-hou,sports_futures_v1,no,buy,95,5,4.75,,,paper,,,,,,,,7e15695a-1fb6-4b82-8cc6-b6c85691275a,
+14352,2026-04-07 03:05:01,,tec-mlb-champ-2026-09-27-atl,sports_futures_v1,no,buy,97,5,4.85,,,paper,,,,,,,,76a67f33-c624-4da0-9edb-54ebee4e57b9,
+14353,2026-04-07 03:05:01,,tec-mlb-nlchamp-2026-09-27-phi,sports_futures_v1,no,buy,96,5,4.8,,,paper,,,,,,,,d1b3612c-310c-45d6-8e7d-c60ec539513b,
+14354,2026-04-07 03:05:01,,tec-mlb-champ-2026-09-27-bos,sports_futures_v1,yes,buy,7,71,4.970000000000001,,,paper,,,,,,,,a1443b29-5622-494e-b706-c3ae52fc5994,
+14355,2026-04-07 03:05:02,,tec-mlb-alchamp-2026-09-27-bos,sports_futures_v1,yes,buy,11,45,4.95,,,paper,,,,,,,,6b02d6ca-48c3-4b43-8fbf-c7019d338592,
+14356,2026-04-07 03:05:02,,tec-mlb-alchamp-2026-09-27-hou,sports_futures_v1,no,buy,95,5,4.75,,,paper,,,,,,,,513ca327-8b8b-4137-a1dc-a7e2cf7ecc47,
