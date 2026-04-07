@@ -43,7 +43,8 @@ The sports_game_loop _SPORT_SERIES dict (main.py ~line 2123):
   "soccer_france_ligue_one"  -> KXLIGUE1GAME
 
 For each sport: get_markets(series_ticker=X, status="open") + match vs Odds API.
-72h horizon window, 15-80c price range, min 5% edge, min 3 books.
+Current live loop already has a 24h horizon window, earlier-game sorting, in-game skip,
+15-80c price range, min 5% edge, min 3 books.
 
 ### THE PROBLEM:
 - Kalshi has 9,490 series and 30,000+ open markets
@@ -139,13 +140,16 @@ The sports_game_loop should call this instead of its hardcoded dict:
 - [x] Raise sports_game_loop max_daily_bets from 8 to 30 in main.py
 - [ ] Restart bot after cap change
 - [ ] Verify sports_game fires more bets tonight
-- [ ] Fix market visibility first: same-day sports seen correctly, games >24h skipped, no betting days-out boards
+- [ ] Fix market visibility first: produce one report showing all open Kalshi markets,
+      covered-vs-uncovered series, same-day sports seen correctly, and same-day vs days-out counts
 - [ ] Port efficiency_feed.py Phase 2 from agentic-rd-sandbox
 - [ ] Calibrate MLB/NHL/NBA as separate lanes with separate caps and scorecards
 - [ ] Economics sniper live decision for April 10 CPI (paper→live)
 
 ### CCA (urgent research):
 - [ ] Build ranked "all Kalshi markets we can currently see vs cannot see" visibility audit
+- [ ] Use existing scanners first: audit_all_kalshi_markets.py, kalshi_series_scout.py, edge_scanner.py
+      then unify them instead of inventing a second redundant discovery path
 - [ ] Build full Odds API sport key -> Kalshi series prefix mapping
       (What Kalshi series exist for NFL, tennis, golf, MMA, MLS, college, baseball?)
 - [ ] Research sports in this order: MLB first, NHL second, NBA third

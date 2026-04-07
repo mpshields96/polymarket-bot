@@ -10,11 +10,11 @@
    - All 15-min crypto (KXBTC15M/KXETH15M/KXSOL15M/KXXRP15M): PERMANENTLY BANNED
 
 3. **TODAY'S PRIORITY (in order):**
-   - Fix BUG 1: in-game betting guard (one line, high priority)
+   - Build one market-visibility report: all open Kalshi markets, covered vs uncovered series, same-day vs days-out sports
+   - Use existing scanners first: audit_all_kalshi_markets.py, kalshi_series_scout.py, edge_scanner.py
    - REQ-082A: pull NBA 2 bet tickers, identify cause of loss
    - Wire sports_math.py (at src/strategies/sports_math.py) into sports_game_loop
-   - REQ-082E: BTC sub-bucket analysis by hour/price/day-of-week
-   - Restart bot only after all fixes verified
+   - Restart bot only after visibility audit + remaining fixes are verified
 
 4. **CAPS (non-negotiable):**
    - BTC sniper: $5/bet, max 10 bets/day (near-term, until 500 live bets confirm 99% WR)
@@ -30,4 +30,8 @@
      - NBA third
      - non-sports market scout in parallel
 
-6. **MANDATORY FIRST STEP:** Read KALSHI_INIT_CHECKLIST.md — all 5 steps — before any code.
+6. **VISIBILITY REALITY CHECK:**
+   - Do not waste time re-fixing the already-landed 24h horizon / date-sort / in-game guards.
+   - The blocker is unified visibility reporting, not another speculative guardrail pass.
+
+7. **MANDATORY FIRST STEP:** Read KALSHI_INIT_CHECKLIST.md — all 5 steps — before any code.
