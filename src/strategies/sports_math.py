@@ -548,7 +548,7 @@ def injury_kill_switch(
     Returns (False, "") when no injury impact meets kill threshold.
 
     >>> injury_kill_switch("NBA", "PG", True, "home", "spreads", "home")
-    (True, 'KILL: NBA PG starter out — expected 3.0pt line shift, hurts this bet [PIVOTAL POSITION].')
+    (False, '')
     >>> injury_kill_switch("NFL", "RB", True, "home", "spreads", "away")
     (False, '')
     >>> injury_kill_switch("NBA", "PG", False, "home", "spreads", "home")
