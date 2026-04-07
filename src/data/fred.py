@@ -143,7 +143,7 @@ class FREDFeed:
     def __init__(self, refresh_interval_seconds: float = _DEFAULT_REFRESH_INTERVAL_SEC):
         self._refresh_interval = refresh_interval_seconds
         self._snapshot: Optional[FREDSnapshot] = None
-        self._last_fetch_ts: float = 0.0
+        self._last_fetch_ts: float = float("-inf")  # always stale before first fetch
 
     @property
     def is_stale(self) -> bool:

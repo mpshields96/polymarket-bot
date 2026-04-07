@@ -38,6 +38,7 @@ from src.strategies.sports_math import (
     passes_collar_soccer,
     sharp_score_for_bet,
     SHARP_SCORE_MIN,
+    pdo_kill_switch_from_snapshot,
 )
 from src.strategies.efficiency_feed import get_efficiency_gap
 
@@ -476,6 +477,25 @@ class SportsGameStrategy(BaseStrategy):
         # Used in sharp score filter (SHARP_SCORE_MIN=35) and logged in signal reason.
         eff_gap = get_efficiency_gap(home_team=game.home_team, away_team=game.away_team)
 
+        # PDO kill switch — NBA only (static snapshot, no API call needed).
+        # Kills bets on teams overperforming luck (REGRESS signal + betting "with" them)
+        # or fading teams underperforming luck (RECOVER signal + betting "against" them).
+        _pdo_yes_kill = False
+        _pdo_no_kill = False
+        if "basketball_nba" in self.sport:
+            _kill, _reason = pdo_kill_switch_from_snapshot(yes_odds_name, "with")
+            if _kill:
+                logger.info("[sports_game] %s PDO KILL (YES): %s", market.ticker, _reason)
+                _pdo_yes_kill = True
+            elif _reason:
+                logger.debug("[sports_game] %s PDO FLAG (YES): %s", market.ticker, _reason)
+            _kill, _reason = pdo_kill_switch_from_snapshot(yes_odds_name, "against")
+            if _kill:
+                logger.info("[sports_game] %s PDO KILL (NO): %s", market.ticker, _reason)
+                _pdo_no_kill = True
+            elif _reason:
+                logger.debug("[sports_game] %s PDO FLAG (NO): %s", market.ticker, _reason)
+
         # Determine consensus prob for the YES side
         if yes_odds_name == game.home_team:
             consensus_prob = game.home_prob
@@ -506,7 +526,7 @@ class SportsGameStrategy(BaseStrategy):
         fee_no = self._KALSHI_FEE_PCT * kalshi_yes
         net_edge_no = edge_no - fee_no
 
-        logger.debug(
+        logger.info(
             "[sports_game] %s match=%s @ %s | yes_team=%s | YES=%d¢ vs fair=%.1f%% | NO=%d¢ vs fair=%.1f%% | edge_yes=%.1f%% edge_no=%.1f%% books=%d eff_gap=%.1f",
             market.ticker, game.away_team, game.home_team, yes_odds_name,
             int(kalshi_yes * 100), consensus_prob * 100,
@@ -515,10 +535,12 @@ class SportsGameStrategy(BaseStrategy):
         )
 
         if net_edge_yes >= self.min_edge_pct:
+            if _pdo_yes_kill:
+                return None
             grade = assign_grade(net_edge_yes)
             sharp = sharp_score_for_bet(edge_pct=net_edge_yes, efficiency_gap=eff_gap)
             if sharp < SHARP_SCORE_MIN:
-                logger.debug(
+                logger.info(
                     "[sports_game] %s YES sharp=%.1f below %.0f — skip",
                     market.ticker, sharp, SHARP_SCORE_MIN,
                 )
@@ -538,6 +560,8 @@ class SportsGameStrategy(BaseStrategy):
             )
 
         if net_edge_no >= self.min_edge_pct:
+            if _pdo_no_kill:
+                return None
             grade = assign_grade(net_edge_no)
             sharp = sharp_score_for_bet(edge_pct=net_edge_no, efficiency_gap=eff_gap)
             if sharp < SHARP_SCORE_MIN:

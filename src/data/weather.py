@@ -92,7 +92,7 @@ class WeatherFeed:
 
         self._forecast_temp_f: Optional[float] = None
         self._forecast_date: Optional[str] = None   # "YYYY-MM-DD"
-        self._last_fetch_ts: float = 0.0
+        self._last_fetch_ts: float = float("-inf")  # always stale before first fetch
 
     # ── Public interface ──────────────────────────────────────────────
 
@@ -191,7 +191,7 @@ class NWSFeed:
         self._forecast_url: Optional[str] = None  # resolved after first call
         self._forecast_temp_f: Optional[float] = None
         self._forecast_date: Optional[str] = None
-        self._last_fetch_ts: float = 0.0
+        self._last_fetch_ts: float = float("-inf")  # always stale before first fetch
 
     @property
     def is_stale(self) -> bool:
@@ -299,7 +299,7 @@ class EnsembleWeatherFeed:
         self.city_name = city_name
         self._forecast_temp_f: Optional[float] = None
         self._forecast_std_f: float = forecast_std_f
-        self._last_fetch_ts: float = 0.0
+        self._last_fetch_ts: float = float("-inf")  # always stale before first fetch
 
     @property
     def is_stale(self) -> bool:
@@ -399,7 +399,7 @@ class GEFSEnsembleFeed:
 
         self._member_temps: list[float] = []
         self._forecast_date: Optional[str] = None
-        self._last_fetch_ts: float = 0.0
+        self._last_fetch_ts: float = float("-inf")  # always stale before first fetch
 
     @property
     def is_stale(self) -> bool:
