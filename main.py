@@ -2087,7 +2087,7 @@ async def sports_game_loop(
     db,
     kill_switch,
     initial_delay_sec: float = 90.0,
-    max_daily_bets: int = 8,
+    max_daily_bets: int = 30,   # S268: raised from 8 (10 strategies × ~3/day; 8 was blocking entire day after first scan)
     live_executor_enabled: bool = False,
     live_confirmed: bool = False,
     trade_lock: Optional[asyncio.Lock] = None,
@@ -4667,7 +4667,7 @@ async def main():
             db=db,
             kill_switch=kill_switch,
             initial_delay_sec=90.0,
-            max_daily_bets=8,
+            max_daily_bets=30,  # S268: raised from 8
             live_executor_enabled=live_mode,
             live_confirmed=live_confirmed,
             trade_lock=_live_trade_lock,
