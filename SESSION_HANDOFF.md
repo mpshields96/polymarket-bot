@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-04-02 (S252 CCA init — bot status confirmed, CCA Phase 6 complete)
+# Last updated: 2026-04-07 03:55 UTC (S168 wrap)
 # ═══════════════════════════════════════════════════════════════
 
 ## ⚠️ READ FIRST: .planning/MATTHEW_DIRECTIVES.md — VERBATIM MANDATE DIRECTIVES (S150, 2026-03-27)
@@ -42,36 +42,29 @@
 ## OVERHAUL STATUS: INCOMPLETE — blocked by visibility gate runtime path still unproven (live probe crawled huge pagination and produced no cache yet), stale startup/handoff priorities, and open mandatory overhaul tasks below.
 ## Do not count restart pressure, new strategy ideas, or side research as progress until those blockers are closed.
 
-## BOT STATE (S167 wrap — 2026-04-07 21:25 UTC)
-  Bot: STOPPED (Matthew directive — overhaul mode, all Phase 1+4 bugs now fixed)
-  All-time live P&L: +129.91 USD | Today CST April 6: -1.81 USD (16 settled, 87.5% WR)
-  Tests: 2163 passing, 3 skipped, 1 collection error (test_kalshi_visibility_report.py). Last commit: 5abe5de
+## BOT STATE (S168 wrap — 2026-04-07 03:55 UTC)
+  Bot: RUNNING PID 303 → /tmp/polybot_session168.log
+  All-time live P&L: +130.44 USD | Today CST April 7: -1.28 USD (26 settled, 19 wins = 73% WR)
+  Tests: 2308 passing, 3 skipped. Last commit: eae5456
 
-  S167 COMPLETED:
-  ✅ PHASE 1 — ALL 5 BUGS FIXED (commit ddfdd4f)
-  ✅ PHASE 4 — STRUCTURAL IMPROVEMENTS (commit 2a63099)
-  ✅ sports_inplay_sniper.py built, 36 tests, wired into main.py (commits 817f4bf, 5abe5de)
-  ✅ efficiency_feed.py delivered by CCA (commit b014194) — not yet wired into sports_math.py
-  ⬜ efficiency_feed → sports_math.py wiring (3-line addition — CCA Chat 48 spec)
-  ⬜ test_kalshi_visibility_report.py: missing scripts/kalshi_visibility_report.py
-  ⬜ Codex BUG-FLAG (OPEN): sports_game.py yes_sub_title team validation
-  ⬜ sharp_score_for_bet gap: CCA Chat 45 references function not in sports_math.py
-  ⬜ kalshi_series_scout.py (CCA Chat 48) — run to find new market opportunities
-  ⬜ UFC check: get_markets(series_ticker="KXUFCFIGHT") — if vol >50K extend sport map
-  ⬜ Economics CPI April 10: confirm KXCPI open April 8
-  ⬜ RESTART BOT → session168.log (Phase 1 bugs fixed — bot is now safe to restart)
+  S168 COMPLETED:
+  ✅ Fixed calculate_size() kwargs in sports_inplay_sniper_loop (current_bankroll_usd→bankroll_usd, payout_per_dollar=None→computed real payout). Bug was throwing TypeError every signal cycle.
+  ✅ Fixed docstring in injury_kill_switch() — NBA PG example showed wrong result (True→False)
+  ✅ VERIFIED DONE (stale from S167): efficiency_feed already wired into sports_game.py (commit da8f134)
+  ✅ VERIFIED DONE (stale from S167): test_kalshi_visibility_report.py collection error already fixed
+  ✅ VERIFIED DONE (stale from S167): yes_sub_title BUG-FLAG already addressed with tests
 
-  PENDING TASKS (priority order — Session 168):
-  1. RESTART BOT — all Phase 1 bugs fixed. Use restart command below → session168.log
-  2. Wire efficiency_feed into sports_math.py (3-line addition per CCA REQ-083C delivery)
-  3. Fix test_kalshi_visibility_report.py: either create the script or delete the test
-  4. Investigate Codex BUG-FLAG: sports_game.py yes_sub_title team validation
-  5. Run kalshi_series_scout.py (CCA Chat 48 mandate)
-  6. CPI April 10: confirm KXCPI open April 8, run cpi_release_monitor.py
-  7. Check REQ-082 CCA response (NBA investigation, ETH ceiling fix recommendation)
+  ⚠️ BOT NEEDS RESTART to pick up main.py fix (inplay sniper TypeError still firing on old process)
 
-  RESTART COMMAND (Session 168 — ALL PHASE 1 BUGS NOW FIXED — SAFE TO RESTART):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session168.log 2>&1 &
+  PENDING TASKS (priority order — Session 169):
+  1. RESTART BOT → session169.log (to pick up calculate_size fix — inplay sniper is erroring every cycle)
+  2. Run kalshi_series_scout.py (CCA Chat 48 mandate) — blocked by DNS in sandbox, run at production
+  3. CPI April 10: confirm KXCPI open April 8, run cpi_release_monitor.py April 10 08:28 ET
+  4. Phase 9 wrap template (CCA Chat 52) — check if CCA has delivered this
+  5. eth_daily_sniper: was disabled in S167 (BUG-C). Check if it should be re-enabled after restart.
+
+  RESTART COMMAND (Session 169 — fix is committed, restart picks it up):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session169.log 2>&1 &
 
   ⚠️ APRIL 13 NEW DEADLINE (S162 — Matthew directive):
   "Figure out and succeed by April 13. Bet sports or ANY market. CCA + Codex help."

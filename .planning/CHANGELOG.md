@@ -1,5 +1,35 @@
 # POLYMARKET-BOT CHANGELOG
 
+## S168 — 2026-04-07 ~03:55 UTC (inplay sniper calculate_size fix + stale task verification)
+
+### P&L: -1.28 USD today CST (26 settled, 19 wins = 73% WR) | All-time: +130.44 USD
+Bot: RUNNING PID 303 → session168.log (NEEDS RESTART — fix not live yet)
+Tests: 2308 passing, 3 skipped. Last commit: eae5456
+
+### BUG FIX: sports_inplay_sniper_loop calculate_size() kwargs (commit eae5456)
+- calculate_size() called with `current_bankroll_usd=` instead of `bankroll_usd=` → TypeError every signal
+- payout_per_dollar=None → computed real payout: (100 - price_cents) / price_cents
+- Found by checking log during wrap: 3 consecutive TypeError warnings visible
+- Fix requires bot restart to take effect
+
+### BUG FIX: injury_kill_switch() docstring (commit 48161dd, prior session)
+- NBA PG example in docstring showed `(True, 'KILL...')` but correct result is `(False, '')` (3.0 < 3.5 threshold)
+- Implementation was already correct — only the example was wrong
+- All 73 sports_math tests already passing before the fix
+
+### VERIFIED DONE (stale HANDOFF items — no code change needed):
+- efficiency_feed already wired into sports_game.py (commit da8f134 from S166)
+- test_kalshi_visibility_report.py collection error already fixed (script exists at line 91)
+- yes_sub_title BUG-FLAG already addressed with tests at lines 220-236
+
+### Strategy Analyzer Insights:
+- Sniper profitable: 90-94c buckets | Guarded: 95-98c (historical losses blocked)
+- btc_drift NEUTRAL: 80 bets, 50% WR, -9.53 USD | direction_filter="no" active
+- eth_drift UNDERPERFORMING: 46% WR, declining trend | DISABLED
+- sol_drift HEALTHY: 47 bets, 66% WR | still accumulating
+
+### GOAL: April 13 deadline — sustain 15-25 USD/day + 1 new market type live
+
 ## S167 — 2026-04-07 ~21:25 UTC (Phase 1+4 overhaul execution — all 5 bugs fixed)
 
 ### P&L: -1.81 USD today CST April 6 (16 settled, 14/16 wins = 87.5% WR)
