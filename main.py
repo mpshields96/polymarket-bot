@@ -2122,6 +2122,7 @@ async def sports_game_loop(
 
     _SPORT_SERIES = {
         "basketball_nba": "KXNBAGAME",
+        "basketball_ncaab": "KXNCAABGAME",
         "icehockey_nhl": "KXNHLGAME",
         "baseball_mlb": "KXMLBGAME",
         "soccer_epl": "KXEPLGAME",
@@ -2133,6 +2134,7 @@ async def sports_game_loop(
     }
     _SPORT_LABELS = {
         "basketball_nba": "NBA",
+        "basketball_ncaab": "NCAAB",
         "icehockey_nhl": "NHL",
         "baseball_mlb": "MLB",
         "soccer_epl": "EPL",
@@ -2155,6 +2157,10 @@ async def sports_game_loop(
         "basketball_nba": SportsGameStrategy(
             name="sports_game_nba_v1", sport="basketball_nba",
             min_edge_pct=0.05, min_minutes_remaining=15.0, min_books=3, min_volume=100,
+        ),
+        "basketball_ncaab": SportsGameStrategy(
+            name="sports_game_ncaab_v1", sport="basketball_ncaab",
+            min_edge_pct=0.08, min_minutes_remaining=15.0, min_books=3, min_volume=100,
         ),
         "icehockey_nhl": SportsGameStrategy(
             name="sports_game_nhl_v1", sport="icehockey_nhl",
@@ -2203,7 +2209,7 @@ async def sports_game_loop(
     is_paper_mode = not (live_executor_enabled and live_confirmed)
     _mode_label = "paper" if is_paper_mode else "LIVE"
     logger.info(
-        "[sports_game] Started — %s NBA/NHL/MLB + 6 soccer leagues pre-game arb (min_edge=5%%, prices=%d-%dc)",
+        "[sports_game] Started — %s NBA/NCAAB/NHL/MLB + 6 soccer leagues pre-game arb (min_edge=5%%, prices=%d-%dc)",
         _mode_label, _PRICE_MIN, _PRICE_MAX,
     )
 
@@ -2277,6 +2283,7 @@ async def sports_game_loop(
                 return future
 
             nba_games = _future_games(await feed.get_nba_games())
+            ncaab_games = _future_games(await feed.get_ncaab_games())
             nhl_games = _future_games(await feed.get_nhl_games())
             mlb_games = _future_games(await feed.get_mlb_games())
             epl_games = _future_games(await feed.get_epl_games())
@@ -2287,6 +2294,7 @@ async def sports_game_loop(
             ligue1_games = _future_games(await feed.get_ligue1_games())
             odds_by_sport = {
                 "basketball_nba": nba_games,
+                "basketball_ncaab": ncaab_games,
                 "icehockey_nhl": nhl_games,
                 "baseball_mlb": mlb_games,
                 "soccer_epl": epl_games,
@@ -2298,8 +2306,8 @@ async def sports_game_loop(
             }
 
             logger.info(
-                "[sports_game] Scan: NBA=%d NHL=%d MLB=%d EPL=%d UCL=%d BUN=%d SER=%d LAL=%d L1=%d | quota: %s",
-                len(nba_games), len(nhl_games), len(mlb_games), len(epl_games), len(ucl_games),
+                "[sports_game] Scan: NBA=%d NCAAB=%d NHL=%d MLB=%d EPL=%d UCL=%d BUN=%d SER=%d LAL=%d L1=%d | quota: %s",
+                len(nba_games), len(ncaab_games), len(nhl_games), len(mlb_games), len(epl_games), len(ucl_games),
                 len(bundesliga_games), len(serie_a_games), len(la_liga_games), len(ligue1_games),
                 feed.quota_status(),
             )
