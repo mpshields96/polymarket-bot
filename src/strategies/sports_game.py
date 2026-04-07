@@ -36,6 +36,8 @@ from src.strategies.sports_math import (
     american_odds_from_prob,
     passes_collar,
     passes_collar_soccer,
+    sharp_score_for_bet,
+    SHARP_SCORE_MIN,
 )
 from src.strategies.efficiency_feed import get_efficiency_gap
 
@@ -471,7 +473,7 @@ class SportsGameStrategy(BaseStrategy):
 
         # Efficiency gap (0-20 scale): home advantage signal from team ratings.
         # Gap > 10 = home team stronger; Gap < 10 = away team stronger; 10 = even.
-        # Surfaced in signal reason for logging/calibration. Does not filter bets.
+        # Used in sharp score filter (SHARP_SCORE_MIN=35) and logged in signal reason.
         eff_gap = get_efficiency_gap(home_team=game.home_team, away_team=game.away_team)
 
         # Determine consensus prob for the YES side
@@ -514,6 +516,13 @@ class SportsGameStrategy(BaseStrategy):
 
         if net_edge_yes >= self.min_edge_pct:
             grade = assign_grade(net_edge_yes)
+            sharp = sharp_score_for_bet(edge_pct=net_edge_yes, efficiency_gap=eff_gap)
+            if sharp < SHARP_SCORE_MIN:
+                logger.debug(
+                    "[sports_game] %s YES sharp=%.1f below %.0f — skip",
+                    market.ticker, sharp, SHARP_SCORE_MIN,
+                )
+                return None
             return Signal(
                 ticker=market.ticker,
                 side="yes",
@@ -524,12 +533,19 @@ class SportsGameStrategy(BaseStrategy):
                 reason=(
                     f"[{grade}] {yes_odds_name} YES consensus={consensus_prob:.0%} "
                     f"vs Kalshi YES={kalshi_yes:.0%} ({game.num_books} books) "
-                    f"eff_gap={eff_gap:.1f}"
+                    f"eff_gap={eff_gap:.1f} sharp={sharp:.0f}"
                 ),
             )
 
         if net_edge_no >= self.min_edge_pct:
             grade = assign_grade(net_edge_no)
+            sharp = sharp_score_for_bet(edge_pct=net_edge_no, efficiency_gap=eff_gap)
+            if sharp < SHARP_SCORE_MIN:
+                logger.debug(
+                    "[sports_game] %s NO sharp=%.1f below %.0f — skip",
+                    market.ticker, sharp, SHARP_SCORE_MIN,
+                )
+                return None
             return Signal(
                 ticker=market.ticker,
                 side="no",
@@ -541,7 +557,7 @@ class SportsGameStrategy(BaseStrategy):
                     f"[{grade}] {yes_odds_name} YES overpriced: consensus={consensus_prob:.0%} "
                     f"vs Kalshi YES={kalshi_yes:.0%}; "
                     f"NO fair={consensus_no:.0%} vs Kalshi NO={kalshi_no:.0%} "
-                    f"({game.num_books} books) eff_gap={eff_gap:.1f}"
+                    f"({game.num_books} books) eff_gap={eff_gap:.1f} sharp={sharp:.0f}"
                 ),
             )
 

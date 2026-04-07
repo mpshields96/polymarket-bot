@@ -44,6 +44,8 @@ KELLY_FRACTION: float = 0.25    # Full Kelly fraction
 KELLY_FRACTION_B: float = 0.12  # Grade B Kelly fraction
 KELLY_FRACTION_C: float = 0.05  # Grade C Kelly fraction
 
+SHARP_SCORE_MIN: float = 35.0   # Minimum sharp score to place any bet (Chat 45)
+
 
 # ---------------------------------------------------------------------------
 # Implied probability
@@ -182,6 +184,42 @@ def assign_grade(edge_pct: float) -> str:
         return "C"
     else:
         return "NEAR_MISS"
+
+
+def sharp_score_for_bet(
+    edge_pct: float,
+    efficiency_gap: float = 8.0,
+    rlm_confirmed: bool = False,
+) -> float:
+    """
+    Compute Sharp Score (0-100) for a single bet candidate.
+
+    Simplified wrapper used in the bot's signal path — no RLM detection yet,
+    so rlm_confirmed defaults to False (RLM worth 25 pts when available).
+
+    Components (from calculate_sharp_score):
+        EDGE (40 pts):        (edge% / 10%) × 40, capped at 40
+        RLM  (25 pts):        0 (disabled — not detected in current stack)
+        EFFICIENCY (20 pts):  caller-provided 0-20 scaled gap
+        SITUATIONAL (15 pts): 0 (rest/injury not yet wired)
+
+    Without RLM, maximum is 60 pts (edge=40 + efficiency=20).
+    Threshold: SHARP_SCORE_MIN=35 — bets below this are skipped.
+
+    At min_edge_pct=5%: edge_pts=20. Need efficiency_gap≥15 to pass 35.
+    At 8% edge: edge_pts=32. Passes 35 with eff_gap≥3.
+
+    >>> round(sharp_score_for_bet(0.08, efficiency_gap=12.0), 1)
+    44.0
+    >>> round(sharp_score_for_bet(0.06, efficiency_gap=10.0), 1)
+    34.0
+    >>> round(sharp_score_for_bet(0.05, efficiency_gap=15.0), 1)
+    35.0
+    """
+    edge_pts = min(40.0, (edge_pct / 0.10) * 40)
+    rlm_pts = 25.0 if rlm_confirmed else 0.0
+    eff_pts = max(0.0, min(20.0, efficiency_gap))
+    return round(edge_pts + rlm_pts + eff_pts, 1)
 
 
 # ---------------------------------------------------------------------------

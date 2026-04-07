@@ -47,7 +47,7 @@ ODDS API MAPPING:
       KXCPI / KXGDP / KXFED / KXUNRATE / KXSENATE* / KXGOV* → None
 
 SERIES CATEGORIES:
-    SPORTS      — game-outcome markets (NBA/NHL/MLB/UCL/etc.)
+    SPORTS      — game-outcome markets (NBA/NHL/MLB/UCL and others)
     ECONOMICS   — macro data releases (CPI/GDP/FOMC/unemployment)
     POLITICS    — elections, legislation, polls
     CULTURE     — entertainment, awards, pop culture

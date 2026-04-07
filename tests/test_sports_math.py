@@ -13,6 +13,8 @@ from src.strategies.sports_math import (
     nba_kill_switch,
     nhl_kill_switch,
     american_odds_from_prob,
+    sharp_score_for_bet,
+    SHARP_SCORE_MIN,
 )
 
 
@@ -246,3 +248,37 @@ class TestAmericanOddsFromProb:
             american_odds_from_prob(0.0)
         with pytest.raises(ValueError):
             american_odds_from_prob(1.0)
+
+
+class TestSharpScoreForBet:
+    def test_high_edge_passes_threshold(self):
+        # 8% edge + eff_gap=12 → 32+12=44 → above SHARP_SCORE_MIN=35
+        score = sharp_score_for_bet(0.08, efficiency_gap=12.0)
+        assert score == pytest.approx(44.0)
+        assert score >= SHARP_SCORE_MIN
+
+    def test_low_edge_below_threshold(self):
+        # 6% edge + eff_gap=10 → 24+10=34 → below SHARP_SCORE_MIN=35
+        score = sharp_score_for_bet(0.06, efficiency_gap=10.0)
+        assert score == pytest.approx(34.0)
+        assert score < SHARP_SCORE_MIN
+
+    def test_min_edge_high_gap_passes(self):
+        # 5% edge + eff_gap=15 → 20+15=35 → exactly at threshold
+        score = sharp_score_for_bet(0.05, efficiency_gap=15.0)
+        assert score == pytest.approx(35.0)
+        assert score >= SHARP_SCORE_MIN
+
+    def test_edge_capped_at_40(self):
+        # 15% edge: (0.15/0.10)*40=60 → capped at 40
+        score = sharp_score_for_bet(0.15, efficiency_gap=0.0)
+        assert score == pytest.approx(40.0)
+
+    def test_default_eff_gap_fallback(self):
+        # No efficiency_gap arg → defaults to 8.0
+        score = sharp_score_for_bet(0.10)
+        assert score == pytest.approx(40.0 + 8.0)
+
+    def test_rlm_adds_25_pts(self):
+        score = sharp_score_for_bet(0.05, efficiency_gap=0.0, rlm_confirmed=True)
+        assert score == pytest.approx(20.0 + 25.0)
