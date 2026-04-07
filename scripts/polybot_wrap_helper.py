@@ -39,6 +39,7 @@ SESSION_RESUME = PROJECT_DIR / "SESSION_RESUME.md"
 POLYBOT_AUTO = Path.home() / ".claude" / "commands" / "polybot-auto.md"
 CHANGELOG = PROJECT_DIR / ".planning" / "CHANGELOG.md"
 CCA_JOURNAL = Path.home() / "Projects" / "ClaudeCodeAdvancements" / "self-learning" / "journal.py"
+VISIBILITY_REPORT_JSON = PROJECT_DIR / "data" / "kalshi_visibility_report.json"
 
 # ── Data Collection ──────────────────────────────────────────────────────────
 
@@ -190,6 +191,50 @@ def get_guard_count() -> dict:
     return {"auto": auto_count, "il": il_count, "total": auto_count + il_count}
 
 
+def _format_visibility_timestamp(raw_timestamp: str | None) -> str:
+    if not raw_timestamp:
+        return "unknown time"
+    try:
+        dt = datetime.fromisoformat(raw_timestamp.replace("Z", "+00:00"))
+    except ValueError:
+        return raw_timestamp
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+
+def get_visibility_gate() -> dict:
+    """Read the latest cached visibility report gate result."""
+    if not VISIBILITY_REPORT_JSON.exists():
+        return {
+            "status": "UNKNOWN",
+            "reason": "No cached visibility report. Run scripts/kalshi_visibility_report.py before strategy planning.",
+            "timestamp_display": "missing",
+        }
+
+    try:
+        report = json.loads(VISIBILITY_REPORT_JSON.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {
+            "status": "UNKNOWN",
+            "reason": f"Cached visibility report unreadable: {exc}",
+            "timestamp_display": "unreadable",
+        }
+
+    sports = report.get("sports", {})
+    gate = sports.get("same_day_gate", {})
+    if not gate:
+        return {
+            "status": "UNKNOWN",
+            "reason": "Cached visibility report missing same_day_gate. Rerun the visibility report.",
+            "timestamp_display": _format_visibility_timestamp(report.get("timestamp")),
+        }
+
+    return {
+        "status": gate.get("status", "UNKNOWN"),
+        "reason": gate.get("reason", "No gate reason recorded."),
+        "timestamp_display": _format_visibility_timestamp(report.get("timestamp")),
+    }
+
+
 def get_log_path(session_num: int) -> str:
     return f"/tmp/polybot_session{session_num}.log"
 
@@ -199,7 +244,8 @@ def get_log_path(session_num: int) -> str:
 def generate_handoff_bot_state(
     session_num: int, pid: int, pid_status: str,
     pnl: dict, git: dict, strats: dict,
-    grade: str = "?", wins: str = "", losses: str = ""
+    grade: str = "?", wins: str = "", losses: str = "",
+    visibility_gate: dict | None = None,
 ) -> str:
     """Generate the BOT STATE section for SESSION_HANDOFF.md."""
     next_s = session_num + 1
@@ -209,6 +255,11 @@ def generate_handoff_bot_state(
     sniper = strats.get("expiry_sniper_v1", {})
     sniper_n = sniper.get("n", 0)
     sniper_wr = round(100 * sniper.get("wins", 0) / sniper_n, 1) if sniper_n else 0
+    visibility_gate = visibility_gate or {
+        "status": "UNKNOWN",
+        "reason": "Visibility gate was not collected during wrap.",
+        "timestamp_display": "missing",
+    }
 
     lines = [
         f"## BOT STATE",
@@ -217,6 +268,8 @@ def generate_handoff_bot_state(
         f"  All-time live P&L: {alltime:+.2f} USD | S{session_num} net: {today:+.2f} USD",
         f"  ({pnl['today_wins']}/{pnl['today_bets']} live wins today, {pnl['today_wr']}% WR)",
         f"  Tests: {git['test_count']} passing | Last commit: {git['hash']} ({git['msg'][:60]})",
+        f"  Visibility gate: {visibility_gate['status']} @ {visibility_gate['timestamp_display']}",
+        f"  {visibility_gate['reason']}",
         f"",
         f"  expiry_sniper_v1: {sniper_n} all-time bets, {sniper_wr}% WR",
         f"  All drifts DISABLED (min_drift_pct=9.99)",
@@ -236,7 +289,8 @@ def generate_main_chat_prompt(
     session_num: int, pid: int, pid_status: str,
     pnl: dict, git: dict, strats: dict,
     cusum: list[str], guard_count: int,
-    grade: str = "?", wins: str = "", losses: str = ""
+    grade: str = "?", wins: str = "", losses: str = "",
+    visibility_gate: dict | None = None,
 ) -> str:
     """Generate the MAIN CHAT section for polybot-init.md."""
     next_s = session_num + 1
@@ -261,6 +315,11 @@ def generate_main_chat_prompt(
     )
 
     cusum_summary = " | ".join(cusum[:4]) if cusum else "all stable"
+    visibility_gate = visibility_gate or {
+        "status": "UNKNOWN",
+        "reason": "Visibility gate was not collected during wrap.",
+        "timestamp_display": "missing",
+    }
 
     lines = [
         f"--- MAIN CHAT (Session {next_s} — monitoring + research combined PERMANENTLY) ---",
@@ -280,6 +339,8 @@ def generate_main_chat_prompt(
         f"  grep 'Loaded.*auto-discovered' {log_path} | tail -1",
         f"  MUST show 'Loaded {guard_count} auto-discovered guard(s)'",
         f"  grep 'n_observations' data/drift_posterior.json  (MUST show n_observations>=334)",
+        f"  Latest visibility gate: {visibility_gate['status']} @ {visibility_gate['timestamp_display']}",
+        f"  {visibility_gate['reason']}",
         f"",
         f"STARTUP SEQUENCE (run in order):",
         f"1. cat bot.pid — get PID. Then tail -5 {log_path} — verify RECENT.",
@@ -452,20 +513,22 @@ def main():
     strats = get_strategy_counts()
     cusum = get_cusum_state()
     guard_count = get_guard_count()
+    visibility_gate = get_visibility_gate()
 
     print(f"  PID {pid}: {pid_status}")
     print(f"  All-time P&L: {pnl['alltime']:+.2f} USD | Today: {pnl['today']:+.2f} USD "
           f"({pnl['today_wins']}/{pnl['today_bets']} bets, {pnl['today_wr']}% WR)")
     print(f"  Last commit: {git['hash']} | Tests: {git['test_count']}")
     print(f"  Guards: {guard_count['auto']} auto + {guard_count['il']} ILs | CUSUM lines: {len(cusum)}")
+    print(f"  Visibility gate: {visibility_gate['status']} @ {visibility_gate['timestamp_display']}")
 
     # Generate content
     handoff_state = generate_handoff_bot_state(
-        session_num, pid, pid_status, pnl, git, strats, args.grade, args.wins, args.losses
+        session_num, pid, pid_status, pnl, git, strats, args.grade, args.wins, args.losses, visibility_gate
     )
     main_chat = generate_main_chat_prompt(
         session_num, pid, pid_status, pnl, git, strats, cusum, guard_count,
-        args.grade, args.wins, args.losses
+        args.grade, args.wins, args.losses, visibility_gate
     )
     changelog = generate_changelog_entry(
         session_num, pnl, git, args.grade, args.wins, args.losses, cusum
