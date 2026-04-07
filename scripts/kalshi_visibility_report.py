@@ -116,6 +116,44 @@ def _edge_scan_summary(edge_scan_result: dict | None) -> dict:
     }
 
 
+def evaluate_same_day_sports_gate(sports_summary: dict) -> dict:
+    """Return an operational pass/fail verdict for same-day sports visibility."""
+    same_day_market_count = sports_summary.get("same_day_market_count", 0)
+    visible_market_count = sports_summary.get("same_day_visible_market_count", 0)
+    skipped_market_count = sports_summary.get("same_day_skipped_market_count", 0)
+    skipped_series = sports_summary.get("same_day_skipped_series", [])
+
+    if same_day_market_count == 0:
+        return {
+            "ok": True,
+            "status": "PASS",
+            "reason": "No same-day sports markets are open.",
+        }
+
+    if visible_market_count == 0:
+        detail = ", ".join(skipped_series) or "unknown series"
+        return {
+            "ok": False,
+            "status": "FAIL",
+            "reason": f"No same-day sports markets are visible to the bot. Open series: {detail}",
+        }
+
+    if skipped_market_count > 0:
+        detail = ", ".join(skipped_series) or "unknown series"
+        noun = "market is" if skipped_market_count == 1 else "markets are"
+        return {
+            "ok": False,
+            "status": "FAIL",
+            "reason": f"{skipped_market_count} same-day sports {noun} open in skipped series: {detail}",
+        }
+
+    return {
+        "ok": True,
+        "status": "PASS",
+        "reason": f"All {same_day_market_count} same-day sports markets belong to visible series.",
+    }
+
+
 def build_visibility_report(
     audit_report: dict,
     all_markets: list[dict],
@@ -183,6 +221,17 @@ def build_visibility_report(
             "series": canonical_series,
         })
 
+    sports_summary = {
+        "same_day_market_count": same_day_market_count,
+        "days_out_market_count": days_out_market_count,
+        "same_day_visible_market_count": same_day_visible_market_count,
+        "same_day_skipped_market_count": same_day_skipped_market_count,
+        "same_day_visible_series": sorted(same_day_visible_series),
+        "same_day_skipped_series": sorted(same_day_skipped_series),
+        "edge_scan": _edge_scan_summary(edge_scan_result),
+    }
+    sports_summary["same_day_gate"] = evaluate_same_day_sports_gate(sports_summary)
+
     return {
         "timestamp": audit_report.get("timestamp") or now.isoformat(),
         "exchange": {
@@ -199,21 +248,14 @@ def build_visibility_report(
             "live_bot_visible_series_count": len(live_bot_visible_series),
             "live_bot_visible_series": live_bot_visible_series,
         },
-        "sports": {
-            "same_day_market_count": same_day_market_count,
-            "days_out_market_count": days_out_market_count,
-            "same_day_visible_market_count": same_day_visible_market_count,
-            "same_day_skipped_market_count": same_day_skipped_market_count,
-            "same_day_visible_series": sorted(same_day_visible_series),
-            "same_day_skipped_series": sorted(same_day_skipped_series),
-            "edge_scan": _edge_scan_summary(edge_scan_result),
-        },
+        "sports": sports_summary,
         "non_sports_candidates": non_sports_candidates[:10],
     }
 
 
 def format_visibility_report(report: dict) -> str:
     """Render the structured report as concise markdown."""
+    same_day_gate = report["sports"].get("same_day_gate") or evaluate_same_day_sports_gate(report["sports"])
     lines = [
         f"# Kalshi Visibility Report — {report['timestamp'][:10]}",
         "",
@@ -243,6 +285,7 @@ def format_visibility_report(report: dict) -> str:
         f"- Days-out markets: {report['sports']['days_out_market_count']}",
         f"- Same-day visible markets: {report['sports'].get('same_day_visible_market_count', 0)}",
         f"- Same-day skipped markets: {report['sports'].get('same_day_skipped_market_count', 0)}",
+        f"- Gate: {same_day_gate['status']} — {same_day_gate['reason']}",
         f"- Same-day visible series: {', '.join(report['sports']['same_day_visible_series']) or 'none'}",
         f"- Same-day skipped series: {', '.join(report['sports']['same_day_skipped_series']) or 'none'}",
         "",
@@ -322,6 +365,11 @@ def main() -> None:
         help="Use cached edge scan, run live edge scan, or skip edge integration",
     )
     parser.add_argument("--min-edge", type=float, default=0.02, help="Minimum edge threshold for live edge scan")
+    parser.add_argument(
+        "--strict-same-day-sports",
+        action="store_true",
+        help="Exit non-zero if same-day sports markets are open in series the bot cannot currently see",
+    )
     args = parser.parse_args()
 
     report = asyncio.run(
@@ -347,6 +395,9 @@ def main() -> None:
     print(markdown)
     print(f"\nJSON saved to {json_path}")
     print(f"Markdown saved to {output_path}")
+
+    if args.strict_same_day_sports and not report["sports"]["same_day_gate"]["ok"]:
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":

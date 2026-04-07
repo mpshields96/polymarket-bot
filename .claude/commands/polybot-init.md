@@ -28,6 +28,10 @@ SESSION STARTUP SELF-REFLECTION (MANDATORY):
   ./venv/bin/python3 scripts/strategy_analyzer.py --brief
   Surfaces: profitable sniper buckets, drift validation, graduation status, target gap.
 
+MARKET VISIBILITY GATE (MANDATORY BEFORE STRATEGY PLANNING):
+  ./venv/bin/python3 scripts/kalshi_visibility_report.py --edge-mode cached --strict-same-day-sports
+  If this exits non-zero, review same-day visible vs skipped series before planning any sports work.
+
 ═══════════════════════════════════════════════════
 STEP 3 — ANNOUNCE STATE (2-3 lines max)
 ═══════════════════════════════════════════════════

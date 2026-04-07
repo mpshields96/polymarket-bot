@@ -38,6 +38,30 @@ by Claude Code and actioned or escalated to CCA as needed.
 
 ## Entries
 
+## [2026-04-06] — ARCHITECTURE — Visibility Gate Added To Overhaul Workflow
+CCA's recent REQ-073 / REQ-083 deliveries improved market discovery, but the current Kalshi operating pattern was still too restart-first / execution-first for overhaul mode.
+
+Critique:
+- "Restart now for in-play opportunities" is incomplete guidance when same-day sports boards can still contain skipped series the bot does not actively cover.
+- Discovery reports without an operational pass/fail gate are easy to acknowledge and then ignore during fast session startup.
+- `scripts/polybot_wrap_helper.py` was also still generating startup prompts with stale priorities, which increases the chance of acting on old assumptions instead of the current overhaul blockers.
+
+Codex action shipped:
+- Added a strict same-day sports visibility gate to `scripts/kalshi_visibility_report.py`.
+- The report now emits `same_day_gate` with PASS/FAIL reasoning and supports `--strict-same-day-sports` to exit non-zero on uncovered same-day sports boards.
+- Wired that gate into `/polybot-init`, `/polybot-wrap`, and the generated `SESSION_RESUME.md` startup sequence via `scripts/polybot_wrap_helper.py`.
+
+Operational rule going forward:
+- Before any sports strategy planning or restart pressure, run the visibility gate first.
+- If it fails, treat uncovered same-day boards as an overhaul blocker, not as a side note.
+
+Verification:
+- `source venv/bin/activate && python3 -m pytest tests/test_kalshi_visibility_report.py -q`
+- `source venv/bin/activate && python3 -m pytest tests/test_edge_scanner.py -q`
+- `python3 -m py_compile scripts/kalshi_visibility_report.py scripts/polybot_wrap_helper.py`
+
+Status: OPEN
+
 ## [2026-04-05] — ARCHITECTURE — Verified Night Stop Procedure For Codex
 Codex verified the correct routine stop path for the live bot.
 

@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from scripts.kalshi_visibility_report import (
     build_visibility_report,
     canonicalize_series_ticker,
+    evaluate_same_day_sports_gate,
     format_visibility_report,
 )
 
@@ -151,6 +152,8 @@ def test_build_visibility_report_combines_audit_scout_and_edge_views() -> None:
     assert report["sports"]["same_day_visible_market_count"] == 2
     assert report["sports"]["same_day_skipped_market_count"] == 1
     assert report["sports"]["same_day_skipped_series"] == ["KXUFCFIGHT"]
+    assert report["sports"]["same_day_gate"]["ok"] is False
+    assert report["sports"]["same_day_gate"]["status"] == "FAIL"
     assert report["sports"]["edge_scan"]["series_scanned"] == ["KXNBAGAME", "KXNHLGAME"]
     assert report["non_sports_candidates"][0]["series"] == "KXSENATE2026"
 
@@ -169,8 +172,15 @@ def test_format_visibility_report_mentions_core_sections() -> None:
         "sports": {
             "same_day_market_count": 3,
             "days_out_market_count": 1,
+            "same_day_visible_market_count": 2,
+            "same_day_skipped_market_count": 1,
             "same_day_visible_series": ["KXNBAGAME", "KXNCAABGAME"],
             "same_day_skipped_series": ["KXUFCFIGHT"],
+            "same_day_gate": {
+                "ok": False,
+                "status": "FAIL",
+                "reason": "1 same-day sports market is open in skipped series: KXUFCFIGHT",
+            },
             "edge_scan": {
                 "series_scanned": ["KXNBAGAME"],
                 "total_matched": 4,
@@ -188,4 +198,20 @@ def test_format_visibility_report_mentions_core_sections() -> None:
     assert "Covered vs Uncovered" in text
     assert "Same-Day Sports" in text
     assert "Non-Sports Candidates" in text
+    assert "Gate: FAIL" in text
     assert "KXSENATE2026" in text
+
+
+def test_evaluate_same_day_sports_gate_passes_when_all_same_day_sports_are_visible() -> None:
+    gate = evaluate_same_day_sports_gate(
+        {
+            "same_day_market_count": 4,
+            "same_day_visible_market_count": 4,
+            "same_day_skipped_market_count": 0,
+            "same_day_skipped_series": [],
+        }
+    )
+
+    assert gate["ok"] is True
+    assert gate["status"] == "PASS"
+    assert "All 4 same-day sports markets" in gate["reason"]

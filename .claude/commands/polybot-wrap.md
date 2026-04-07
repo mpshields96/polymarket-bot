@@ -16,8 +16,10 @@ ps aux | grep "[m]ain.py"
 ./venv/bin/python3 main.py --health
 ./venv/bin/python3 main.py --report
 ./venv/bin/python3 main.py --graduation-status
+./venv/bin/python3 scripts/kalshi_visibility_report.py --edge-mode cached --strict-same-day-sports
 
 If --health shows any blocker preventing live bets: FIX IT BEFORE TOUCHING DOCS.
+If visibility gate fails: document the same-day skipped series and treat it as an open overhaul blocker.
 
 ═══════════════════════════════════════════════════
 STEP 2 — OBJECTIVE SELF-RATING (be brutally honest)
