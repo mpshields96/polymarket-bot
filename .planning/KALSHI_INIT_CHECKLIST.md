@@ -84,6 +84,13 @@ print(f'TODAY TOTAL: {total:+.2f} USD')
 - Any strategy at 0 bets when it should be active → investigate loop, not just log
 - ETH daily sniper shows any bets → bug, it should be disabled
 
+**Concentration check (mandatory):**
+- Estimate trailing profit concentration by strategy from the last settled sample or latest report.
+- If one strategy is `>80%` of trailing profit:
+  - DO NOT propose another variant of that strategy
+  - mark the session as `BUILD SECOND ENGINE`
+  - preferred order: MLB first, NHL second, NBA third, non-sports scout in parallel
+
 ---
 
 ## STEP 5 — Check open positions + per-strategy caps
@@ -124,6 +131,11 @@ Priority order:
 3. Any stuck/crashed bot from health check (Step 3)
 4. Unfinished items from session handoff (Step 2)
 5. Today's planned work from polybot-init briefing
+
+**Override rule:**
+- If the Step 4 concentration check says one strategy is `>80%` of trailing profit,
+  then today's planned work must include second-engine work or market-visibility work.
+  Do not spend the whole session tuning the dominant strategy again.
 
 ---
 

@@ -22,4 +22,12 @@
    - In-play sports sniper: NOT YET BUILT — paper only when live
    - ETH sniper: PAPER ONLY at ≤85c floor, live gate = 50 bets at WR ≥ 92%
 
-5. **MANDATORY FIRST STEP:** Read KALSHI_INIT_CHECKLIST.md — all 5 steps — before any code.
+5. **ANTI-CONCENTRATION RULE:**
+   - If one strategy exceeds `80%` of trailing profit, do NOT propose another variant of it.
+   - Trigger a `build second engine` sprint instead:
+     - MLB first
+     - NHL second
+     - NBA third
+     - non-sports market scout in parallel
+
+6. **MANDATORY FIRST STEP:** Read KALSHI_INIT_CHECKLIST.md — all 5 steps — before any code.
