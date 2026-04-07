@@ -625,7 +625,10 @@ def _match_game(games: list, home: str, away: str,
             return abs((game_dt - kalshi_date).total_seconds())
         except (ValueError, AttributeError):
             return float("inf")
-    return min(candidates, key=_date_diff)
+    best = min(candidates, key=_date_diff)
+    if kalshi_date is not None and _date_diff(best) > _MAX_MATCH_DISTANCE_SEC:
+        return None  # closest match too far from Kalshi ticker date — fail closed
+    return best
 
 
 # ── Factory ─────────────────────────────────────────────────────────────────
