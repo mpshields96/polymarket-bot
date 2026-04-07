@@ -1,5 +1,62 @@
 # POLYMARKET-BOT CHANGELOG
 
+## S167 — 2026-04-07 ~21:25 UTC (Phase 1+4 overhaul execution — all 5 bugs fixed)
+
+### P&L: -1.81 USD today CST April 6 (16 settled, 14/16 wins = 87.5% WR)
+All-time live: +129.91 USD (1685 settled, 86% WR)
+Bot: STOPPED (Matthew directive — overhaul first, then restart)
+Tests: 2163 passing, 3 skipped, 1 collection error (test_kalshi_visibility_report.py — script missing)
+
+### PHASE 1 — ALL 5 BUGS FIXED (commit ddfdd4f)
+1. BUG A (in-game guard): Added _parse_ticker_date check in inner market loop.
+   If Kalshi ticker date < now - 5min → SKIP. Prevents in-game MLB bets from S166.
+2. BUG B (72h horizon): Changed _future_games() to 24h + sort markets by date ascending (today first).
+3. BUG C (ETH live disabled): eth_daily_sniper live_executor_enabled=True → False. Ceiling 92c → 85c.
+4. BUG D (NBA paper-only): Added _PAPER_ONLY_SPORTS = frozenset({"basketball_nba"}).
+   NBA overridden to paper regardless of global live flag.
+5. BUG E (CST dedup reset): Changed dedup date boundary from UTC midnight to CST midnight (UTC-6).
+
+### PHASE 4 — STRUCTURAL IMPROVEMENTS (commit 2a63099)
+- Per-sport live caps: NHL=3 USD, MLB=2 USD, soccer=2 USD, NBA=0 USD (paper-only)
+- Grade-based sizing via sports_math.assign_grade():
+    Grade A (edge >= 3.5%): full cap. Grade B: 50%. Grade C: paper-only. NEAR_MISS: skip.
+- max_daily_bets_live: 50 → 10 (Kelly-conservative per CCA Chat 38C mandate)
+- ETH ceiling: 92c → 85c (corrects structural EV math: breakeven at 85c = 85%, actual WR = 86%)
+
+### NEW: sports_inplay_sniper.py (commits 817f4bf, 5abe5de)
+- Strategy file: NBA/NHL/MLB in-play FLB sniper. Trigger=90c, ceiling=93c, 45-min window.
+- Per-sport game duration: NBA/NHL=2.5h, MLB=3.0h. Hard skip <120s.
+- 36 tests — all passing.
+- Wired into main.py as sports_inplay_sniper_loop asyncio task. Paper-only.
+
+### CCA DELIVERY: efficiency_feed.py (REQ-083C — commit b014194)
+- src/strategies/efficiency_feed.py: team efficiency gap data for NBA/NHL/MLB/NCAA/EPL/etc.
+- 30 NBA + 31 NHL + 30 MLB teams + major NCAAB programs. adj_em ratings.
+- NOT YET WIRED into sports_math.py — 3-line addition needed next chat.
+
+### OPEN CODEX BUG-FLAG
+- [2026-03-28] OPEN: sports_game.py should validate YES-side team vs yes_sub_title metadata.
+  Not addressed this session — next chat should investigate.
+
+### test_kalshi_visibility_report.py COLLECTION ERROR
+- Test file exists (6.5KB, 188 lines) but scripts/kalshi_visibility_report.py MISSING.
+- Tests run fine with --ignore. Root cause: script was never created. Fix or delete the test next session.
+
+### STRATEGY ANALYZER INSIGHTS
+  SNIPER: Profitable 90-94c. Guarded: 95-98c blocked.
+  btc_drift: NEUTRAL 50% WR, -9.53 USD. Direction filter "no" correct.
+  eth_drift: UNDERPERFORMING 46% WR, declining. Correctly disabled.
+  sol_drift: HEALTHY 66% WR, -15.68 USD (payoff asymmetry — disabled correctly).
+
+### SESSION GRADE: A-
+WINS: All 5 Phase 1 bugs fixed + committed. Phase 4 structural improvements done.
+  sports_inplay_sniper built, tested (36 tests), wired into main.py.
+  CCA efficiency_feed.py delivered and committed. 2163 tests passing.
+  Zero regressions from 2101 → 2163 tests (+62).
+LOSSES: efficiency_feed not yet wired into sports_math.py. Missing visibility script.
+  Codex BUG-FLAG still open. Bot still stopped (correct — overhaul not fully complete).
+ONE THING: Next chat should wire efficiency_feed → sports_math → RESTART THE BOT.
+
 ## S166 — 2026-04-07 ~00:40 UTC (overhaul diagnosis, CST mandate, bug identification)
 
 ### P&L: -1.81 USD today CST April 6 (16 settled, 14/16 wins = 87.5% WR)

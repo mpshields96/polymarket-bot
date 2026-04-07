@@ -303,6 +303,8 @@ _ALIASES: dict[str, str] = {
     "Warriors":              "Golden State Warriors",
     "Mavs":                  "Dallas Mavericks",
     "Thunder":               "Oklahoma City Thunder",
+    "OKC Thunder":           "Oklahoma City Thunder",
+    "OKC":                   "Oklahoma City Thunder",
     "Celtics":               "Boston Celtics",
     "Cavs":                  "Cleveland Cavaliers",
     "Wolves":                "Minnesota Timberwolves",

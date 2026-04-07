@@ -39,113 +39,36 @@
 ## ALL FUTURE KALSHI CHATS ARE FORBIDDEN FROM FORGETTING THIS. PERMANENT.
 ## ═══════════════════════════════════════════════════════════════════════════════════
 
-## BOT STATE (S166 wrap — 2026-04-07 00:40 UTC)
-  Bot STOPPED (Matthew directive — overhaul plan mode). Log: /tmp/polybot_session166.log
+## BOT STATE (S167 wrap — 2026-04-07 21:25 UTC)
+  Bot: STOPPED (Matthew directive — overhaul mode, all Phase 1+4 bugs now fixed)
   All-time live P&L: +129.91 USD | Today CST April 6: -1.81 USD (16 settled, 87.5% WR)
-  April CST: +60.02 USD (97 settled, 97.9% WR)
-  Tests: 3 failed (test_fomc + test_unemployment — pre-existing), 2101 passing. Last commit: 534e3b6
-  HARD_MAX ramp: 3/50 clean bets (next gate: 40 USD HARD_MAX)
-  ⚠️ NOTE: all-time dropped from 139.10 to 129.91 — eth_daily_sniper + in-game MLB losses this session
+  Tests: 2163 passing, 3 skipped, 1 collection error (test_kalshi_visibility_report.py). Last commit: 5abe5de
 
-  S166 KEY FINDINGS:
-  1. CONFIRMED BUGS IN SPORTS LOOP (do NOT restart without fixing these first):
-     BUG A — IN-GAME BETTING: Bot placed 6 MLB bets on April 6 games already 5+ hours in.
-       Tickers: 14318 (DET-MIN 19:40), 14319 (STL-WSH 18:45), 14320 (SD-PIT 18:40),
-                14321 (MIL-BOS 18:45), 14322 (CIN-MIA 18:40), 14323 (KC-CLE 18:10)
-       Root cause: _future_games() checks Odds API time, _match_game() ±1 day tolerance
-       means April 7 Odds API game matches April 6 Kalshi market. Kalshi date not verified.
-       Fix location: main.py sports_game_loop inner market loop — add _parse_ticker_date check.
-     BUG B — 72h HORIZON / CAP BURN: Future games (Apr 7-9) consume daily cap before tonight.
-       Fix: sort markets by game date ascending + reduce horizon 72h → 24h.
-     BUG C — ETH DAILY SNIPER NEGATIVE EV: At 91c, EV = -0.50/bet. 7 live bets = -4.11 USD.
-       Fix: disable live execution pending ceiling fix (85-88c recommended).
-     BUG D — NBA 0% WR (-19.67 USD on 2 bets): cause unknown. Disable live until investigated.
-  2. OVERHAUL PLAN written: .planning/OVERHAUL_PLAN_S166.md — 4-phase plan, read before coding.
-  3. CCA REQ-082 posted (URGENT): 5-part audit mandate (analytics, NBA investigation, ETH fix,
-     dynamic series discovery, BTC sniper sub-bucket analysis).
-  4. Codex CLAUDE_TO_CODEX.md: 5 bug fix tasks with exact code locations.
-  5. CST timezone now permanent across all chats (standing-directives.md updated).
-  6. max_daily_bets already updated to 30 in main.py.
+  S167 COMPLETED:
+  ✅ PHASE 1 — ALL 5 BUGS FIXED (commit ddfdd4f)
+  ✅ PHASE 4 — STRUCTURAL IMPROVEMENTS (commit 2a63099)
+  ✅ sports_inplay_sniper.py built, 36 tests, wired into main.py (commits 817f4bf, 5abe5de)
+  ✅ efficiency_feed.py delivered by CCA (commit b014194) — not yet wired into sports_math.py
+  ⬜ efficiency_feed → sports_math.py wiring (3-line addition — CCA Chat 48 spec)
+  ⬜ test_kalshi_visibility_report.py: missing scripts/kalshi_visibility_report.py
+  ⬜ Codex BUG-FLAG (OPEN): sports_game.py yes_sub_title team validation
+  ⬜ sharp_score_for_bet gap: CCA Chat 45 references function not in sports_math.py
+  ⬜ kalshi_series_scout.py (CCA Chat 48) — run to find new market opportunities
+  ⬜ UFC check: get_markets(series_ticker="KXUFCFIGHT") — if vol >50K extend sport map
+  ⬜ Economics CPI April 10: confirm KXCPI open April 8
+  ⬜ RESTART BOT → session168.log (Phase 1 bugs fixed — bot is now safe to restart)
 
-  OPEN LIVE BETS (19 total):
-  SNIPER (settle April 7 ~21:00 UTC):
-    14330: KXBTCD-26APR0621 YES@93c — 9.30 USD
-    14331: KXBTCD-26APR0621 YES@92c — 9.20 USD
-    14332: KXETHD-26APR0621 YES@91c — 9.10 USD (NEGATIVE EV — this strategy should be disabled)
-    14333: KXBTCD-26APR0621 YES@90c — 9.90 USD
-  UCL (settle April 14-15):
-    14215: KXUCLGAME-26APR15BMURMA BMU NO@44c
-    14216: KXUCLGAME-26APR14ATMBAR BAR YES@48c
-    14224: KXUCLGAME-26APR14LFCPSG PSG YES@35c
-  MLB future bets (April 7-9) — likely fine:
-    14208: DET-MIN April 7 MIN YES@44c | 14303: MIL-BOS April 7 MIL YES@43c
-    14242: HOU-COL April 8 HOU YES@58c | 14280: DET-MIN April 8 MIN YES@47c
-    14317: PHI-SF April 8 PHI YES@53c | 14316: DET-MIN April 9 DET YES@54c
-  MLB IN-GAME BETS April 6 (PROBLEMATIC — games already over/finishing):
-    14318: DET-MIN April 6 19:40 UTC MIN NO@43c (bet placed 23:46 UTC)
-    14319: STL-WSH April 6 18:45 UTC STL YES@25c
-    14320: SD-PIT April 6 18:40 UTC PIT YES@46c
-    14321: MIL-BOS April 6 18:45 UTC MIL YES@20c
-    14322: CIN-MIA April 6 18:40 UTC MIA YES@37c
-    14323: KC-CLE April 6 18:10 UTC CLE YES@37c
+  PENDING TASKS (priority order — Session 168):
+  1. RESTART BOT — all Phase 1 bugs fixed. Use restart command below → session168.log
+  2. Wire efficiency_feed into sports_math.py (3-line addition per CCA REQ-083C delivery)
+  3. Fix test_kalshi_visibility_report.py: either create the script or delete the test
+  4. Investigate Codex BUG-FLAG: sports_game.py yes_sub_title team validation
+  5. Run kalshi_series_scout.py (CCA Chat 48 mandate)
+  6. CPI April 10: confirm KXCPI open April 8, run cpi_release_monitor.py
+  7. Check REQ-082 CCA response (NBA investigation, ETH ceiling fix recommendation)
 
-  OPEN LIVE BETS (12 total):
-  SETTLING TONIGHT at 22:00 UTC (April 6):
-    14305: KXETHD-26APR0618-T2099.99 YES@91c → ETH above 2099.99 at 18:00 ET
-    14313: KXBTCD-26APR0618-T69899.99 NO@92c → BTC below 69899.99 at 18:00 ET
-    14314: KXETHD-26APR0618-T2139.99 YES@91c → ETH above 2139.99 at 18:00 ET (2nd ETH bet)
-    14315: KXBTCD-26APR0618-T69799.99 NO@92c → BTC below 69799.99 at 18:00 ET (2nd BTC bet)
-  IN PROGRESS (CHC game started ~16:10 ET):
-    14312: KXMLBGAME-26APR061610CHCTB-CHC YES@23c → Cubs win? (long shot)
-  SETTLING APRIL 7:
-    14208: KXMLBGAME-26APR071940DETMIN-MIN YES@44c → Minnesota Twins (19:40 ET)
-    14303: KXMLBGAME-26APR071845MILBOS-MIL YES@43c → Milwaukee Brewers (18:45 ET)
-  SETTLING APRIL 8:
-    14242: KXMLBGAME-26APR081510HOUCOL-HOU YES@58c → Houston Astros (15:10 ET)
-    14280: KXMLBGAME-26APR081940DETMIN-MIN YES@47c → Minnesota Twins (19:40 ET)
-  SETTLING APRIL 14-15 (UCL):
-    14215: KXUCLGAME-26APR15BMURMA-BMU NO@44c → Bayern Munich loses? (Apr 15)
-    14216: KXUCLGAME-26APR14ATMBAR-BAR YES@48c → Barcelona wins (Apr 14)
-    14224: KXUCLGAME-26APR14LFCPSG-PSG YES@35c → PSG wins (Apr 14)
-
-  PENDING TASKS (priority order — OVERHAUL MODE):
-  ⚠️ DO NOT RESTART BOT until Phase 1 bugs are fixed. Read OVERHAUL_PLAN_S166.md first.
-
-  PHASE 1 — STOP THE BLEEDING (fix ALL before restarting):
-  1. Fix BUG A (in-game betting): sports_game_loop inner market loop, add after parsed=parse_kalshi_game_ticker(ticker):
-       from src.strategies.sports_game import _parse_ticker_date as _ptd
-       _kg_dt = _ptd(ticker)
-       if _kg_dt is not None and _kg_dt < (_now_ts - timedelta(minutes=5)):
-           logger.warning("[sports_game] SKIPPING IN-GAME %s", ticker)
-           continue
-  2. Fix BUG B (horizon + sort): After markets = await kalshi.get_markets(...):
-       markets = sorted(markets, key=lambda m: _parse_ticker_date(m.ticker) or datetime.max.replace(tzinfo=timezone.utc))
-       Add horizon check: if (kalshi_date - _now_ts).total_seconds() > 24*3600: continue
-  3. Fix BUG C (ETH daily sniper): In main.py, set live_executor_enabled=False for eth_daily_sniper_loop
-  4. Fix BUG D (NBA): Remove sports_game_nba_v1 from live execution, paper only
-  5. Fix dedup reset: sports_game_loop ~line 2230, change UTC date to CST date using timedelta(hours=-6)
-  6. Run tests, commit, then restart bot to Session 167
-
-  PHASE 2 — WAIT FOR CCA (concurrent with bot running):
-  7. Read REQ-082 response from CCA (bet analytics audit, NBA investigation, ETH fix recommendation)
-  8. Economics CPI April 10: confirm KXCPI markets open April 8, run cpi_release_monitor.py
-  9. Investigate the 6 in-game MLB bets that settled (what were the outcomes?)
-
-  BACKGROUND CONTEXT:
-  - OVERHAUL_PLAN_S166.md: full 4-phase overhaul plan (read before any strategy decisions)
-  - daily_sniper is the ONLY strategy making money (+118.70 all-time). Protect it.
-  - April 13 deadline still active: 3 live types (daily_sniper, eth_daily_sniper, sports_game)
-    eth_daily_sniper counts but is losing — fix or replace with economics_sniper
-
-  ⚠️ SPORTS EXPANSION MANDATE (Matthew directive S165 — PERMANENT for all future chats):
-  "Steal and clone literally anything from agentic-rd-sandbox to help sportsbetting on Kalshi."
-  Source: /Users/matthewshields/Projects/agentic-rd-sandbox/core/
-  Plan: .planning/SPORTS_EXPANSION_PLAN.md (6 phases over multiple sessions)
-  CCA coordinates on Phases 2-5. Future Kalshi chats own wire-in + validation.
-  Phase 1 DONE. Phase 2 = efficiency_feed.py integration (next session).
-
-  RESTART COMMAND (Session 167 — ONLY AFTER Phase 1 bugs fixed):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session167.log 2>&1 &
+  RESTART COMMAND (Session 168 — ALL PHASE 1 BUGS NOW FIXED — SAFE TO RESTART):
+  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session168.log 2>&1 &
 
   ⚠️ APRIL 13 NEW DEADLINE (S162 — Matthew directive):
   "Figure out and succeed by April 13. Bet sports or ANY market. CCA + Codex help."
