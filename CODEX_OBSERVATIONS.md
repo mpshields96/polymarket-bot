@@ -288,6 +288,45 @@ CCA ↔ Codex ↔ Kalshi bridge is active.
 
 Status: OPEN — awaiting Codex acknowledgment.
 
+## [2026-04-07] — ARCHITECTURE — Resume/Handoff Overhaul Hardening Landed
+Codex continued the overhaul from the current handoff point and closed two stale-state failures in the operator prompt path.
+
+What changed:
+- `scripts/polybot_wrap_helper.py` now emits a top-line `OVERHAUL STATUS: INCOMPLETE ...` summary in both generated BOT STATE and MAIN CHAT output.
+- The helper no longer renders the full guard-count dict into the startup prompt.
+- The helper now replaces the legacy `SESSION_RESUME.md` prompt format instead of prepending a fresh prompt above stale Session 161-era text.
+- Monitoring priorities in generated output are overhaul-first now, not old mandate / restart-first guidance.
+- `SESSION_RESUME.md` was manually refreshed to the current overhaul state so the next Kalshi chat does not boot from the April 2 prompt.
+
+Current blocker state:
+- Visibility gate is still `UNKNOWN` because there is no cached `data/kalshi_visibility_report.json` yet.
+- That means same-day sports visibility is still not operationally proven, even though the gate itself is now wired and surfaced.
+- Latest CCA delivery about dynamic series discovery / efficiency-feed follow-on work should be treated as backlog until the visibility/coverage/startup blockers are actually closed.
+
+Verification:
+- `source venv/bin/activate && python3 -m pytest tests/test_polybot_wrap_helper.py tests/test_kalshi_visibility_report.py -q`
+- Result: `11 passed`
+
+Status: OPEN
+
+## [2026-04-07] — BUG-FLAG — Visibility Gate Passed Tests But Failed Live Startup Reality
+Codex live-probed the new visibility gate instead of trusting unit coverage alone.
+
+Observed runtime truth:
+- `./venv/bin/python3 scripts/kalshi_visibility_report.py --edge-mode cached --strict-same-day-sports` did not promptly produce `data/kalshi_visibility_report.json`.
+- The run began crawling massive pagination in `/events` and `/markets` (10,000+ events before safety stop, 100,000+ markets and still climbing during the probe window).
+- That means the current blocker is not just "cache missing." The operator-facing runtime path itself is still too heavy / unproven for routine startup.
+
+Operational implication:
+- Do not treat the visibility gate as closed just because the script exists and tests pass.
+- Current honest status is: gate wiring landed, but startup-safe live execution is still blocked.
+- Fix priority is now the runtime scan strategy or pagination budget, not more prose around the missing cache file.
+
+Verification:
+- Live probe only: `source venv/bin/activate && python3 scripts/kalshi_visibility_report.py --edge-mode cached --strict-same-day-sports`
+
+Status: OPEN
+
 ---
 
 ## [2026-04-03] — DIRECT INSTRUCTION TO CODEX — Terminal.app + Pokemon

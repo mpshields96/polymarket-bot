@@ -39,6 +39,9 @@
 ## ALL FUTURE KALSHI CHATS ARE FORBIDDEN FROM FORGETTING THIS. PERMANENT.
 ## ═══════════════════════════════════════════════════════════════════════════════════
 
+## OVERHAUL STATUS: INCOMPLETE — blocked by visibility gate runtime path still unproven (live probe crawled huge pagination and produced no cache yet), stale startup/handoff priorities, and open mandatory overhaul tasks below.
+## Do not count restart pressure, new strategy ideas, or side research as progress until those blockers are closed.
+
 ## BOT STATE (S167 wrap — 2026-04-07 21:25 UTC)
   Bot: STOPPED (Matthew directive — overhaul mode, all Phase 1+4 bugs now fixed)
   All-time live P&L: +129.91 USD | Today CST April 6: -1.81 USD (16 settled, 87.5% WR)

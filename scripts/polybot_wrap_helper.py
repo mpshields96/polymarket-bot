@@ -4,7 +4,7 @@ polybot_wrap_helper.py — Fast Session Wrap Automation
 
 Collects all bot state in one pass and generates ready-to-use content for:
   - SESSION_HANDOFF.md BOT STATE section
-  - polybot-init.md MAIN CHAT section (Session N+1)
+  - SESSION_RESUME.md MAIN CHAT section (Session N+1)
   - polybot-auto.md SESSION STATE section
   - CHANGELOG.md entry
   - Next session start prompt
@@ -235,6 +235,26 @@ def get_visibility_gate() -> dict:
     }
 
 
+def summarize_overhaul_status(visibility_gate: dict | None) -> dict:
+    """Return the top-line overhaul status summary for startup/handoff docs."""
+    visibility_gate = visibility_gate or {
+        "status": "UNKNOWN",
+        "reason": "Visibility gate was not collected during wrap.",
+        "timestamp_display": "missing",
+    }
+    return {
+        "status": "INCOMPLETE",
+        "summary": (
+            "OVERHAUL STATUS: INCOMPLETE — blocked by visibility gate "
+            f"{visibility_gate['status']} @ {visibility_gate['timestamp_display']}: "
+            f"{visibility_gate['reason']}"
+        ),
+        "directive": (
+            "Do not count restart, expansion, or side work as progress until the blocker above is closed."
+        ),
+    }
+
+
 def get_log_path(session_num: int) -> str:
     return f"/tmp/polybot_session{session_num}.log"
 
@@ -260,9 +280,12 @@ def generate_handoff_bot_state(
         "reason": "Visibility gate was not collected during wrap.",
         "timestamp_display": "missing",
     }
+    overhaul = summarize_overhaul_status(visibility_gate)
 
     lines = [
         f"## BOT STATE",
+        f"  {overhaul['summary']}",
+        f"  {overhaul['directive']}",
         f"  Bot {'RUNNING' if pid_status == 'ALIVE' else 'STOPPED'} "
         f"→ restart for S{next_s} using restart command below",
         f"  All-time live P&L: {alltime:+.2f} USD | S{session_num} net: {today:+.2f} USD",
@@ -288,7 +311,7 @@ def generate_handoff_bot_state(
 def generate_main_chat_prompt(
     session_num: int, pid: int, pid_status: str,
     pnl: dict, git: dict, strats: dict,
-    cusum: list[str], guard_count: int,
+    cusum: list[str], guard_count: int | dict[str, int],
     grade: str = "?", wins: str = "", losses: str = "",
     visibility_gate: dict | None = None,
 ) -> str:
@@ -320,9 +343,18 @@ def generate_main_chat_prompt(
         "reason": "Visibility gate was not collected during wrap.",
         "timestamp_display": "missing",
     }
+    overhaul = summarize_overhaul_status(visibility_gate)
+    auto_guard_count = guard_count["auto"] if isinstance(guard_count, dict) else guard_count
+    startup_line = (
+        "  Bot may still be running. Verify PID/log freshness before any restart."
+        if pid_status == "ALIVE"
+        else "  Bot is STOPPED. Run restart command first."
+    )
 
     lines = [
         f"--- MAIN CHAT (Session {next_s} — monitoring + research combined PERMANENTLY) ---",
+        f"{overhaul['summary']}",
+        f"{overhaul['directive']}",
         f"⚠️ MONITORING CHAT: Update this section at every /polybot-wrap.",
         f"Use /polybot-auto after startup. Do research during monitoring downtime inline.",
         f"Bot: {'RUNNING' if pid_status == 'ALIVE' else 'STOPPED'} "
@@ -334,10 +366,10 @@ def generate_main_chat_prompt(
         f"  losses: {losses[:100] if losses else '(see CHANGELOG)'}",
         f"",
         f"CRITICAL STARTUP CHECKS:",
-        f"  Bot is STOPPED. Run restart command first.",
+        startup_line,
         f"  tail -5 {log_path}  (MUST be recent after restart)",
         f"  grep 'Loaded.*auto-discovered' {log_path} | tail -1",
-        f"  MUST show 'Loaded {guard_count} auto-discovered guard(s)'",
+        f"  MUST show 'Loaded {auto_guard_count} auto-discovered guard(s)'",
         f"  grep 'n_observations' data/drift_posterior.json  (MUST show n_observations>=334)",
         f"  Latest visibility gate: {visibility_gate['status']} @ {visibility_gate['timestamp_display']}",
         f"  {visibility_gate['reason']}",
@@ -353,9 +385,10 @@ def generate_main_chat_prompt(
         f"6. ./venv/bin/python3 main.py --health",
         f"",
         f"MONITORING PRIORITIES:",
-        f"- PRIORITY 1: CCA REQ-025 URGENT — second edge (K2). KXCPI/KXGDP academically confirmed.",
-        f"- PRIORITY 2: CCA REQ-027 URGENT — Monte Carlo + Synthetic Origination (Matthew standing directive).",
-        f"- PRIORITY 3: daily_sniper paper validation — need 30 clean bets.",
+        f"- PRIORITY 1: close overhaul blockers — visibility, coverage assumptions, startup-state drift.",
+        f"- PRIORITY 2: read latest CCA delivery, then reconcile restart/series-planning work against current blockers.",
+        f"- PRIORITY 3: only after blockers close, evaluate restart and same-day strategy planning.",
+        f"- Do not restart or expand just because useful components exist.",
         f"- CUSUM STATE: {cusum_summary}",
         f"- All-time P&L: {alltime:.2f} USD | Target: +125 USD | Gap: {max(0, gap):.2f} USD",
         f"  Daily rate: ~{daily_rate:.1f} USD/day → ~{days_to_goal} days to goal",
@@ -437,6 +470,12 @@ def update_session_resume(new_main_chat_block: str) -> bool:
             + "\n"
             + existing[end_idx + len(end_marker):]
         )
+    elif "--- SESSION " in existing and "--- END SESSION " in existing:
+        header = (
+            "SESSION RESUME — auto-updated by /polybot-wrap and /polybot-wrapresearch.\n"
+            "Do NOT edit manually. Read by /polybot-init at session start.\n\n"
+        )
+        new_content = header + new_main_chat_block + "\n"
     else:
         # Fresh file — write header + block
         header = (
@@ -495,7 +534,7 @@ def main():
     parser.add_argument("--grade", default="?", help="Session grade (A/B/C/D)")
     parser.add_argument("--wins", default="", help="Session wins (one sentence)")
     parser.add_argument("--losses", default="", help="Session losses (one sentence)")
-    parser.add_argument("--write", action="store_true", help="Auto-write files (SESSION_HANDOFF, polybot-init, CHANGELOG)")
+    parser.add_argument("--write", action="store_true", help="Auto-write files (SESSION_RESUME, CHANGELOG)")
     parser.add_argument("--autoloop", action="store_true", help="After --write, trigger next session in new Terminal.app window")
     parser.add_argument("--changelog-only", action="store_true", help="Only output changelog entry")
     parser.add_argument("--prompt-only", action="store_true", help="Only output new session prompt")
@@ -594,7 +633,7 @@ def main():
     print("=" * 60)
     print("  1. Run: ./venv/bin/python3 scripts/polybot_wrap_helper.py "
           f"--session {session_num} --grade A --wins '...' --losses '...' --write")
-    print("  2. Update SESSION_HANDOFF.md manually if needed")
+    print("  2. Update SESSION_HANDOFF.md manually with the BOT STATE block above")
     print("  3. git add SESSION_HANDOFF.md .planning/CHANGELOG.md && git commit")
     print("  4. git push")
     print("  5. Auto-trigger next session (optional):")

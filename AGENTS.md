@@ -95,6 +95,8 @@ adjust a parameter after a losing period — read PRINCIPLES.md first.
 - Immediate path: send a CCA desktop queue note plus Kalshi relay note(s).
 - Durable path: append the outcome to `/Users/matthewshields/Projects/ClaudeCodeAdvancements/CODEX_TO_CLAUDE.md`.
 - Do not assume CCA or Kalshi will learn about the change indirectly later.
+- If Codex identifies a concrete advancement tip while working here, Codex should execute or codify it in the same workstream when safe and in scope, not leave it as a suggestion-only footer.
+- If Codex hardens or adds an operator-facing helper here, live-probe it before trusting it. Passing tests alone is not enough for startup gates, monitoring workflows, or wrap tooling.
 
 ## Architecture rules (non-negotiable)
 - One file, one job. If the job has "and" in it, split it.

@@ -1,52 +1,50 @@
-SESSION RESUME — auto-updated by /polybot-wrap at session end.
+SESSION RESUME — auto-updated by /polybot-wrap and /polybot-wrapresearch.
 Do NOT edit manually. Read by /polybot-init at session start.
 
-═══════════════════════════════════════════════════
-MAIN CHAT PROMPT — SESSION 161 (2026-04-02)
-═══════════════════════════════════════════════════
+--- MAIN CHAT (Session 168 — monitoring + research combined PERMANENTLY) ---
+OVERHAUL STATUS: INCOMPLETE — blocked by visibility gate runtime path still unproven: live probe crawled huge pagination and still produced no cached report.
+Do not count restart, expansion, or side work as progress until the blocker above is closed.
 
---- SESSION 161 START ---
-Bot: STOPPED (stale PID 87224) | Last log: /tmp/polybot_session159.log
-All-time P&L: +69.89 USD | Need 55.11 more to +125 target
-Bankroll: ~202 USD | Tests: 2019 passing | Last commit: fd223f0
-Guards: 11 auto-guards (0 new) + 19 ILs active
+Bot: last seen RUNNING (PID 303) | All-time live P&L: +130.44 USD
+Tests: 2247 passing | Last commit: d371d19 (`feat(sports): wire sharp_score_for_bet + SHARP_SCORE_MIN filter`)
 
-MANDATE DEADLINE: 2026-04-03 ~00:11 UTC — 15-25 USD/day ACHIEVE AND SUSTAIN. TOMORROW.
+S167/S168 handoff corrections:
+- Top-line overhaul status is now explicit in both `SESSION_HANDOFF.md` and generated wrap output.
+- `scripts/polybot_wrap_helper.py` now replaces the legacy `SESSION_RESUME.md` format instead of prepending new prompts above stale ones.
+- Generated startup priorities are overhaul-first now; old mandate/restart-first wording was stale and unsafe.
+- Live test result: `scripts/kalshi_visibility_report.py --edge-mode cached --strict-same-day-sports` is not startup-safe yet. It began crawling huge event/market pagination and did not produce the needed cache in normal operator time.
+- Worktree still has in-progress strategy edits in `src/strategies/sports_game.py` and `src/strategies/sports_math.py`. Do not overwrite or revert them blindly.
 
-PREVIOUS SESSION: S160 — 0 new settled bets. Bot stopped March 29. 4 days of missed income.
-15 OPEN LIVE TRADES: KXBTCD-26MAR2903 daily_sniper bets — settlement loop will resolve on restart.
+CRITICAL STARTUP CHECKS:
+1. Verify current bot state before any restart:
+   `cat bot.pid`
+   `tail -5 /tmp/polybot_session168.log`
+   If log is stale >15 min, only then consider restart.
+2. Read current comms before planning:
+   `tail -80 ~/.claude/cross-chat/CCA_TO_POLYBOT.md`
+   `cat CODEX_OBSERVATIONS.md`
+3. Run blocker gate:
+   `./venv/bin/python3 scripts/kalshi_visibility_report.py --edge-mode cached --strict-same-day-sports`
+   Current known issue: live probe showed this path is too heavy for routine startup and may not finish promptly. Treat that as an overhaul blocker until hardened.
+4. Run health after visibility:
+   `./venv/bin/python3 main.py --health`
+5. Check guard load:
+   `grep 'Loaded.*auto-discovered' /tmp/polybot_session168.log | tail -1`
+   Expected auto-guard count from latest helper run: 4
 
-PRIME DIRECTIVE: Make 15-25 USD TODAY. Bot has been down 4 days. Every hour counts.
-ABSOLUTE FREEDOM DIRECTIVE: Do literally anything on Kalshi. No strategy sacred. No approval needed.
-ONE RULE: bankroll must never drop below 20 USD.
+MONITORING PRIORITIES:
+- PRIORITY 1: close overhaul blockers — visibility, coverage assumptions, startup-state drift.
+- PRIORITY 2: reconcile the latest CCA delivery against blocker status before acting on restart or expansion guidance.
+- PRIORITY 3: only after blockers close, evaluate restart and same-day strategy planning.
+- Do not restart or expand just because useful components exist.
 
-STARTUP SEQUENCE:
-1. Run restart command below
-2. tail -f /tmp/polybot_session161.log | grep -E "LIVE BET|settled|WIN|LOSS|ERROR|CRITICAL"
-3. ./venv/bin/python3 scripts/auto_guard_discovery.py (guard check — 11 unchanged, 0 new expected)
-4. ./venv/bin/python3 main.py --health (verify clean)
-5. cat ~/.claude/cross-chat/CCA_TO_POLYBOT.md | tail -100 (CCA deliveries)
+LATEST CCA DELIVERY TO ACCOUNT FOR AFTER BLOCKER CHECKS:
+- Dynamic series discovery should replace the hardcoded sports series map in `sports_game_loop`.
+- Verify `max_daily_bets=30` at the sports game call site if/when strategy planning resumes.
+- CCA says `efficiency_feed` is wired and playoffs/in-play work are next, but those are backlog until overhaul blockers are actually closed.
 
-RESTART COMMAND (Session 161):
-  pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session161.log 2>&1 &
+RESTART COMMAND (only if blocker checks pass and restart is truly needed):
+pkill -f "python3 main.py" 2>/dev/null; pkill -f "python main.py" 2>/dev/null; sleep 3; kill -9 $(cat bot.pid 2>/dev/null) 2>/dev/null; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session168.log 2>&1 &
 
-STRATEGY STANDINGS (2026-04-02):
-  expiry_sniper_v1: PRIMARY — 90-94c profitable, 95-98c guarded (11 auto + 19 ILs)
-  daily_sniper_v1: EDGE CONFIRMED (SPRT lambda=+15.2, CUSUM S=3.8 stable)
-  btc_drift_v1: NEUTRAL — 80 bets, 50% WR — filter to 'no' side
-  eth_drift_v1: UNDERPERFORMING — 46% WR, declining
-  sol_drift_v1: HEALTHY — 47 bets, 66% WR
-  orderbook_imbalance_v1: PAPER — 205 bets, needs live decision
-
-GOAL TRACKER:
-  All-time: +69.89 USD | Need: 55.11 more to +125 | Deadline: 2026-04-03
-
-HYBRID CHAT: /kalshi-research PERMANENTLY RETIRED. This chat does everything.
-Use /polybot-auto after startup. Research inline during downtime.
-Budget: 30% of 5-hour token limit MAX. Model: Opus 4.6. Full autonomy active.
-
-Go. Restart the bot. Make money today.
---- END SESSION 161 PROMPT ---
-
-Live terminal feed:
-  tail -f /tmp/polybot_session161.log | grep --line-buffered -iE "LIVE BET|LIVE.*execute|kill.switch|hard.stop|settled|WIN|LOSS|expiry_sniper|daily_sniper|consecutive|bankroll|restart|ERROR|CRITICAL"
+AUTONOMY: Full autonomy active. NEVER ask Matthew to confirm anything.
+--- END MAIN CHAT PROMPT ---
