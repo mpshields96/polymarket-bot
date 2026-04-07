@@ -28,6 +28,27 @@ Today April 6 CST net: -1.81 USD. Sniper made +7.69, everything else lost -9.50.
 attempts have been execution failures. The fix is not to abandon diversification — it's to
 do it correctly.**
 
+## PLANNING CORRECTION — NO MORE SNIPER-CENTRIC THINKING
+
+The post-ban audit makes one thing clear:
+
+- sniper is the base layer
+- sniper is not the expansion roadmap
+
+The chats have been over-orbiting sniper because it is the only clean winner. That is
+understandable, but it is now a planning bug.
+
+Corrective rules:
+
+1. No new sniper variants get priority over building a second real engine.
+2. Sports can become a major share of total bets (`30-40%`) once calibrated, but MLB, NHL,
+   NBA, and soccer/UCL must be treated as separate models.
+3. We are not ignoring other Kalshi markets. Non-sports discovery is a parallel lane, not an optional extra.
+4. Daily profit is the target, so the bot must prioritize same-day visibility and same-day execution.
+   Betting sports games days from now is misaligned with the mission.
+5. If one strategy exceeds `80%` of trailing profit, the system enters a mandatory "build second
+   engine" sprint instead of tuning that same strategy again.
+
 ---
 
 ## CONFIRMED BUGS (not speculation — DB evidence)
@@ -142,28 +163,38 @@ Questions to answer:
 
 ### PHASE 3: VOLUME EXPANSION (next 3-5 days)
 
-**3A. Economics sniper live — April 10 (CPI)**
+**3A. Full Kalshi market visibility**
+   Before meaningful expansion, the bot must be able to actually see the relevant market set.
+   Right now it cannot.
+   Required outputs:
+   - visible now vs missing now audit
+   - same-day sports visibility audit
+   - all-series scout for non-sports Kalshi categories
+   - explicit proof that sports games >24h out are skipped
+
+**3B. Economics sniper live — April 10 (CPI)**
    Already planned. Paper April 8-9. Live April 10 if paper shows expected behavior.
    This is the single highest-confidence expansion path.
 
-**3B. Sports volume increase**
+**3C. Sports volume increase**
    After Phase 1 fixes: sports should produce 5-10 legitimate bets/day instead of
    8 in-game bets. At 3 USD/bet × 8 bets = 24 USD risked. With 100% WR (NHL model),
    that's meaningful daily contribution.
-   NHL is the model. NBA is on hold. MLB needs clean run after bug fix.
+   MLB is the highest-priority sports research lane. NHL is second. NBA is probationary until fixed.
+   Sports can reach `30-40%` of total bet count eventually, but only after per-sport calibration.
 
-**3C. Dynamic Kalshi series discovery**
+**3D. Dynamic Kalshi series discovery**
    Currently: 9 hardcoded sport series keys
    Goal: scan ALL 9,490 Kalshi series dynamically, find open markets by category
    CCA to design. This is the biggest infrastructure uplift.
    Benefits: find new market types (politics, culture, finance) that the bot never sees.
    Will reveal what volumes look like across the whole Kalshi landscape.
 
-**3D. Politics / culture markets**
+**3E. Politics / culture / other untapped markets**
    Currently: zero coverage
    What exists: election-adjacent markets, award shows, entertainment
    Need: dynamic scan to understand what's available between elections
-   CCA to research what has volume NOW
+   CCA to research what has volume NOW and rank by daily-profit relevance, not raw novelty
 
 ### PHASE 4: STRUCTURAL IMPROVEMENTS (multi-session)
 
@@ -174,6 +205,8 @@ Questions to answer:
    Soccer: 2 USD (current)
    NCAAB: paper-only (too sharp)
    Economics: 5 USD (first live run, conservative)
+   College baseball: research-only until series visibility + odds reference are confirmed
+   UFC: research-only until MLB/NHL/NBA stack is cleaner
 
 **4B. Sports market quality filters**
    Wire sports_math.py kill switches (already built S165) into sports_game_loop
@@ -186,10 +219,17 @@ Questions to answer:
    Run 10 paper bets at new threshold before live.
 
 **4D. BTC daily sniper volume optimization**
-   Currently: uncapped bets per day (good)
+   Currently: core engine (good)
    Question: is there a diminishing edge at certain hours or price sub-buckets?
    CCA to analyze: does the 99% WR hold uniformly across times and prices, or are there
    weaker sub-buckets we should guard?
+
+**4E. Anti-concentration operating rule**
+   If BTC sniper remains above `80-85%` of trailing profit after the next calibration cycle,
+   the priority is not "optimize sniper harder." The priority becomes:
+   - build MLB as engine two
+   - stabilize NHL as engine three
+   - keep non-sports discovery live as a separate lane
 
 ---
 
@@ -251,14 +291,14 @@ The sports and ETH sniper additions have been net negative so far due to executi
 and incorrect parameter choices. These are fixable — the bugs are specific and the fixes
 are clear. The underlying sports edge (NHL 4/4 100% WR) appears real.
 
-The plan: fix the execution, clean up the losers, then expand volume properly.
+The plan: fix visibility, fix execution, clean up the losers, then expand volume properly.
 The timeline: Phase 1 fixes take one session. Phase 2 analytics takes CCA one session.
 Phase 3 expansion starts after Phase 1 is validated (2-3 days).
 
 The daily target of 15-25 USD/day requires approximately:
   - daily_sniper: ~8-12 USD/day (current rate in April)
-  - sports: ~5-8 USD/day (after fixing, at NHL quality)
-  - economics: ~3-5 USD/day (after April 10 CPI live)
+  - sports: ~5-8 USD/day (after fixing, with MLB/NHL/NBA separated and calibrated)
+  - economics / other non-sports: ~3-5 USD/day (after visibility + discovery + first live validation)
   - Total feasible: 16-25 USD/day
 
 April 13 mandate is achievable IF Phase 1 fixes land today/tomorrow.

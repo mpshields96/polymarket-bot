@@ -55,6 +55,29 @@ For each sport: get_markets(series_ticker=X, status="open") + match vs Odds API.
 - No mechanism to DISCOVER new series automatically
 - Massive missed betting volume
 
+## ══════════════════════════════════════════════════════════════
+## DIRECTIVE 4: PORTFOLIO CONSTRUCTION + ANTI-SNIPER CONCENTRATION
+## ══════════════════════════════════════════════════════════════
+- Sniper is the base layer, NOT the whole strategy roadmap.
+- No new sniper variants get priority over building a second real engine.
+- Sports may become a considerable share of total bets: target band `30-40%` of total bets
+  once MLB/NHL/NBA are calibrated as separate models.
+- Sports are NOT one strategy bucket. MLB, NHL, NBA, and soccer/UCL must each be evaluated,
+  capped, and promoted independently.
+- We are `100%` not ignoring non-sports Kalshi markets. Market discovery for economics,
+  politics, entertainment, culture, and other high-volume series remains mandatory.
+- Daily profit is the target. The bot should prioritize same-day and near-term markets,
+  not fill risk budget with sports games days from now.
+- Hard rule: no sports bet should be placed beyond the active daily-profit window without
+  an explicit structural reason. Same-day first, next-day only if clearly necessary.
+- Hard scoreboard:
+  - median CST daily P&L
+  - days `>= 25 USD`
+  - negative-day rate
+  - profit concentration by top strategy
+- Trigger rule: if any one strategy exceeds `80%` of trailing profit, CCA/Kalshi must enter
+  a "build second engine" sprint instead of proposing more variants of that strategy.
+
 ### WHAT THE OVERHAUL NEEDS:
 A new module: src/data/kalshi_series_discovery.py
 
@@ -116,24 +139,31 @@ The sports_game_loop should call this instead of its hardcoded dict:
 - [x] Raise sports_game_loop max_daily_bets from 8 to 30 in main.py
 - [ ] Restart bot after cap change
 - [ ] Verify sports_game fires more bets tonight
+- [ ] Fix market visibility first: same-day sports seen correctly, games >24h skipped, no betting days-out boards
 - [ ] Port efficiency_feed.py Phase 2 from agentic-rd-sandbox
+- [ ] Calibrate MLB/NHL/NBA as separate lanes with separate caps and scorecards
 - [ ] Economics sniper live decision for April 10 CPI (paper→live)
 
 ### CCA (urgent research):
+- [ ] Build ranked "all Kalshi markets we can currently see vs cannot see" visibility audit
 - [ ] Build full Odds API sport key -> Kalshi series prefix mapping
-      (What Kalshi series exist for NFL, tennis, golf, MMA, MLS, college?)
+      (What Kalshi series exist for NFL, tennis, golf, MMA, MLS, college, baseball?)
+- [ ] Research sports in this order: MLB first, NHL second, NBA third
+- [ ] Keep college baseball + UFC in research queue only until MLB/NHL/NBA are cleaner
+- [ ] Build full Odds API sport key -> Kalshi series prefix mapping
 - [ ] Design KalshiSeriesDiscovery class (see spec above)
-- [ ] Research NFL/MMA/tennis edges: do FLB patterns hold in these markets?
+- [ ] Research NFL/MMA/tennis/politics/entertainment edges as ranked expansion candidates
 - [ ] CPI April 10 recommendation: which markets to target live? what prices?
 - [ ] GDP April 30 recommendation: paper vs live? which thresholds?
 - [ ] Multi-event parlay analysis: KXMVESPORTS 13K vol — edge mechanism?
+- [ ] Produce a weekly non-sports scout list ranked by daily-profit relevance, not just raw volume
 
 ### CODEX (urgent modeling):
-- [ ] Model minimum-variance portfolio for 25 USD/day using:
-      BTC daily sniper (5 USD/bet, 99.5% WR, ~15-20 bets/day)
-      Sports game (2-5 USD/bet, expanding from 9 to 30+ series)
-      Economics sniper (CPI: 5-10 USD/bet, April 10+)
-      NBA/NHL playoffs (April 19+, 5 USD/bet)
+- [ ] Model daily-profit system for 25 USD/day with sniper as base layer, not sole engine:
+      BTC daily sniper core
+      MLB/NHL/NBA as separately-capped sports lanes
+      economics sniper as secondary non-sports lane
+      future untapped-market lanes from discovery audit
 - [ ] Simulate: what combination of bet caps + series coverage hits 25 USD/day with <15 USD std dev?
 - [ ] Map which Odds API sport keys have Kalshi equivalents (systematic search)
 
