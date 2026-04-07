@@ -282,3 +282,172 @@ class TestSharpScoreForBet:
     def test_rlm_adds_25_pts(self):
         score = sharp_score_for_bet(0.05, efficiency_gap=0.0, rlm_confirmed=True)
         assert score == pytest.approx(20.0 + 25.0)
+
+
+# ---------------------------------------------------------------------------
+# Injury leverage tests (Chat 39)
+# ---------------------------------------------------------------------------
+
+from src.strategies.sports_math import (
+    get_positional_leverage,
+    evaluate_injury_impact,
+    injury_kill_switch,
+    situational_score_from_injuries,
+    InjuryReport,
+    LEVERAGE_KILL_THRESHOLD,
+    LEVERAGE_FLAG_THRESHOLD,
+)
+
+
+class TestGetPositionalLeverage:
+    def test_nba_pg_pivotal(self):
+        pts, pivotal = get_positional_leverage("NBA", "PG")
+        assert pts == 3.0
+        assert pivotal is True
+
+    def test_nfl_qb_highest(self):
+        pts, pivotal = get_positional_leverage("NFL", "QB")
+        assert pts == 4.5
+        assert pivotal is True
+
+    def test_nhl_goalie_pivotal(self):
+        pts, pivotal = get_positional_leverage("NHL", "G")
+        assert pts == 3.5
+        assert pivotal is True
+
+    def test_mlb_sp_pivotal(self):
+        pts, pivotal = get_positional_leverage("MLB", "SP")
+        assert pts == 2.0
+        assert pivotal is True
+
+    def test_unknown_position_returns_zero(self):
+        pts, pivotal = get_positional_leverage("NBA", "UNKNOWN")
+        assert pts == 0.0
+        assert pivotal is False
+
+    def test_unknown_sport_returns_zero(self):
+        pts, pivotal = get_positional_leverage("TENNIS", "anything")
+        assert pts == 0.0
+        assert pivotal is False
+
+    def test_case_insensitive_sport(self):
+        pts_upper, _ = get_positional_leverage("NBA", "PG")
+        pts_lower, _ = get_positional_leverage("nba", "PG")
+        assert pts_upper == pts_lower
+
+    def test_ncaab_alias_uses_nba_table(self):
+        pts, _ = get_positional_leverage("ncaab", "PG")
+        assert pts == 3.0
+
+
+class TestEvaluateInjuryImpact:
+    def test_nba_pg_own_team_flags_not_kills(self):
+        # PG leverage=3.0 < KILL_THRESHOLD(3.5) → flag only
+        r = evaluate_injury_impact("NBA", "PG", True, "home", "spreads", "home")
+        assert r.flag is True
+        assert r.kill is False
+        assert r.signed_impact < 0
+        assert r.leverage_pts == 3.0
+
+    def test_nhl_goalie_own_team_kills(self):
+        # NHL G leverage=3.5 == KILL_THRESHOLD → kill
+        r = evaluate_injury_impact("NHL", "G", True, "home", "spreads", "home")
+        assert r.kill is True
+        assert r.signed_impact < 0
+
+    def test_opponent_injury_helps(self):
+        r = evaluate_injury_impact("NFL", "QB", True, "away", "spreads", "home")
+        assert r.signed_impact > 0
+        assert r.flag is False or r.signed_impact > 0  # positive = helps
+
+    def test_non_starter_no_impact(self):
+        r = evaluate_injury_impact("NBA", "PG", False, "home", "spreads", "home")
+        assert r.leverage_pts == 0.0
+        assert r.flag is False
+        assert r.kill is False
+
+    def test_unknown_position_no_impact(self):
+        r = evaluate_injury_impact("NBA", "BENCHWARMER", True, "home", "spreads", "home")
+        assert r.leverage_pts == 0.0
+        assert r.kill is False
+
+    def test_totals_market_multiplier(self):
+        r = evaluate_injury_impact("NBA", "PG", True, "home", "totals", "home")
+        # totals multiplier is -0.3 → signed_impact = 3.0 * -0.3 = -0.9
+        assert r.signed_impact == pytest.approx(-0.9)
+        assert r.kill is False  # -0.9 < 3.5 threshold
+
+    def test_advisory_contains_severity(self):
+        r = evaluate_injury_impact("NHL", "G", True, "home", "spreads", "home")
+        assert "KILL" in r.advisory
+
+
+class TestInjuryKillSwitch:
+    def test_nhl_goalie_own_team_kills(self):
+        # NHL G leverage=3.5 meets KILL_THRESHOLD
+        killed, reason = injury_kill_switch("NHL", "G", True, "home", "spreads", "home")
+        assert killed is True
+        assert "KILL" in reason
+
+    def test_nba_pg_own_team_does_not_kill(self):
+        # PG leverage=3.0 < KILL_THRESHOLD — flags but kill_switch returns False
+        killed, reason = injury_kill_switch("NBA", "PG", True, "home", "spreads", "home")
+        assert killed is False
+
+    def test_backup_position_no_kill(self):
+        killed, reason = injury_kill_switch("NFL", "RB", True, "home", "spreads", "away")
+        assert killed is False
+        assert reason == ""
+
+    def test_non_starter_no_kill(self):
+        killed, reason = injury_kill_switch("NBA", "PG", False, "home", "spreads", "home")
+        assert killed is False
+        assert reason == ""
+
+
+class TestSituationalScoreFromInjuries:
+    def test_none_returns_zero(self):
+        assert situational_score_from_injuries(None) == 0.0
+
+    def test_empty_list_returns_zero(self):
+        assert situational_score_from_injuries([]) == 0.0
+
+    def test_opponent_injury_adds_points(self):
+        # away QB out, betting home → positive signed_impact = 4.5 * 0.5 = 2.25
+        r = evaluate_injury_impact("NFL", "QB", True, "away", "spreads", "home")
+        score = situational_score_from_injuries([r])
+        assert score > 0.0
+
+    def test_own_team_injury_adds_no_points(self):
+        # home QB out, betting home → negative signed_impact
+        r = evaluate_injury_impact("NFL", "QB", True, "home", "spreads", "home")
+        score = situational_score_from_injuries([r])
+        assert score == 0.0
+
+    def test_cap_at_15(self):
+        # Create 10 reports all with max positive impact
+        reports = [
+            evaluate_injury_impact("NFL", "QB", True, "away", "spreads", "home")
+            for _ in range(10)
+        ]
+        score = situational_score_from_injuries(reports)
+        assert score <= 15.0
+
+
+class TestSharpScoreWithInjuries:
+    def test_injury_reports_none_same_as_before(self):
+        # No injury_reports → same as old behaviour
+        score_old = sharp_score_for_bet(0.08, efficiency_gap=12.0)
+        score_new = sharp_score_for_bet(0.08, efficiency_gap=12.0, injury_reports=None)
+        assert score_old == score_new
+
+    def test_empty_injury_list_no_change(self):
+        score_no_inj = sharp_score_for_bet(0.08, efficiency_gap=12.0)
+        score_empty = sharp_score_for_bet(0.08, efficiency_gap=12.0, injury_reports=[])
+        assert score_no_inj == score_empty
+
+    def test_opponent_injury_boosts_score(self):
+        r = evaluate_injury_impact("NFL", "QB", True, "away", "spreads", "home")
+        score_base = sharp_score_for_bet(0.08, efficiency_gap=12.0)
+        score_with = sharp_score_for_bet(0.08, efficiency_gap=12.0, injury_reports=[r])
+        assert score_with > score_base

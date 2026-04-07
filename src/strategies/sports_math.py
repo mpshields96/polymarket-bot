@@ -2,22 +2,30 @@
 src/strategies/sports_math.py — Pure Sports Betting Math
 =========================================================
 Ported from agentic-rd-sandbox/core/math_engine.py (S165, 2026-04-06).
+Injury leverage added from agentic-rd-sandbox/core/injury_data.py (Chat 39).
 Zero external dependencies. Zero I/O. Fully testable in isolation.
 
 Provides:
-  - implied_probability()        American odds → raw implied prob
-  - no_vig_probability()         Remove vig from 2-way market
-  - no_vig_probability_3way()    Remove vig from 3-way market (soccer)
-  - passes_collar()              Standard -180 to +150 collar
-  - passes_collar_soccer()       Expanded -250 to +400 collar (soccer h2h)
-  - assign_grade()               A/B/C grade tiers by edge%
-  - nba_kill_switch()            NBA situational kill (rest disadvantage, B2B)
-  - nhl_kill_switch()            NHL goalie kill (backup goalie)
+  - implied_probability()              American odds → raw implied prob
+  - no_vig_probability()               Remove vig from 2-way market
+  - no_vig_probability_3way()          Remove vig from 3-way market (soccer)
+  - passes_collar()                    Standard -180 to +150 collar
+  - passes_collar_soccer()             Expanded -250 to +400 collar (soccer h2h)
+  - assign_grade()                     A/B/C grade tiers by edge%
+  - nba_kill_switch()                  NBA situational kill (rest disadvantage, B2B)
+  - nhl_kill_switch()                  NHL goalie kill (backup goalie)
+  - get_positional_leverage()          (sport, position) → (leverage_pts, is_pivotal)
+  - evaluate_injury_impact()           Full injury report for a bet
+  - injury_kill_switch()               Convenience wrapper → (should_kill, reason)
+  - situational_score_from_injuries()  List[InjuryReport] → 0-15 SITUATIONAL pts
+  - sharp_score_for_bet()              Full Sharp Score with SITUATIONAL component
 
 Usage:
   from src.strategies.sports_math import (
       implied_probability, no_vig_probability, passes_collar,
       passes_collar_soccer, assign_grade, nba_kill_switch, nhl_kill_switch,
+      evaluate_injury_impact, injury_kill_switch, situational_score_from_injuries,
+      sharp_score_for_bet, InjuryReport,
   )
 """
 
@@ -190,6 +198,7 @@ def sharp_score_for_bet(
     edge_pct: float,
     efficiency_gap: float = 8.0,
     rlm_confirmed: bool = False,
+    injury_reports: Optional[list] = None,
 ) -> float:
     """
     Compute Sharp Score (0-100) for a single bet candidate.
@@ -201,9 +210,10 @@ def sharp_score_for_bet(
         EDGE (40 pts):        (edge% / 10%) × 40, capped at 40
         RLM  (25 pts):        0 (disabled — not detected in current stack)
         EFFICIENCY (20 pts):  caller-provided 0-20 scaled gap
-        SITUATIONAL (15 pts): 0 (rest/injury not yet wired)
+        SITUATIONAL (15 pts): from injury_reports if provided, else 0
 
-    Without RLM, maximum is 60 pts (edge=40 + efficiency=20).
+    Without RLM + no injuries, maximum is 60 pts (edge=40 + efficiency=20).
+    With opponent injuries (max situational=15), maximum is 75 pts.
     Threshold: SHARP_SCORE_MIN=35 — bets below this are skipped.
 
     At min_edge_pct=5%: edge_pts=20. Need efficiency_gap≥15 to pass 35.
@@ -215,11 +225,14 @@ def sharp_score_for_bet(
     34.0
     >>> round(sharp_score_for_bet(0.05, efficiency_gap=15.0), 1)
     35.0
+    >>> round(sharp_score_for_bet(0.05, efficiency_gap=10.0, injury_reports=[]), 1)
+    30.0
     """
     edge_pts = min(40.0, (edge_pct / 0.10) * 40)
     rlm_pts = 25.0 if rlm_confirmed else 0.0
     eff_pts = max(0.0, min(20.0, efficiency_gap))
-    return round(edge_pts + rlm_pts + eff_pts, 1)
+    sit_pts = situational_score_from_injuries(injury_reports) if injury_reports is not None else 0.0
+    return round(edge_pts + rlm_pts + eff_pts + sit_pts, 1)
 
 
 # ---------------------------------------------------------------------------
@@ -305,3 +318,274 @@ def american_odds_from_prob(prob: float) -> int:
         return round(-prob / (1 - prob) * 100)
     else:
         return round((1 - prob) / prob * 100)
+
+
+# ---------------------------------------------------------------------------
+# Injury leverage (ported from agentic-rd-sandbox/core/injury_data.py, Chat 39)
+# ---------------------------------------------------------------------------
+
+LEVERAGE_KILL_THRESHOLD: float = 3.5   # flag and kill bet if starter absence shifts line >= this
+LEVERAGE_FLAG_THRESHOLD: float = 2.0   # soft flag (advisory only) at this threshold
+
+# Format: sport → {position_code: (leverage_pts, is_pivotal)}
+# leverage_pts: expected point-spread shift on confirmed starter absence
+# is_pivotal: True if position is franchise-level (e.g. QB in NFL, G in NHL)
+_POSITIONAL_LEVERAGE: dict[str, dict[str, tuple[float, bool]]] = {
+    "NBA": {
+        "PG":  (3.0, True),
+        "SG":  (2.0, False),
+        "SF":  (2.5, True),
+        "PF":  (2.0, False),
+        "C":   (2.5, True),
+        "G":   (2.0, False),
+        "F":   (2.0, False),
+        "F-G": (2.0, False),
+        "G-F": (2.0, False),
+        "C-F": (2.5, True),
+    },
+    "NFL": {
+        "QB":  (4.5, True),
+        "RB":  (1.5, False),
+        "WR":  (1.5, False),
+        "TE":  (1.5, False),
+        "OL":  (0.5, False),
+        "DL":  (1.0, False),
+        "DE":  (1.0, False),
+        "LB":  (1.0, False),
+        "CB":  (1.5, False),
+        "S":   (1.0, False),
+        "K":   (0.5, False),
+        "P":   (0.2, False),
+    },
+    "NHL": {
+        "G":   (3.5, True),
+        "C":   (2.0, True),
+        "LW":  (1.5, False),
+        "RW":  (1.5, False),
+        "D":   (1.5, False),
+        "F":   (1.5, False),
+    },
+    "MLB": {
+        "SP":  (2.0, True),
+        "RP":  (0.5, False),
+        "CL":  (0.5, False),
+        "C":   (0.5, False),
+        "1B":  (0.5, False),
+        "2B":  (0.5, False),
+        "3B":  (0.7, False),
+        "SS":  (0.8, False),
+        "OF":  (0.7, False),
+        "DH":  (0.7, False),
+    },
+    "SOCCER": {
+        "GK":  (1.5, True),
+        "CB":  (0.8, False),
+        "LB":  (0.5, False),
+        "RB":  (0.5, False),
+        "CDM": (0.8, False),
+        "CM":  (0.8, False),
+        "CAM": (1.0, False),
+        "LW":  (0.8, False),
+        "RW":  (0.8, False),
+        "ST":  (1.2, True),
+        "CF":  (1.2, True),
+        "FW":  (1.0, False),
+        "MF":  (0.7, False),
+        "DF":  (0.7, False),
+    },
+}
+
+# Sport name aliases for normalisation
+_SPORT_ALIASES: dict[str, str] = {
+    "nba": "NBA",
+    "nfl": "NFL",
+    "nhl": "NHL",
+    "mlb": "MLB",
+    "soccer": "SOCCER",
+    "ncaab": "NBA",   # use NBA leverage for college basketball
+    "ncaaf": "NFL",   # use NFL leverage for college football
+}
+
+# Side multipliers: injury direction vs bet direction
+_SIDE_MULTIPLIER: dict[str, float] = {
+    "home_bet_home_injury": -1.0,  # betting home, home player out → hurts
+    "home_bet_away_injury": +0.5,  # betting home, away player out → mild edge
+    "away_bet_away_injury": -1.0,  # betting away, away player out → hurts
+    "away_bet_home_injury": +0.5,  # betting away, home player out → mild edge
+    "total_injury": -0.3,          # totals: absence reduces scoring
+}
+
+
+@dataclass
+class InjuryReport:
+    """Result of evaluate_injury_impact()."""
+    leverage_pts: float
+    signed_impact: float
+    flag: bool
+    kill: bool
+    advisory: str
+    position: str
+    sport: str
+
+
+def get_positional_leverage(sport: str, position: str) -> tuple[float, bool]:
+    """
+    Return (leverage_pts, is_pivotal) for a given sport + position.
+
+    Returns (0.0, False) for unknown sport/position combinations.
+
+    >>> get_positional_leverage("NBA", "PG")
+    (3.0, True)
+    >>> get_positional_leverage("NFL", "QB")
+    (4.5, True)
+    >>> get_positional_leverage("NHL", "G")
+    (3.5, True)
+    >>> get_positional_leverage("MLB", "SP")
+    (2.0, True)
+    >>> get_positional_leverage("NBA", "UNKNOWN")
+    (0.0, False)
+    """
+    norm_sport = _SPORT_ALIASES.get(sport.lower(), sport.upper())
+    table = _POSITIONAL_LEVERAGE.get(norm_sport, {})
+    return table.get(position.upper(), (0.0, False))
+
+
+def evaluate_injury_impact(
+    sport: str,
+    position: str,
+    is_starter: bool,
+    team_side: str,
+    bet_market: str,
+    bet_direction: str = "home",
+) -> InjuryReport:
+    """
+    Evaluate the impact of a confirmed starter absence on a specific bet.
+
+    Args:
+        sport:          Sport identifier (NBA, NFL, NHL, MLB, SOCCER, or aliases).
+        position:       Player position code (PG, QB, G, SP, etc.).
+        is_starter:     True only for confirmed starters — reserves ignored.
+        team_side:      "home" or "away" — which team is missing the player.
+        bet_market:     "spreads", "h2h", or "totals".
+        bet_direction:  "home" or "away" — which side the bet favours.
+
+    Returns:
+        InjuryReport with flag/kill status and advisory text.
+
+    >>> r = evaluate_injury_impact("NBA", "PG", True, "home", "spreads", "home")
+    >>> r.kill
+    True
+    >>> r.signed_impact < 0
+    True
+    >>> r2 = evaluate_injury_impact("NFL", "QB", True, "away", "spreads", "home")
+    >>> r2.signed_impact > 0
+    True
+    >>> r3 = evaluate_injury_impact("NBA", "PG", False, "home", "spreads", "home")
+    >>> r3.leverage_pts
+    0.0
+    """
+    norm_sport = _SPORT_ALIASES.get(sport.lower(), sport.upper())
+    pos_upper = position.upper()
+
+    if not is_starter:
+        return InjuryReport(
+            leverage_pts=0.0, signed_impact=0.0,
+            flag=False, kill=False,
+            advisory="Non-starter — no impact expected.",
+            position=pos_upper, sport=norm_sport,
+        )
+
+    leverage, is_pivotal = get_positional_leverage(norm_sport, pos_upper)
+
+    if leverage == 0.0:
+        return InjuryReport(
+            leverage_pts=0.0, signed_impact=0.0,
+            flag=False, kill=False,
+            advisory=f"Unknown position '{pos_upper}' for {norm_sport} — no leverage data.",
+            position=pos_upper, sport=norm_sport,
+        )
+
+    if bet_market == "totals":
+        multiplier = _SIDE_MULTIPLIER["total_injury"]
+    else:
+        key = f"{bet_direction}_bet_{team_side}_injury"
+        multiplier = _SIDE_MULTIPLIER.get(key, -1.0)
+
+    signed_impact = leverage * multiplier
+    flag = abs(signed_impact) >= LEVERAGE_FLAG_THRESHOLD
+    kill = abs(signed_impact) >= LEVERAGE_KILL_THRESHOLD
+
+    direction = "hurts" if signed_impact < 0 else "helps"
+    severity = "KILL" if kill else ("FLAG" if flag else "INFO")
+    pivotal_tag = " [PIVOTAL POSITION]" if is_pivotal else ""
+    advisory = (
+        f"{severity}: {norm_sport} {pos_upper} starter out — "
+        f"expected {leverage:.1f}pt line shift, {direction} this bet{pivotal_tag}."
+    )
+
+    return InjuryReport(
+        leverage_pts=leverage,
+        signed_impact=round(signed_impact, 2),
+        flag=flag,
+        kill=kill,
+        advisory=advisory,
+        position=pos_upper,
+        sport=norm_sport,
+    )
+
+
+def injury_kill_switch(
+    sport: str,
+    position: str,
+    is_starter: bool,
+    team_side: str,
+    bet_market: str,
+    bet_direction: str = "home",
+) -> tuple[bool, str]:
+    """
+    Convenience wrapper — returns (should_kill, reason_string).
+
+    Returns (False, "") when no injury impact meets kill threshold.
+
+    >>> injury_kill_switch("NBA", "PG", True, "home", "spreads", "home")
+    (True, 'KILL: NBA PG starter out — expected 3.0pt line shift, hurts this bet [PIVOTAL POSITION].')
+    >>> injury_kill_switch("NFL", "RB", True, "home", "spreads", "away")
+    (False, '')
+    >>> injury_kill_switch("NBA", "PG", False, "home", "spreads", "home")
+    (False, '')
+    """
+    report = evaluate_injury_impact(sport, position, is_starter, team_side, bet_market, bet_direction)
+    if report.kill:
+        return True, report.advisory
+    return False, ""
+
+
+def situational_score_from_injuries(injury_reports: Optional[list]) -> float:
+    """
+    Compute SITUATIONAL component (0-15 pts) of Sharp Score from injury reports.
+
+    Only opponent injuries (positive signed_impact) add points — they represent
+    a structural edge. Own-team kill-level injuries should trigger injury_kill_switch()
+    before reaching this function, so they are excluded here.
+
+    Cap: 15 pts total (SITUATIONAL component ceiling).
+
+    Args:
+        injury_reports: List of InjuryReport objects, or None/empty → 0.0
+
+    Returns:
+        float in [0.0, 15.0]
+
+    >>> situational_score_from_injuries(None)
+    0.0
+    >>> situational_score_from_injuries([])
+    0.0
+    """
+    if not injury_reports:
+        return 0.0
+
+    total = 0.0
+    for r in injury_reports:
+        if isinstance(r, InjuryReport) and r.signed_impact > 0:
+            total += r.signed_impact
+    return round(min(15.0, total), 1)
