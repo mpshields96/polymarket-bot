@@ -2289,47 +2289,48 @@ async def sports_game_loop(
             # betting on games already in-progress or completed
             _now_ts = datetime.now(timezone.utc)
 
-            def _future_games(games):
-                """Keep only games that start within the next 72 hours and haven't started yet.
+            def _future_games(games, horizon_hours: int = 36):
+                """Keep only games that start within the next N hours and haven't started yet.
 
                 Using 5-min cutoff (not 30-min): our signal uses PRE-GAME bookmaker consensus.
                 Betting 30+ min into a game means Kalshi live price reflects in-game score while
                 our signal is stale — false edge. Only bet when game is upcoming or within 5 min
                 of scheduled start (handles minor delays).
 
-                72h horizon: covers today + next 3 days. Required at season transitions (e.g.
-                last regular-season day has no Kalshi pricing, but playoff games 48h away DO
-                have active markets). Kalshi markets are sorted ascending by date so today's
-                games are always evaluated first. Daily cap (30) + game-level dedup prevent
-                future games from consuming the full budget before today's games are checked.
+                Sport-specific horizons (S272 fix):
+                  NBA/NHL: 72h — playoff/end-of-season games scheduled 2-3 days out have real pricing
+                  MLB:     36h — daily schedule; tomorrow's games have sharp early lines by ~10 PM
+                  Soccer:  30h — EPL/LaLiga/UCL matchdays cluster; 3-day-out prices are too stale
+                  Default: 36h
+
+                Daily cap (30) + game-level dedup prevent future games from burning the full
+                budget before today's games are checked.
                 """
                 future = []
+                _cutoff = _now_ts - timedelta(minutes=5)
+                _horizon = _now_ts + timedelta(hours=horizon_hours)
                 for g in games:
                     if not g.commence_time:
                         continue
                     try:
-                        # commence_time is ISO8601 UTC, e.g. "2026-03-28T23:00:00Z"
                         from datetime import datetime as _dt
                         ct = _dt.fromisoformat(g.commence_time.replace("Z", "+00:00"))
-                        # Allow games not yet started (or < 5 min after scheduled start for delays)
-                        _cutoff = _now_ts - timedelta(minutes=5)
-                        _horizon = _now_ts + timedelta(hours=72)
                         if ct > _cutoff and ct < _horizon:
                             future.append(g)
                     except Exception:
                         future.append(g)  # keep if we can't parse time
                 return future
 
-            nba_games = _future_games(await feed.get_nba_games())
-            ncaab_games = _future_games(await feed.get_ncaab_games())
-            nhl_games = _future_games(await feed.get_nhl_games())
-            mlb_games = _future_games(await feed.get_mlb_games())
-            epl_games = _future_games(await feed.get_epl_games())
-            ucl_games = _future_games(await feed.get_ucl_games())
-            bundesliga_games = _future_games(await feed.get_bundesliga_games())
-            serie_a_games = _future_games(await feed.get_serie_a_games())
-            la_liga_games = _future_games(await feed.get_la_liga_games())
-            ligue1_games = _future_games(await feed.get_ligue1_games())
+            nba_games = _future_games(await feed.get_nba_games(), horizon_hours=72)
+            ncaab_games = _future_games(await feed.get_ncaab_games(), horizon_hours=36)
+            nhl_games = _future_games(await feed.get_nhl_games(), horizon_hours=72)
+            mlb_games = _future_games(await feed.get_mlb_games(), horizon_hours=36)
+            epl_games = _future_games(await feed.get_epl_games(), horizon_hours=30)
+            ucl_games = _future_games(await feed.get_ucl_games(), horizon_hours=30)
+            bundesliga_games = _future_games(await feed.get_bundesliga_games(), horizon_hours=30)
+            serie_a_games = _future_games(await feed.get_serie_a_games(), horizon_hours=30)
+            la_liga_games = _future_games(await feed.get_la_liga_games(), horizon_hours=30)
+            ligue1_games = _future_games(await feed.get_ligue1_games(), horizon_hours=30)
             odds_by_sport = {
                 "basketball_nba": nba_games,
                 "basketball_ncaab": ncaab_games,
