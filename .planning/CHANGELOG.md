@@ -1,5 +1,75 @@
 # POLYMARKET-BOT CHANGELOG
 
+## S166 — 2026-04-07 ~00:40 UTC (overhaul diagnosis, CST mandate, bug identification)
+
+### P&L: -1.81 USD today CST April 6 (16 settled, 14/16 wins = 87.5% WR)
+  daily_sniper: +7.69 USD (11 bets, 100% WR)
+  eth_daily_sniper: -6.51 USD (4 bets, 75% WR — payoff asymmetry confirmed negative)
+  sports_game_mlb: -2.99 USD (1 settled bet)
+April CST total: +60.02 USD (97 settled, 95/97 wins = 97.9% WR)
+All-time live: +129.91 USD (1685 settled, 86% WR)
+Bot STOPPED (Matthew directive). 19 open live bets.
+Tests: 3 failed (test_fomc + test_unemployment — pre-existing, NOT introduced this session), 2101 passing.
+
+### DIAGNOSIS: Bot has one real edge. Everything else is losing.
+All-time by strategy (live only):
+  daily_sniper_v1:      +118.70 USD (190 bets, 99% WR) — THE ENTIRE BUSINESS
+  sports_game_nhl_v1:   +33.66 USD (4 bets, 100% WR) — promising, tiny sample
+  eth_daily_sniper_v1:   -4.11 USD (7 bets, 86% WR) — STRUCTURAL LOSER
+  sports_game_nba_v1:   -19.67 USD (2 bets, 0% WR) — DISASTER
+  eth_drift_v1:         -27.35 USD (158 bets, 46% WR) — correctly disabled
+  sol_drift_v1:         -15.68 USD (47 bets, 66% WR) — correctly disabled
+
+### CONFIRMED BUGS IDENTIFIED (evidence in DB, not speculation)
+1. IN-GAME BETTING (CRITICAL): Bot placed 6 bets at 23:46 UTC on MLB games that started
+   18:10-18:45 UTC (5+ hours in-game). Root cause: _future_games() checks Odds API
+   commence_time but _match_game() has ±1 day tolerance — April 7 Odds API game matches
+   April 6 Kalshi market. Kalshi ticker date NEVER independently verified before betting.
+   Fix: check _parse_ticker_date(ticker) > now - 5min in inner market loop.
+
+2. 72h HORIZON BETS FUTURE GAMES FIRST: April 7-9 games consume the daily cap before
+   tonight's games are evaluated. Fix: a) sort markets by game date ascending (today first),
+   b) reduce horizon from 72h to 24h.
+
+3. ETH DAILY SNIPER NEGATIVE EV: At 91c, win=+0.90 USD, loss=-9.10 USD.
+   Breakeven WR = 91%. Actual WR = 86%. EV = -0.50/bet. Confirmed loss = -4.11 on 7 bets.
+   Fix: disable live execution, lower max ceiling to 85-88c.
+
+4. NBA 0% WR: 2 bets, -19.67 USD. Cause unknown (team mapping? variance?).
+   Fix: disable NBA live until investigated.
+
+5. DEDUP RESETS UTC vs CST: Minor inconsistency in sports_game_loop dedup reset timing.
+
+### CST TIMEZONE MANDATE (Matthew standing directive, S166 — PERMANENT)
+ALL P&L tracking now uses Central Standard Time (CST = UTC-6).
+"Today" = midnight CST to midnight CST = 06:00 UTC to 06:00 UTC next day.
+Written to: .claude/rules/standing-directives.md
+APPLIES TO: all Kalshi chats, CCA, all future sessions. PERMANENT.
+
+### CODE CHANGES THIS SESSION
+  max_daily_bets: 8→30 at sports_game_loop call site (code already in file)
+  CCA NCAAB fix already committed (commits 763ba03, 28a9c74 from CCA)
+  OVERHAUL_PLAN_S166.md written: full diagnosis + 4-phase plan
+
+### COMMS SENT
+  REQ-082 (URGENT) to CCA: 5-part overhaul mandate (analytics audit, ETH fix, in-game
+  validation, dynamic series discovery, BTC sniper sub-bucket analysis)
+  CLAUDE_TO_CODEX.md: 5 bug fixes with exact code locations and fix patterns
+
+### STRATEGY ANALYZER INSIGHTS
+  Sniper profitable range: 90-94c (guarded buckets: 95-98c blocked)
+  btc_drift: NEUTRAL 50% WR, direction filter "no" remains correct
+  eth_drift: UNDERPERFORMING 46% WR, declining trend, correctly disabled
+  sol_drift: HEALTHY 66% WR but -15.68 net (payoff structure explanation unknown)
+
+### SESSION GRADE: B-
+WINS: Identified 5 confirmed bugs with DB evidence, wrote comprehensive OVERHAUL plan,
+  posted REQ-082 to CCA, documented CST mandate everywhere, plan written before executing.
+LOSSES: Today -1.81 USD. ETH daily sniper + in-game MLB bets hurt. No bugs fixed yet.
+  Bot left with 6 open in-game bets on likely-finished games (settling unknown outcomes).
+ONE THING NEXT CHAT MUST DO DIFFERENTLY: Execute Phase 1 fixes first (5 targeted
+  code changes), THEN restart bot. Don't restart before bugs are fixed.
+
 ## S165 — 2026-04-06 ~21:45 UTC (monitoring + sports expansion Phase 1)
 
 ### P&L: +7.38 USD today CDT (10 settled, 10/10 wins, 100% WR)

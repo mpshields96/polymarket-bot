@@ -25,5 +25,16 @@
   expiry_sniper, maker_sniper — ALL banned regardless of edge data)
 - Paper accumulation OK. NEVER re-enable live even if SPRT/CUSUM looks good. Ban is structural.
 
+## DAILY PROFIT TRACKING — CST ONLY (Matthew directive, S166 — PERMANENT)
+- ALL daily P&L tracking uses Central Standard Time (CST = UTC-6). No UTC. No CDT.
+- "Today" = midnight CST to midnight CST (= 06:00 UTC to 06:00 UTC next day)
+- "This month" = April 1 00:00 CST = 2026-04-01 06:00 UTC onward
+- Query pattern:
+    from datetime import datetime, timezone, timedelta
+    cst_midnight_utc = datetime(Y, M, D, 6, 0, 0, tzinfo=timezone.utc)  # midnight CST
+    april_start_utc = datetime(2026, 4, 1, 6, 0, 0, tzinfo=timezone.utc)
+- NEVER report "today" using UTC midnight as the boundary. Always use CST (06:00 UTC boundary).
+- Applies to: ALL chats — Kalshi main, research, CCA cross-chat reports. PERMANENT.
+
 ## Session tip
 Output one loading screen tip at the end of every response (one recommendation).
