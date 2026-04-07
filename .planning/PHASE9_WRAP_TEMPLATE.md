@@ -49,6 +49,8 @@
 - Profit concentration in top strategy: ___%
 - Negative-day rate: ___ / 7
 - Median CST daily P&L: ___
+- Same-day sports bet count: ___
+- Days-out sports bet count: ___
 
 ### Target vs Actual:
 | Source | Projected (INCOME_MAP_S269) | Actual | Delta |
@@ -106,11 +108,13 @@
 - No active bleeding strategies
 - Bot running stably for 7 days post-overhaul
 - Top-strategy profit concentration < 80% OR clear second-engine progress is visible
+- Same-day sports trading dominates days-out sports exposure
 
 **NO-GO if:**
 - Phase 9 income < $6/day (overhaul underperformed)
 - In-play sniper paper WR < 90% (thesis not validated)
 - Major bug discovered that needs another calibration round
 - One strategy still contributes >80% of trailing profit with no real second engine
+- Days-out sports bets are still crowding out same-day profit capture
 
 **NO-GO action:** Write Phase 9.5 (targeted fixes) instead of Phase 10.

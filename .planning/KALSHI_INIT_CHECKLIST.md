@@ -121,6 +121,15 @@ for c in caps: print(f'  {c[0]:35s}  {c[1]} bets')
 - BTC/ETH sniper >10 bets today → cap is wrong, check config
 - sports_game >30 bets/strategy → cap too high, likely a bug
 
+**Daily-profit alignment check:**
+- Estimate same-day vs days-out sports exposure.
+- If days-out sports bets are materially present while same-day boards were available:
+  - treat this as a visibility / prioritization bug
+  - do not add new sports coverage before fixing it
+- Session note should explicitly state:
+  - same-day sports bet count
+  - days-out sports bet count
+
 ---
 
 ## ONLY AFTER ALL 5 STEPS: Decide what to work on
@@ -136,6 +145,8 @@ Priority order:
 - If the Step 4 concentration check says one strategy is `>80%` of trailing profit,
   then today's planned work must include second-engine work or market-visibility work.
   Do not spend the whole session tuning the dominant strategy again.
+- If the Step 5 alignment check shows days-out sports exposure is crowding out same-day profit,
+  today's planned work must include visibility / ordering / horizon fixes.
 
 ---
 
