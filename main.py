@@ -2078,7 +2078,25 @@ def _announce_live_bet(
 # ── Kalshi sports game-winner bookmaker arb loop ─────────────────────
 
 _SPORTS_GAME_POLL_SEC = 300         # 5-min poll — games added throughout the day
-_SPORTS_GAME_LIVE_CAP_USD = 3.0     # Raised 2->3 USD (CCA REQ-066: NHL 4/4, conservative raise)
+# Per-sport live caps (Phase 4A overhaul — S167):
+# NHL: 3 USD proven edge (4/4 wins, +33.66 USD all-time)
+# MLB: 2 USD — lower cap until clean run after in-game bug fix
+# Soccer: 2 USD — early-stage, small sample
+# NCAAB: paper-only via _PAPER_ONLY_SPORTS (too sharp, tournament pricing is efficient)
+# NBA: paper-only via _PAPER_ONLY_SPORTS (0% WR, under investigation)
+_SPORTS_GAME_LIVE_CAP_BY_SPORT: dict = {
+    "basketball_nba":             0.0,   # paper-only (via _PAPER_ONLY_SPORTS — never reaches live path)
+    "basketball_ncaab":           0.0,   # paper-only (via _PAPER_ONLY_SPORTS — never reaches live path)
+    "icehockey_nhl":              3.0,   # proven edge, conservative cap
+    "baseball_mlb":               2.0,   # post-in-game-bug-fix clean run
+    "soccer_epl":                 2.0,   # early stage
+    "soccer_uefa_champs_league":  2.0,   # early stage
+    "soccer_germany_bundesliga":  2.0,   # early stage
+    "soccer_italy_serie_a":       2.0,   # early stage
+    "soccer_spain_la_liga":       2.0,   # early stage
+    "soccer_france_ligue_one":    2.0,   # early stage
+}
+_SPORTS_GAME_LIVE_CAP_USD = 2.0     # fallback default (should not be hit)
 _SPORTS_GAME_PAPER_CAP_USD = 5.0    # Paper cap
 
 
@@ -2118,6 +2136,7 @@ async def sports_game_loop(
     from src.strategies.sports_game import SportsGameStrategy, _code_to_city
     from src.strategies.sports_sniper import parse_kalshi_game_ticker
     from src.strategies.sports_game import _parse_ticker_date as _sg_parse_ticker_date
+    from src.strategies.sports_math import assign_grade as _sports_assign_grade
     from src.execution.paper import PaperExecutor
     import contextlib
 
@@ -2411,6 +2430,23 @@ async def sports_game_loop(
                     if signal is None:
                         continue
 
+                    # Grade filter: NEAR_MISS signals (<0.5% edge) are skipped entirely.
+                    # Grade A (≥3.5%): full sport cap. Grade B (1.5-3.5%): half cap.
+                    # Grade C (0.5-1.5%): paper-only data collection.
+                    # With current min_edge_pct=5%, all signals are Grade A.
+                    # Lower min_edge_pct later to allow B/C signals for calibration data.
+                    _grade = _sports_assign_grade(signal.edge_pct)
+                    if _grade == "NEAR_MISS":
+                        logger.debug("[sports_game] %s edge=%.1f%% grade=NEAR_MISS — skip",
+                                     ticker, signal.edge_pct * 100)
+                        continue
+                    _grade_cap_multiplier = 1.0 if _grade == "A" else (0.5 if _grade == "B" else 0.0)
+                    _grade_live = not _sport_is_paper and _grade_cap_multiplier > 0.0
+
+                    if not _sport_is_paper and _grade == "C":
+                        # Grade C: paper regardless of global live mode (data collection only)
+                        _sport_is_paper = True
+
                     if not _sport_is_paper:
                         # ═══ LIVE PATH ═══════════════════════════════════════
                         _live_price = market.yes_price if signal.side == "yes" else market.no_price
@@ -2428,7 +2464,9 @@ async def sports_game_loop(
 
                         from src.risk.kill_switch import MAX_TRADE_PCT as _MAX_PCT
                         _pct_max = round(current_bankroll * _MAX_PCT, 2) - 0.01
-                        trade_usd = min(_SPORTS_GAME_LIVE_CAP_USD, max(0.01, _pct_max))
+                        _sport_cap = _SPORTS_GAME_LIVE_CAP_BY_SPORT.get(sport_key, _SPORTS_GAME_LIVE_CAP_USD)
+                        _graded_cap = round(_sport_cap * _grade_cap_multiplier, 2)
+                        trade_usd = min(_graded_cap, max(0.01, _pct_max))
 
                         _lock_ctx = trade_lock if trade_lock is not None else contextlib.nullcontext()
                         async with _lock_ctx:
@@ -2460,9 +2498,9 @@ async def sports_game_loop(
                                 _bet_tickers_today.add(ticker)
                                 _bet_games_today.add(_game_key)
                                 logger.info(
-                                    "[sports_game] LIVE BET: %s %s@%dc | edge=%.1f%% | %s | %.2f USD",
+                                    "[sports_game] LIVE BET: %s %s@%dc | edge=%.1f%% grade=%s | %s | %.2f USD",
                                     ticker, signal.side.upper(), signal.price_cents,
-                                    signal.edge_pct * 100, signal.reason, trade_usd,
+                                    signal.edge_pct * 100, _grade, signal.reason, trade_usd,
                                 )
                                 _announce_live_bet(result, strategy_name=strategy.name)
                     else:
@@ -4599,8 +4637,9 @@ async def main():
     # 92c ceiling (not 94c): ETH near-expiry markets have tighter liquidity, CCA REQ-62 directive.
     # KXETHD volume: 64K (S51 probe). Stagger 150s (after daily_sniper 120s + buffer).
     # S166: live_executor_enabled=False — ETH at 91c ceiling has EV=-0.50/bet (7 bets, -4.11 USD).
-    # Re-enable after lowering max_price_cents to 85-88c and validating 10+ paper bets.
-    # S163 original flip: live_executor_enabled=True, but structural loser at 91c.
+    # S167: max_price_cents lowered 92→85. At 85c: cost=8.50, payout=1.50, breakeven=85%.
+    #   At actual WR=86%: EV=86%*1.50 - 14%*8.50 = +0.10/bet (barely positive, safe to paper-validate).
+    # Re-enable live ONLY after: 50 paper bets at ≤85c with WR ≥ 92% (CCA Chat 38C mandate).
     eth_daily_sniper_task = asyncio.create_task(
         daily_sniper_loop(
             kalshi=kalshi,
@@ -4615,7 +4654,7 @@ async def main():
             series_ticker="KXETHD",
             loop_name="eth_daily_sniper",
             coin_feed=eth_feed,
-            max_price_cents=92,
+            max_price_cents=85,
         ),
         name="eth_daily_sniper_loop",
     )
