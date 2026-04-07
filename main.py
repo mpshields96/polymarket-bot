@@ -3128,6 +3128,165 @@ async def soccer_sniper_loop(
         await asyncio.sleep(_SOCCER_SNIPER_POLL_SEC)
 
 
+_INPLAY_SNIPER_POLL_SEC = 60       # poll every 60s during game windows
+
+# Series covered by the in-play sniper
+_INPLAY_SNIPER_SERIES = ("KXNBAGAME", "KXNHLGAME", "KXMLBGAME")
+
+
+async def sports_inplay_sniper_loop(
+    kalshi,
+    db,
+    kill_switch,
+    initial_delay_sec: float = 45.0,
+    max_daily_bets: int = 10,
+    live_executor_enabled: bool = False,
+    live_confirmed: bool = False,
+    trade_lock=None,
+):
+    """
+    NBA/NHL/MLB in-play FLB sniper loop.
+
+    Scans KXNBAGAME/KXNHLGAME/KXMLBGAME markets during live games.
+    Fires when YES or NO reaches 90-92c within the last 45 min of a game
+    (Favorite-Longshot Bias: market implies ~10% reversal, actual rate ~3-5%).
+
+    Paper-only until 30+ bets + Brier < 0.30 per series.
+    Uses expected_expiration_time from market.raw for timing.
+    """
+    from src.strategies.sports_inplay_sniper import make_sports_inplay_sniper
+    from src.execution.paper import PaperExecutor
+    import contextlib
+
+    # One strategy + paper executor per series
+    strategies = {series: make_sports_inplay_sniper(series) for series in _INPLAY_SNIPER_SERIES}
+    paper_execs = {
+        series: PaperExecutor(db=db, strategy_name=strat.name, slippage_ticks=1, fill_probability=1.0)
+        for series, strat in strategies.items()
+    }
+
+    is_paper_mode = not (live_executor_enabled and live_confirmed)
+    _mode_label = "paper" if is_paper_mode else "LIVE"
+
+    logger.info(
+        "[inplay_sniper] Started — %s NBA/NHL/MLB in-play FLB (90-93c, max %d bets/day)",
+        _mode_label, max_daily_bets,
+    )
+
+    if initial_delay_sec > 0:
+        await asyncio.sleep(initial_delay_sec)
+
+    while True:
+        try:
+            if kill_switch.is_hard_stopped:
+                logger.debug("[inplay_sniper] Hard stop active — skipping poll")
+                await asyncio.sleep(60)
+                continue
+
+            for series, strategy in strategies.items():
+                # ── Fetch open markets for this series ──────────────────────
+                try:
+                    markets = await kalshi.get_markets(
+                        series_ticker=series,
+                        status="open",
+                        limit=100,
+                    )
+                except Exception as exc:
+                    logger.warning("[inplay_sniper] %s market fetch failed: %s", series, exc)
+                    continue
+
+                if not markets:
+                    logger.debug("[inplay_sniper] No open %s markets", series)
+                    continue
+
+                # ── Daily cap check ──────────────────────────────────────────
+                today_count = db.count_trades_today(strategy=strategy.name, is_paper=is_paper_mode)
+                if max_daily_bets > 0 and today_count >= max_daily_bets:
+                    logger.debug(
+                        "[inplay_sniper] %s daily cap (%d/%d)", series, today_count, max_daily_bets,
+                    )
+                    continue
+
+                paper_exec = paper_execs[series]
+
+                for market in markets:
+                    signal = strategy.generate_signal(market)
+                    if signal is None:
+                        continue
+
+                    if db.has_open_position(ticker=market.ticker, is_paper=is_paper_mode):
+                        logger.debug("[inplay_sniper] Already open for %s — skip", market.ticker)
+                        continue
+
+                    current_bankroll = db.latest_bankroll() or 50.0
+
+                    if is_paper_mode:
+                        from src.risk.sizing import calculate_size
+                        _size_result = calculate_size(
+                            edge_pct=signal.edge_pct,
+                            win_prob=signal.win_prob,
+                            current_bankroll_usd=current_bankroll,
+                            payout_per_dollar=None,
+                            min_edge_pct=0.01,
+                        )
+                        _trade_usd = min(
+                            strategy.PAPER_CALIBRATION_USD,
+                            max(0.01, _size_result.recommended_usd if _size_result else 0.50),
+                        )
+                        paper_exec.execute(
+                            ticker=market.ticker,
+                            side=signal.side,
+                            price_cents=signal.price_cents,
+                            size_usd=_trade_usd,
+                        )
+                        logger.info(
+                            "[inplay_sniper] PAPER %s: %s %s@%dc %.2f USD",
+                            series, market.ticker, signal.side.upper(),
+                            signal.price_cents, _trade_usd,
+                        )
+
+                    else:
+                        from src.risk.kill_switch import MAX_TRADE_PCT as _MAX_PCT
+                        _pct_max = round(current_bankroll * _MAX_PCT, 2) - 0.01
+                        # Per-series cap: NHL/MLB 2 USD, NBA 0 USD (paper-only until data confirms)
+                        _series_cap = {"KXNBAGAME": 0.0, "KXNHLGAME": 2.0, "KXMLBGAME": 2.0}.get(series, 2.0)
+                        if _series_cap <= 0:
+                            logger.debug("[inplay_sniper] %s live cap=0 — skip live", series)
+                            continue
+                        trade_usd = min(_series_cap, max(0.01, _pct_max))
+
+                        _lock_ctx = trade_lock if trade_lock is not None else contextlib.nullcontext()
+                        async with _lock_ctx:
+                            ok, block_reason = kill_switch.check_order_allowed(
+                                trade_usd=trade_usd,
+                                current_bankroll_usd=current_bankroll,
+                                minutes_remaining=None,
+                            )
+                            if not ok:
+                                logger.info("[inplay_sniper] Kill switch blocked: %s", block_reason)
+                                continue
+
+                            from src.execution.live import LiveExecutor
+                            live_exec = LiveExecutor(kalshi=kalshi, db=db)
+                            await live_exec.execute(
+                                ticker=market.ticker,
+                                side=signal.side,
+                                price_cents=signal.price_cents,
+                                size_usd=trade_usd,
+                                strategy_name=strategy.name,
+                                kill_switch=kill_switch,
+                                current_bankroll_usd=current_bankroll,
+                            )
+
+        except asyncio.CancelledError:
+            logger.info("[inplay_sniper] Loop cancelled — exiting")
+            break
+        except Exception as exc:
+            logger.warning("[inplay_sniper] Unexpected error: %s", exc, exc_info=True)
+
+        await asyncio.sleep(_INPLAY_SNIPER_POLL_SEC)
+
+
 # ── Polymarket copy-trade polling loop ────────────────────────────────
 
 async def copy_trade_loop(
@@ -4775,6 +4934,25 @@ async def main():
         name="soccer_sniper_loop",
     )
     logger.info("Soccer sniper loop started (paper KXUCLGAME in-play FLB, 88-93c, 60s poll)")
+
+    # ── Sports in-play FLB sniper (NBA/NHL/MLB) ───────────────────────
+    # Paper-only. Fires during live KXNBAGAME/KXNHLGAME/KXMLBGAME at 90-92c.
+    # Same FLB mechanism as soccer_sniper but for US sports.
+    # Gate to live: 30+ settled paper bets + Brier < 0.30 per series.
+    sports_inplay_task = asyncio.create_task(
+        sports_inplay_sniper_loop(
+            kalshi=kalshi,
+            db=db,
+            kill_switch=kill_switch,
+            initial_delay_sec=45.0,    # stagger 10s after soccer (35s)
+            max_daily_bets=10,
+            live_executor_enabled=False,   # paper-only until calibrated
+            live_confirmed=live_confirmed,
+            trade_lock=_live_trade_lock,
+        ),
+        name="sports_inplay_sniper_loop",
+    )
+    logger.info("Sports in-play sniper loop started (paper NBA/NHL/MLB FLB, 90-93c, 60s poll)")
 
     # ── Sports-futures mispricing loop (Polymarket supplemental) ─────
     # Paper-only. Compares PM championship futures to bookmaker consensus.
