@@ -400,6 +400,7 @@ class SportsGameStrategy(BaseStrategy):
     min_minutes_remaining: float = 15.0 # Don't enter with < 15 min to game start
     min_books: int = 2                  # Require at least N books in consensus
     min_volume: int = 100               # Skip Kalshi markets with low volume
+    max_days_ahead: float = 1.5         # Skip games >1.5 days from now (36 hours)
 
     # Kalshi fee model (approximation)
     _KALSHI_FEE_PCT: float = 0.07       # ~7% of winnings on binary markets
@@ -469,6 +470,18 @@ class SportsGameStrategy(BaseStrategy):
         # Find matching sports feed game — pass ticker date so same-team multi-day
         # series don't accidentally match the wrong game's odds.
         kalshi_date = _parse_ticker_date(market.ticker)
+
+        # Days-ahead gate: skip markets too far in the future.
+        # Default 36h — covers tonight + tomorrow's games, blocks 2+ days out.
+        if kalshi_date is not None:
+            hours_ahead = (kalshi_date - datetime.now(timezone.utc)).total_seconds() / 3600
+            if hours_ahead > self.max_days_ahead * 24:
+                logger.debug(
+                    "[sports_game] %s starts in %.1fh (max %.0fh) — skip",
+                    market.ticker, hours_ahead, self.max_days_ahead * 24,
+                )
+                return None
+
         game = _match_game(odds_games, home_odds_name, away_odds_name, kalshi_date)
         if not game:
             logger.debug("[sports_game] No odds match for %s vs %s", away_odds_name, home_odds_name)
