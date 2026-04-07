@@ -2290,15 +2290,18 @@ async def sports_game_loop(
             _now_ts = datetime.now(timezone.utc)
 
             def _future_games(games):
-                """Keep only games that start within the next 24 hours and haven't started yet.
+                """Keep only games that start within the next 72 hours and haven't started yet.
 
                 Using 5-min cutoff (not 30-min): our signal uses PRE-GAME bookmaker consensus.
                 Betting 30+ min into a game means Kalshi live price reflects in-game score while
                 our signal is stale — false edge. Only bet when game is upcoming or within 5 min
                 of scheduled start (handles minor delays).
 
-                24h horizon (was 72h): prevents April 8-9 games from burning the daily cap
-                when April 6 games exist. Today's games are always bet first.
+                72h horizon: covers today + next 3 days. Required at season transitions (e.g.
+                last regular-season day has no Kalshi pricing, but playoff games 48h away DO
+                have active markets). Kalshi markets are sorted ascending by date so today's
+                games are always evaluated first. Daily cap (30) + game-level dedup prevent
+                future games from consuming the full budget before today's games are checked.
                 """
                 future = []
                 for g in games:
@@ -2310,7 +2313,7 @@ async def sports_game_loop(
                         ct = _dt.fromisoformat(g.commence_time.replace("Z", "+00:00"))
                         # Allow games not yet started (or < 5 min after scheduled start for delays)
                         _cutoff = _now_ts - timedelta(minutes=5)
-                        _horizon = _now_ts + timedelta(hours=24)
+                        _horizon = _now_ts + timedelta(hours=72)
                         if ct > _cutoff and ct < _horizon:
                             future.append(g)
                     except Exception:

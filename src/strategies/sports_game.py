@@ -298,6 +298,17 @@ _SOCCER_NAME_TO_ODDS: dict[str, str] = {
     "Sporting CP": "Sporting CP",
     "Man City": "Manchester City",
     "Man United": "Manchester United",
+    # EPL short forms (Kalshi subtitles use short names, ticker codes map to full names)
+    "Tottenham": "Tottenham Hotspur",
+    "Newcastle": "Newcastle United",
+    "Wolverhampton": "Wolverhampton Wanderers",
+    "West Ham": "West Ham United",
+    # Bundesliga short forms
+    "Leipzig": "RB Leipzig",
+    "Leverkusen": "Bayer Leverkusen",
+    "Dortmund": "Borussia Dortmund",
+    # Ligue 1 — Odds API uses "Stade Rennais", Kalshi subtitle says "Stade Rennais" but ticker code maps to "Rennes"
+    "Rennes": "Stade Rennais",
 }
 
 _SOCCER_SPORTS: frozenset = frozenset({
@@ -565,7 +576,7 @@ class SportsGameStrategy(BaseStrategy):
             grade = assign_grade(net_edge_no)
             sharp = sharp_score_for_bet(edge_pct=net_edge_no, efficiency_gap=eff_gap)
             if sharp < SHARP_SCORE_MIN:
-                logger.debug(
+                logger.info(
                     "[sports_game] %s NO sharp=%.1f below %.0f — skip",
                     market.ticker, sharp, SHARP_SCORE_MIN,
                 )
