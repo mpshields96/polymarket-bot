@@ -216,6 +216,39 @@ def log_clv_snapshot(
     return row
 
 
+def maybe_log_clv_for_trade(trade: dict, log_path: Optional[str] = None) -> Optional[dict]:
+    """
+    Log CLV for a settled sports trade when all required prices are available.
+
+    Returns the logged row on success, or None when the trade is ineligible.
+    Eligible trades must:
+      - belong to a `sports_game*` strategy
+      - have signal/open price, fill price, and settlement close price available
+    """
+    strategy = str(trade.get("strategy", "") or "")
+    if not strategy.startswith("sports_game"):
+        return None
+
+    open_price_cents = trade.get("signal_price_cents")
+    bet_price_cents = trade.get("price_cents")
+    close_price_cents = trade.get("close_price_cents")
+    side = trade.get("side")
+    event_id = trade.get("ticker")
+
+    required = (open_price_cents, bet_price_cents, close_price_cents, side, event_id)
+    if any(v is None for v in required):
+        return None
+
+    return log_clv_snapshot(
+        event_id=str(event_id),
+        side=str(side),
+        open_price_cents=int(open_price_cents),
+        bet_price_cents=int(bet_price_cents),
+        close_price_cents=int(close_price_cents),
+        log_path=log_path,
+    )
+
+
 def read_clv_log(last_n: Optional[int] = None, log_path: Optional[str] = None) -> list[dict]:
     """
     Read entries from the CLV CSV log.

@@ -1927,6 +1927,7 @@ async def settlement_loop(kalshi, db, kill_switch, drift_model=None, calibrator=
     total-bankroll-loss hard stops are properly tracked.
     """
     from src.execution.paper import PaperExecutor
+    from src.strategies.sports_clv import maybe_log_clv_for_trade
     paper_exec = PaperExecutor(db=db, strategy_name="settlement")
 
     while True:
@@ -1979,6 +1980,16 @@ async def settlement_loop(kalshi, db, kill_switch, drift_model=None, calibrator=
                         trade["price_cents"], trade["count"],
                         result.upper(), pnl_cents / 100.0,
                     )
+
+                    clv_row = maybe_log_clv_for_trade({
+                        **trade,
+                        "close_price_cents": close_price_cents,
+                    })
+                    if clv_row is not None:
+                        logger.info(
+                            "[settle] CLV logged for %s: %+0.2f%% (%s)",
+                            ticker, clv_row["clv_pct"], clv_row["grade"],
+                        )
 
                     # Notify kill switch — drives consecutive-loss and total-loss hard stops
                     # Only count LIVE trades toward daily loss limit (paper losses are not real money)

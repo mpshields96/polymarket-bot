@@ -728,6 +728,23 @@ class TestExecuteOrderStatusGuard:
         assert result["status"] == "resting"
         db.save_trade.assert_called_once()
 
+    async def test_live_trade_persists_signal_price_cents(
+        self, live_env, bypass_first_run
+    ):
+        """Live execution must preserve the original signal price for CLV tracking."""
+        ob = make_orderbook(no_bid=45)
+        kalshi = make_kalshi_mock(order=make_order(status="resting"))
+        db = make_db_mock()
+        signal = make_signal(price_cents=53)
+
+        result = await execute(
+            signal, make_market(), ob, 5.0, kalshi, db,
+            live_confirmed=True, strategy_name="sports_game_nhl_v1",
+        )
+
+        assert result is not None
+        assert db.save_trade.call_args.kwargs["signal_price_cents"] == 53
+
 
 # ── Sniper price guard override ────────────────────────────────────────────
 

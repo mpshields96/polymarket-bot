@@ -16,6 +16,7 @@ from sports_clv import (
     calculate_clv,
     clv_grade,
     log_clv_snapshot,
+    maybe_log_clv_for_trade,
     read_clv_log,
     clv_summary,
     print_clv_report,
@@ -193,6 +194,63 @@ def test_read_clv_log_parses_numeric_types():
         assert isinstance(entries[0]["open_price_cents"], int)
         assert isinstance(entries[0]["bet_price_cents"], int)
         assert isinstance(entries[0]["close_price_cents"], int)
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+def test_maybe_log_clv_for_trade_skips_non_sports_strategy():
+    path = _tmp_csv()
+    try:
+        row = maybe_log_clv_for_trade({
+            "strategy": "daily_sniper_v1",
+            "ticker": "KXBTCD-TEST",
+            "side": "yes",
+            "signal_price_cents": 50,
+            "price_cents": 48,
+            "close_price_cents": 55,
+        }, log_path=path)
+        assert row is None
+        assert read_clv_log(log_path=path) == []
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+def test_maybe_log_clv_for_trade_skips_missing_prices():
+    path = _tmp_csv()
+    try:
+        row = maybe_log_clv_for_trade({
+            "strategy": "sports_game_nhl_v1",
+            "ticker": "KXNHLGAME-TEST",
+            "side": "yes",
+            "signal_price_cents": None,
+            "price_cents": 48,
+            "close_price_cents": 55,
+        }, log_path=path)
+        assert row is None
+        assert read_clv_log(log_path=path) == []
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+def test_maybe_log_clv_for_trade_logs_sports_entry():
+    path = _tmp_csv()
+    try:
+        row = maybe_log_clv_for_trade({
+            "strategy": "sports_game_nhl_v1",
+            "ticker": "KXNHLGAME-TEST-EDM",
+            "side": "yes",
+            "signal_price_cents": 52,
+            "price_cents": 50,
+            "close_price_cents": 57,
+        }, log_path=path)
+        assert row is not None
+        assert row["event_id"] == "KXNHLGAME-TEST-EDM"
+        assert row["clv_pct"] == 7.0
+        entries = read_clv_log(log_path=path)
+        assert len(entries) == 1
     finally:
         if os.path.exists(path):
             os.unlink(path)

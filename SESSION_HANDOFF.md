@@ -15,45 +15,48 @@
 ## ONE CHAT DOES EVERYTHING. /kalshi-main is the ONLY Kalshi chat.
 ## /kalshi-research is PERMANENTLY RETIRED. Never run it again.
 
-## BOT STATE (S169 wrap — 2026-04-07 23:45 UTC)
+## BOT STATE (S170 wrap — 2026-04-08 01:45 UTC)
   Bot: RUNNING PID 23626 → /tmp/polybot_session169.log
-  All-time live P&L: +131.04 USD | Today CST April 7: +0.60 USD (1 settled, 1 win)
-  Tests: 2337 passing, 3 skipped. Last commits: a92fc86 (MLB paper-only), c548fc5 (max_days_ahead)
+  All-time live P&L: +135.26 USD | Today CST April 8: +4.82 USD (11 settled, 10 wins, 90% WR)
+  April: 118 settled | 110 wins | +65.37 USD
+  Tests: 2398 passing, 3 skipped. Last commit: 8a20675 (test: lock in pitcher-side wiring review)
 
-  S169 COMPLETED:
-  ✅ Restarted bot to session169.log (was on stale PID 303 from S168)
-  ✅ Wired PDO kill switch into sports_game.py generate_signal() (NBA only, static snapshot)
-  ✅ Fixed _last_fetch_ts=float("-inf") in weather.py (4 classes) + fred.py — is_stale always True before first fetch
-  ✅ Added max_days_ahead=1.5 (36h) filter to SportsGameStrategy — blocks games 2+ days out (commit c548fc5)
-  ✅ MLB moved to paper-only: 1/7 WR on settled bets. Root causes: (a) in-game guard bug APR06 (CCA says already fixed ddfdd4f), (b) efficiency_feed uses 2024 ERA (2 years stale for 2026 season), (c) no per-game starting pitcher signal (commit a92fc86)
-  ✅ REQ-093 (MLB analysis) + REQ-094 (starting pitcher mandate) posted to CCA
-  ✅ 4 SIGTERMs throughout session (2 unexplained external ~15min apart, 2 from manual kills)
+  S170 COMPLETED:
+  ✅ Confirmed 9 daily_sniper KXBTCD-26APR0720 bets ALL SETTLED as WINs (BTC ~72k, above all thresholds)
+  ✅ Wired mlb_pitcher_feed.py into sports_game.py generate_signal() (commit fb9e476)
+     - pitcher_kill_switch() applied to YES/NO paths independently (direction-aware)
+     - ERA edge pts boost sharp score before send (+0-10 pts based on ERA quality)
+     - Away-side pitcher correctly boosted for away bets
+  ✅ Corrected CCA sketch issues: game date from ticker/game_time, away-side logic, side-specific kill
+  ✅ Added regression tests for pitcher side-selection (commit 8a20675)
+  ✅ Wired sports CLV tracking into settlement path
+     - live.execute now persists `signal_price_cents` for live sports trades
+     - settlement_loop now calls `sports_clv.maybe_log_clv_for_trade()` for `sports_game*` trades when signal/fill/close prices exist
+     - CLV log now measures whether sports entries beat the close instead of relying on P&L only
+  ✅ Confirmed KXCPI open (81 markets April 8). Economics sniper timing confirmed correct:
+     48h gate fires at April 8 12:25 UTC. No fix needed — sniper working as designed.
+  ✅ Processed CCA REQ-094 delivery. Posted REQ-095 (NBA PDO playoff threshold) to CCA.
+  ✅ 5 monitoring cycles completed. Bot alive all session. 0 new guards from auto_guard_discovery.
+  ✅ CUSUM check: eth_drift S=15.0 confirmed expected (disabled strategy, not actionable).
+  ⚠️ MLB remains PAPER-ONLY. Pitcher wiring complete. Need 2026 efficiency data + clean paper sample.
+  ⚠️ sports_analytics.py still not wired into any operator-facing report path. CLV is now logged, but the full sports performance report is still a latent library, not part of the runtime workflow.
 
-## HOT UPDATE — Codex MLB Review + Wiring
-  ✅ Reviewed CCA REQ-094 deliverable and wired MLB probable-pitcher signal into `src/strategies/sports_game.py`
-  ✅ Corrected CCA sketch issues in live code: game date now resolves from ticker/game time, not subtitle text; away-side pitcher edge now boosts away bets correctly; pitcher kill switch now applies side-specifically to YES and NO paths
-  ✅ Added regression coverage for MLB pitcher side-selection + away-side edge scoring
-  ✅ Targeted verification after patch: `249 passed` across `test_sports_game`, `test_sports_math`, `test_sports_clv`, `test_mlb_pitcher_feed`, `test_sports_analytics`
-  ⚠️ MLB remains PAPER-ONLY. Pitcher wiring is complete, but 2026 efficiency data is still pending before any live re-enable discussion.
+  PENDING TASKS (priority order — Session 171):
+  1. UCL 2nd legs April 8 ~19:00 UTC: LFC vs PSG + BAR vs ATM
+     Open bets: 14215 NO KXUCLGAME BMU/RMA (April 15), 14216 YES KXUCLGAME BAR (April 14), 14224 YES KXUCLGAME PSG (April 14)
+     Check 1st leg results (April 7-8) to assess 2nd leg bet quality
+  2. Economics sniper monitoring: starts firing April 8 12:25 UTC (KXCPI 48h window opens)
+     Monitor paper bets. Live decision April 10. Run cpi_release_monitor.py at 08:28 ET April 10.
+  3. NHL April 8: re-evaluate tonight's games with current data
+  4. MLB paper validation: collect clean paper sample with pitcher signal active (wired S170)
+  5. SIGTERM mystery: 2 unexplained kills at 18:05 + 18:20 CDT (15min apart). Still open.
+  6. NBA PDO playoff threshold (before April 18): CCA REQ-095 filed. Disable or raise PDO kill for playoffs.
+  7. sports_analytics.py runtime/report wiring
+     CLV now logs automatically, but no session/report command surfaces sports calibration/ROI/CLV summary yet.
+  8. Efficiency_feed.py MLB data: 2024 ERA stale. Update or drop MLB from efficiency ratings.
 
-  PENDING TASKS (priority order — Session 170):
-  1. MLB paper validation after pitcher wiring
-     Starting pitcher data is now wired. Next step: collect clean paper sample with the pitcher kill switch + edge bonus active, then reassess MLB edge quality.
-  2. Check if 9 open daily_sniper bets (KXBTCD-26APR0720-T68299-70599) settled after 20:00 UTC
-     BTC was ~72,330 USD — all YES bets should WIN (thresholds 68299-70599, all below BTC price)
-     Query: SELECT ticker,side,result,pnl_cents/100.0 FROM trades WHERE ticker LIKE 'KXBTCD-26APR0720%' AND is_paper=0
-  3. Open sports bets: 11 total (7 MLB April 8, 1 MLB April 7 in-game, 3 UCL April 14)
-     UCL April 14 bets: PSG YES 2.80, BAR YES 2.88, BMU NO 2.64 — 2nd legs, 8 days out when placed
-  4. CPI April 10: confirm KXCPI open April 8, run cpi_release_monitor.py April 10 08:28 ET
-  5. NHL tonight April 7: NSH@ANA, VGK@VAN, SEA@MIN, CGY@DAL — all show negative edge, monitoring
-  6. SIGTERM mystery: bot received 2 unexplained SIGTERMs at 18:05 and 18:20 CDT (15min apart)
-     Pattern: ~15min cycles. Investigate if macOS app management or another Claude process is culprit.
-  7. Efficiency_feed.py MLB data: update to 2026 season stats (or drop MLB from efficiency ratings)
-     NBA data also likely stale — review after starting pitcher work complete.
-  8. polybot-auto.md and polybot-init.md size audit — both approaching limits (check wc -c)
-
-  RESTART COMMAND (Session 170):
-  kill -9 $(ps -A -o pid,args | grep "main.py" | grep -v grep | awk '{print $1}') 2>/dev/null; sleep 2; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session170.log 2>&1 & sleep 5 && ps -A -o pid,args | grep "main.py" | grep -v grep | awk '{print $1}' > bot.pid && echo "PID=$(cat bot.pid)"
+  RESTART COMMAND (Session 171):
+  kill -9 $(ps -A -o pid,args | grep "main.py" | grep -v grep | awk '{print $1}') 2>/dev/null; sleep 2; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session171.log 2>&1 & sleep 5 && ps -A -o pid,args | grep "main.py" | grep -v grep | awk '{print $1}' > bot.pid && echo "PID=$(cat bot.pid)"
 
   NOTE: ps aux | grep "[m]ain.py" DOES NOT WORK on this machine — macOS truncates the long Python path.
   Use: ps -A -o pid,args | grep "main.py" | grep -v grep
@@ -74,12 +77,12 @@
   - expiry_sniper_v1: PAPER-ONLY. PERMANENTLY BANNED from live (15-min crypto ban).
   - All 15-min crypto strategies: PAPER data only. LIVE=BANNED.
 
-## STRATEGY ANALYZER INSIGHTS (S169)
+## STRATEGY ANALYZER INSIGHTS (S170)
   - SNIPER: Profitable buckets: 90-94c. Guarded: 95-98c. EDGE CONFIRMED.
   - btc_drift_v1: NEUTRAL — 80 live bets, 50% WR, -9.53 USD [direction filter "no" active]
   - eth_drift_v1: UNDERPERFORMING — 46% WR below break-even. DISABLED.
   - sol_drift_v1: HEALTHY — 47 live bets, 66% WR, -15.68 USD (still accumulating data)
-  - All-time: +131.04 USD (86% WR, 1696 bets)
+  - All-time: +135.26 USD (85.6% WR, 1706 bets)
 
 ## GUARDS ACTIVE
   - IL-33: KXXRP GLOBAL BLOCK (PERMANENT)
@@ -113,8 +116,9 @@
 
 ## CCA COMMS STATE
   REQ-093: MLB overnight loss analysis — awaiting CCA response (filed S169)
-  REQ-094: Starting pitcher data — DELIVERED by CCA and reviewed by Codex; wiring landed locally
-  CCA latest delivery: REQ-094 pitcher feed was directionally right, but Codex corrected the wire-in details in `sports_game.py`
+  REQ-094: Starting pitcher data — DELIVERED + WIRED S170. Pitcher signal active in sports_game.py.
+  REQ-095: NBA PDO playoff threshold — FILED S170. Before April 18 playoffs, need to disable or raise PDO kill.
+  CCA board: python3 /Users/matthewshields/Projects/ClaudeCodeAdvancements/cross_chat_board.py brief
   Cross-chat: ~/.claude/cross-chat/ | Board: cross_chat_board.py brief
 
 ## KEY BUILDS (still relevant)
@@ -124,3 +128,4 @@
   - PDO kill switch (S169): wired into sports_game.py NBA path
   - max_days_ahead=1.5 filter (S169): blocks 2+ day future games
   - MLB paper-only (S169): starting pitcher wiring complete; pending 2026 efficiency refresh + paper sample
+  - sports_clv.py: settlement wiring complete; CLV entries now generated for eligible sports_game trades

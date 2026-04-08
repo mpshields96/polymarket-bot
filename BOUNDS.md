@@ -282,7 +282,7 @@ miscalibrated Brier scores, unreliable graduation data for several hours.
 
 ### IL-14: Settlement loop only calls record_win/record_loss for live trades
 
-**Rule:** `main.py` settlement_loop line 1982:
+**Rule:** `main.py` settlement_loop line 1998:
 ```python
 if not trade["is_paper"]:
     if won:

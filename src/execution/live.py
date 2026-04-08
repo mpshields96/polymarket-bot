@@ -660,6 +660,7 @@ async def execute(
         is_paper=False,
         client_order_id=client_order_id,
         server_order_id=order.order_id,
+        signal_price_cents=signal.price_cents,
         signal_features=getattr(signal, "features", None),
     )
 
