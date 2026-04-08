@@ -1,6 +1,6 @@
 # SESSION HANDOFF — polymarket-bot
 # Feed this file to any new Claude session to resume work immediately.
-# Last updated: 2026-04-07 23:45 UTC (S169 wrap)
+# Last updated: 2026-04-08 01:58 UTC (S170 wrap + Codex shutdown handoff)
 # ═══════════════════════════════════════════════════════════════
 
 ## ⚠️ READ FIRST: .planning/MATTHEW_DIRECTIVES.md — VERBATIM MANDATE DIRECTIVES (S150, 2026-03-27)
@@ -15,11 +15,11 @@
 ## ONE CHAT DOES EVERYTHING. /kalshi-main is the ONLY Kalshi chat.
 ## /kalshi-research is PERMANENTLY RETIRED. Never run it again.
 
-## BOT STATE (S170 wrap — 2026-04-08 01:45 UTC)
+## BOT STATE (S170 wrap — 2026-04-08 01:58 UTC)
   Bot: RUNNING PID 23626 → /tmp/polybot_session169.log
   All-time live P&L: +135.26 USD | Today CST April 8: +4.82 USD (11 settled, 10 wins, 90% WR)
   April: 118 settled | 110 wins | +65.37 USD
-  Tests: 2398 passing, 3 skipped. Last commit: 8a20675 (test: lock in pitcher-side wiring review)
+  Targeted regressions this Codex pass: 249 passed. Last commit: 432060f (feat(sports): wire clv logging into settlement)
 
   S170 COMPLETED:
   ✅ Confirmed 9 daily_sniper KXBTCD-26APR0720 bets ALL SETTLED as WINs (BTC ~72k, above all thresholds)
@@ -40,6 +40,7 @@
   ✅ CUSUM check: eth_drift S=15.0 confirmed expected (disabled strategy, not actionable).
   ⚠️ MLB remains PAPER-ONLY. Pitcher wiring complete. Need 2026 efficiency data + clean paper sample.
   ⚠️ sports_analytics.py still not wired into any operator-facing report path. CLV is now logged, but the full sports performance report is still a latent library, not part of the runtime workflow.
+  ⚠️ Codex is expected offline after this handoff due to thermal limits on Matthew's machine. Do not wait for more Codex review tonight.
 
   PENDING TASKS (priority order — Session 171):
   1. UCL 2nd legs April 8 ~19:00 UTC: LFC vs PSG + BAR vs ATM
@@ -54,6 +55,13 @@
   7. sports_analytics.py runtime/report wiring
      CLV now logs automatically, but no session/report command surfaces sports calibration/ROI/CLV summary yet.
   8. Efficiency_feed.py MLB data: 2024 ERA stale. Update or drop MLB from efficiency ratings.
+
+  TONIGHT SESSION SEQUENCE (use these as separate focused chats if needed):
+  A. Monitoring chat only: UCL, KXCPI timing, and tonight's NHL board. No code unless a real issue appears.
+  B. Overhaul chat: wire `sports_analytics.py` into an operator-facing path. Prefer `main.py --report` first because that gives Matthew visible CLV/calibration/ROI output fastest.
+  C. MLB cleanup chat: audit current paper bets with pitcher+CLV now wired, and confirm whether paper logs are producing usable validation data.
+  D. MLB data chat: decide whether to refresh MLB team-strength inputs for 2026 or remove MLB from `efficiency_gap` scoring until better data exists.
+  E. Stability chat: investigate the unexplained SIGTERM events only after A-D are under control.
 
   RESTART COMMAND (Session 171):
   kill -9 $(ps -A -o pid,args | grep "main.py" | grep -v grep | awk '{print $1}') 2>/dev/null; sleep 2; rm -f bot.pid; echo "CONFIRM" > /tmp/polybot_confirm.txt; nohup ./venv/bin/python3 main.py --live --reset-soft-stop < /tmp/polybot_confirm.txt >> /tmp/polybot_session171.log 2>&1 & sleep 5 && ps -A -o pid,args | grep "main.py" | grep -v grep | awk '{print $1}' > bot.pid && echo "PID=$(cat bot.pid)"
@@ -115,11 +123,16 @@
   - MONITORING: ALWAYS query DB for bet counts. Never trust log tail alone.
 
 ## CCA COMMS STATE
-  REQ-093: MLB overnight loss analysis — awaiting CCA response (filed S169)
+  REQ-093: Answered by Codex direct handoff. MLB losses were structural: stale 2024 MLB strength data + missing pitcher signal at the time + earlier sports execution/date issues. Current posture: pitcher wired, CLV wired, MLB stays paper-only until 2026 data refresh + paper validation.
   REQ-094: Starting pitcher data — DELIVERED + WIRED S170. Pitcher signal active in sports_game.py.
-  REQ-095: NBA PDO playoff threshold — FILED S170. Before April 18 playoffs, need to disable or raise PDO kill.
+  REQ-095: Answered by Codex direct handoff. Low priority tonight because NBA is paper-only. If touched before April 18, use playoff-specific wider threshold and keep it paper-first.
   CCA board: python3 /Users/matthewshields/Projects/ClaudeCodeAdvancements/cross_chat_board.py brief
   Cross-chat: ~/.claude/cross-chat/ | Board: cross_chat_board.py brief
+
+## LINGERING QUESTIONS — ANSWERED
+  - REQ-093 final verdict: MLB underperformance was not one missing feature. The real fix sequence is data freshness + paper validation, not another heuristic pass.
+  - REQ-095 final verdict: NBA playoff PDO is secondary until NBA is closer to live promotion.
+  - Old REQ-65 style floor question: keep daily_sniper live floor at 90c; if ever revisited, shadow 88-89c in paper only and test sequentially.
 
 ## KEY BUILDS (still relevant)
   - sports_math.py (S165): kill switches, grade tiers, collar checks

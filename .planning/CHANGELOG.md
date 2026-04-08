@@ -9830,3 +9830,51 @@ LOSSES: Session ended early (Matthew stopped). Today's number still below 15 USD
          but it's early in the UTC day.
 ONE THING: Next chat should monitor UCL 1st leg games April 7-8. sports_game will auto-fire
            pre-game arb bets. soccer_sniper runs paper during 88-93c windows.
+
+---
+
+## Session 170 — 2026-04-07/08 (S170)
+### Commits: fb9e476 (pitcher feed wire-in), 8a20675 (pitcher-side regression tests)
+
+### Work Done
+1. **MLB pitcher feed wire-in** (commit fb9e476): Wired CCA-delivered mlb_pitcher_feed.py
+   into sports_game.py generate_signal(). Key corrections from CCA sketch:
+   - game_date resolved from ticker/game_time (not subtitle text)
+   - pitcher kill switch applied side-specifically to YES and NO paths independently
+   - ERA edge pts boost sharp score before signal fired (+0-10 pts based on ERA quality)
+   - Away-side pitcher correctly boosts away bets
+   MLB remains PAPER-ONLY — pitcher wiring complete, need 2026 efficiency data + paper sample.
+
+2. **Pitcher-side regression tests** (commit 8a20675): Added tests locking in correct
+   side-selection behavior for pitcher kill switch and away-side edge scoring.
+
+3. **Monitoring cycles x5**: Bot alive all session. 0 new auto-guards found.
+   CUSUM eth_drift S=15.0 confirmed expected (disabled strategy, not actionable).
+
+4. **Economics sniper confirmed**: KXCPI open with 81 markets April 8. Sniper timing verified:
+   48h gate opens April 8 12:25 UTC. No bug — sniper correctly not firing before window.
+
+5. **CCA comms**: Processed REQ-094 (pitcher feed) delivery. Posted REQ-095 (NBA PDO playoff
+   threshold) — need CCA guidance before April 18 NBA playoffs.
+
+### P&L
+- Today CST: +4.82 USD (11 settled, 10W, 90% WR)
+- All-time live: +135.26 USD (up from +131.04 USD start of S170)
+- April: 118 settled | 110 wins | +65.37 USD
+- Sniper primary: daily_sniper +7.40 USD today (10 bets, all WINs — 9 APR0720 + 1 new)
+
+### Strategy Analyzer Insights
+- Sniper: profitable 90-94c, guarded 95-98c. PRIMARY ENGINE.
+- btc_drift: NEUTRAL (80 bets, 50% WR). direction_filter="no" active.
+- eth_drift: UNDERPERFORMING (46% WR, declining). DISABLED — correct.
+- sol_drift: HEALTHY (47 bets, 66% WR). Still accumulating.
+
+### Grade: B
+WINS: MLB pitcher feed wired correctly (direction-aware kill switch + sharp score boost).
+      9 daily sniper APR0720 bets confirmed all WINs. Economics sniper confirmed healthy
+      (just too early in window — fires April 8 12:25 UTC). Bot alive all session.
+LOSSES: No new income source unlocked. April income +65.37 but weighted by 118 sniper bets.
+        Pure daily sniper rate ~65 USD / 8 days = ~8 USD/day, below 15-25 target.
+        MLB legacy live losses drag April total.
+ONE THING: Session 171 must check UCL 1st leg results (April 7-8 games) and economics sniper
+           paper bets that fire April 8 12:25 UTC. Then assess live promotion for CPI April 10.
