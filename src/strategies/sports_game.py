@@ -41,6 +41,11 @@ from src.strategies.sports_math import (
     pdo_kill_switch_from_snapshot,
 )
 from src.strategies.efficiency_feed import get_efficiency_gap
+from src.strategies.mlb_pitcher_feed import (
+    get_pitcher_matchup,
+    pitcher_edge_pts,
+    pitcher_kill_switch,
+)
 
 if TYPE_CHECKING:
     from src.platforms.kalshi import Market
@@ -520,6 +525,32 @@ class SportsGameStrategy(BaseStrategy):
             elif _reason:
                 logger.debug("[sports_game] %s PDO FLAG (NO): %s", market.ticker, _reason)
 
+        # MLB only — starting pitcher signal (REQ-094, CCA dc9bb54)
+        # Kill when clearly inferior SP is starting (ERA > 6.50 in ≥ 15 IP).
+        # Boost sharp score when our team's SP has significantly better ERA.
+        _pitcher_yes_kill = False
+        _pitcher_no_kill = False
+        _pitcher_yes_edge_pts = 0.0
+        _pitcher_no_edge_pts = 0.0
+        if "baseball_mlb" in self.sport:
+            game_date_str = _game_date_str(kalshi_date, game)
+            _pm = get_pitcher_matchup(
+                home_team=home_odds_name,
+                away_team=away_odds_name,
+                game_date=game_date_str,
+            )
+            _yes_is_home = (yes_odds_name == home_odds_name)
+            _yk, _yk_r = pitcher_kill_switch(_pm, betting_home=_yes_is_home)
+            _pitcher_yes_kill = _yk
+            if _yk:
+                logger.info("[sports_game] %s pitcher kill YES: %s", market.ticker, _yk_r)
+            _nk, _nk_r = pitcher_kill_switch(_pm, betting_home=not _yes_is_home)
+            _pitcher_no_kill = _nk
+            if _nk:
+                logger.info("[sports_game] %s pitcher kill NO: %s", market.ticker, _nk_r)
+            _pitcher_yes_edge_pts = pitcher_edge_pts(_pm, betting_home=_yes_is_home)
+            _pitcher_no_edge_pts = pitcher_edge_pts(_pm, betting_home=not _yes_is_home)
+
         # Determine consensus prob for the YES side
         if yes_odds_name == game.home_team:
             consensus_prob = game.home_prob
@@ -551,24 +582,31 @@ class SportsGameStrategy(BaseStrategy):
         net_edge_no = edge_no - fee_no
 
         logger.info(
-            "[sports_game] %s match=%s @ %s | yes_team=%s | YES=%d¢ vs fair=%.1f%% | NO=%d¢ vs fair=%.1f%% | edge_yes=%.1f%% edge_no=%.1f%% books=%d eff_gap=%.1f",
+            "[sports_game] %s match=%s @ %s | yes_team=%s | YES=%d¢ vs fair=%.1f%% | NO=%d¢ vs fair=%.1f%% | edge_yes=%.1f%% edge_no=%.1f%% books=%d eff_gap=%.1f pitcher_yes=%.1f pitcher_no=%.1f",
             market.ticker, game.away_team, game.home_team, yes_odds_name,
             int(kalshi_yes * 100), consensus_prob * 100,
             int(kalshi_no * 100), consensus_no * 100,
             net_edge_yes * 100, net_edge_no * 100, game.num_books, eff_gap,
+            _pitcher_yes_edge_pts, _pitcher_no_edge_pts,
         )
 
         if net_edge_yes >= self.min_edge_pct:
             if _pdo_yes_kill:
                 return None
+            if _pitcher_yes_kill:
+                return None
             grade = assign_grade(net_edge_yes)
-            sharp = sharp_score_for_bet(edge_pct=net_edge_yes, efficiency_gap=eff_gap)
+            sharp = min(
+                100.0,
+                sharp_score_for_bet(edge_pct=net_edge_yes, efficiency_gap=eff_gap) + _pitcher_yes_edge_pts,
+            )
             if sharp < SHARP_SCORE_MIN:
                 logger.info(
                     "[sports_game] %s YES sharp=%.1f below %.0f — skip",
                     market.ticker, sharp, SHARP_SCORE_MIN,
                 )
                 return None
+            pitcher_note = f" pitcher={_pitcher_yes_edge_pts:.1f}" if _pitcher_yes_edge_pts > 0 else ""
             return Signal(
                 ticker=market.ticker,
                 side="yes",
@@ -579,21 +617,27 @@ class SportsGameStrategy(BaseStrategy):
                 reason=(
                     f"[{grade}] {yes_odds_name} YES consensus={consensus_prob:.0%} "
                     f"vs Kalshi YES={kalshi_yes:.0%} ({game.num_books} books) "
-                    f"eff_gap={eff_gap:.1f} sharp={sharp:.0f}"
+                    f"eff_gap={eff_gap:.1f}{pitcher_note} sharp={sharp:.0f}"
                 ),
             )
 
         if net_edge_no >= self.min_edge_pct:
             if _pdo_no_kill:
                 return None
+            if _pitcher_no_kill:
+                return None
             grade = assign_grade(net_edge_no)
-            sharp = sharp_score_for_bet(edge_pct=net_edge_no, efficiency_gap=eff_gap)
+            sharp = min(
+                100.0,
+                sharp_score_for_bet(edge_pct=net_edge_no, efficiency_gap=eff_gap) + _pitcher_no_edge_pts,
+            )
             if sharp < SHARP_SCORE_MIN:
                 logger.info(
                     "[sports_game] %s NO sharp=%.1f below %.0f — skip",
                     market.ticker, sharp, SHARP_SCORE_MIN,
                 )
                 return None
+            pitcher_note = f" pitcher={_pitcher_no_edge_pts:.1f}" if _pitcher_no_edge_pts > 0 else ""
             return Signal(
                 ticker=market.ticker,
                 side="no",
@@ -605,7 +649,7 @@ class SportsGameStrategy(BaseStrategy):
                     f"[{grade}] {yes_odds_name} YES overpriced: consensus={consensus_prob:.0%} "
                     f"vs Kalshi YES={kalshi_yes:.0%}; "
                     f"NO fair={consensus_no:.0%} vs Kalshi NO={kalshi_no:.0%} "
-                    f"({game.num_books} books) eff_gap={eff_gap:.1f} sharp={sharp:.0f}"
+                    f"({game.num_books} books) eff_gap={eff_gap:.1f}{pitcher_note} sharp={sharp:.0f}"
                 ),
             )
 
@@ -693,6 +737,19 @@ def _match_game(games: list, home: str, away: str,
     if kalshi_date is not None and _date_diff(best) > _MAX_MATCH_DISTANCE_SEC:
         return None  # closest match too far from Kalshi ticker date — fail closed
     return best
+
+
+def _game_date_str(kalshi_date: Optional[datetime], game: object) -> str:
+    """Resolve YYYY-MM-DD for game-day side channels like MLB probable pitchers."""
+    if kalshi_date is not None:
+        return kalshi_date.date().isoformat()
+    commence_time = getattr(game, "commence_time", None)
+    if commence_time:
+        try:
+            return datetime.fromisoformat(commence_time.replace("Z", "+00:00")).date().isoformat()
+        except (ValueError, AttributeError):
+            pass
+    return datetime.now(timezone.utc).date().isoformat()
 
 
 # ── Factory ─────────────────────────────────────────────────────────────────
