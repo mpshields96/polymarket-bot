@@ -1,5 +1,59 @@
 # POLYMARKET-BOT CHANGELOG
 
+## S169 — 2026-04-07 ~23:45 UTC (PDO wiring, max_days_ahead filter, MLB paper-only, pitcher mandate)
+
+### P&L: +0.60 USD today CST (1 settled, 1 win) | All-time: +131.04 USD
+Bot: RUNNING PID 23626 → session169.log
+Tests: 2337 passing, 3 skipped. Last commits: a92fc86, c548fc5, commit earlier with PDO + staleness fixes
+
+### BUILD: PDO kill switch wired into sports_game.py (NBA only)
+- Added `pdo_kill_switch_from_snapshot` to imports from sports_math
+- Pre-checks run after eff_gap computation, before YES/NO signal branches
+- Kills YES bets when betting WITH a REGRESS-flagged team, kills NO bets when fading RECOVER team
+- NHL goalie kill switch NOT wired (OddsAPI doesn't provide goalie starter data)
+
+### FIX: _last_fetch_ts = float("-inf") in weather.py + fred.py
+- WeatherFeed/OpenMeteoFeed/NWSFeed/GEFSEnsembleFeed + FREDFeed all had `_last_fetch_ts = 0.0`
+- On freshly booted systems (uptime < refresh interval), `is_stale` returned False before first fetch
+- Fixed 6 pre-existing test failures in test_weather_strategy.py + test_unemployment_strategy.py
+
+### BUILD: max_days_ahead=1.5 filter in SportsGameStrategy (commit c548fc5)
+- Matthew directive: "focus on present-day games, exception only for next-day games when it's evening"
+- Previously: strategy evaluated ALL open markets including UCL April 14 bets placed April 6 (8 days ahead)
+- Now: games starting >36 hours from now are skipped at DEBUG level
+- Tests: 2337/2337 passing
+
+### FIX: MLB moved to paper-only (commit a92fc86)
+- Overnight results: 1/7 WR (14%) on settled live bets. P&L: -5.55 USD.
+- Root cause A: in-game guard bug APR06 — bets placed on games already in progress (CCA says already fixed ddfdd4f)
+- Root cause B: efficiency_feed.py uses 2024-season team ERA — 2 YEARS STALE for 2026 season
+- Root cause C: no per-game starting pitcher signal (the #1 factor in MLB outcomes)
+- CCA note: N=7 is statistically insufficient to distinguish "bad luck" from "bad edge" (6.2% p-value)
+- Matthew explicit directive: starting pitcher data = ABSOLUTE REQUIREMENT before MLB re-enables
+- REQ-094 filed to CCA for starting pitcher research + integration plan
+
+### OPERATIONS: 4 SIGTERMs during session
+- 18:05 CDT + 18:20 CDT: unexplained external SIGTERMs ~15min apart
+- 18:33 CDT + 18:34 CDT: intentional (manual restart to pick up fixes)
+- Investigation: no lingering shell scripts found. Possible macOS background app management.
+- ps aux grep pattern DOES NOT WORK on this machine — must use `ps -A -o pid,args | grep "main.py"`
+
+### CCA COMMS
+- REQ-093: MLB overnight loss analysis + sports overhaul status
+- REQ-094 (URGENT): starting pitcher data — MLB Stats API (statsapi.mlb.com), free
+
+### Strategy Analyzer Insights (S169)
+- SNIPER: Profitable buckets 90-94c. Guarded: 95-98c.
+- btc_drift_v1: NEUTRAL (50% WR, -9.53 USD). Direction filter "no" active.
+- eth_drift_v1: UNDERPERFORMING (46% WR, declining). DISABLED.
+- sol_drift_v1: HEALTHY (66% WR, 47 bets, -15.68 USD accumulating data).
+- NHL: 4/4 wins, +33.66 USD all-time. ONLY profitable sports strategy.
+- NBA: 0% WR on 2 old bets (pre-cap era, effectively no data at current caps).
+
+### GRADE: B
+- WINS: PDO wiring complete, max_days_ahead bug fixed, MLB paper-only decisive action, 4 restarts handled, CCA comms maintained, staleness fix prevents future test failures
+- LOSSES: SIGTERM mystery unresolved, MLB paper-only may be premature (CCA says APR06 cause was in-game guard, not model), starting pitcher not yet implemented (needs next session), P&L +0.60 (cap hit before analysis could generate sports bets)
+
 ## S168 — 2026-04-07 ~03:55 UTC (inplay sniper calculate_size fix + stale task verification)
 
 ### P&L: -1.28 USD today CST (26 settled, 19 wins = 73% WR) | All-time: +130.44 USD
