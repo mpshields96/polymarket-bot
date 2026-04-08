@@ -9878,3 +9878,13 @@ LOSSES: No new income source unlocked. April income +65.37 but weighted by 118 s
         MLB legacy live losses drag April total.
 ONE THING: Session 171 must check UCL 1st leg results (April 7-8 games) and economics sniper
            paper bets that fire April 8 12:25 UTC. Then assess live promotion for CPI April 10.
+
+### Codex additions (same S170 context — commit 432060f + 181f7d8)
+- CLV logging wired into settlement_loop: sports_game* trades now call
+  sports_clv.maybe_log_clv_for_trade() on settlement. Live executions persist
+  signal_price_cents for CLV delta measurement.
+- mlb_live_ratings.py built (commit 181f7d8, REQ-093 CCA delivery):
+  2026 Pythagorean team ratings from MLB Stats API (run differential, 30-game prior).
+  Replaces stale 2024 ERA in efficiency_feed.py. 14 tests, 6hr cache, graceful fallback.
+  Wire-in still needed: efficiency_feed.py refresh_efficiency_feed_mlb() call.
+  MLB stays paper-only until 50 clean paper bets collected after full wiring.
