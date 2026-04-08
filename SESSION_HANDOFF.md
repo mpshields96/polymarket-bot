@@ -19,7 +19,8 @@
   Bot: RUNNING PID 23626 → /tmp/polybot_session169.log
   All-time live P&L: +135.26 USD | Today CST April 8: +4.82 USD (11 settled, 10 wins, 90% WR)
   April: 118 settled | 110 wins | +65.37 USD
-  Targeted regressions this Codex pass: 249 passed. Last commit: 432060f (feat(sports): wire clv logging into settlement)
+  Targeted regressions from the Codex sports pass: 249 passed. CLV wiring commit: 432060f (feat(sports): wire clv logging into settlement)
+  Current repo HEAD at handoff write: 22cfaff (docs: S170 wrap — MLB pitcher feed wired, sniper APR0720 WINs confirmed, CPI timing verified)
 
   S170 COMPLETED:
   ✅ Confirmed 9 daily_sniper KXBTCD-26APR0720 bets ALL SETTLED as WINs (BTC ~72k, above all thresholds)
