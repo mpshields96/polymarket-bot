@@ -18,6 +18,7 @@ from src.strategies.sports_game import (
     load_nba_from_config,
     load_nhl_from_config,
 )
+from src.strategies.mlb_pitcher_feed import PitcherMatchup
 from src.data.odds_api import OddsGame, OddsAPIFeed, _remove_vig, _decimal_to_implied
 from src.platforms.kalshi import Market
 
@@ -497,3 +498,80 @@ def test_match_game_no_date_returns_first():
                   home_prob=0.58, away_prob=0.42, num_books=3)
     result = _match_game([g1, g2], "Boston Red Sox", "Milwaukee Brewers", None)
     assert result is g1
+
+
+@patch("src.strategies.sports_game.get_efficiency_gap", return_value=10.0)
+@patch("src.strategies.sports_game.get_pitcher_matchup")
+def test_mlb_signal_skips_yes_side_when_selected_pitcher_is_kill(mock_matchup, _mock_gap):
+    strategy = SportsGameStrategy(sport="baseball_mlb", min_edge_pct=0.05, min_books=2)
+    market = _market(
+        ticker="KXMLBGAME-26APR071845MILBOS-MIL",
+        title="Milwaukee at Boston Winner?",
+        yes_price=67,
+        no_price=33,
+        volume=500,
+    )
+    market.raw = {"yes_sub_title": "Milwaukee", "no_sub_title": "Boston"}
+    games = [OddsGame(
+        sport="baseball_mlb",
+        game_id="mlb-test",
+        home_team="Boston Red Sox",
+        away_team="Milwaukee Brewers",
+        commence_time="2026-04-07T18:45:00Z",
+        home_prob=0.26,
+        away_prob=0.74,
+        num_books=3,
+    )]
+    mock_matchup.return_value = PitcherMatchup(
+        home_team="Boston Red Sox",
+        away_team="Milwaukee Brewers",
+        game_date="2026-04-07",
+        kill_away=True,
+        kill_reason="SP kill: Milwaukee starter ERA 7.20 in 25.0 IP",
+    )
+
+    sig = strategy.generate_signal(market, games, yes_side_team="Milwaukee")
+
+    assert sig is None
+    mock_matchup.assert_called_once_with(
+        home_team="Boston Red Sox",
+        away_team="Milwaukee Brewers",
+        game_date="2026-04-07",
+    )
+
+
+@patch("src.strategies.sports_game.get_efficiency_gap", return_value=10.0)
+@patch("src.strategies.sports_game.get_pitcher_matchup")
+def test_mlb_signal_applies_away_pitcher_edge_pts_to_yes_side(mock_matchup, _mock_gap):
+    strategy = SportsGameStrategy(sport="baseball_mlb", min_edge_pct=0.05, min_books=2)
+    market = _market(
+        ticker="KXMLBGAME-26APR071845MILBOS-MIL",
+        title="Milwaukee at Boston Winner?",
+        yes_price=67,
+        no_price=33,
+        volume=500,
+    )
+    market.raw = {"yes_sub_title": "Milwaukee", "no_sub_title": "Boston"}
+    games = [OddsGame(
+        sport="baseball_mlb",
+        game_id="mlb-test",
+        home_team="Boston Red Sox",
+        away_team="Milwaukee Brewers",
+        commence_time="2026-04-07T18:45:00Z",
+        home_prob=0.256,
+        away_prob=0.744,
+        num_books=3,
+    )]
+    mock_matchup.return_value = PitcherMatchup(
+        home_team="Boston Red Sox",
+        away_team="Milwaukee Brewers",
+        game_date="2026-04-07",
+        era_advantage=-2.5,
+        edge_pts=0.0,
+    )
+
+    sig = strategy.generate_signal(market, games, yes_side_team="Milwaukee")
+
+    assert sig is not None
+    assert sig.side == "yes"
+    assert "pitcher=5.0" in sig.reason

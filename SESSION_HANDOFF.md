@@ -29,10 +29,16 @@
   ✅ REQ-093 (MLB analysis) + REQ-094 (starting pitcher mandate) posted to CCA
   ✅ 4 SIGTERMs throughout session (2 unexplained external ~15min apart, 2 from manual kills)
 
+## HOT UPDATE — Codex MLB Review + Wiring
+  ✅ Reviewed CCA REQ-094 deliverable and wired MLB probable-pitcher signal into `src/strategies/sports_game.py`
+  ✅ Corrected CCA sketch issues in live code: game date now resolves from ticker/game time, not subtitle text; away-side pitcher edge now boosts away bets correctly; pitcher kill switch now applies side-specifically to YES and NO paths
+  ✅ Added regression coverage for MLB pitcher side-selection + away-side edge scoring
+  ✅ Targeted verification after patch: `249 passed` across `test_sports_game`, `test_sports_math`, `test_sports_clv`, `test_mlb_pitcher_feed`, `test_sports_analytics`
+  ⚠️ MLB remains PAPER-ONLY. Pitcher wiring is complete, but 2026 efficiency data is still pending before any live re-enable discussion.
+
   PENDING TASKS (priority order — Session 170):
-  1. MLB starting pitcher data — Matthew HARD REQUIREMENT before MLB live re-enables
-     Free API: statsapi.mlb.com/api/v1/schedule?sportId=1&date=YYYY-MM-DD (returns probable pitchers)
-     CCA REQ-094 filed. Await CCA response or implement mlb_pitcher_feed.py inline.
+  1. MLB paper validation after pitcher wiring
+     Starting pitcher data is now wired. Next step: collect clean paper sample with the pitcher kill switch + edge bonus active, then reassess MLB edge quality.
   2. Check if 9 open daily_sniper bets (KXBTCD-26APR0720-T68299-70599) settled after 20:00 UTC
      BTC was ~72,330 USD — all YES bets should WIN (thresholds 68299-70599, all below BTC price)
      Query: SELECT ticker,side,result,pnl_cents/100.0 FROM trades WHERE ticker LIKE 'KXBTCD-26APR0720%' AND is_paper=0
@@ -59,7 +65,7 @@
   - daily_sniper_v1: LIVE (10 USD cap, 10 bets/day). PRIMARY ENGINE. +118.70 USD all-time. 99% WR.
     SNIPER RESETS: 06:00 UTC = 01:00 AM CDT (NOT midnight UTC, NOT midnight CST).
   - sports_game_nhl_v1: LIVE (3 USD cap). 4/4 wins, +33.66 USD all-time. PROFITABLE.
-  - sports_game_mlb_v1: PAPER-ONLY (0 USD cap). Need starting pitcher data + 2026 efficiency data.
+  - sports_game_mlb_v1: PAPER-ONLY (0 USD cap). Starting pitcher feed is wired; still need 2026 efficiency data + paper validation.
   - sports_game_nba_v1: PAPER-ONLY (0 USD cap). Only 2 settled bets (old, pre-cap).
   - sports_game soccer (EPL/UCL/Bundesliga/SerieA/LaLiga/Ligue1): LIVE (2 USD cap each).
     max_days_ahead=1.5 (36h) now active — no more 3-day-out soccer bets.
@@ -107,8 +113,8 @@
 
 ## CCA COMMS STATE
   REQ-093: MLB overnight loss analysis — awaiting CCA response (filed S169)
-  REQ-094: Starting pitcher data — URGENT, absolute requirement (filed S169)
-  CCA latest delivery: APR06 in-game bet analysis (says APR06 losses = in-game guard bug, already fixed)
+  REQ-094: Starting pitcher data — DELIVERED by CCA and reviewed by Codex; wiring landed locally
+  CCA latest delivery: REQ-094 pitcher feed was directionally right, but Codex corrected the wire-in details in `sports_game.py`
   Cross-chat: ~/.claude/cross-chat/ | Board: cross_chat_board.py brief
 
 ## KEY BUILDS (still relevant)
@@ -117,4 +123,4 @@
   - sports_inplay_sniper (S168): calculate_size bug fixed
   - PDO kill switch (S169): wired into sports_game.py NBA path
   - max_days_ahead=1.5 filter (S169): blocks 2+ day future games
-  - MLB paper-only (S169): pending starting pitcher + 2026 data
+  - MLB paper-only (S169): starting pitcher wiring complete; pending 2026 efficiency refresh + paper sample

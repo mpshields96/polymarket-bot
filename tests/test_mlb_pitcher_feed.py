@@ -23,6 +23,7 @@ from mlb_pitcher_feed import (
     _teams_match,
     _normalize_team,
     pitcher_kill_switch,
+    pitcher_edge_pts,
     get_pitcher_matchup,
     _ERA_FALLBACK,
     _schedule_cache,
@@ -178,6 +179,22 @@ def test_pitcher_kill_switch_no_kill():
     killed, reason = pitcher_kill_switch(matchup, betting_home=True)
     assert killed is False
     assert reason == ""
+
+
+def test_pitcher_edge_pts_home_better_only_rewards_home_side():
+    matchup = PitcherMatchup(home_team="Cubs", away_team="Rays", game_date="2026-04-07")
+    matchup.era_advantage = 2.5
+    matchup.edge_pts = 5.0
+    assert pitcher_edge_pts(matchup, betting_home=True) == 5.0
+    assert pitcher_edge_pts(matchup, betting_home=False) == 0.0
+
+
+def test_pitcher_edge_pts_away_better_rewards_away_side():
+    matchup = PitcherMatchup(home_team="Cubs", away_team="Rays", game_date="2026-04-07")
+    matchup.era_advantage = -2.5
+    matchup.edge_pts = 0.0
+    assert pitcher_edge_pts(matchup, betting_home=True) == 0.0
+    assert pitcher_edge_pts(matchup, betting_home=False) == 5.0
 
 
 # ---------------------------------------------------------------------------

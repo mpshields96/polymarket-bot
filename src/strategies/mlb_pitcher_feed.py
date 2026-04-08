@@ -388,3 +388,17 @@ def pitcher_kill_switch(matchup: PitcherMatchup, betting_home: bool) -> tuple[bo
     if not betting_home and matchup.kill_away:
         return True, matchup.kill_reason
     return False, ""
+
+
+def pitcher_edge_pts(matchup: PitcherMatchup, betting_home: bool) -> float:
+    """
+    Return pitcher edge points for the side we are actually betting.
+
+    matchup.edge_pts is stored from the home-team perspective. Convert that
+    into the selected side so away-team bets can receive the same ERA bonus.
+    """
+    if betting_home:
+        return round(max(0.0, matchup.edge_pts), 1)
+    if matchup.era_advantage >= 0.0:
+        return 0.0
+    return round(min(ERA_EDGE_PTS_MAX, ERA_EDGE_SCALE * abs(matchup.era_advantage)), 1)
